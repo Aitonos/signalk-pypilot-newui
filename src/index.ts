@@ -1,0 +1,412 @@
+import { PypilotClient, PypilotCatalog } from "./pypilot-client";
+import {
+  FIXED_MAPPINGS,
+  RESERVED_PYPILOT_KEYS,
+  autoMap,
+  convertForSK,
+  mapDynamicName,
+  Mapping,
+  skPathToPypilotName,
+} from "./publisher";
+import { scanLan } from "./scanner";
+
+// Rev counter bumped on every build so the user can distinguish deploys
+// from the webapp header (feedback_revision_bump_each_build).
+const PLUGIN_REVISION = "Rev1";
+
+const PLUGIN_ID = "signalk-pypilot-newui";
+const SOURCE_LABEL = "pypilot-newui";
+
+// Default watch periods per rate class. `true` = deliver on every change.
+const WATCH_HIGH: true | number = true;    // gains, engaged, mode changes, tack
+const WATCH_MED: true | number = 1;        // telemetry that rarely changes
+const WATCH_LOW: true | number = 5;        // runtime, version, one-shot
+
+interface PluginProps {
+  host: string;
+  port: number;
+  reconnectDelayMs?: number;
+  allowWrites?: boolean;
+  allowDirectServo?: boolean;
+  publishUnmapped?: boolean;
+  enabledPaths?: Record<string, boolean>;  // SK path -> publish yes/no
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+module.exports = function (app: any) {
+  let client: PypilotClient | null = null;
+  let props: PluginProps = { host: "", port: 80 };
+  let lastCatalog: PypilotCatalog = {};
+  let lastPingLatencyMs: number | null = null;
+  let publishedSkPaths: Set<string> = new Set();
+  let putHandlersRegistered: Set<string> = new Set();
+  let lastConnectAt: number | null = null;
+  let lastDisconnectReason: string | null = null;
+  let deltaSentCount = 0;
+
+  const plugin = {
+    id: PLUGIN_ID,
+    name: "PyPilot New-UI + SK Paths",
+    description:
+      "Modern touch-first control panel for pypilot autopilot plus every pypilot value as a first-class Signal K path (KIP-ready). Complements the official pypilot-autopilot-provider.",
+    revision: PLUGIN_REVISION,
+
+    schema: () => ({
+      type: "object",
+      required: ["host", "port"],
+      properties: {
+        host: {
+          type: "string",
+          title: "pypilot_web host",
+          description:
+            "IP or hostname of the machine running pypilot_web. Use the SETUP tab of the webapp to scan the LAN.",
+          default: "",
+        },
+        port: {
+          type: "number",
+          title: "pypilot_web port",
+          description:
+            "TinyPilot ships pypilot_web on port 80. Classic pypilot install uses 8000.",
+          default: 80,
+        },
+        reconnectDelayMs: {
+          type: "number",
+          title: "Reconnect delay (ms)",
+          default: 3000,
+        },
+        allowWrites: {
+          type: "boolean",
+          title: "Allow writes",
+          description:
+            "Enables PUT handlers so Signal K clients can send commands (engage, mode, target, gains). Off = read-only mode.",
+          default: true,
+        },
+        allowDirectServo: {
+          type: "boolean",
+          title: "Allow direct servo command",
+          description:
+            "DANGER: exposes the raw servo.command back-door used for manual steering. Watchdog is still enforced, but leave this OFF unless you understand the safety implications.",
+          default: false,
+        },
+        publishUnmapped: {
+          type: "boolean",
+          title: "Publish unmapped values",
+          description:
+            "When on, every pypilot value discovered at runtime that is not in the fixed mapping table is auto-published under steering.autopilot.pypilot.<sanitized_name>.",
+          default: false,
+        },
+      },
+    }),
+
+    start: (options: PluginProps) => {
+      props = normalizeProps(options);
+      if (!props.host) {
+        app.setPluginStatus(
+          "Not configured - open Plugin Config and set host:port, or use the SETUP tab of the webapp."
+        );
+        return;
+      }
+      app.setPluginStatus(
+        `${PLUGIN_REVISION} - connecting to pypilot_web at ${props.host}:${props.port}`
+      );
+
+      client = new PypilotClient({
+        host: props.host,
+        port: props.port,
+        reconnectDelayMs: props.reconnectDelayMs,
+        log: (level, msg) => {
+          if (level === "error") app.error(msg);
+          else if (level === "warn") app.debug(msg);
+          else app.debug(msg);
+        },
+      });
+
+      client.on("connect", () => {
+        lastConnectAt = Date.now();
+        lastDisconnectReason = null;
+        app.setPluginStatus(
+          `${PLUGIN_REVISION} - connected to ${props.host}:${props.port}`
+        );
+      });
+
+      client.on("disconnect", (reason: string) => {
+        lastDisconnectReason = reason;
+        app.setPluginStatus(
+          `${PLUGIN_REVISION} - reconnecting (last: ${reason})`
+        );
+      });
+
+      client.on("pong", (latency: number) => {
+        lastPingLatencyMs = latency;
+      });
+
+      client.on("catalog", (catalog: PypilotCatalog) => {
+        lastCatalog = catalog;
+        setupWatches(client!, catalog);
+        registerPutHandlers(catalog);
+        publishMeta(catalog);
+      });
+
+      client.on("value", (name: string, value: unknown) => {
+        publishValue(name, value);
+      });
+
+      client.start();
+    },
+
+    stop: () => {
+      if (client) {
+        try { client.stop(); } catch { /* defensive */ }
+        client = null;
+      }
+      lastCatalog = {};
+      publishedSkPaths = new Set();
+      putHandlersRegistered = new Set();
+      deltaSentCount = 0;
+      lastConnectAt = null;
+      lastDisconnectReason = null;
+      app.setPluginStatus(`${PLUGIN_REVISION} - stopped`);
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    registerWithRouter: (router: any) => {
+      router.get("/status", (_req: any, res: any) => {
+        res.json({
+          revision: PLUGIN_REVISION,
+          host: props.host,
+          port: props.port,
+          connected: client?.connected ?? false,
+          lastConnectAt,
+          lastDisconnectReason,
+          catalogSize: Object.keys(lastCatalog).length,
+          publishedPaths: [...publishedSkPaths],
+          putHandlersRegistered: [...putHandlersRegistered],
+          deltaSentCount,
+          lastPingLatencyMs,
+          allowWrites: props.allowWrites ?? true,
+          allowDirectServo: props.allowDirectServo ?? false,
+        });
+      });
+
+      router.get("/paths", (_req: any, res: any) => {
+        const items: any[] = [];
+        for (const [name, meta] of Object.entries(lastCatalog)) {
+          if (RESERVED_PYPILOT_KEYS.has(name)) continue;
+          let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
+          if (!mapping) mapping = mapDynamicName(name, lastCatalog);
+          if (!mapping) {
+            if (props.publishUnmapped) mapping = autoMap(name);
+            else continue;
+          }
+          items.push({
+            pypilotName: name,
+            skPath: mapping.skPath,
+            units: mapping.units,
+            displayName: mapping.displayName,
+            catalog: meta,
+            get: `/signalk/v1/api/vessels/self/${mapping.skPath.replace(/\./g, "/")}`,
+            put: mapping.putKind === "plain"
+              ? `PUT /plugins/${PLUGIN_ID}/raw  {"name":"${name}","value":<value>}`
+              : null,
+          });
+        }
+        res.json({ count: items.length, items });
+      });
+
+      router.get("/catalog", (_req: any, res: any) => {
+        res.json(lastCatalog);
+      });
+
+      router.get("/scan", async (req: any, res: any) => {
+        try {
+          const subnet = typeof req.query.subnet === "string" ? req.query.subnet : undefined;
+          const hits = await scanLan({ subnet });
+          res.json({ subnet: subnet ?? "auto", hits });
+        } catch (e: any) {
+          res.status(500).json({ error: e?.message || String(e) });
+        }
+      });
+
+      router.put("/raw", (req: any, res: any) => {
+        if (!props.allowWrites) {
+          return res.status(403).json({ error: "allowWrites is disabled" });
+        }
+        if (!client || !client.connected) {
+          return res.status(503).json({ error: "pypilot not connected" });
+        }
+        const name = req.body?.name;
+        const value = req.body?.value;
+        if (typeof name !== "string") {
+          return res.status(400).json({ error: "missing 'name' string" });
+        }
+        if (!props.allowDirectServo && name === "servo.command") {
+          return res.status(403).json({ error: "servo.command requires allowDirectServo" });
+        }
+        client.set(name, value);
+        res.json({ ok: true, name, value });
+      });
+    },
+  };
+
+  // ---- helpers ----
+
+  function normalizeProps(options: Partial<PluginProps>): PluginProps {
+    return {
+      host: (options.host || "").trim(),
+      port: typeof options.port === "number" ? options.port : 80,
+      reconnectDelayMs:
+        typeof options.reconnectDelayMs === "number"
+          ? options.reconnectDelayMs
+          : 3000,
+      allowWrites: options.allowWrites !== false,
+      allowDirectServo: options.allowDirectServo === true,
+      publishUnmapped: options.publishUnmapped === true,
+      enabledPaths: options.enabledPaths || {},
+    };
+  }
+
+  function setupWatches(c: PypilotClient, catalog: PypilotCatalog): void {
+    // High-rate: engage/mode changes and gains that the user might slide.
+    for (const name of Object.keys(catalog)) {
+      if (RESERVED_PYPILOT_KEYS.has(name)) continue;
+      if (name.startsWith("ap.pilots.")) {
+        c.watch(name, WATCH_HIGH);
+      } else if (
+        name.startsWith("ap.tack.") ||
+        name === "ap.pilot" ||
+        name === "profile" ||
+        name === "profiles" ||
+        name === "ap.modes"
+      ) {
+        c.watch(name, WATCH_HIGH);
+      } else if (
+        name === "servo.voltage" ||
+        name === "servo.current" ||
+        name === "servo.controller_temp" ||
+        name === "servo.motor_temp" ||
+        name === "servo.amp_hours" ||
+        name === "servo.engaged" ||
+        name === "servo.flags" ||
+        name === "servo.controller"
+      ) {
+        c.watch(name, WATCH_MED);
+      } else if (name.startsWith("rudder.") || name.startsWith("imu.")) {
+        c.watch(name, WATCH_MED);
+      } else if (name === "ap.runtime" || name === "ap.version") {
+        c.watch(name, WATCH_LOW);
+      } else if (name === "imu.warning" || name === "imu.error") {
+        c.watch(name, WATCH_HIGH);
+      }
+      // Anything else is left unwatched by default. User can request via /raw
+      // (future: expose per-path opt-in via config UI).
+    }
+  }
+
+  function publishValue(name: string, value: unknown): void {
+    if (RESERVED_PYPILOT_KEYS.has(name)) return;
+    let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
+    if (!mapping) mapping = mapDynamicName(name, lastCatalog);
+    if (!mapping) {
+      if (!props.publishUnmapped) return;
+      mapping = autoMap(name);
+    }
+    if (mapping.reserved) return;
+
+    const skValue = convertForSK(mapping, value);
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: new Date().toISOString(),
+          values: [{ path: mapping.skPath, value: skValue }],
+        }],
+      });
+      publishedSkPaths.add(mapping.skPath);
+      deltaSentCount++;
+    } catch (e: any) {
+      app.debug(`[publish] handleMessage failed for ${mapping.skPath}: ${e?.message || e}`);
+    }
+  }
+
+  function publishMeta(catalog: PypilotCatalog): void {
+    const values: any[] = [];
+    for (const [name, meta] of Object.entries(catalog)) {
+      if (RESERVED_PYPILOT_KEYS.has(name)) continue;
+      let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
+      if (!mapping) mapping = mapDynamicName(name, catalog);
+      if (!mapping) {
+        if (!props.publishUnmapped) continue;
+        mapping = autoMap(name);
+      }
+      const metaObj: any = {};
+      if (mapping.units) metaObj.units = mapping.units;
+      if (mapping.displayName) metaObj.displayName = mapping.displayName;
+      if (mapping.description) metaObj.description = mapping.description;
+      if (typeof meta.min === "number") metaObj.zones = undefined;
+      if (Object.keys(metaObj).length === 0) continue;
+      values.push({ path: mapping.skPath, value: metaObj });
+    }
+    if (!values.length) return;
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: new Date().toISOString(),
+          meta: values,
+        }],
+      });
+    } catch (e: any) {
+      app.debug(`[publish] meta failed: ${e?.message || e}`);
+    }
+  }
+
+  function registerPutHandlers(catalog: PypilotCatalog): void {
+    if (!props.allowWrites) return;
+    const registerOne = (skPath: string) => {
+      if (putHandlersRegistered.has(skPath)) return;
+      const cb = (
+        _context: string,
+        _path: string,
+        value: unknown,
+        _callback?: unknown
+      ) => {
+        if (!client || !client.connected) {
+          return { state: "COMPLETED", statusCode: 503, message: "pypilot not connected" };
+        }
+        const name = skPathToPypilotName(skPath, catalog);
+        if (!name) {
+          return { state: "COMPLETED", statusCode: 404, message: "unknown path" };
+        }
+        // Reverse unit conversion for angle paths that we stored in rad.
+        let pypilotValue: unknown = value;
+        const mapping = FIXED_MAPPINGS[name];
+        if (mapping?.units === "rad" && typeof value === "number") {
+          pypilotValue = value * 180 / Math.PI;
+        }
+        client.set(name, pypilotValue);
+        return { state: "COMPLETED", statusCode: 200 };
+      };
+      try {
+        app.registerPutHandler("vessels.self", skPath, cb, SOURCE_LABEL);
+        putHandlersRegistered.add(skPath);
+      } catch (e: any) {
+        app.debug(`[put] register failed for ${skPath}: ${e?.message || e}`);
+      }
+    };
+
+    for (const [name, mapping] of Object.entries(FIXED_MAPPINGS)) {
+      if (mapping.putKind !== "plain") continue;
+      if (!catalog[name]) continue;
+      registerOne(mapping.skPath);
+    }
+    // Gains: register handler for each discovered ap.pilots.<pilot>.<gain> that
+    // catalog exposes as AutopilotGain.
+    for (const [name, meta] of Object.entries(catalog)) {
+      if (!meta.AutopilotGain) continue;
+      const m = mapDynamicName(name, catalog);
+      if (m) registerOne(m.skPath);
+    }
+  }
+};

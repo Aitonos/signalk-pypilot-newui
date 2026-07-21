@@ -1,0 +1,60 @@
+{
+  "name": "signalk-pypilot-newui",
+  "version": "0.1.0",
+  "description": "PyPilot New-UI + SK Paths — modern touch-first control panel for pypilot autopilot with tunable gains/calibration and full autopilot data (servo, gains, calibration, tack, warnings) as first-class Signal K paths (KIP-ready). Coexists with the official pypilot-autopilot-provider; adds every path it does not cover.",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "signalk",
+    "signalk-node-server-plugin",
+    "signalk-webapp",
+    "signalk-category-instruments",
+    "signalk-category-utility",
+    "pypilot",
+    "tinypilot",
+    "autopilot",
+    "steering",
+    "kip",
+    "mobile-first"
+  ],
+  "author": {
+    "name": "Aitonos",
+    "url": "https://github.com/Aitonos"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@signalk/server-api": "^2.0.0",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.6.0"
+  },
+  "signalk-plugin-enabled-by-default": true,
+  "signalk": {
+    "appIcon": "./public/icon.svg",
+    "displayName": "PyPilot New-UI + SK Paths",
+    "webapp": "./public"
+  },
+  "files": [
+    "dist/",
+    "public/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aitonos/signalk-pypilot-newui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aitonos/signalk-pypilot-newui/issues"
+  },
+  "homepage": "https://github.com/Aitonos/signalk-pypilot-newui#readme"
+}

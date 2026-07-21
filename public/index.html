@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>PyPilot New-UI</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="theme-dark">
+
+  <!-- Header: state pill + mode pill + wind pill. Latency and system-time
+       warning are intentionally OMITTED per user request. -->
+  <header id="hdr">
+    <div id="state-pill" class="pill" data-state="unknown">
+      <span class="dot"></span>
+      <span id="state-text">--</span>
+    </div>
+    <div id="mode-pill" class="pill">
+      <span id="mode-text">--</span>
+    </div>
+    <div id="wind-pill" class="pill wind">
+      <span id="wind-icon">wind</span>
+      <span id="wind-angle">--</span>
+      <span id="wind-speed">--</span>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav id="tabbar">
+    <button class="tab-btn active" data-tab="control">Control</button>
+    <button class="tab-btn" data-tab="tune">Ajustes</button>
+    <button class="tab-btn" data-tab="paths">Paths &amp; API</button>
+    <button class="tab-btn" data-tab="setup">Setup</button>
+  </nav>
+
+  <!-- Main content per tab -->
+  <main>
+
+    <!-- CONTROL TAB -->
+    <section id="tab-control" class="tab-panel active">
+      <div class="control-grid">
+        <div class="heading-block current">
+          <div class="label">Heading</div>
+          <div id="heading-value" class="value big">---</div>
+          <div class="unit">deg</div>
+        </div>
+        <div class="heading-block target">
+          <div class="label">Target</div>
+          <div id="target-value" class="value big">---</div>
+          <div class="unit">deg</div>
+        </div>
+      </div>
+
+      <div class="steer-row">
+        <button class="steer-btn port10" data-nudge="-10">
+          <span class="lbl">-10</span>
+        </button>
+        <button class="steer-btn port1" data-nudge="-1">
+          <span class="lbl">-1</span>
+        </button>
+        <button class="steer-btn center" id="center-btn" hidden>
+          <span class="lbl">|</span>
+        </button>
+        <button class="steer-btn star1" data-nudge="1">
+          <span class="lbl">+1</span>
+        </button>
+        <button class="steer-btn star10" data-nudge="10">
+          <span class="lbl">+10</span>
+        </button>
+      </div>
+
+      <div class="engage-row">
+        <select id="mode-select" aria-label="Mode"></select>
+        <div id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
+          <div class="knob"></div>
+          <div class="lbl">AP</div>
+        </div>
+        <button id="tack-btn" class="tack-btn">Tack</button>
+      </div>
+
+      <div id="rudder-widget" class="rudder-widget" hidden>
+        <div class="label">Rudder</div>
+        <div class="bar"><div id="rudder-fill" class="fill"></div></div>
+        <div id="rudder-value" class="value">--</div>
+      </div>
+    </section>
+
+    <!-- TUNE TAB -->
+    <section id="tab-tune" class="tab-panel">
+      <div class="tune-header">
+        <div class="row">
+          <label>Pilot</label>
+          <select id="pilot-select"></select>
+        </div>
+        <div class="row">
+          <label>Profile</label>
+          <select id="profile-select"></select>
+          <button id="profile-add" class="ghost">+</button>
+          <button id="profile-remove" class="ghost">-</button>
+        </div>
+      </div>
+
+      <div id="gains-container" class="gains-container">
+        <!-- Gain rows injected by app.js. Each row goes translucent while dragged. -->
+      </div>
+
+      <div id="calibration-section" class="calibration-section">
+        <div class="section-title">Calibration</div>
+        <div class="calib-row">
+          <button id="cal-level" class="ghost">Level (boat is flat)</button>
+          <div id="cal-level-progress" class="progress"><div class="bar"></div></div>
+        </div>
+        <div class="calib-row">
+          <label>IMU heading offset (deg)</label>
+          <input type="number" id="cal-heading-offset" min="-180" max="180" step="0.1" />
+        </div>
+        <div class="calib-row">
+          <button id="cal-rud-centered" class="ghost">Rudder centered</button>
+          <button id="cal-rud-port"     class="ghost">Port range</button>
+          <button id="cal-rud-star"     class="ghost">Star range</button>
+          <button id="cal-rud-reset"    class="ghost">Reset</button>
+        </div>
+        <div class="calib-row">
+          <label>Rudder range (deg)</label>
+          <input type="number" id="cal-rud-range" min="10" max="100" step="1" />
+        </div>
+      </div>
+    </section>
+
+    <!-- PATHS & API TAB -->
+    <section id="tab-paths" class="tab-panel">
+      <div class="paths-header">
+        <div>Live catalog of Signal K paths this plugin publishes and PUT-handles. Use the Copy buttons to paste into KIP widget configs.</div>
+        <button id="paths-refresh" class="ghost">Refresh</button>
+      </div>
+      <table id="paths-table" class="paths-table">
+        <thead>
+          <tr>
+            <th>SK path</th>
+            <th>Units</th>
+            <th>PUT?</th>
+            <th>Copy</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- SETUP TAB -->
+    <section id="tab-setup" class="tab-panel">
+      <div class="setup-block">
+        <div class="section-title">Connection</div>
+        <div id="setup-status" class="status-block">loading...</div>
+      </div>
+
+      <div class="setup-block">
+        <div class="section-title">Scan LAN for pypilot_web</div>
+        <div class="row">
+          <input type="text" id="scan-subnet" placeholder="auto-detect (e.g. 192.168.1.0/24)" />
+          <button id="scan-btn" class="primary">Scan</button>
+        </div>
+        <div id="scan-results" class="scan-results"></div>
+      </div>
+
+      <div class="setup-block">
+        <div class="section-title">Manual host</div>
+        <div class="row">
+          <input type="text" id="cfg-host" placeholder="192.168.1.115" />
+          <input type="number" id="cfg-port" placeholder="80" style="max-width:6em" />
+          <button id="cfg-apply" class="primary">Apply &amp; reconnect</button>
+        </div>
+        <div class="hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="ftr">
+    <span id="rev-tag">PyPilot New-UI</span>
+    <span id="link-oldui">
+      <a href="#" id="link-oldui-a" target="_blank" rel="noopener">Open classic pypilot UI</a>
+    </span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
