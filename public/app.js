@@ -39,6 +39,8 @@
     availableActions: [],
     lastNudgeTs: 0,
     localTargetRad: null,
+    autopilotId: "pypilot-sk", // will be discovered on boot from /autopilots
+    authFailed: false,
   };
 
   const RAD2DEG = 180 / Math.PI;
@@ -294,20 +296,70 @@
     if (el) el.value = String(value == null ? "" : value);
   }
 
-  // ---- SK writes ----
-  async function skPut(path, value) {
-    const body = JSON.stringify({ value });
-    const url = `/signalk/v1/api/vessels/self/${path.replace(/\./g, "/")}`;
-    const res = await fetch(url, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
-    if (!res.ok) console.warn("PUT failed", path, res.status, await res.text());
+  // ---- SK writes via Autopilot API v2 (registered by pypilot-autopilot-provider) ----
+  //   GET  /signalk/v2/api/vessels/self/autopilots                     list + default
+  //   POST /signalk/v2/api/vessels/self/autopilots/<id>/engage
+  //   POST /signalk/v2/api/vessels/self/autopilots/<id>/disengage
+  //   PUT  /signalk/v2/api/vessels/self/autopilots/<id>/mode           {"value":"compass"}
+  //   PUT  /signalk/v2/api/vessels/self/autopilots/<id>/target         {"value":<rad>}
+  //   POST /signalk/v2/api/vessels/self/autopilots/<id>/tack/{port|starboard}
+  // All require SK auth (session cookie or token). If 401, show login banner.
+
+  async function discoverAutopilot() {
+    try {
+      const res = await fetch("/signalk/v2/api/vessels/self/autopilots", { credentials: "include" });
+      if (!res.ok) return;
+      const j = await res.json();
+      for (const [id, info] of Object.entries(j || {})) {
+        if (info && info.isDefault) { state.autopilotId = id; break; }
+      }
+      // Fallback: first entry
+      if (!state.autopilotId && j && Object.keys(j).length) {
+        state.autopilotId = Object.keys(j)[0];
+      }
+    } catch (e) { console.warn("discoverAutopilot failed", e); }
+  }
+
+  function handleAuth(res) {
+    if (res && res.status === 401) {
+      state.authFailed = true;
+      const b = $("#auth-banner");
+      if (b) b.removeAttribute("hidden");
+    }
     return res;
   }
 
+  async function apEngage() {
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
+    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
+  }
+  async function apDisengage() {
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
+    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
+  }
+  async function apSetMode(mode) {
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/mode`;
+    return handleAuth(await fetch(url, {
+      method: "PUT", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: mode }),
+    }));
+  }
+  async function apSetTargetRad(rad) {
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/target`;
+    return handleAuth(await fetch(url, {
+      method: "PUT", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: rad }),
+    }));
+  }
+  async function apTack(direction) {
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/tack/${direction}`;
+    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
+  }
+
+  // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
+  // profiles, calibration, tack detail), route through our own /raw endpoint.
   async function pluginRaw(name, value) {
     const url = `/plugins/${PLUGIN_ID}/raw`;
     const res = await fetch(url, {
@@ -316,6 +368,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, value }),
     });
+    handleAuth(res);
     if (!res.ok) console.warn("raw PUT failed", name, res.status, await res.text());
     return res;
   }
@@ -328,7 +381,12 @@
       b.addEventListener("click", () => {
         const nudge = Number(b.dataset.nudge);
         const now = Date.now();
-        if (!state.engaged) return; // disengaged: no manual servo yet (safety)
+        // Nudges only make sense when engaged (they change target). We still
+        // allow the click and just no-op with a subtle visual to teach the user.
+        if (!state.engaged) {
+          b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
+          return;
+        }
         if (now - state.lastNudgeTs > 1000 || state.localTargetRad == null) {
           state.localTargetRad = state.target ?? state.heading;
         }
@@ -336,24 +394,19 @@
         const sign = String(state.mode || "").includes("wind") ? -1 : 1;
         const newTargetRad = (state.localTargetRad ?? 0) + sign * nudge * DEG2RAD;
         state.localTargetRad = newTargetRad;
-        skPut("steering.autopilot.target", newTargetRad);
+        apSetTargetRad(newTargetRad);
       });
     });
 
-    // Engage / disengage
+    // Engage / disengage via Autopilot API v2.
     const eng = $("#engage-toggle");
-    const doEngage = () => {
+    const doEngage = async () => {
       if (state.engaged) {
-        skPut("steering.autopilot.state", "standby");
+        await apDisengage();
       } else {
-        // Snap target to current heading so we don't spin the boat.
-        if (state.heading != null) {
-          skPut("steering.autopilot.target", state.heading).then(() => {
-            skPut("steering.autopilot.state", "enabled");
-          });
-        } else {
-          skPut("steering.autopilot.state", "enabled");
-        }
+        // Snap target to current heading first so we don't spin the boat.
+        if (state.heading != null) await apSetTargetRad(state.heading);
+        await apEngage();
       }
     };
     eng.addEventListener("click", doEngage);
@@ -363,20 +416,17 @@
 
     // Mode change
     $("#mode-select").addEventListener("change", (e) => {
-      skPut("steering.autopilot.mode", e.target.value);
+      apSetMode(e.target.value);
     });
 
-    // Tack via Autopilot API 'actions'. v1 shape:
-    //   POST /signalk/v1/api/vessels/self/steering/autopilot/actions/tack
+    // Tack via Autopilot API v2 (POST /autopilots/<id>/tack/{port|starboard})
     $("#tack-btn").addEventListener("click", async () => {
       const st = $("#tack-btn").dataset.state;
       if (st === "cancel") {
         pluginRaw("ap.tack.state", "none");
       } else {
-        // Direction: default starboard; a long-press UI can be added later.
-        const dir = "starboard";
-        await pluginRaw("ap.tack.direction", dir);
-        pluginRaw("ap.tack.state", "begin");
+        // Default starboard; UI to pick side comes in a later rev.
+        apTack("starboard");
       }
     });
   }
@@ -542,12 +592,18 @@
   }
 
   // ---- Boot ----
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
     wireTabs();
     wireControl();
     wireTune();
     wireSetup();
     renderEngage();
+
+    // Dismiss for the auth banner.
+    const dismiss = $("#auth-banner-dismiss");
+    if (dismiss) dismiss.addEventListener("click", () => $("#auth-banner").setAttribute("hidden", ""));
+
+    await discoverAutopilot();
     loadStatus();
     connectSK();
   });

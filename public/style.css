@@ -20,6 +20,35 @@
 
 * { box-sizing: border-box; }
 
+/* -------- Auth banner (401) -------- */
+#auth-banner {
+  background: var(--err);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: center;
+  border-bottom: 2px solid #7a1912;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+#auth-banner a {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: underline;
+}
+#auth-banner button {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
 html, body {
   margin: 0;
   padding: 0;

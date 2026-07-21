@@ -9,6 +9,13 @@
 </head>
 <body class="theme-dark">
 
+  <!-- Auth banner: shown when SK writes return 401 (not logged in). -->
+  <div id="auth-banner" hidden>
+    <span>Not logged in to Signal K - writes will fail. </span>
+    <a href="/admin/#/login" target="_blank" rel="noopener">Log in</a>
+    <button id="auth-banner-dismiss" aria-label="Dismiss">x</button>
+  </div>
+
   <!-- Header: state pill + mode pill + wind pill. Latency and system-time
        warning are intentionally OMITTED per user request. -->
   <header id="hdr">
