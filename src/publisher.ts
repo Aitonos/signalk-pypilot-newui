@@ -1,7 +1,7 @@
 import { PypilotCatalog } from "./pypilot-client";
 
 // One entry per pypilot name we know how to translate to Signal K.
-// For values from `ap.pilots.<pilot>.<gain>` we handle them dynamically
+// For values from `ap.pilot.<pilot>.<gain>` we handle them dynamically
 // (see mapDynamicName below) because the middle segment is discovered.
 export interface Mapping {
   skPath: string;
@@ -180,15 +180,15 @@ export const RESERVED_PYPILOT_KEYS = new Set<string>([
 ]);
 
 /**
- * Dynamic mapping for `ap.pilots.<pilot>.<gain>` values.
+ * Dynamic mapping for `ap.pilot.<pilot>.<gain>` values.
  * Returns a Mapping if the name matches, else null.
  */
 export function mapDynamicName(
   name: string,
   catalog: PypilotCatalog
 ): Mapping | null {
-  // Gains: `ap.pilots.<pilot>.<gain>` where catalog[<name>].AutopilotGain === true
-  if (name.startsWith("ap.pilots.")) {
+  // Gains: `ap.pilot.<pilot>.<gain>` where catalog[<name>].AutopilotGain === true
+  if (name.startsWith("ap.pilot.")) {
     const parts = name.split(".");
     if (parts.length >= 4) {
       const pilot = parts[2];
@@ -233,7 +233,7 @@ export function skPathToPypilotName(
   if (m) {
     const pilot = m[1];
     const gain = m[2];
-    const candidate = `ap.pilots.${pilot}.${gain}`;
+    const candidate = `ap.pilot.${pilot}.${gain}`;
     if (catalog[candidate]) return candidate;
   }
   // Auto-mapped: reconstruct.

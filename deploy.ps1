@@ -1,111 +1,183 @@
-# deploy.ps1 - build and push signalk-pypilot-newui to a Raspberry Pi.
+# deploy.ps1 -- build + sync signalk-pypilot-newui to Tunatunes Pi over Tailscale.
 #
-# ASCII-only per PowerShell 5.1 constraints on this laptop (Windows-1252
-# parser breaks on non-ASCII source characters). No em-dashes, no smart
-# quotes, no emojis.
+# ASCII only (Windows PowerShell 5.1 reads .ps1 as Windows-1252 -- non-ASCII
+# breaks the parser). Every native call is followed by a $LASTEXITCODE check.
 #
 # Usage:
-#   .\deploy.ps1                     (build + rsync, no SK restart)
-#   .\deploy.ps1 -Restart            (build + rsync + sudo systemctl restart signalk)
-#   .\deploy.ps1 -PiHost openplotter -PiUser pi -Restart
+#   .\deploy.ps1                # build + rsync (no SK restart)
+#   .\deploy.ps1 -SkipBuild     # sync only (public/* edits)
+#   .\deploy.ps1 -Restart       # build + rsync + systemctl restart signalk
 #
-# Assumptions:
-#   - The plugin is symlinked from ~/.signalk/node_modules/signalk-pypilot-newui
-#     to ~/signalk-pypilot-newui on the Pi. If not, create the symlink once:
-#       ln -s ~/signalk-pypilot-newui ~/.signalk/node_modules/signalk-pypilot-newui
-#   - rsync + ssh installed on the laptop (msys2, git-bash, or built-in OpenSSH).
+# Prereqs:
+#   - MSYS2 with rsync (path C:\msys64\usr\bin\rsync.exe expected).
+#     Install once: winget install MSYS2.MSYS2
+#                   & "C:\msys64\usr\bin\bash.exe" -lc "pacman -Sy --noconfirm rsync openssh"
+#   - Symlink already made on the Pi (one-shot, manual):
+#     ssh pi@100.127.222.27 'ln -s /home/pi/signalk-pypilot-newui ~/.signalk/node_modules/signalk-pypilot-newui'
 
 param(
-    [switch]$Restart,
-    [string]$PiHost = "100.127.222.27",
-    [string]$PiUser = "pi",
-    [string]$PiPath = "~/signalk-pypilot-newui",
-    [switch]$SkipInstall
+    [switch]$SkipBuild,
+    [switch]$Restart
 )
 
-# Default PiHost is the Tunatunes Pi Tailscale IP - pi@openplotter does NOT
-# resolve on the Windows laptop LAN (mDNS off / Tailscale only).
-
 $ErrorActionPreference = "Stop"
-$script:StepNo = 0
 
-function Step {
-    param([string]$msg)
-    $script:StepNo++
-    Write-Host ""
-    Write-Host "[$script:StepNo] $msg" -ForegroundColor Cyan
-}
+$piHost = "pi@100.127.222.27"
+$piPath = "/home/pi/signalk-pypilot-newui"
 
-function Check-ExitCode {
-    param([string]$stage)
+# SSH options for flaky boat 4G + Tailscale
+$sshOpts = @(
+    "-o", "ConnectTimeout=10",
+    "-o", "ServerAliveInterval=5",
+    "-o", "ServerAliveCountMax=3",
+    "-o", "BatchMode=yes"
+)
+
+function Invoke-Native {
+    param([string]$Description, [scriptblock]$Block)
+    & $Block
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: $stage failed with exit code $LASTEXITCODE" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "FAILED: $Description (exit code $LASTEXITCODE)" -ForegroundColor Red
+        Write-Host "Aborting deploy. Quick checks:" -ForegroundColor Yellow
+        Write-Host "  ping 100.127.222.27"
+        Write-Host "  ssh $piHost `"echo OK`""
+        Write-Host "  Tailscale icon in tray -- verify Pi online"
+        Write-Host "  If NordVPN is running: it routes 100.x.x.x through its tunnel and breaks Tailscale TCP. Disconnect NordVPN."
         exit 1
     }
 }
 
-# --- 0. Location sanity check ---
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $here
-if (-not (Test-Path "$here\package.json")) {
-    Write-Host "ERROR: package.json not found. Run from the plugin root." -ForegroundColor Red
-    exit 1
+# --- Read PLUGIN_REVISION so the user sees what is about to ship ---
+$srcIndex = Join-Path (Get-Location) "src\index.ts"
+$revShipping = "?"
+if (Test-Path $srcIndex) {
+    $revLine = Select-String -Path $srcIndex -Pattern 'PLUGIN_REVISION\s*=\s*"([^"]+)"' | Select-Object -First 1
+    if ($revLine -and $revLine.Matches[0].Groups.Count -ge 2) {
+        $revShipping = $revLine.Matches[0].Groups[1].Value
+    }
 }
+Write-Host ""
+Write-Host "================================================================" -ForegroundColor Magenta
+Write-Host "  ABOUT TO DEPLOY: $revShipping (signalk-pypilot-newui)" -ForegroundColor Magenta
+Write-Host "================================================================" -ForegroundColor Magenta
+Write-Host ""
 
-# --- 1. Install deps if node_modules missing ---
-if (-not (Test-Path "$here\node_modules") -and -not $SkipInstall) {
-    Step "npm install (first run)"
-    npm install
-    Check-ExitCode "npm install"
-}
-
-# --- 2. Build ---
-Step "npm run build (tsc)"
-npm run build
-Check-ExitCode "npm run build"
-
-# --- 3. Ping Pi first so a bad network fails fast ---
-$target = "$PiUser@$PiHost"
-Step "Pre-flight: ping $PiHost"
-$pingOk = Test-Connection -ComputerName $PiHost -Count 1 -Quiet -ErrorAction SilentlyContinue
+# --- Pre-flight: reachability ---
+Write-Host ">> Pre-flight: ping $piHost..." -ForegroundColor Cyan
+$pingOk = Test-Connection -ComputerName "100.127.222.27" -Count 1 -Quiet -ErrorAction SilentlyContinue
 if (-not $pingOk) {
-    Write-Host "WARN: ping to $PiHost failed - trying rsync anyway (mDNS/Tailscale can be one-directional)." -ForegroundColor Yellow
+    Write-Host "WARN: ping to 100.127.222.27 failed. Continuing anyway (Tailscale may still route TCP even when ICMP is filtered)." -ForegroundColor Yellow
 }
 
-# --- 4. rsync source + dist + public ---
-Step "rsync -> $target`:$PiPath"
-# NOTE: rsync must handle Windows paths - use forward slashes and let ssh work.
-# --delete-excluded: keep node_modules on the Pi (we do not want to send those).
-$rsyncArgs = @(
-    "-avz",
-    "--delete",
-    "--exclude=node_modules",
-    "--exclude=.git",
-    "--exclude=.vscode",
-    "--exclude=*.log",
-    "./",
-    "$target`:$PiPath/"
+# --- Build ---
+if (-not $SkipBuild) {
+    Write-Host ">> npm run build (tsc)..." -ForegroundColor Cyan
+    Invoke-Native "npm run build" { npm run build }
+}
+
+# --- Locate rsync ---
+$rsyncCandidates = @(
+    "C:\Program Files\Git\usr\bin\rsync.exe",
+    "C:\Program Files (x86)\Git\usr\bin\rsync.exe",
+    "C:\msys64\usr\bin\rsync.exe",
+    "C:\tools\msys64\usr\bin\rsync.exe",
+    "rsync"
 )
-& rsync @rsyncArgs
-Check-ExitCode "rsync"
+$rsyncPath = $null
+foreach ($cand in $rsyncCandidates) {
+    if ($cand -eq "rsync") {
+        $cmd = Get-Command rsync -ErrorAction SilentlyContinue
+        if ($cmd) { $rsyncPath = $cmd.Source; break }
+    } elseif (Test-Path $cand) {
+        $rsyncPath = $cand; break
+    }
+}
+$useRsync = $null -ne $rsyncPath
 
-# --- 5. Install prod deps on the Pi if needed ---
-Step "Install prod deps on Pi (if package.json changed)"
-$installCmd = "cd $PiPath && npm install --omit=dev --no-audit --no-fund"
-& ssh $target $installCmd
-Check-ExitCode "remote npm install"
+if ($useRsync) {
+    Write-Host ">> rsync detected: $rsyncPath" -ForegroundColor Green
+} else {
+    Write-Host ">> rsync not found -- falling back to scp (transfers EVERYTHING each time)." -ForegroundColor DarkYellow
+}
 
-# --- 6. Restart SK if asked ---
-if ($Restart) {
-    Step "sudo systemctl restart signalk"
-    & ssh $target "sudo systemctl restart signalk"
-    Check-ExitCode "systemctl restart signalk"
-    Start-Sleep -Seconds 3
-    Step "Tail last 20 lines of signalk logs"
-    & ssh $target "journalctl -u signalk -n 20 --no-pager"
+# --- Prepare --rsh for rsync (point MSYS ssh at Windows-side keys/known_hosts) ---
+$sshFlat = $null
+if ($useRsync) {
+    $rsyncDir = Split-Path $rsyncPath
+    $gitSshExe = $null
+    if ($rsyncDir) {
+        $cand = Join-Path $rsyncDir "ssh.exe"
+        if (Test-Path $cand) { $gitSshExe = $cand }
+    }
+    if ($gitSshExe) {
+        $sshForRsync = $gitSshExe -replace "\\", "/"
+        $winKnownHosts = (Join-Path $env:USERPROFILE ".ssh\known_hosts") -replace "\\", "/"
+        $winIdentity = $null
+        foreach ($k in @("id_ed25519","id_rsa","id_ecdsa")) {
+            $p = Join-Path $env:USERPROFILE ".ssh\$k"
+            if (Test-Path $p) { $winIdentity = $p -replace "\\", "/"; break }
+        }
+        $idFlag = if ($winIdentity) { "-o IdentityFile=`"$winIdentity`" -o IdentitiesOnly=yes" } else { "" }
+        $sshFlat = "`"$sshForRsync`" -o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -o BatchMode=yes -o UserKnownHostsFile=`"$winKnownHosts`" -o StrictHostKeyChecking=accept-new $idFlag"
+        Write-Host "   using ssh: $gitSshExe" -ForegroundColor DarkGray
+        if ($winIdentity) { Write-Host "   identity : $winIdentity" -ForegroundColor DarkGray }
+    } else {
+        $sshFlat = "ssh -o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -o BatchMode=yes"
+    }
+}
+
+# --- Ensure remote dir exists ---
+Invoke-Native "mkdir remote" { ssh @sshOpts $piHost "mkdir -p '$piPath'" }
+
+# --- Sync files ---
+if ($useRsync) {
+    Write-Host ">> rsync dist/..." -ForegroundColor Cyan
+    Invoke-Native "rsync dist" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "dist/" "${piHost}:${piPath}/dist/" }
+
+    Write-Host ">> rsync public/..." -ForegroundColor Cyan
+    Invoke-Native "rsync public" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "public/" "${piHost}:${piPath}/public/" }
+
+    Write-Host ">> rsync package.json + package-lock.json + README + CHANGELOG..." -ForegroundColor Cyan
+    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md")
+    $existing = $extras | Where-Object { Test-Path $_ }
+    Invoke-Native "rsync extras" { & $rsyncPath -az --timeout=30 "--rsh=$sshFlat" @existing "${piHost}:${piPath}/" }
+} else {
+    Write-Host ">> scp -r dist/..." -ForegroundColor Cyan
+    Invoke-Native "scp -r dist" { scp @sshOpts -r dist "${piHost}:${piPath}/" }
+
+    Write-Host ">> scp -r public/..." -ForegroundColor Cyan
+    Invoke-Native "scp -r public" { scp @sshOpts -r public "${piHost}:${piPath}/" }
+
+    Write-Host ">> scp package.json + lockfile + docs..." -ForegroundColor Cyan
+    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md")
+    $existing = $extras | Where-Object { Test-Path $_ }
+    Invoke-Native "scp extras" { scp @sshOpts @existing "${piHost}:${piPath}/" }
 }
 
 Write-Host ""
-Write-Host "OK - deployed. Webapp URL:" -ForegroundColor Green
-Write-Host "  http://$PiHost`:3000/signalk-pypilot-newui/" -ForegroundColor Green
+Write-Host "OK -- Synced to ${piHost}:${piPath}" -ForegroundColor Green
+
+# --- Install prod deps on the Pi (idempotent -- npm skips if lockfile matches) ---
+Write-Host ">> Installing prod deps on Pi (idempotent)..." -ForegroundColor Cyan
+Invoke-Native "remote npm install --omit=dev" {
+    ssh @sshOpts $piHost "cd '$piPath' && npm install --omit=dev --no-audit --no-fund 2>&1 | tail -5"
+}
+
+# --- Restart or remind ---
+if ($Restart) {
+    Write-Host ">> Restarting Signal K server..." -ForegroundColor Cyan
+    Invoke-Native "systemctl restart signalk" { ssh @sshOpts $piHost "sudo systemctl restart signalk" }
+    Write-Host "OK -- SK restarted (wait ~15 s before testing)" -ForegroundColor Green
+    Write-Host ""
+    Write-Host ">> Tailing signalk logs for pypilot-newui hits (5 s)..." -ForegroundColor Cyan
+    ssh @sshOpts $piHost "sleep 5 && journalctl -u signalk -n 40 --no-pager | grep -Ei 'pypilot-newui|error' | tail -20"
+} else {
+    Write-Host ""
+    Write-Host "Next: .\deploy.ps1 -Restart   (backend edits need SK restart to reload)" -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "Webapp URL:  http://100.127.222.27:3000/signalk-pypilot-newui/" -ForegroundColor Green
+Write-Host "Admin URL:   http://100.127.222.27:3000/admin  (Plugin Config -> PyPilot New-UI + SK Paths)" -ForegroundColor Green
 Write-Host ""

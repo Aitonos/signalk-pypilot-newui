@@ -239,8 +239,9 @@
     const cat = state.catalog;
     const pilot = state.pilot;
     if (!pilot) return;
+    // pypilot exposes gains as ap.pilot.<pilot>.<gain> (singular).
     const gains = Object.keys(cat).filter((k) =>
-      k.startsWith(`ap.pilots.${pilot}.`) && cat[k].AutopilotGain
+      k.startsWith(`ap.pilot.${pilot}.`) && cat[k].AutopilotGain
     );
     for (const g of gains) {
       const meta = cat[g];

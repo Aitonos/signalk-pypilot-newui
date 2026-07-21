@@ -12,7 +12,7 @@ import { scanLan } from "./scanner";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev1";
+const PLUGIN_REVISION = "Rev6";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -39,6 +39,7 @@ module.exports = function (app: any) {
   let lastCatalog: PypilotCatalog = {};
   let lastPingLatencyMs: number | null = null;
   let publishedSkPaths: Set<string> = new Set();
+  let metaSent: Set<string> = new Set();
   let putHandlersRegistered: Set<string> = new Set();
   let lastConnectAt: number | null = null;
   let lastDisconnectReason: string | null = null;
@@ -142,9 +143,17 @@ module.exports = function (app: any) {
 
       client.on("catalog", (catalog: PypilotCatalog) => {
         lastCatalog = catalog;
+        metaSent = new Set(); // resend meta on catalog refresh
+        const catalogKeys = Object.keys(catalog);
+        const gainKeys = catalogKeys.filter(
+          (k) => k.startsWith("ap.pilot.") && (catalog[k] as any).AutopilotGain
+        );
+        const apKeys = catalogKeys.filter((k) => k.startsWith("ap.pilot."));
+        app.setPluginStatus(
+          `${PLUGIN_REVISION} - connected, catalog ${catalogKeys.length} vars (ap.pilots.*=${apKeys.length}, AutopilotGain=${gainKeys.length})`
+        );
         setupWatches(client!, catalog);
         registerPutHandlers(catalog);
-        publishMeta(catalog);
       });
 
       client.on("value", (name: string, value: unknown) => {
@@ -161,6 +170,7 @@ module.exports = function (app: any) {
       }
       lastCatalog = {};
       publishedSkPaths = new Set();
+      metaSent = new Set();
       putHandlersRegistered = new Set();
       deltaSentCount = 0;
       lastConnectAt = null;
@@ -269,7 +279,9 @@ module.exports = function (app: any) {
     // High-rate: engage/mode changes and gains that the user might slide.
     for (const name of Object.keys(catalog)) {
       if (RESERVED_PYPILOT_KEYS.has(name)) continue;
-      if (name.startsWith("ap.pilots.")) {
+      // Note: pypilot exposes gains as ap.pilot.<pilot>.<gain> (SINGULAR),
+      // not ap.pilots.*. Confirmed by inspecting pypilot_values on the wire.
+      if (name.startsWith("ap.pilot.") && !RESERVED_PYPILOT_KEYS.has(name)) {
         c.watch(name, WATCH_HIGH);
       } else if (
         name.startsWith("ap.tack.") ||
@@ -313,14 +325,26 @@ module.exports = function (app: any) {
     if (mapping.reserved) return;
 
     const skValue = convertForSK(mapping, value);
+    const updateEntry: any = {
+      $source: SOURCE_LABEL,
+      timestamp: new Date().toISOString(),
+      values: [{ path: mapping.skPath, value: skValue }],
+    };
+    // Attach meta INLINE on the first publish of each path. Sending it in a
+    // separate delta with empty `values` upsets some third-party plugins
+    // (signalk-pushover-plugin@0.0.6 crashes with 'update.values is not
+    // iterable' when it iterates a values-empty update).
+    if (!metaSent.has(mapping.skPath)) {
+      const metaObj = buildMetaObj(mapping, lastCatalog[name]);
+      if (metaObj) {
+        updateEntry.meta = [{ path: mapping.skPath, value: metaObj }];
+      }
+      metaSent.add(mapping.skPath);
+    }
     try {
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
-        updates: [{
-          $source: SOURCE_LABEL,
-          timestamp: new Date().toISOString(),
-          values: [{ path: mapping.skPath, value: skValue }],
-        }],
+        updates: [updateEntry],
       });
       publishedSkPaths.add(mapping.skPath);
       deltaSentCount++;
@@ -329,37 +353,15 @@ module.exports = function (app: any) {
     }
   }
 
-  function publishMeta(catalog: PypilotCatalog): void {
-    const values: any[] = [];
-    for (const [name, meta] of Object.entries(catalog)) {
-      if (RESERVED_PYPILOT_KEYS.has(name)) continue;
-      let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
-      if (!mapping) mapping = mapDynamicName(name, catalog);
-      if (!mapping) {
-        if (!props.publishUnmapped) continue;
-        mapping = autoMap(name);
-      }
-      const metaObj: any = {};
-      if (mapping.units) metaObj.units = mapping.units;
-      if (mapping.displayName) metaObj.displayName = mapping.displayName;
-      if (mapping.description) metaObj.description = mapping.description;
-      if (typeof meta.min === "number") metaObj.zones = undefined;
-      if (Object.keys(metaObj).length === 0) continue;
-      values.push({ path: mapping.skPath, value: metaObj });
+  function buildMetaObj(mapping: Mapping, catalogEntry: unknown): any | null {
+    const metaObj: any = {};
+    if (mapping.units) metaObj.units = mapping.units;
+    if (mapping.displayName) metaObj.displayName = mapping.displayName;
+    if (mapping.description) metaObj.description = mapping.description;
+    if (catalogEntry && typeof (catalogEntry as any).min === "number") {
+      // Reserved for future zone metadata.
     }
-    if (!values.length) return;
-    try {
-      app.handleMessage(PLUGIN_ID, {
-        context: "vessels." + app.selfId,
-        updates: [{
-          $source: SOURCE_LABEL,
-          timestamp: new Date().toISOString(),
-          meta: values,
-        }],
-      });
-    } catch (e: any) {
-      app.debug(`[publish] meta failed: ${e?.message || e}`);
-    }
+    return Object.keys(metaObj).length ? metaObj : null;
   }
 
   function registerPutHandlers(catalog: PypilotCatalog): void {
@@ -409,4 +411,6 @@ module.exports = function (app: any) {
       if (m) registerOne(m.skPath);
     }
   }
+
+  return plugin;
 };
