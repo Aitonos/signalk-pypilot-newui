@@ -13,7 +13,7 @@ import { scanLan } from "./scanner";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev8";
+const PLUGIN_REVISION = "Rev9";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -30,6 +30,8 @@ interface PluginProps {
   allowWrites?: boolean;
   allowDirectServo?: boolean;
   publishUnmapped?: boolean;
+  nudgeSmall?: number;   // small step in degrees for the -1/+1 buttons
+  nudgeBig?: number;     // big step in degrees for the -10/+10 buttons
   enabledPaths?: Record<string, boolean>;  // SK path -> publish yes/no
 }
 
@@ -96,6 +98,20 @@ module.exports = function (app: any) {
           description:
             "When on, every pypilot value discovered at runtime that is not in the fixed mapping table is auto-published under steering.autopilot.pypilot.<sanitized_name>.",
           default: false,
+        },
+        nudgeSmall: {
+          type: "number",
+          title: "Small nudge step (degrees)",
+          description:
+            "Label and value of the fine nudge buttons in the mobile UI. Default 1.",
+          default: 1,
+        },
+        nudgeBig: {
+          type: "number",
+          title: "Big nudge step (degrees)",
+          description:
+            "Label and value of the coarse nudge buttons in the mobile UI. Default 10.",
+          default: 10,
         },
       },
     }),
@@ -197,6 +213,8 @@ module.exports = function (app: any) {
           lastPingLatencyMs,
           allowWrites: props.allowWrites ?? true,
           allowDirectServo: props.allowDirectServo ?? false,
+          nudgeSmall: props.nudgeSmall ?? 1,
+          nudgeBig: props.nudgeBig ?? 10,
         });
       });
 
@@ -273,6 +291,8 @@ module.exports = function (app: any) {
       allowWrites: options.allowWrites !== false,
       allowDirectServo: options.allowDirectServo === true,
       publishUnmapped: options.publishUnmapped === true,
+      nudgeSmall: typeof options.nudgeSmall === "number" ? options.nudgeSmall : 1,
+      nudgeBig: typeof options.nudgeBig === "number" ? options.nudgeBig : 10,
       enabledPaths: options.enabledPaths || {},
     };
   }

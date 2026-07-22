@@ -44,52 +44,77 @@
   <!-- Main content per tab -->
   <main>
 
-    <!-- CONTROL TAB -->
+    <!-- CONTROL TAB - dashboard inspired by B&G Vulcan/Zeus.
+         Top: 2x2 tiles (Heading / Wind / Target / SOG).
+         Bottom: mode select + AP toggle centered between two per-side tack
+         buttons + nudge row with dynamic labels from plugin config. -->
     <section id="tab-control" class="tab-panel active">
-      <div class="control-grid">
-        <div class="heading-block current">
-          <div class="label">Heading</div>
-          <div id="heading-value" class="value big">---</div>
+      <div class="dash-grid">
+        <div class="dash-cell heading">
+          <div class="label">HEADING</div>
+          <div id="heading-value" class="value">---</div>
           <div class="unit">deg</div>
         </div>
-        <div class="heading-block target">
-          <div class="label">Target</div>
-          <div id="target-value" class="value big">---</div>
+        <div class="dash-cell wind" id="wind-widget">
+          <div class="label" id="wind-label">AWA / AWS</div>
+          <div id="wind-angle" class="value">---</div>
+          <div id="wind-speed" class="sub">--- kn</div>
+        </div>
+        <div class="dash-cell target">
+          <div class="label">TARGET</div>
+          <div id="target-value" class="value">---</div>
           <div class="unit">deg</div>
         </div>
-      </div>
-
-      <div class="steer-row">
-        <button class="steer-btn port10" data-nudge="-10">
-          <span class="lbl">-10</span>
-        </button>
-        <button class="steer-btn port1" data-nudge="-1">
-          <span class="lbl">-1</span>
-        </button>
-        <button class="steer-btn center" id="center-btn" hidden>
-          <span class="lbl">|</span>
-        </button>
-        <button class="steer-btn star1" data-nudge="1">
-          <span class="lbl">+1</span>
-        </button>
-        <button class="steer-btn star10" data-nudge="10">
-          <span class="lbl">+10</span>
-        </button>
-      </div>
-
-      <div class="engage-row">
-        <select id="mode-select" aria-label="Mode"></select>
-        <div id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
-          <div class="knob"></div>
-          <div class="lbl">AP</div>
+        <div class="dash-cell sog">
+          <div class="label">SOG</div>
+          <div id="sog-value" class="value">---</div>
+          <div class="unit">kn</div>
         </div>
-        <button id="tack-btn" class="tack-btn">Tack</button>
       </div>
 
-      <div id="rudder-widget" class="rudder-widget" hidden>
-        <div class="label">Rudder</div>
-        <div class="bar"><div id="rudder-fill" class="fill"></div></div>
-        <div id="rudder-value" class="value">--</div>
+      <div class="controls">
+        <div class="mode-row">
+          <select id="mode-select" class="mode-select" aria-label="Mode"></select>
+        </div>
+
+        <div class="engage-row">
+          <button class="tack-btn tack-port" id="tack-port-btn" title="Tack to port">
+            <span class="arrow">&#x2039;</span>
+            <span class="lbl">TACK</span>
+          </button>
+          <div id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
+            <div class="knob"></div>
+            <div class="lbl">AP</div>
+          </div>
+          <button class="tack-btn tack-star" id="tack-star-btn" title="Tack to starboard">
+            <span class="lbl">TACK</span>
+            <span class="arrow">&#x203A;</span>
+          </button>
+        </div>
+
+        <div class="nudge-row">
+          <button class="steer-btn nudge-big-port" data-nudge-kind="big-port">
+            <span class="lbl" id="lbl-big-port">-10</span>
+          </button>
+          <button class="steer-btn nudge-small-port" data-nudge-kind="small-port">
+            <span class="lbl" id="lbl-small-port">-1</span>
+          </button>
+          <button class="steer-btn center" id="center-btn" title="Center rudder (disengaged)" hidden>
+            <span class="lbl">|</span>
+          </button>
+          <button class="steer-btn nudge-small-star" data-nudge-kind="small-star">
+            <span class="lbl" id="lbl-small-star">+1</span>
+          </button>
+          <button class="steer-btn nudge-big-star" data-nudge-kind="big-star">
+            <span class="lbl" id="lbl-big-star">+10</span>
+          </button>
+        </div>
+
+        <div id="rudder-widget" class="rudder-widget" hidden>
+          <div class="label">Rudder</div>
+          <div class="bar"><div id="rudder-fill" class="fill"></div></div>
+          <div id="rudder-value" class="value">--</div>
+        </div>
       </div>
     </section>
 

@@ -41,6 +41,11 @@
     localTargetRad: null,
     autopilotId: "pypilot-sk", // will be discovered on boot from /autopilots
     authFailed: false,
+    nudgeSmall: 1,             // populated from plugin config
+    nudgeBig: 10,
+    windAngleTrue: null,
+    windSpeedTrue: null,
+    sog: null,                 // m/s
   };
 
   const RAD2DEG = 180 / Math.PI;
@@ -90,11 +95,15 @@
       // including gains, servo, calibration, tack detail, errors, warnings,
       // availableModes, availablePilots, profile, pilot, runtime, version.
       "steering.autopilot.pypilot.*",
-      // Heading (from pypilot plugin) + rudder + wind
+      // Heading (from pypilot plugin) + rudder + wind + SOG for dashboard tiles
       "navigation.headingMagnetic",
+      "navigation.speedOverGround",
       "steering.rudderAngle",
       "environment.wind.angleApparent",
       "environment.wind.speedApparent",
+      "environment.wind.angleTrueWater",
+      "environment.wind.angleTrueGround",
+      "environment.wind.speedTrue",
     ];
     const sub = {
       context: "vessels.self",
@@ -168,6 +177,13 @@
         state.windAngle = numericOrNull(value); break;
       case "environment.wind.speedApparent":
         state.windSpeed = numericOrNull(value); break;
+      case "environment.wind.angleTrueWater":
+      case "environment.wind.angleTrueGround":
+        state.windAngleTrue = numericOrNull(value); break;
+      case "environment.wind.speedTrue":
+        state.windSpeedTrue = numericOrNull(value); break;
+      case "navigation.speedOverGround":
+        state.sog = numericOrNull(value); break;
     }
   }
 
@@ -183,47 +199,78 @@
     pill.dataset.state = state.apState || "unknown";
     $("#state-text").textContent = String(state.apState || "--").toUpperCase();
     $("#mode-text").textContent  = state.mode || "--";
-    $("#wind-angle").textContent = state.windAngle == null ? "--" : fmtDeg(state.windAngle) + " deg";
-    $("#wind-speed").textContent = state.windSpeed == null ? "" : (state.windSpeed * 1.94384).toFixed(1) + " kn";
   }
 
   function renderControl() {
     $("#heading-value").textContent = fmtDeg(state.heading);
     $("#target-value").textContent  = fmtDeg(state.target);
+    renderWindTile();
+    renderSogTile();
+  }
+
+  function renderWindTile() {
+    // Show TWA/TWS when the AP is in a "true wind" mode; AWA/AWS otherwise.
+    // Real B&G convention: negative angle = port side. We show absolute
+    // value + a small direction glyph so the tile stays compact.
+    const useTrue = String(state.mode || "").includes("true");
+    const label = useTrue ? "TWA / TWS" : "AWA / AWS";
+    const angleRad = useTrue ? state.windAngleTrue : state.windAngle;
+    const speedMs  = useTrue ? state.windSpeedTrue : state.windSpeed;
+    $("#wind-label").textContent = label;
+    if (angleRad == null) {
+      $("#wind-angle").textContent = "---";
+    } else {
+      const deg = angleRad * RAD2DEG;
+      const abs = Math.abs(deg).toFixed(0);
+      const side = deg < 0 ? "P " : (deg > 0 ? "S " : "");
+      $("#wind-angle").textContent = side + abs;
+    }
+    $("#wind-speed").textContent = speedMs == null ? "--- kn" : (speedMs * 1.94384).toFixed(1) + " kn";
+  }
+
+  function renderSogTile() {
+    if (state.sog == null) { $("#sog-value").textContent = "---"; return; }
+    $("#sog-value").textContent = (state.sog * 1.94384).toFixed(1);
   }
 
   function renderEngage() {
     const el = $("#engage-toggle");
+    if (!el) return;
     if (state.engaged) el.classList.add("engaged");
     else el.classList.remove("engaged");
     el.setAttribute("aria-pressed", state.engaged ? "true" : "false");
-    // Steer button labels in engaged vs disengaged mode
-    if (state.engaged) {
-      $$(".steer-btn.center")[0]?.setAttribute("hidden", "");
-      const l = { "-10": "10", "-1": "1", "1": "1", "10": "10" };
-      $$(".steer-btn[data-nudge]").forEach((b) => {
-        const n = b.dataset.nudge;
-        b.querySelector(".lbl").textContent = (n < 0 ? "-" : "+") + l[n];
-      });
-    } else {
-      $$(".steer-btn.center")[0]?.removeAttribute("hidden");
-      const l = { "-10": "<<", "-1": "<", "1": ">", "10": ">>" };
-      $$(".steer-btn[data-nudge]").forEach((b) => {
-        b.querySelector(".lbl").textContent = l[b.dataset.nudge];
-      });
-    }
+    // The center button is only meaningful with a rudder sensor and disengaged.
+    // Show it just when we KNOW there is a rudder source and we are disengaged.
+    // For now default to hidden; it will be revealed later when we track
+    // rudder.source properly.
+  }
+
+  function renderNudgeLabels() {
+    const s = state.nudgeSmall;
+    const b = state.nudgeBig;
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    set("lbl-big-port",   "-" + b);
+    set("lbl-small-port", "-" + s);
+    set("lbl-small-star", "+" + s);
+    set("lbl-big-star",   "+" + b);
   }
 
   function renderTackButton(tackState) {
-    const btn = $("#tack-btn");
-    if (tackState && tackState !== "none") {
-      btn.classList.add("tack-active");
-      btn.textContent = "Cancel";
-      btn.dataset.state = "cancel";
-    } else {
-      btn.classList.remove("tack-active");
-      btn.textContent = "Tack";
-      btn.dataset.state = "tack";
+    // Two per-side buttons now. If tack in progress, mark both as Cancel.
+    const p = $("#tack-port-btn");
+    const s = $("#tack-star-btn");
+    if (!p || !s) return;
+    const inProgress = tackState && tackState !== "none";
+    for (const b of [p, s]) {
+      if (inProgress) {
+        b.classList.add("tack-active");
+        b.querySelector(".lbl").textContent = "CANCEL";
+        b.dataset.state = "cancel";
+      } else {
+        b.classList.remove("tack-active");
+        b.querySelector(".lbl").textContent = "TACK";
+        b.dataset.state = "tack";
+      }
     }
   }
 
@@ -341,10 +388,17 @@
   }
 
   function handleAuth(res) {
-    if (res && res.status === 401) {
+    const b = $("#auth-banner");
+    if (!res) return res;
+    if (res.status === 401) {
       state.authFailed = true;
-      const b = $("#auth-banner");
       if (b) b.removeAttribute("hidden");
+    } else if (res.status < 400) {
+      // Any successful call proves we are authenticated -> auto-clear the
+      // banner. This fixes the spurious "always shown" case when one probe
+      // 401s but the session cookie IS actually valid for the writes.
+      state.authFailed = false;
+      if (b) b.setAttribute("hidden", "");
     }
     return res;
   }
@@ -397,12 +451,18 @@
   function wireControl() {
     // Nudges. Use a local accumulator like the pypilot upstream JS so quick
     // successive presses don't rubber-band against the server value.
-    $$(".steer-btn[data-nudge]").forEach((b) => {
+    // Kinds: big-port (-nudgeBig), small-port (-nudgeSmall), small-star (+nudgeSmall), big-star (+nudgeBig).
+    const kindToDelta = () => ({
+      "big-port":   -state.nudgeBig,
+      "small-port": -state.nudgeSmall,
+      "small-star":  state.nudgeSmall,
+      "big-star":    state.nudgeBig,
+    });
+    $$(".steer-btn[data-nudge-kind]").forEach((b) => {
       b.addEventListener("click", () => {
-        const nudge = Number(b.dataset.nudge);
+        const nudge = kindToDelta()[b.dataset.nudgeKind];
+        if (nudge == null) return;
         const now = Date.now();
-        // Nudges only make sense when engaged (they change target). We still
-        // allow the click and just no-op with a subtle visual to teach the user.
         if (!state.engaged) {
           b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
           return;
@@ -439,16 +499,21 @@
       apSetMode(e.target.value);
     });
 
-    // Tack via Autopilot API v2 (POST /autopilots/<id>/tack/{port|starboard})
-    $("#tack-btn").addEventListener("click", async () => {
-      const st = $("#tack-btn").dataset.state;
+    // Tack per side. If tack in progress, both act as Cancel.
+    const tackHandler = (dir) => async () => {
+      const st = $("#tack-port-btn").dataset.state;
       if (st === "cancel") {
         pluginRaw("ap.tack.state", "none");
       } else {
-        // Default starboard; UI to pick side comes in a later rev.
-        apTack("starboard");
+        apTack(dir);
       }
-    });
+    };
+    $("#tack-port-btn").addEventListener("click", tackHandler("port"));
+    $("#tack-star-btn").addEventListener("click", tackHandler("starboard"));
+
+    // Center rudder (disengaged only, hidden until we detect rudder.source)
+    const centerBtn = $("#center-btn");
+    if (centerBtn) centerBtn.addEventListener("click", () => pluginRaw("servo.position", 0));
   }
 
   // ---- Tune tab wiring ----
@@ -515,11 +580,14 @@
   async function loadStatus() {
     try {
       const res = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
+      handleAuth(res);
+      if (!res.ok) throw new Error("status " + res.status);
       const j = await res.json();
-      state.catalog = j; // used by header rev tag; catalog is fetched below
       $("#setup-status").textContent = JSON.stringify(j, null, 2);
       $("#rev-tag").textContent = `PyPilot New-UI ${j.revision || ""}`;
-      // link to classic UI (still available)
+      if (typeof j.nudgeSmall === "number") state.nudgeSmall = j.nudgeSmall;
+      if (typeof j.nudgeBig === "number")   state.nudgeBig   = j.nudgeBig;
+      renderNudgeLabels();
       if (j.host) {
         const a = $("#link-oldui-a");
         a.href = `http://${j.host}:${j.port}/`;
@@ -530,8 +598,11 @@
     }
     try {
       const res2 = await fetch(`/plugins/${PLUGIN_ID}/catalog`, { credentials: "include" });
-      state.catalog = await res2.json();
-      renderGains();
+      handleAuth(res2);
+      if (res2.ok) {
+        state.catalog = await res2.json();
+        renderGains();
+      }
     } catch { /* ignore */ }
   }
 
@@ -618,6 +689,7 @@
     wireTune();
     wireSetup();
     renderEngage();
+    renderNudgeLabels();
 
     // Dismiss for the auth banner.
     const dismiss = $("#auth-banner-dismiss");
