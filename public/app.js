@@ -195,10 +195,8 @@
 
   // ---- Renderers ----
   function renderHeader() {
-    const pill = $("#state-pill");
-    pill.dataset.state = state.apState || "unknown";
-    $("#state-text").textContent = String(state.apState || "--").toUpperCase();
-    $("#mode-text").textContent  = state.mode || "--";
+    // Header pills were removed in Rev10. Kept as no-op so the delta pipeline
+    // can call renderHeader() without gating.
   }
 
   function renderControl() {
@@ -206,6 +204,7 @@
     $("#target-value").textContent  = fmtDeg(state.target);
     renderWindTile();
     renderSogTile();
+    renderWindRose();
   }
 
   function renderWindTile() {
@@ -231,6 +230,65 @@
   function renderSogTile() {
     if (state.sog == null) { $("#sog-value").textContent = "---"; return; }
     $("#sog-value").textContent = (state.sog * 1.94384).toFixed(1);
+  }
+
+  // SVG compass rose. The card (cardinals + ticks) rotates so N points to
+  // magnetic north regardless of boat heading; the boat is fixed pointing up;
+  // the wind arrow rotates independently to show relative wind angle; two
+  // colored arcs mark the "sailing zones" at ~30-60 deg off wind on each side.
+  function renderWindRose() {
+    const useTrue = String(state.mode || "").includes("true");
+    const windRad = useTrue ? state.windAngleTrue : state.windAngle;
+    const windSpeed = useTrue ? state.windSpeedTrue : state.windSpeed;
+
+    const card = document.getElementById("rose-card");
+    if (card && state.heading != null) {
+      card.setAttribute("transform", `rotate(${-state.heading * RAD2DEG})`);
+    }
+
+    const arrow = document.getElementById("rose-wind-arrow");
+    if (arrow) {
+      if (windRad != null) {
+        arrow.setAttribute("transform", `rotate(${windRad * RAD2DEG})`);
+        arrow.style.display = "";
+      } else {
+        arrow.style.display = "none";
+      }
+    }
+
+    const star = document.getElementById("rose-star-sector");
+    const port = document.getElementById("rose-port-sector");
+    if (star && port) {
+      if (windRad != null) {
+        const wDeg = windRad * RAD2DEG;
+        star.setAttribute("d", arcPath(wDeg + 30, wDeg + 60, 90));
+        port.setAttribute("d", arcPath(wDeg - 60, wDeg - 30, 90));
+        star.style.display = "";
+        port.style.display = "";
+      } else {
+        star.style.display = "none";
+        port.style.display = "none";
+      }
+    }
+
+    const speedText = document.getElementById("rose-speed");
+    if (speedText) {
+      speedText.textContent = windSpeed == null ? "--- kn" : (windSpeed * 1.94384).toFixed(1) + " kn";
+    }
+  }
+
+  // Build an SVG arc path from compass angle a1 to a2 (degrees). r is radius.
+  function arcPath(a1, a2, r) {
+    const t1 = a1 * Math.PI / 180;
+    const t2 = a2 * Math.PI / 180;
+    const x1 = r * Math.sin(t1);
+    const y1 = -r * Math.cos(t1);
+    const x2 = r * Math.sin(t2);
+    const y2 = -r * Math.cos(t2);
+    const delta = a2 - a1;
+    const largeArc = Math.abs(delta) > 180 ? 1 : 0;
+    const sweep = delta > 0 ? 1 : 0;
+    return `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${r},${r} 0 ${largeArc} ${sweep} ${x2.toFixed(2)},${y2.toFixed(2)}`;
   }
 
   function renderEngage() {
@@ -387,21 +445,32 @@
     } catch (e) { console.warn("discoverAutopilot failed", e); }
   }
 
-  function handleAuth(res) {
+  // Two flavors: writes SHOW the banner on 401, reads only auto-clear it on
+  // success. That way an inconsistent SK security config (writes 200 but a
+  // status probe 401) no longer produces a permanent scary red banner.
+  function handleAuthWrite(res) {
     const b = $("#auth-banner");
     if (!res) return res;
     if (res.status === 401) {
       state.authFailed = true;
       if (b) b.removeAttribute("hidden");
     } else if (res.status < 400) {
-      // Any successful call proves we are authenticated -> auto-clear the
-      // banner. This fixes the spurious "always shown" case when one probe
-      // 401s but the session cookie IS actually valid for the writes.
       state.authFailed = false;
       if (b) b.setAttribute("hidden", "");
     }
     return res;
   }
+  function handleAuthRead(res) {
+    if (!res) return res;
+    if (res.status < 400) {
+      state.authFailed = false;
+      const b = $("#auth-banner");
+      if (b) b.setAttribute("hidden", "");
+    }
+    return res;
+  }
+  // Backward-compat alias (used by pluginRaw and existing write helpers).
+  const handleAuth = handleAuthWrite;
 
   async function apEngage() {
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
@@ -580,7 +649,7 @@
   async function loadStatus() {
     try {
       const res = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
-      handleAuth(res);
+      handleAuthRead(res);
       if (!res.ok) throw new Error("status " + res.status);
       const j = await res.json();
       $("#setup-status").textContent = JSON.stringify(j, null, 2);
@@ -588,6 +657,12 @@
       if (typeof j.nudgeSmall === "number") state.nudgeSmall = j.nudgeSmall;
       if (typeof j.nudgeBig === "number")   state.nudgeBig   = j.nudgeBig;
       renderNudgeLabels();
+      // Prefill the Setup tab nudge inputs
+      const ns = $("#cfg-nudge-small"); if (ns) ns.value = String(state.nudgeSmall);
+      const nb = $("#cfg-nudge-big");   if (nb) nb.value = String(state.nudgeBig);
+      // Prefill host/port too
+      if (typeof j.host === "string") { const h = $("#cfg-host"); if (h) h.value = j.host; }
+      if (typeof j.port === "number") { const p = $("#cfg-port"); if (p) p.value = String(j.port); }
       if (j.host) {
         const a = $("#link-oldui-a");
         a.href = `http://${j.host}:${j.port}/`;
@@ -598,12 +673,47 @@
     }
     try {
       const res2 = await fetch(`/plugins/${PLUGIN_ID}/catalog`, { credentials: "include" });
-      handleAuth(res2);
+      handleAuthRead(res2);
       if (res2.ok) {
         state.catalog = await res2.json();
         renderGains();
       }
     } catch { /* ignore */ }
+  }
+
+  async function applyNudgeCfg() {
+    const s = Number($("#cfg-nudge-small").value) || 1;
+    const b = Number($("#cfg-nudge-big").value) || 10;
+    // Pull the current full status so we preserve host/port/allowWrites etc.
+    let cur = null;
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
+      if (r.ok) cur = await r.json();
+    } catch { /* fall through */ }
+    const configuration = {
+      host: cur?.host ?? "",
+      port: cur?.port ?? 80,
+      reconnectDelayMs: 3000,
+      allowWrites: cur?.allowWrites ?? true,
+      allowDirectServo: cur?.allowDirectServo ?? false,
+      publishUnmapped: false,
+      nudgeSmall: s,
+      nudgeBig: b,
+    };
+    try {
+      const res = await fetch(`/skServer/plugins/${PLUGIN_ID}/config`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true, configuration }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      state.nudgeSmall = s; state.nudgeBig = b;
+      renderNudgeLabels();
+      alert("Saved. Nudge values updated.");
+    } catch (e) {
+      alert("Save failed. Are you logged in to Signal K admin?\n" + e);
+    }
   }
 
   async function scan() {
@@ -665,6 +775,7 @@
     $("#scan-btn").addEventListener("click", scan);
     $("#cfg-apply").addEventListener("click", applyCfg);
     $("#paths-refresh").addEventListener("click", refreshPaths);
+    const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);
   }
 
   // ---- Tabs ----

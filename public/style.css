@@ -151,21 +151,46 @@ main {
 
 .tab-panel.active { display: block; }
 
-/* -------- Control tab: dashboard-style 2x2 tiles + wide controls -------- */
-.dash-grid {
+/* -------- Control tab: dashboard with central compass rose -------- */
+.dash-rose {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 1fr;
-  gap: 8px;
-  margin-bottom: 10px;
-  min-height: 34vh;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 46vh;
+}
+
+/* Grid placement: HDG top-left, WIND top-right, TGT bottom-left, SOG bottom-right,
+   ROSE central spanning both rows. */
+.dash-rose .heading { grid-column: 1; grid-row: 1; }
+.dash-rose .wind    { grid-column: 3; grid-row: 1; }
+.dash-rose .target  { grid-column: 1; grid-row: 2; }
+.dash-rose .sog     { grid-column: 3; grid-row: 2; }
+.dash-rose .rose-wrap { grid-column: 2; grid-row: 1 / span 2; }
+
+.dash-rose .rose-wrap {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  overflow: hidden;
+}
+.rose-svg {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  aspect-ratio: 1;
 }
 
 .dash-cell {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 10px 12px;
+  padding: 8px 10px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -182,13 +207,13 @@ main {
 }
 .dash-cell .value {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: clamp(42px, 12vw, 96px);
+  font-size: clamp(30px, 8vw, 56px);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.02em;
 }
 .dash-cell .unit  { color: var(--fg-dim); font-size: 11px; text-align: right; }
-.dash-cell .sub   { font-family: monospace; font-size: clamp(20px, 5vw, 36px); color: var(--fg); font-weight: 600; letter-spacing: -0.01em; }
+.dash-cell .sub   { font-family: monospace; font-size: clamp(16px, 4vw, 24px); color: var(--fg); font-weight: 600; letter-spacing: -0.01em; }
 
 /* B&G-ish tile color coding: current heading in soft white, target in blue,
    wind in green, SOG in yellow. */
@@ -241,45 +266,44 @@ main {
 .tack-btn .arrow { font-size: 30px; line-height: 1; }
 .tack-btn.tack-active { background: var(--warn); color: var(--bg); border-color: var(--warn); }
 
+/* AP: simple solid button, color-only change (no sliding knob). */
 .engage-toggle {
   height: 84px;
   background: var(--bg-3);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: var(--radius);
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 6px;
+  color: var(--fg-dim);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
   user-select: none;
   -webkit-user-select: none;
-}
-.engage-toggle .knob {
-  width: 72px;
-  height: 72px;
-  background: var(--fg);
-  border-radius: 12px;
-  transition: transform 0.18s ease;
-}
-.engage-toggle .lbl {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  font-size: 32px;
   font-weight: 900;
-  color: var(--fg-dim);
-  pointer-events: none;
-  font-size: 28px;
   letter-spacing: 6px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.engage-toggle.engaged { background: var(--engaged); border-color: var(--engaged); }
-.engage-toggle.engaged .knob { transform: translateX(calc(100% + 16px)); background: #fff; }
-.engage-toggle.engaged .lbl { color: #fff; }
+.engage-toggle.engaged {
+  background: var(--engaged);
+  border-color: var(--engaged);
+  color: #ffffff;
+}
 
+/* 4 equal columns - the disengaged center button lives outside this grid so
+   it does not throw off the equal spacing. */
 .nudge-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+}
+
+.center-outside {
+  margin-top: 6px;
+  width: 100%;
+  min-height: 48px;
+  font-size: 14px;
 }
 
 .steer-btn {
@@ -301,16 +325,16 @@ main {
 
 /* On tiny phones, dial the tiles back a touch */
 @media (max-width: 380px) {
-  .dash-grid { min-height: 30vh; }
-  .dash-cell .value { font-size: clamp(38px, 11vw, 80px); }
-  .engage-toggle .lbl { font-size: 22px; letter-spacing: 4px; }
+  .dash-rose { min-height: 38vh; }
+  .dash-cell .value { font-size: clamp(24px, 7vw, 40px); }
+  .engage-toggle { font-size: 24px; letter-spacing: 4px; }
   .tack-btn { font-size: 16px; }
   .steer-btn { font-size: 22px; min-height: 64px; }
 }
 
-/* Landscape / tablet: make the controls a little thinner so the tiles keep more area */
+/* Landscape / tablet: give the rose more area */
 @media (min-height: 640px) {
-  .dash-grid { min-height: 40vh; }
+  .dash-rose { min-height: 50vh; }
 }
 
 .rudder-widget {
