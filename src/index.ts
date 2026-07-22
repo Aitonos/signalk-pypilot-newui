@@ -4,6 +4,7 @@ import {
   RESERVED_PYPILOT_KEYS,
   autoMap,
   convertForSK,
+  extractCatalogDerivedPublishes,
   mapDynamicName,
   Mapping,
   skPathToPypilotName,
@@ -12,7 +13,7 @@ import { scanLan } from "./scanner";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev7";
+const PLUGIN_REVISION = "Rev8";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -154,6 +155,7 @@ module.exports = function (app: any) {
         );
         setupWatches(client!, catalog);
         registerPutHandlers(catalog);
+        publishCatalogDerived(catalog);
       });
 
       client.on("value", (name: string, value: unknown) => {
@@ -350,6 +352,26 @@ module.exports = function (app: any) {
       deltaSentCount++;
     } catch (e: any) {
       app.debug(`[publish] handleMessage failed for ${mapping.skPath}: ${e?.message || e}`);
+    }
+  }
+
+  function publishCatalogDerived(catalog: PypilotCatalog): void {
+    const items = extractCatalogDerivedPublishes(catalog);
+    for (const it of items) {
+      try {
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: new Date().toISOString(),
+            values: [{ path: it.skPath, value: it.value }],
+            ...(it.displayName ? { meta: [{ path: it.skPath, value: { displayName: it.displayName } }] } : {}),
+          }],
+        });
+        publishedSkPaths.add(it.skPath);
+      } catch (e: any) {
+        app.debug(`[publish] catalog-derived failed for ${it.skPath}: ${e?.message || e}`);
+      }
     }
   }
 

@@ -171,6 +171,26 @@ export const FIXED_MAPPINGS: Record<string, Mapping> = {
   },
 };
 
+/**
+ * Extra one-shot publishes at catalog time. These come from the catalog's
+ * metadata (e.g. ap.pilot.choices) rather than from a value delta, so we do
+ * not have a fixed mapping keyed by pypilot name.
+ */
+export function extractCatalogDerivedPublishes(
+  catalog: Record<string, any>
+): Array<{ skPath: string; value: unknown; displayName?: string }> {
+  const out: Array<{ skPath: string; value: unknown; displayName?: string }> = [];
+  const apPilot = catalog["ap.pilot"];
+  if (apPilot && Array.isArray(apPilot.choices)) {
+    out.push({
+      skPath: "steering.autopilot.pypilot.availablePilots",
+      value: apPilot.choices,
+      displayName: "Available pilots",
+    });
+  }
+  return out;
+}
+
 // Paths whose ownership we cede to pypilot-autopilot-provider. NEVER republish.
 export const RESERVED_PYPILOT_KEYS = new Set<string>([
   "ap.enabled",     // -> steering.autopilot.engaged

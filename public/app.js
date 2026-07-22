@@ -86,26 +86,10 @@
       "steering.autopilot.target",
       "steering.autopilot.engaged",
       "steering.autopilot.availableActions",
-      // Ours
-      "steering.autopilot.pypilot.pilot",
-      "steering.autopilot.pypilot.profile",
-      "steering.autopilot.pypilot.profiles",
-      "steering.autopilot.pypilot.availableModes",
-      "steering.autopilot.pypilot.tack.state",
-      "steering.autopilot.pypilot.tack.timeout",
-      "steering.autopilot.pypilot.tack.direction",
-      "steering.autopilot.pypilot.servo.voltage",
-      "steering.autopilot.pypilot.servo.current",
-      "steering.autopilot.pypilot.servo.controllerTemperature",
-      "steering.autopilot.pypilot.servo.motorTemperature",
-      "steering.autopilot.pypilot.servo.engaged",
-      "steering.autopilot.pypilot.servo.flags",
-      "steering.autopilot.pypilot.calibration.imuHeadingOffset",
-      "steering.autopilot.pypilot.calibration.rudderRange",
-      "steering.autopilot.pypilot.errors.imu",
-      "steering.autopilot.pypilot.warnings.imu",
-      "steering.autopilot.pypilot.runtime",
-      "steering.autopilot.pypilot.version",
+      // Ours - a single wildcard on the pypilot subtree catches everything
+      // including gains, servo, calibration, tack detail, errors, warnings,
+      // availableModes, availablePilots, profile, pilot, runtime, version.
+      "steering.autopilot.pypilot.*",
       // Heading (from pypilot plugin) + rudder + wind
       "navigation.headingMagnetic",
       "steering.rudderAngle",
@@ -127,15 +111,31 @@
 
   function handleDelta(msg) {
     if (!msg || !Array.isArray(msg.updates)) return;
+    let touchedGain = false;
     for (const u of msg.updates) {
       const values = u.values || [];
       for (const v of values) {
         state.values[v.path] = v.value;
         applyValue(v.path, v.value);
+        if (v.path.startsWith("steering.autopilot.pypilot.gains.")) {
+          touchedGain = true;
+          const row = document.querySelector(`.gain-row[data-sk="${v.path}"]`);
+          if (row) {
+            const rng = row.querySelector("input[type=range]");
+            const lbl = row.querySelector(".value");
+            if (rng && !row.classList.contains("active")) rng.value = String(v.value);
+            if (lbl) lbl.textContent = Number(v.value).toFixed(4);
+          }
+        }
       }
     }
     renderHeader();
     renderControl();
+    if (touchedGain && state.pilot && !document.querySelector(".gain-row")) {
+      // First gain arrived before renderGains had been called (pilot came in
+      // slightly later). Trigger a render now so the row appears.
+      renderGains();
+    }
   }
 
   function applyValue(path, value) {
@@ -150,6 +150,9 @@
         break;
       case "steering.autopilot.pypilot.pilot":
         state.pilot = value; setSelect("#pilot-select", value); renderGains();
+        break;
+      case "steering.autopilot.pypilot.availablePilots":
+        if (Array.isArray(value)) { state.pilots = value; fillSelect("#pilot-select", value); setSelect("#pilot-select", state.pilot); }
         break;
       case "steering.autopilot.pypilot.profile":  state.profile = value; setSelect("#profile-select", value); break;
       case "steering.autopilot.pypilot.profiles":
@@ -275,6 +278,23 @@
         pluginRaw(g, Number(rng.value));
       });
       cont.appendChild(row);
+      // If cache is empty (stream started after gain deltas were emitted),
+      // fetch the current value via REST so the slider position reflects
+      // reality on first paint.
+      if (cur == null) {
+        fetch(`/signalk/v1/api/vessels/self/${skPath.replace(/\./g, "/")}`, { credentials: "include" })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j) => {
+            if (!j) return;
+            const v = j.value ?? (j.values && j.values.value);
+            if (typeof v === "number") {
+              state.values[skPath] = v;
+              if (!row.classList.contains("active")) rng.value = String(v);
+              val.textContent = v.toFixed(4);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }
 
