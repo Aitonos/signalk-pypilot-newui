@@ -130,6 +130,14 @@ if ($useRsync) {
 # --- Ensure remote dir exists ---
 Invoke-Native "mkdir remote" { ssh @sshOpts $piHost "mkdir -p '$piPath'" }
 
+# --- Ensure the SK node_modules symlink is in place ---
+# SK sometimes wipes it on restart if the plugin was installed via npm before
+# (a stale registry entry, an internal npm reinstall, etc.). If missing we
+# recreate it before restarting so the webapp keeps serving.
+Invoke-Native "ensure symlink" {
+    ssh @sshOpts $piHost "if [ ! -L ~/.signalk/node_modules/signalk-pypilot-newui ]; then rm -rf ~/.signalk/node_modules/signalk-pypilot-newui; ln -s $piPath ~/.signalk/node_modules/signalk-pypilot-newui; echo 'symlink RECREATED'; else echo 'symlink OK'; fi"
+}
+
 # --- Sync files ---
 if ($useRsync) {
     Write-Host ">> rsync dist/..." -ForegroundColor Cyan
