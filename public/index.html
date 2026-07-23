@@ -231,6 +231,21 @@
         <div class="hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
       </div>
 
+      <div class="setup-block">
+        <div class="section-title">Autopilot Provider (one-socket mode)</div>
+        <div class="row">
+          <label style="min-width:140px">Absorb official provider</label>
+          <input type="checkbox" id="cfg-absorb" style="transform:scale(1.5); margin-right:12px;" />
+          <button id="cfg-absorb-apply" class="primary">Save &amp; restart</button>
+        </div>
+        <div class="hint" style="color: var(--warn);">
+          When ON, this plugin registers itself as the SK Autopilot Provider
+          (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots).
+          <b>You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin</b>
+          - two providers would fight for the pilot ID. Benefit: one socket less to the Pi Zero TinyPilot.
+        </div>
+      </div>
+
       <div class="setup-block" style="border: 2px solid var(--err);">
         <div class="section-title" style="color: var(--err);">Emergency: pause client</div>
         <div class="row">

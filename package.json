@@ -47,6 +47,7 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
+    "NOTICE",
     "package.json"
   ],
   "repository": {

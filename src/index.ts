@@ -10,10 +10,11 @@ import {
   skPathToPypilotName,
 } from "./publisher";
 import { scanLan } from "./scanner";
+import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev12";
+const PLUGIN_REVISION = "Rev13";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -36,12 +37,14 @@ interface PluginProps {
   publishUnmapped?: boolean;
   nudgeSmall?: number;   // small step in degrees for the -1/+1 buttons
   nudgeBig?: number;     // big step in degrees for the -10/+10 buttons
+  absorbProvider?: boolean; // register as SK Autopilot Provider (replaces the official one)
   enabledPaths?: Record<string, boolean>;  // SK path -> publish yes/no
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 module.exports = function (app: any) {
   let client: PypilotClient | null = null;
+  let apProvider: AutopilotProvider | null = null;
   let props: PluginProps = { host: "", port: 80 };
   let lastCatalog: PypilotCatalog = {};
   let lastPingLatencyMs: number | null = null;
@@ -117,6 +120,13 @@ module.exports = function (app: any) {
             "Label and value of the coarse nudge buttons in the mobile UI. Default 10.",
           default: 10,
         },
+        absorbProvider: {
+          type: "boolean",
+          title: "Absorb pypilot-autopilot-provider (one-socket mode)",
+          description:
+            "When on, this plugin registers itself as the SK Autopilot Provider (WilhelmSK, freeboard, etc. control it via /signalk/v2/api/vessels/self/autopilots). REQUIRES you to disable the official 'pypilot-autopilot-provider' plugin at the same time - otherwise both fight for the deviceId. Benefit: only one socket to pypilot_web (halves the load on a Pi Zero TinyPilot).",
+          default: false,
+        },
       },
     }),
 
@@ -147,12 +157,14 @@ module.exports = function (app: any) {
         lastConnectAt = Date.now();
         lastDisconnectReason = null;
         app.setPluginStatus(
-          `${PLUGIN_REVISION} - connected to ${props.host}:${props.port}`
+          `${PLUGIN_REVISION} - connected to ${props.host}:${props.port}${apProvider ? " (AutopilotProvider active)" : ""}`
         );
       });
 
       client.on("disconnect", (reason: string) => {
         lastDisconnectReason = reason;
+        if (apProvider) apProvider.markOffline();
+        pushAutopilotUpdate();
         app.setPluginStatus(
           `${PLUGIN_REVISION} - reconnecting (last: ${reason})`
         );
@@ -180,7 +192,41 @@ module.exports = function (app: any) {
 
       client.on("value", (name: string, value: unknown) => {
         publishValue(name, value);
+        if (apProvider) {
+          const changed = apProvider.receiveValue(name, value);
+          if (changed) pushAutopilotUpdate();
+        }
       });
+
+      // Optional: absorb the official pypilot-autopilot-provider by registering
+      // ourselves as the SK Autopilot Provider. Reduces the second socket to
+      // pypilot_web that the Pi Zero cannot afford.
+      if (props.absorbProvider && typeof app.registerAutopilotProvider === "function") {
+        try {
+          apProvider = new AutopilotProvider(client, app, {
+            allowDodge: !!props.allowDirectServo,
+          });
+          app.registerAutopilotProvider(
+            apProvider.toProviderInterface(),
+            apProvider.pilotIds
+          );
+          // Watches needed to feed the autopilot state to SK
+          client.watch("ap.enabled", 0.5);
+          client.watch("ap.mode", 0.5);
+          client.watch("ap.heading_command", 0.5);
+          client.watch("ap.modes", 1);
+          app.setPluginStatus(
+            `${PLUGIN_REVISION} - AutopilotProvider registered. IMPORTANT: disable the 'pypilot-autopilot-provider' plugin to avoid conflict.`
+          );
+        } catch (e: any) {
+          app.error(`[absorb] registerAutopilotProvider failed: ${e?.message || e}`);
+          apProvider = null;
+        }
+      } else if (props.absorbProvider) {
+        app.setPluginStatus(
+          `${PLUGIN_REVISION} - absorbProvider requested but app.registerAutopilotProvider is not available (SK Server too old).`
+        );
+      }
 
       client.start();
     },
@@ -190,6 +236,9 @@ module.exports = function (app: any) {
         try { client.stop(); } catch { /* defensive */ }
         client = null;
       }
+      // The SK autopilot API does not expose an unregister; on plugin stop
+      // the server drops our provider when it garbage-collects the plugin.
+      apProvider = null;
       lastCatalog = {};
       publishedSkPaths = new Set();
       metaSent = new Set();
@@ -219,6 +268,8 @@ module.exports = function (app: any) {
           allowDirectServo: props.allowDirectServo ?? false,
           nudgeSmall: props.nudgeSmall ?? 1,
           nudgeBig: props.nudgeBig ?? 10,
+          absorbProvider: !!apProvider,
+          apData: apProvider ? apProvider.data : null,
         });
       });
 
@@ -318,8 +369,27 @@ module.exports = function (app: any) {
       publishUnmapped: options.publishUnmapped === true,
       nudgeSmall: typeof options.nudgeSmall === "number" ? options.nudgeSmall : 1,
       nudgeBig: typeof options.nudgeBig === "number" ? options.nudgeBig : 10,
+      absorbProvider: options.absorbProvider === true,
       enabledPaths: options.enabledPaths || {},
     };
+  }
+
+  function pushAutopilotUpdate(): void {
+    if (!apProvider) return;
+    try {
+      // Push structured update through the Autopilot API (WilhelmSK etc.)
+      if (typeof app.autopilotUpdate === "function") {
+        app.autopilotUpdate(apProvider.deviceId, {
+          state: apProvider.data.state,
+          mode: apProvider.data.mode,
+          target: apProvider.data.target,
+          engaged: apProvider.data.engaged,
+          actions: apProvider.data.options.actions,
+        });
+      }
+    } catch (e: any) {
+      app.debug(`[absorb] autopilotUpdate failed: ${e?.message || e}`);
+    }
   }
 
   function setupWatches(c: PypilotClient, catalog: PypilotCatalog): void {

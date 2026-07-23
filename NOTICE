@@ -1,0 +1,30 @@
+signalk-pypilot-newui
+Copyright 2026 Aitonos
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this project except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+
+This project includes an "Autopilot Provider" adapter
+(src/autopilot-provider.ts) whose method structure and command
+translation semantics are derived from:
+
+    pypilot-autopilot-provider
+    Copyright (c) Panaaj
+    https://github.com/panaaj/pypilot-autopilot-provider
+    Apache License 2.0
+
+The upstream project ships its own socket.io client. In our fork we
+re-implemented the same command surface on top of the PypilotClient we
+already carry (src/pypilot-client.ts) so that a Signal K server with
+both plugins effectively active only ever opens ONE socket to the
+pypilot_web process on the TinyPilot. This is a functional benefit for
+Pi Zero W hardware; no derivative works of the upstream code itself are
+distributed.
+
+For the socket.io protocol layer talking to pypilot_web (watch=, name=value)
+we independently confirmed it against the upstream pypilot sources
+(https://github.com/pypilot/pypilot) which are LGPL-3.0.

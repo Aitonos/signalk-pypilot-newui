@@ -701,6 +701,8 @@
       // Prefill host/port too
       if (typeof j.host === "string") { const h = $("#cfg-host"); if (h) h.value = j.host; }
       if (typeof j.port === "number") { const p = $("#cfg-port"); if (p) p.value = String(j.port); }
+      // Prefill absorbProvider toggle
+      const ab = $("#cfg-absorb"); if (ab) ab.checked = !!j.absorbProvider;
       if (j.host) {
         const a = $("#link-oldui-a");
         a.href = `http://${j.host}:${j.port}/`;
@@ -824,6 +826,44 @@
       if (res.ok) alert("Resuming.");
       else alert("Resume failed: " + res.status);
     });
+    const ab = $("#cfg-absorb-apply"); if (ab) ab.addEventListener("click", applyAbsorbCfg);
+  }
+
+  async function applyAbsorbCfg() {
+    const absorbProvider = !!$("#cfg-absorb").checked;
+    let cur = null;
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
+      if (r.ok) cur = await r.json();
+    } catch { /* fall through */ }
+    const configuration = {
+      host: cur?.host ?? "",
+      port: cur?.port ?? 80,
+      reconnectDelayMs: 3000,
+      allowWrites: cur?.allowWrites ?? true,
+      allowDirectServo: cur?.allowDirectServo ?? false,
+      publishUnmapped: false,
+      nudgeSmall: cur?.nudgeSmall ?? 1,
+      nudgeBig: cur?.nudgeBig ?? 10,
+      absorbProvider,
+    };
+    try {
+      const res = await fetch(`/skServer/plugins/${PLUGIN_ID}/config`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true, configuration }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert(
+        absorbProvider
+          ? "Enabled AutopilotProvider. IMPORTANT: go to SK Admin and DISABLE the 'pypilot-autopilot-provider' plugin so they do not fight."
+          : "Disabled AutopilotProvider. Re-enable 'pypilot-autopilot-provider' in SK Admin if you want WilhelmSK/freeboard to keep working."
+      );
+      setTimeout(() => location.reload(), 500);
+    } catch (e) {
+      alert("Save failed. Are you logged in to Signal K admin?\n" + e);
+    }
   }
 
   // ---- Tabs ----
