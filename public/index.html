@@ -9,10 +9,13 @@
 </head>
 <body class="theme-dark">
 
-  <!-- Auth banner: shown when SK writes return 401 (not logged in). -->
+  <!-- Auth banner: shown when SK writes return 401 (not logged in). Auto-hides
+       after 20 s if no new writes fail; user X-close is remembered in
+       sessionStorage so a stale-cookie flash does not become permanent. -->
   <div id="auth-banner" hidden>
-    <span>Not logged in to Signal K - writes will fail. </span>
+    <span id="auth-banner-msg">Signal K refused a write (401) - not logged in. </span>
     <a href="/admin/#/login" target="_blank" rel="noopener">Log in</a>
+    <button id="auth-banner-ping" aria-label="Re-test">Ping</button>
     <button id="auth-banner-dismiss" aria-label="Dismiss">x</button>
   </div>
 

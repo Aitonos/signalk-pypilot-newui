@@ -46,8 +46,10 @@
   border-radius: 4px;
   padding: 2px 8px;
   cursor: pointer;
-  margin-left: 8px;
+  margin-left: 6px;
+  font-size: 12px;
 }
+#auth-banner button:hover { background: rgba(255,255,255,0.15); }
 
 html, body {
   margin: 0;

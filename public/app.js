@@ -458,18 +458,45 @@
     } catch (e) { console.warn("discoverAutopilot failed", e); }
   }
 
-  // Two flavors: writes SHOW the banner on 401, reads only auto-clear it on
-  // success. That way an inconsistent SK security config (writes 200 but a
-  // status probe 401) no longer produces a permanent scary red banner.
-  function handleAuthWrite(res) {
+  // Banner policy (Rev12):
+  //   - X dismiss remembered in sessionStorage for the tab lifetime.
+  //   - Auto-hide 20 s after the LAST 401 if no new failure came in.
+  //   - Any 2xx write hides it immediately.
+  //   - Reads never show it; they can only hide it.
+  //   - Console logs the failing URL so users can diagnose which endpoint.
+  const DISMISS_KEY = "pypilot-newui.auth-dismissed";
+  let _authHideTimer = null;
+  function bannerDismissed() {
+    try { return sessionStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
+  }
+  function scheduleBannerAutoHide() {
+    if (_authHideTimer) clearTimeout(_authHideTimer);
+    _authHideTimer = setTimeout(() => {
+      const b = $("#auth-banner");
+      if (b) b.setAttribute("hidden", "");
+    }, 20000);
+  }
+  function showBanner(url) {
+    if (bannerDismissed()) return;
     const b = $("#auth-banner");
+    if (!b) return;
+    b.removeAttribute("hidden");
+    scheduleBannerAutoHide();
+    if (url) console.warn("[pypilot-newui] auth 401 on:", url);
+  }
+  function hideBanner() {
+    const b = $("#auth-banner");
+    if (b) b.setAttribute("hidden", "");
+    if (_authHideTimer) { clearTimeout(_authHideTimer); _authHideTimer = null; }
+  }
+  function handleAuthWrite(res) {
     if (!res) return res;
     if (res.status === 401) {
       state.authFailed = true;
-      if (b) b.removeAttribute("hidden");
+      showBanner(res.url);
     } else if (res.status < 400) {
       state.authFailed = false;
-      if (b) b.setAttribute("hidden", "");
+      hideBanner();
     }
     return res;
   }
@@ -477,12 +504,10 @@
     if (!res) return res;
     if (res.status < 400) {
       state.authFailed = false;
-      const b = $("#auth-banner");
-      if (b) b.setAttribute("hidden", "");
+      hideBanner();
     }
     return res;
   }
-  // Backward-compat alias (used by pluginRaw and existing write helpers).
   const handleAuth = handleAuthWrite;
 
   async function apEngage() {
@@ -825,9 +850,34 @@
     renderEngage();
     renderNudgeLabels();
 
-    // Dismiss for the auth banner.
+    // Auth banner wiring (Rev12):
+    //   - X remembers dismiss for the tab lifetime (sessionStorage)
+    //   - "Ping" probes /plugins/<id>/status and hides on success
     const dismiss = $("#auth-banner-dismiss");
-    if (dismiss) dismiss.addEventListener("click", () => $("#auth-banner").setAttribute("hidden", ""));
+    if (dismiss) dismiss.addEventListener("click", () => {
+      hideBanner();
+      try { sessionStorage.setItem(DISMISS_KEY, "1"); } catch {}
+    });
+    const ping = $("#auth-banner-ping");
+    if (ping) ping.addEventListener("click", async () => {
+      const btn = ping;
+      const orig = btn.textContent;
+      btn.textContent = "...";
+      try {
+        const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
+        if (r.ok) {
+          try { sessionStorage.removeItem(DISMISS_KEY); } catch {}
+          hideBanner();
+          alert("Logged in - banner cleared.");
+        } else {
+          alert(`Still ${r.status}. Log in via the SK admin link.`);
+        }
+      } catch (e) {
+        alert("Ping error: " + e);
+      } finally {
+        btn.textContent = orig;
+      }
+    });
 
     await discoverAutopilot();
     loadStatus();
