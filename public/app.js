@@ -83,6 +83,16 @@
     ws.addEventListener("error", () => { try { ws.close(); } catch {} });
   }
 
+  // Throttle renderControl. Even without user input, the pypilot_web can burst
+  // ~30 deltas at reconnect and each render triggers SVG reflow. 50 ms window
+  // keeps the UI snappy and cuts main-thread work by 10x on cheap phones.
+  let _renderScheduled = false;
+  function scheduleRenderControl() {
+    if (_renderScheduled) return;
+    _renderScheduled = true;
+    setTimeout(() => { _renderScheduled = false; renderControl(); }, 50);
+  }
+
   function subscribeAll() {
     const paths = [
       // Core autopilot API v1 (published by pypilot-autopilot-provider)
@@ -109,10 +119,13 @@
       context: "vessels.self",
       subscribe: paths.map((p) => ({
         path: p,
-        period: 500,
+        // Rev11: ease off from 500 ms/200 ms. The dashboard tiles do not
+        // need to update faster than 1 Hz, and when several devices are
+        // subscribed this halves the total delta traffic.
+        period: 1000,
         format: "delta",
         policy: "instant",
-        minPeriod: 200,
+        minPeriod: 500,
       })),
     };
     ws.send(JSON.stringify(sub));
@@ -139,7 +152,7 @@
       }
     }
     renderHeader();
-    renderControl();
+    scheduleRenderControl();
     if (touchedGain && state.pilot && !document.querySelector(".gain-row")) {
       // First gain arrived before renderGains had been called (pilot came in
       // slightly later). Trigger a render now so the row appears.
@@ -776,6 +789,16 @@
     $("#cfg-apply").addEventListener("click", applyCfg);
     $("#paths-refresh").addEventListener("click", refreshPaths);
     const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);
+    const p = $("#cli-pause"); if (p) p.addEventListener("click", async () => {
+      const res = await fetch(`/plugins/${PLUGIN_ID}/pause`, { method: "POST", credentials: "include" });
+      if (res.ok) alert("Paused. TinyPilot socket disconnected. Press Resume when ready.");
+      else alert("Pause failed: " + res.status);
+    });
+    const r = $("#cli-resume"); if (r) r.addEventListener("click", async () => {
+      const res = await fetch(`/plugins/${PLUGIN_ID}/resume`, { method: "POST", credentials: "include" });
+      if (res.ok) alert("Resuming.");
+      else alert("Resume failed: " + res.status);
+    });
   }
 
   // ---- Tabs ----

@@ -85,15 +85,24 @@ export class PypilotClient extends EventEmitter {
   }
 
   start(): void {
-    if (this.socket) return;
+    // Guard against double-start. Previously an accidental restart could
+    // leave TWO sockets to pypilot_web spinning at the same time.
+    if (this.socket) {
+      this.opts.log("warn", "[pypilot] start() called but socket already exists - no-op");
+      return;
+    }
     this.closed = false;
     const url = `http://${this.opts.host}:${this.opts.port}`;
     this.opts.log("info", `[pypilot] connecting socket.io to ${url}`);
     this.socket = io(url, {
       transports: ["websocket", "polling"],
+      // Reconnect but with a ceiling so a wedged pypilot_web (Pi Zero pinned
+      // at 100% CPU) does not get hammered forever. After the ceiling we
+      // give up until the user pushes /resume from the webapp.
       reconnection: true,
+      reconnectionAttempts: 30,
       reconnectionDelay: this.opts.reconnectDelayMs,
-      reconnectionDelayMax: this.opts.reconnectDelayMs * 4,
+      reconnectionDelayMax: 20000,
       timeout: 10000,
       autoConnect: true,
     });
@@ -154,6 +163,9 @@ export class PypilotClient extends EventEmitter {
     this.stopPing();
     if (this.socket) {
       try {
+        // Kill the reconnection manager first, otherwise disconnect()
+        // schedules another attempt.
+        (this.socket as any).io?.reconnection?.(false);
         this.socket.removeAllListeners();
         this.socket.disconnect();
       } catch { /* defensive */ }
@@ -162,6 +174,28 @@ export class PypilotClient extends EventEmitter {
     this.watches = {};
     this.catalog = {};
     this.lastValues = {};
+  }
+
+  /**
+   * Pause: keep watches remembered but disconnect the socket so we stop
+   * hammering pypilot_web. resume() opens a new socket and re-applies them.
+   */
+  pause(): void {
+    if (!this.socket) return;
+    try {
+      (this.socket as any).io?.reconnection?.(false);
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+    } catch { /* defensive */ }
+    this.socket = null;
+    this.stopPing();
+    this.closed = true;
+  }
+
+  resume(): void {
+    if (this.socket) return;
+    this.closed = false;
+    this.start();
   }
 
   /**

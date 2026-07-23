@@ -228,6 +228,15 @@
         <div class="hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
       </div>
 
+      <div class="setup-block" style="border: 2px solid var(--err);">
+        <div class="section-title" style="color: var(--err);">Emergency: pause client</div>
+        <div class="row">
+          <button id="cli-pause" class="primary" style="background: var(--err); border-color: var(--err);">PAUSE pypilot client</button>
+          <button id="cli-resume" class="ghost">RESUME</button>
+        </div>
+        <div class="hint">If pypilot_web on the TinyPilot chokes (Pi Zero maxed out, other clients slowing to a crawl), pausing here disconnects our socket without disabling the plugin. Resume when things settle.</div>
+      </div>
+
       <div class="setup-block">
         <div class="section-title">Nudge steps</div>
         <div class="row">

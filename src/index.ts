@@ -13,15 +13,19 @@ import { scanLan } from "./scanner";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev10";
+const PLUGIN_REVISION = "Rev11";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
 
-// Default watch periods per rate class. `true` = deliver on every change.
-const WATCH_HIGH: true | number = true;    // gains, engaged, mode changes, tack
-const WATCH_MED: true | number = 1;        // telemetry that rarely changes
-const WATCH_LOW: true | number = 5;        // runtime, version, one-shot
+// Default watch periods per rate class. NEVER `true` (event-driven) - on
+// the Tunatunes Pi Zero W hosting pypilot_web, event-driven watches from
+// two or three concurrent clients (pypilot-autopilot-provider + upstream
+// UI + ours) saturated the process and cascaded to a hung SK server.
+// Reference: memory/project_tinypilot_pi_zero_limit.md
+const WATCH_HIGH: number = 0.5;   // 2 Hz - UI-facing values users may slide
+const WATCH_MED: number = 1;      // 1 Hz - telemetry (voltage, current, temps)
+const WATCH_LOW: number = 5;      // 0.2 Hz - runtime / version
 
 interface PluginProps {
   host: string;
@@ -274,6 +278,27 @@ module.exports = function (app: any) {
         }
         client.set(name, value);
         res.json({ ok: true, name, value });
+      });
+
+      // Emergency valves for when pypilot_web on the Pi Zero starts to
+      // choke: pause disconnects our socket without unregistering the
+      // plugin, resume opens a fresh one. State/catalog are kept in place.
+      router.post("/pause", (_req: any, res: any) => {
+        try {
+          client?.pause();
+          app.setPluginStatus(`${PLUGIN_REVISION} - paused (manual)`);
+          res.json({ ok: true, state: "paused" });
+        } catch (e: any) {
+          res.status(500).json({ error: e?.message || String(e) });
+        }
+      });
+      router.post("/resume", (_req: any, res: any) => {
+        try {
+          client?.resume();
+          res.json({ ok: true, state: "resuming" });
+        } catch (e: any) {
+          res.status(500).json({ error: e?.message || String(e) });
+        }
       });
     },
   };
