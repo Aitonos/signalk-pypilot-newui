@@ -458,16 +458,28 @@
     } catch (e) { console.warn("discoverAutopilot failed", e); }
   }
 
-  // Banner policy (Rev12):
-  //   - X dismiss remembered in sessionStorage for the tab lifetime.
-  //   - Auto-hide 20 s after the LAST 401 if no new failure came in.
-  //   - Any 2xx write hides it immediately.
-  //   - Reads never show it; they can only hide it.
-  //   - Console logs the failing URL so users can diagnose which endpoint.
+  // Banner policy (Rev14):
+  //   - Only shows after 3 write 401s within 30 s (an isolated blip is
+  //     never enough). Prevents a stale-cookie flash from becoming a
+  //     persistent scary red banner.
+  //   - The banner shows the EXACT failing URL so the user can share it.
+  //   - Every write is console-logged (info for 2xx, warn for 4xx/5xx).
+  //   - X dismiss is remembered in localStorage across page reloads.
+  //   - Any 2xx write clears the failure counter (but does NOT wipe the
+  //     dismiss - a user who closed the banner keeps it closed).
+  //   - Reads only clear the banner on 200.
   const DISMISS_KEY = "pypilot-newui.auth-dismissed";
+  const FAIL_WINDOW_MS = 30_000;
+  const FAIL_THRESHOLD = 3;
+  let _authFailures = []; // timestamps of recent write 401s
+  let _lastFailUrl = "";
   let _authHideTimer = null;
   function bannerDismissed() {
-    try { return sessionStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
+    try { return localStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
+  }
+  function pruneFailures() {
+    const cutoff = Date.now() - FAIL_WINDOW_MS;
+    _authFailures = _authFailures.filter((t) => t > cutoff);
   }
   function scheduleBannerAutoHide() {
     if (_authHideTimer) clearTimeout(_authHideTimer);
@@ -480,9 +492,10 @@
     if (bannerDismissed()) return;
     const b = $("#auth-banner");
     if (!b) return;
+    const u = $("#auth-banner-url");
+    if (u) u.textContent = url || "";
     b.removeAttribute("hidden");
     scheduleBannerAutoHide();
-    if (url) console.warn("[pypilot-newui] auth 401 on:", url);
   }
   function hideBanner() {
     const b = $("#auth-banner");
@@ -493,10 +506,19 @@
     if (!res) return res;
     if (res.status === 401) {
       state.authFailed = true;
-      showBanner(res.url);
+      _lastFailUrl = res.url;
+      _authFailures.push(Date.now());
+      pruneFailures();
+      console.warn(`[pypilot-newui] auth 401 (${_authFailures.length}/${FAIL_THRESHOLD}) on:`, res.url);
+      if (_authFailures.length >= FAIL_THRESHOLD) {
+        showBanner(res.url);
+      }
     } else if (res.status < 400) {
       state.authFailed = false;
-      hideBanner();
+      _authFailures = []; // any success resets the counter
+      console.info(`[pypilot-newui] write ok: ${res.status} ${res.url}`);
+    } else {
+      console.warn(`[pypilot-newui] write failed ${res.status}:`, res.url);
     }
     return res;
   }
@@ -896,7 +918,7 @@
     const dismiss = $("#auth-banner-dismiss");
     if (dismiss) dismiss.addEventListener("click", () => {
       hideBanner();
-      try { sessionStorage.setItem(DISMISS_KEY, "1"); } catch {}
+      try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
     });
     const ping = $("#auth-banner-ping");
     if (ping) ping.addEventListener("click", async () => {
@@ -904,11 +926,14 @@
       const orig = btn.textContent;
       btn.textContent = "...";
       try {
+        // Ping does a WRITE-shaped probe (the one that was failing) plus a read.
+        // If both come back OK, the session cookie is fine and we clear state.
         const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
         if (r.ok) {
-          try { sessionStorage.removeItem(DISMISS_KEY); } catch {}
+          try { localStorage.removeItem(DISMISS_KEY); } catch {}
           hideBanner();
-          alert("Logged in - banner cleared.");
+          _authFailures = [];
+          alert("SK responded 200 to /status. If writes still fail, that endpoint has a stricter permission - share the URL from the banner.");
         } else {
           alert(`Still ${r.status}. Log in via the SK admin link.`);
         }
