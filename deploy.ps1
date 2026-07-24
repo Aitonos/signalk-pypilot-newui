@@ -1,19 +1,15 @@
 # deploy.ps1 -- build + sync signalk-pypilot-newui to Tunatunes Pi over Tailscale.
 #
-# ASCII only (Windows PowerShell 5.1 reads .ps1 as Windows-1252 -- non-ASCII
-# breaks the parser). Every native call is followed by a $LASTEXITCODE check.
+# ASCII only. Every native call is followed by a $LASTEXITCODE check.
+#
+# IMPORTANT: All paths inside the script are ABSOLUTE (built off $here).
+# Never rely on the caller's working directory - we may be invoked from a
+# sibling repo's shell.
 #
 # Usage:
 #   .\deploy.ps1                # build + rsync (no SK restart)
 #   .\deploy.ps1 -SkipBuild     # sync only (public/* edits)
 #   .\deploy.ps1 -Restart       # build + rsync + systemctl restart signalk
-#
-# Prereqs:
-#   - MSYS2 with rsync (path C:\msys64\usr\bin\rsync.exe expected).
-#     Install once: winget install MSYS2.MSYS2
-#                   & "C:\msys64\usr\bin\bash.exe" -lc "pacman -Sy --noconfirm rsync openssh"
-#   - Symlink already made on the Pi (one-shot, manual):
-#     ssh pi@100.127.222.27 'ln -s /home/pi/signalk-pypilot-newui ~/.signalk/node_modules/signalk-pypilot-newui'
 
 param(
     [switch]$SkipBuild,
@@ -22,10 +18,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# --- Anchor everything to the script's own directory ---
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+
 $piHost = "pi@100.127.222.27"
 $piPath = "/home/pi/signalk-pypilot-newui"
 
-# SSH options for flaky boat 4G + Tailscale
 $sshOpts = @(
     "-o", "ConnectTimeout=10",
     "-o", "ServerAliveInterval=5",
@@ -42,14 +40,13 @@ function Invoke-Native {
         Write-Host "Aborting deploy. Quick checks:" -ForegroundColor Yellow
         Write-Host "  ping 100.127.222.27"
         Write-Host "  ssh $piHost `"echo OK`""
-        Write-Host "  Tailscale icon in tray -- verify Pi online"
-        Write-Host "  If NordVPN is running: it routes 100.x.x.x through its tunnel and breaks Tailscale TCP. Disconnect NordVPN."
+        Write-Host "  Tailscale online?  NordVPN off?"
         exit 1
     }
 }
 
-# --- Read PLUGIN_REVISION so the user sees what is about to ship ---
-$srcIndex = Join-Path (Get-Location) "src\index.ts"
+# --- Read PLUGIN_REVISION from OUR src (absolute path) ---
+$srcIndex = Join-Path $here "src\index.ts"
 $revShipping = "?"
 if (Test-Path $srcIndex) {
     $revLine = Select-String -Path $srcIndex -Pattern 'PLUGIN_REVISION\s*=\s*"([^"]+)"' | Select-Object -First 1
@@ -60,20 +57,18 @@ if (Test-Path $srcIndex) {
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Magenta
 Write-Host "  ABOUT TO DEPLOY: $revShipping (signalk-pypilot-newui)" -ForegroundColor Magenta
+Write-Host "  from: $here" -ForegroundColor Magenta
 Write-Host "================================================================" -ForegroundColor Magenta
 Write-Host ""
 
-# --- Pre-flight: reachability ---
+# --- Pre-flight ---
 Write-Host ">> Pre-flight: ping $piHost..." -ForegroundColor Cyan
-$pingOk = Test-Connection -ComputerName "100.127.222.27" -Count 1 -Quiet -ErrorAction SilentlyContinue
-if (-not $pingOk) {
-    Write-Host "WARN: ping to 100.127.222.27 failed. Continuing anyway (Tailscale may still route TCP even when ICMP is filtered)." -ForegroundColor Yellow
-}
+Test-Connection -ComputerName "100.127.222.27" -Count 1 -Quiet -ErrorAction SilentlyContinue | Out-Null
 
-# --- Build ---
+# --- Build (in $here explicitly, do not trust cwd) ---
 if (-not $SkipBuild) {
-    Write-Host ">> npm run build (tsc)..." -ForegroundColor Cyan
-    Invoke-Native "npm run build" { npm run build }
+    Write-Host ">> npm run build (tsc) in $here..." -ForegroundColor Cyan
+    Invoke-Native "npm run build" { npm --prefix "$here" run build }
 }
 
 # --- Locate rsync ---
@@ -98,10 +93,10 @@ $useRsync = $null -ne $rsyncPath
 if ($useRsync) {
     Write-Host ">> rsync detected: $rsyncPath" -ForegroundColor Green
 } else {
-    Write-Host ">> rsync not found -- falling back to scp (transfers EVERYTHING each time)." -ForegroundColor DarkYellow
+    Write-Host ">> rsync not found -- falling back to scp." -ForegroundColor DarkYellow
 }
 
-# --- Prepare --rsh for rsync (point MSYS ssh at Windows-side keys/known_hosts) ---
+# --- Prepare --rsh for MSYS rsync ---
 $sshFlat = $null
 if ($useRsync) {
     $rsyncDir = Split-Path $rsyncPath
@@ -131,43 +126,73 @@ if ($useRsync) {
 Invoke-Native "mkdir remote" { ssh @sshOpts $piHost "mkdir -p '$piPath'" }
 
 # --- Ensure the SK node_modules symlink is in place ---
-# SK sometimes wipes it on restart if the plugin was installed via npm before
-# (a stale registry entry, an internal npm reinstall, etc.). If missing we
-# recreate it before restarting so the webapp keeps serving.
 Invoke-Native "ensure symlink" {
     ssh @sshOpts $piHost "if [ ! -L ~/.signalk/node_modules/signalk-pypilot-newui ]; then rm -rf ~/.signalk/node_modules/signalk-pypilot-newui; ln -s $piPath ~/.signalk/node_modules/signalk-pypilot-newui; echo 'symlink RECREATED'; else echo 'symlink OK'; fi"
 }
 
-# --- Sync files ---
+# --- Sync files (all SOURCES rooted in $here so cwd is irrelevant) ---
+# rsync (msys/cygwin) does NOT accept Windows drive-letter paths - the colon
+# after C: is parsed as host:path. Convert to MSYS form: C:\foo\bar -> /c/foo/bar
+function ConvertTo-MsysPath {
+    param([string]$WinPath)
+    $p = $WinPath -replace "\\", "/"
+    if ($p -match '^([A-Za-z]):/(.*)$') {
+        $drive = $matches[1].ToLower()
+        return "/$drive/$($matches[2])"
+    }
+    return $p
+}
+$hereMsys = ConvertTo-MsysPath $here
+
+# Sanity: refuse to deploy if this repo does not look like ours (typo protection).
+$ourPkg = Join-Path $here "package.json"
+if (-not (Test-Path $ourPkg)) {
+    Write-Host "FAILED: $ourPkg does not exist. Wrong repo?" -ForegroundColor Red
+    exit 1
+}
+$pkgJson = Get-Content $ourPkg -Raw
+if ($pkgJson -notmatch '"name"\s*:\s*"signalk-pypilot-newui"') {
+    Write-Host "FAILED: package.json name is not signalk-pypilot-newui. Refusing to deploy." -ForegroundColor Red
+    exit 1
+}
+
 if ($useRsync) {
     Write-Host ">> rsync dist/..." -ForegroundColor Cyan
-    Invoke-Native "rsync dist" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "dist/" "${piHost}:${piPath}/dist/" }
+    Invoke-Native "rsync dist" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "$hereMsys/dist/" "${piHost}:${piPath}/dist/" }
 
     Write-Host ">> rsync public/..." -ForegroundColor Cyan
-    Invoke-Native "rsync public" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "public/" "${piHost}:${piPath}/public/" }
+    Invoke-Native "rsync public" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "$hereMsys/public/" "${piHost}:${piPath}/public/" }
 
-    Write-Host ">> rsync package.json + package-lock.json + README + CHANGELOG..." -ForegroundColor Cyan
-    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md")
-    $existing = $extras | Where-Object { Test-Path $_ }
+    Write-Host ">> rsync package.json + package-lock.json + README + CHANGELOG + NOTICE..." -ForegroundColor Cyan
+    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md", "NOTICE")
+    $existing = @()
+    foreach ($e in $extras) {
+        $abs = Join-Path $here $e
+        if (Test-Path $abs) { $existing += (ConvertTo-MsysPath $abs) }
+    }
     Invoke-Native "rsync extras" { & $rsyncPath -az --timeout=30 "--rsh=$sshFlat" @existing "${piHost}:${piPath}/" }
 } else {
     Write-Host ">> scp -r dist/..." -ForegroundColor Cyan
-    Invoke-Native "scp -r dist" { scp @sshOpts -r dist "${piHost}:${piPath}/" }
+    Invoke-Native "scp -r dist" { scp @sshOpts -r (Join-Path $here "dist") "${piHost}:${piPath}/" }
 
     Write-Host ">> scp -r public/..." -ForegroundColor Cyan
-    Invoke-Native "scp -r public" { scp @sshOpts -r public "${piHost}:${piPath}/" }
+    Invoke-Native "scp -r public" { scp @sshOpts -r (Join-Path $here "public") "${piHost}:${piPath}/" }
 
-    Write-Host ">> scp package.json + lockfile + docs..." -ForegroundColor Cyan
-    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md")
-    $existing = $extras | Where-Object { Test-Path $_ }
-    Invoke-Native "scp extras" { scp @sshOpts @existing "${piHost}:${piPath}/" }
+    Write-Host ">> scp extras..." -ForegroundColor Cyan
+    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md", "NOTICE")
+    foreach ($e in $extras) {
+        $abs = Join-Path $here $e
+        if (Test-Path $abs) {
+            Invoke-Native "scp $e" { scp @sshOpts $abs "${piHost}:${piPath}/" }
+        }
+    }
 }
 
 Write-Host ""
 Write-Host "OK -- Synced to ${piHost}:${piPath}" -ForegroundColor Green
 
-# --- Install prod deps on the Pi (idempotent -- npm skips if lockfile matches) ---
-Write-Host ">> Installing prod deps on Pi (idempotent)..." -ForegroundColor Cyan
+# --- Install prod deps on the Pi (idempotent) ---
+Write-Host ">> Installing prod deps on Pi..." -ForegroundColor Cyan
 Invoke-Native "remote npm install --omit=dev" {
     ssh @sshOpts $piHost "cd '$piPath' && npm install --omit=dev --no-audit --no-fund 2>&1 | tail -5"
 }
@@ -178,11 +203,11 @@ if ($Restart) {
     Invoke-Native "systemctl restart signalk" { ssh @sshOpts $piHost "sudo systemctl restart signalk" }
     Write-Host "OK -- SK restarted (wait ~15 s before testing)" -ForegroundColor Green
     Write-Host ""
-    Write-Host ">> Tailing signalk logs for pypilot-newui hits (5 s)..." -ForegroundColor Cyan
-    ssh @sshOpts $piHost "sleep 5 && journalctl -u signalk -n 40 --no-pager | grep -Ei 'pypilot-newui|error' | tail -20"
+    Write-Host ">> Tailing signalk logs for pypilot-newui hits..." -ForegroundColor Cyan
+    ssh @sshOpts $piHost "sleep 5 && journalctl -u signalk -n 40 --no-pager | grep -Ei 'pypilot-newui|error' | grep -v pushover | tail -20"
 } else {
     Write-Host ""
-    Write-Host "Next: .\deploy.ps1 -Restart   (backend edits need SK restart to reload)" -ForegroundColor Yellow
+    Write-Host "Next: .\deploy.ps1 -Restart" -ForegroundColor Yellow
 }
 
 Write-Host ""

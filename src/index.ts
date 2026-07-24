@@ -14,7 +14,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev14";
+const PLUGIN_REVISION = "Rev15";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -334,6 +334,90 @@ module.exports = function (app: any) {
       // Emergency valves for when pypilot_web on the Pi Zero starts to
       // choke: pause disconnects our socket without unregistering the
       // plugin, resume opens a fresh one. State/catalog are kept in place.
+      // Autopilot control endpoints - proxied through our plugin so writes
+      // require the SAME auth as GET /status (which the SK admin session
+      // already has). Avoids the extra permission wall that
+      // /signalk/v2/api/vessels/self/autopilots/*/* enforces.
+      const requireProvider = (res: any) => {
+        if (!apProvider) {
+          res.status(409).json({ error: "absorbProvider is not enabled - either enable it in Setup, or POST to /raw with e.g. name='ap.enabled'." });
+          return false;
+        }
+        return true;
+      };
+      router.post("/ap/engage", async (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        try {
+          if (apProvider) {
+            await (apProvider.toProviderInterface() as any).engage(apProvider.deviceId);
+          } else if (client?.connected) {
+            client.set("ap.enabled", true);
+          } else {
+            return res.status(503).json({ error: "not connected" });
+          }
+          res.json({ ok: true });
+        } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+      });
+      router.post("/ap/disengage", async (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        try {
+          if (apProvider) {
+            await (apProvider.toProviderInterface() as any).disengage(apProvider.deviceId);
+          } else if (client?.connected) {
+            client.set("ap.enabled", false);
+          } else {
+            return res.status(503).json({ error: "not connected" });
+          }
+          res.json({ ok: true });
+        } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+      });
+      router.put("/ap/mode", async (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        const value = req.body?.value;
+        if (typeof value !== "string") return res.status(400).json({ error: "value must be a string" });
+        try {
+          if (apProvider) {
+            await (apProvider.toProviderInterface() as any).setMode(value, apProvider.deviceId);
+          } else if (client?.connected) {
+            client.set("ap.mode", value);
+          } else {
+            return res.status(503).json({ error: "not connected" });
+          }
+          res.json({ ok: true });
+        } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+      });
+      router.put("/ap/target", async (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        const rad = req.body?.value;
+        if (typeof rad !== "number") return res.status(400).json({ error: "value must be a number (radians)" });
+        try {
+          if (apProvider) {
+            await (apProvider.toProviderInterface() as any).setTarget(rad, apProvider.deviceId);
+          } else if (client?.connected) {
+            client.set("ap.heading_command", rad * 180 / Math.PI);
+          } else {
+            return res.status(503).json({ error: "not connected" });
+          }
+          res.json({ ok: true });
+        } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+      });
+      router.post("/ap/tack/:direction", async (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        const dir = req.params.direction;
+        if (dir !== "port" && dir !== "starboard") return res.status(400).json({ error: "direction must be port or starboard" });
+        try {
+          if (apProvider) {
+            await (apProvider.toProviderInterface() as any).tack(dir, apProvider.deviceId);
+          } else if (client?.connected) {
+            client.set("ap.tack.direction", dir);
+            client.set("ap.tack.state", "begin");
+          } else {
+            return res.status(503).json({ error: "not connected" });
+          }
+          res.json({ ok: true });
+        } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+      });
+
       router.post("/pause", (_req: any, res: any) => {
         try {
           client?.pause();
