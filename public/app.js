@@ -530,31 +530,44 @@
   }
   const handleAuth = handleAuthWrite;
 
+  // Writes go via the SK Autopilot API v2. Confirmed working with Carlos's
+  // session cookie in Rev7-Rev14. The /plugins/*/ap/* endpoints exist in the
+  // backend as an alternative (for scripts or headless clients) but the webapp
+  // uses the v2 API because that is what the SK security policy on Tunatunes
+  // grants writes for.
+  //
+  //   POST /signalk/v2/api/vessels/self/autopilots/<id>/engage
+  //   POST /signalk/v2/api/vessels/self/autopilots/<id>/disengage
+  //   PUT  /signalk/v2/api/vessels/self/autopilots/<id>/mode      {"value":"compass"}
+  //   PUT  /signalk/v2/api/vessels/self/autopilots/<id>/target    {"value":<rad>}
+  //   POST /signalk/v2/api/vessels/self/autopilots/<id>/tack/{port|starboard}
   async function apEngage() {
-    return handleAuth(await fetch(`/plugins/${PLUGIN_ID}/ap/engage`,
-      { method: "POST", credentials: "include" }));
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
+    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
   }
   async function apDisengage() {
-    return handleAuth(await fetch(`/plugins/${PLUGIN_ID}/ap/disengage`,
-      { method: "POST", credentials: "include" }));
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
+    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
   }
   async function apSetMode(mode) {
-    return handleAuth(await fetch(`/plugins/${PLUGIN_ID}/ap/mode`, {
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/mode`;
+    return handleAuth(await fetch(url, {
       method: "PUT", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: mode }),
     }));
   }
   async function apSetTargetRad(rad) {
-    return handleAuth(await fetch(`/plugins/${PLUGIN_ID}/ap/target`, {
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/target`;
+    return handleAuth(await fetch(url, {
       method: "PUT", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: rad }),
     }));
   }
   async function apTack(direction) {
-    return handleAuth(await fetch(`/plugins/${PLUGIN_ID}/ap/tack/${direction}`,
-      { method: "POST", credentials: "include" }));
+    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/tack/${direction}`;
+    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
   }
 
   // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
