@@ -39,7 +39,7 @@
     availableActions: [],
     lastNudgeTs: 0,
     localTargetRad: null,
-    autopilotId: "pypilot-sk", // will be discovered on boot from /autopilots
+    autopilotId: "", // discovered on boot from /autopilots; must not default to a specific id.
     authFailed: false,
     nudgeSmall: 1,             // populated from plugin config
     nudgeBig: 10,
@@ -444,15 +444,26 @@
 
   async function discoverAutopilot() {
     try {
-      const res = await fetch("/signalk/v2/api/vessels/self/autopilots", { credentials: "include" });
-      if (!res.ok) return;
+      // Always fetch fresh - do not trust cache in case the user switched
+      // providers via SK Admin without reloading the webapp.
+      const res = await fetch("/signalk/v2/api/vessels/self/autopilots?_=" + Date.now(), { credentials: "include", cache: "no-store" });
+      if (!res.ok) { console.warn("[pypilot-newui] /autopilots HTTP", res.status); return; }
       const j = await res.json();
-      for (const [id, info] of Object.entries(j || {})) {
-        if (info && info.isDefault) { state.autopilotId = id; break; }
+      const entries = Object.entries(j || {});
+      if (!entries.length) { console.warn("[pypilot-newui] /autopilots returned no providers"); return; }
+      // Prefer isDefault, then our own id, then any available.
+      let picked = "";
+      for (const [id, info] of entries) {
+        if (info?.isDefault) { picked = id; break; }
       }
-      if (!state.autopilotId && j && Object.keys(j).length) {
-        state.autopilotId = Object.keys(j)[0];
+      if (!picked) {
+        for (const [id] of entries) {
+          if (id === "pypilot-newui") { picked = id; break; }
+        }
       }
+      if (!picked) picked = entries[0][0];
+      state.autopilotId = picked;
+      console.info("[pypilot-newui] autopilotId =", picked, "(from", entries.map(e => e[0]).join(","), ")");
     } catch (e) { console.warn("discoverAutopilot failed", e); }
   }
 
@@ -554,33 +565,46 @@
   //   PUT  /signalk/v2/api/vessels/self/autopilots/<id>/mode      {"value":"compass"}
   //   PUT  /signalk/v2/api/vessels/self/autopilots/<id>/target    {"value":<rad>}
   //   POST /signalk/v2/api/vessels/self/autopilots/<id>/tack/{port|starboard}
+  async function ensureAutopilotId() {
+    if (!state.autopilotId) await discoverAutopilot();
+    if (!state.autopilotId) {
+      alert("No SK autopilot provider detected. Enable 'PyPilot New-UI' in SK Admin (or disable then re-enable it) so the provider registers.");
+      return false;
+    }
+    return true;
+  }
   async function apEngage() {
+    if (!await ensureAutopilotId()) return;
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
-    return handleAuth(await skFetch(url, { method: "POST", credentials: "include" }));
+    return handleAuth(await skFetch(url, { method: "POST" }));
   }
   async function apDisengage() {
+    if (!await ensureAutopilotId()) return;
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
-    return handleAuth(await skFetch(url, { method: "POST", credentials: "include" }));
+    return handleAuth(await skFetch(url, { method: "POST" }));
   }
   async function apSetMode(mode) {
+    if (!await ensureAutopilotId()) return;
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/mode`;
     return handleAuth(await skFetch(url, {
-      method: "PUT", credentials: "include",
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: mode }),
     }));
   }
   async function apSetTargetRad(rad) {
+    if (!await ensureAutopilotId()) return;
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/target`;
     return handleAuth(await skFetch(url, {
-      method: "PUT", credentials: "include",
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: rad }),
     }));
   }
   async function apTack(direction) {
+    if (!await ensureAutopilotId()) return;
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/tack/${direction}`;
-    return handleAuth(await skFetch(url, { method: "POST", credentials: "include" }));
+    return handleAuth(await skFetch(url, { method: "POST" }));
   }
 
   // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
