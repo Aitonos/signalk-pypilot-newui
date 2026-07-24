@@ -9,17 +9,21 @@
 </head>
 <body class="theme-dark">
 
-  <!-- Auth banner: only appears after 3 write 401s in 30 s (Rev14 policy).
-       Shows the exact failing URL so the user can see which endpoint is
-       actually refused. X remembers dismiss in localStorage across restarts. -->
-  <div id="auth-banner" hidden>
-    <div id="auth-banner-msg" style="flex:1; text-align:left; min-width:0;">
-      <div><b>Signal K refused writes (401):</b></div>
-      <div id="auth-banner-url" style="font-family:monospace; font-size:11px; word-break:break-all; opacity:0.9"></div>
+  <!-- Login modal: opens when SK returns 401 on a write. Gets a JWT from
+       /signalk/v1/auth/login and caches it in localStorage - no more cookie
+       dependency, no more red banner. -->
+  <div id="login-modal" hidden>
+    <div class="modal-card">
+      <h3>Signal K login</h3>
+      <p>Writes to the autopilot need your Signal K admin credentials. Enter them once and the token is saved in this browser.</p>
+      <label>Username <input type="text" id="login-user" placeholder="tunatunes" autocomplete="username" /></label>
+      <label>Password <input type="password" id="login-pass" placeholder="password" autocomplete="current-password" /></label>
+      <div id="login-error"></div>
+      <div class="row">
+        <button id="login-cancel" class="ghost">Cancel</button>
+        <button id="login-submit" class="primary">Log in</button>
+      </div>
     </div>
-    <a href="/admin/#/login" target="_blank" rel="noopener">Log in</a>
-    <button id="auth-banner-ping" aria-label="Re-test">Ping</button>
-    <button id="auth-banner-dismiss" aria-label="Dismiss forever">x</button>
   </div>
 
   <!-- Header removed in Rev10: state/mode/wind pills were redundant with the
@@ -280,6 +284,6 @@
   </footer>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev16"></script>
+  <script src="app.js?v=Rev17"></script>
 </body>
 </html>

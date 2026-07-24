@@ -20,36 +20,57 @@
 
 * { box-sizing: border-box; }
 
-/* -------- Auth banner (401) -------- */
-#auth-banner {
-  background: var(--err);
-  color: #fff;
-  padding: 8px 12px;
-  font-size: 13px;
-  text-align: center;
-  border-bottom: 2px solid #7a1912;
-  flex-shrink: 0;
+/* -------- Login modal (Rev17) - replaces the old red banner -------- */
+#login-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  z-index: 1000;
 }
-#auth-banner a {
-  color: #fff;
-  font-weight: 700;
-  text-decoration: underline;
+#login-modal[hidden] { display: none; }
+#login-modal .modal-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  width: min(360px, 90vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-#auth-banner button {
-  background: transparent;
-  color: #fff;
-  border: 1px solid #fff;
-  border-radius: 4px;
-  padding: 2px 8px;
-  cursor: pointer;
-  margin-left: 6px;
+#login-modal h3 { margin: 0; font-size: 18px; }
+#login-modal p { margin: 0; font-size: 13px; color: var(--fg-dim); }
+#login-modal label {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--fg-dim);
+  gap: 4px;
+}
+#login-modal input {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+#login-modal #login-error {
+  color: var(--err);
   font-size: 12px;
+  min-height: 14px;
 }
-#auth-banner button:hover { background: rgba(255,255,255,0.15); }
+#login-modal .row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
 
 html, body {
   margin: 0;

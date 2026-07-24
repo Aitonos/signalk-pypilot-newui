@@ -456,78 +456,91 @@
     } catch (e) { console.warn("discoverAutopilot failed", e); }
   }
 
-  // Banner policy (Rev14):
-  //   - Only shows after 3 write 401s within 30 s (an isolated blip is
-  //     never enough). Prevents a stale-cookie flash from becoming a
-  //     persistent scary red banner.
-  //   - The banner shows the EXACT failing URL so the user can share it.
-  //   - Every write is console-logged (info for 2xx, warn for 4xx/5xx).
-  //   - X dismiss is remembered in localStorage across page reloads.
-  //   - Any 2xx write clears the failure counter (but does NOT wipe the
-  //     dismiss - a user who closed the banner keeps it closed).
-  //   - Reads only clear the banner on 200.
-  const DISMISS_KEY = "pypilot-newui.auth-dismissed";
-  const FAIL_WINDOW_MS = 30_000;
-  const FAIL_THRESHOLD = 3;
-  let _authFailures = []; // timestamps of recent write 401s
-  let _lastFailUrl = "";
-  let _authHideTimer = null;
-  function bannerDismissed() {
-    try { return localStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
+  // ---- SK auth: JWT token cached in localStorage (Rev17) ----
+  // The webapp obtains a JWT via POST /signalk/v1/auth/login {username,password}
+  // and sends it as `Authorization: JWT <token>` on every write. This works
+  // regardless of the browser cookie state and regardless of tab/session
+  // quirks. The token is saved in localStorage so the user only logs in once.
+  const TOKEN_KEY = "pypilot-newui.jwt";
+  function getToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
   }
-  function pruneFailures() {
-    const cutoff = Date.now() - FAIL_WINDOW_MS;
-    _authFailures = _authFailures.filter((t) => t > cutoff);
+  function setToken(t) {
+    try {
+      if (t) localStorage.setItem(TOKEN_KEY, t);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch {}
   }
-  function scheduleBannerAutoHide() {
-    if (_authHideTimer) clearTimeout(_authHideTimer);
-    _authHideTimer = setTimeout(() => {
-      const b = $("#auth-banner");
-      if (b) b.setAttribute("hidden", "");
-    }, 20000);
+  function authHeaders() {
+    const t = getToken();
+    return t ? { "Authorization": `JWT ${t}` } : {};
   }
-  function showBanner(url) {
-    if (bannerDismissed()) return;
-    const b = $("#auth-banner");
-    if (!b) return;
-    const u = $("#auth-banner-url");
-    if (u) u.textContent = url || "";
-    b.removeAttribute("hidden");
-    scheduleBannerAutoHide();
+  async function skFetch(url, opts) {
+    const o = opts || {};
+    const merged = {
+      ...o,
+      credentials: "include",
+      headers: { ...(o.headers || {}), ...authHeaders() },
+    };
+    return fetch(url, merged);
   }
-  function hideBanner() {
-    const b = $("#auth-banner");
-    if (b) b.setAttribute("hidden", "");
-    if (_authHideTimer) { clearTimeout(_authHideTimer); _authHideTimer = null; }
+
+  function openLoginModal(prefillMsg) {
+    const m = $("#login-modal");
+    if (!m) return;
+    m.removeAttribute("hidden");
+    const err = $("#login-error");
+    if (err) err.textContent = prefillMsg || "";
+    const u = $("#login-user"); if (u && !u.value) u.value = "tunatunes";
+    const p = $("#login-pass"); if (p) p.focus();
   }
+  function closeLoginModal() {
+    const m = $("#login-modal");
+    if (m) m.setAttribute("hidden", "");
+  }
+  async function doLogin() {
+    const u = $("#login-user").value.trim();
+    const p = $("#login-pass").value;
+    const err = $("#login-error");
+    if (!u || !p) { if (err) err.textContent = "Both fields required"; return; }
+    try {
+      const r = await fetch("/signalk/v1/auth/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u, password: p }),
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => "");
+        if (err) err.textContent = `Login failed (${r.status}) ${txt}`;
+        return;
+      }
+      const j = await r.json();
+      if (j?.token) {
+        setToken(j.token);
+        closeLoginModal();
+        console.info("[pypilot-newui] JWT saved, writes should work now");
+      } else {
+        if (err) err.textContent = "Login OK but no token in response";
+      }
+    } catch (e) {
+      if (err) err.textContent = "Network error: " + e;
+    }
+  }
+
   function handleAuthWrite(res) {
     if (!res) return res;
     if (res.status === 401) {
-      state.authFailed = true;
-      _lastFailUrl = res.url;
-      _authFailures.push(Date.now());
-      pruneFailures();
-      console.warn(`[pypilot-newui] auth 401 (${_authFailures.length}/${FAIL_THRESHOLD}) on:`, res.url);
-      if (_authFailures.length >= FAIL_THRESHOLD) {
-        showBanner(res.url);
-      }
+      console.warn(`[pypilot-newui] auth 401 on:`, res.url);
+      openLoginModal("Your saved token expired or was rejected - re-enter your password.");
     } else if (res.status < 400) {
-      state.authFailed = false;
-      _authFailures = []; // any success resets the counter
-      console.info(`[pypilot-newui] write ok: ${res.status} ${res.url}`);
+      console.info(`[pypilot-newui] write ok ${res.status}:`, res.url);
     } else {
       console.warn(`[pypilot-newui] write failed ${res.status}:`, res.url);
     }
     return res;
   }
-  function handleAuthRead(res) {
-    if (!res) return res;
-    if (res.status < 400) {
-      state.authFailed = false;
-      hideBanner();
-    }
-    return res;
-  }
+  function handleAuthRead(res) { return res; }
   const handleAuth = handleAuthWrite;
 
   // Writes go via the SK Autopilot API v2. Confirmed working with Carlos's
@@ -543,15 +556,15 @@
   //   POST /signalk/v2/api/vessels/self/autopilots/<id>/tack/{port|starboard}
   async function apEngage() {
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
-    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
+    return handleAuth(await skFetch(url, { method: "POST", credentials: "include" }));
   }
   async function apDisengage() {
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
-    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
+    return handleAuth(await skFetch(url, { method: "POST", credentials: "include" }));
   }
   async function apSetMode(mode) {
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/mode`;
-    return handleAuth(await fetch(url, {
+    return handleAuth(await skFetch(url, {
       method: "PUT", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: mode }),
@@ -559,7 +572,7 @@
   }
   async function apSetTargetRad(rad) {
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/target`;
-    return handleAuth(await fetch(url, {
+    return handleAuth(await skFetch(url, {
       method: "PUT", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: rad }),
@@ -567,16 +580,15 @@
   }
   async function apTack(direction) {
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/tack/${direction}`;
-    return handleAuth(await fetch(url, { method: "POST", credentials: "include" }));
+    return handleAuth(await skFetch(url, { method: "POST", credentials: "include" }));
   }
 
   // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
   // profiles, calibration, tack detail), route through our own /raw endpoint.
   async function pluginRaw(name, value) {
     const url = `/plugins/${PLUGIN_ID}/raw`;
-    const res = await fetch(url, {
+    const res = await skFetch(url, {
       method: "PUT",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, value }),
     });
@@ -921,36 +933,14 @@
     renderEngage();
     renderNudgeLabels();
 
-    // Auth banner wiring (Rev12):
-    //   - X remembers dismiss for the tab lifetime (sessionStorage)
-    //   - "Ping" probes /plugins/<id>/status and hides on success
-    const dismiss = $("#auth-banner-dismiss");
-    if (dismiss) dismiss.addEventListener("click", () => {
-      hideBanner();
-      try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
-    });
-    const ping = $("#auth-banner-ping");
-    if (ping) ping.addEventListener("click", async () => {
-      const btn = ping;
-      const orig = btn.textContent;
-      btn.textContent = "...";
-      try {
-        // Ping does a WRITE-shaped probe (the one that was failing) plus a read.
-        // If both come back OK, the session cookie is fine and we clear state.
-        const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
-        if (r.ok) {
-          try { localStorage.removeItem(DISMISS_KEY); } catch {}
-          hideBanner();
-          _authFailures = [];
-          alert("SK responded 200 to /status. If writes still fail, that endpoint has a stricter permission - share the URL from the banner.");
-        } else {
-          alert(`Still ${r.status}. Log in via the SK admin link.`);
-        }
-      } catch (e) {
-        alert("Ping error: " + e);
-      } finally {
-        btn.textContent = orig;
-      }
+    // Login modal wiring (Rev17)
+    const loginSubmit = $("#login-submit");
+    if (loginSubmit) loginSubmit.addEventListener("click", doLogin);
+    const loginCancel = $("#login-cancel");
+    if (loginCancel) loginCancel.addEventListener("click", closeLoginModal);
+    const loginPass = $("#login-pass");
+    if (loginPass) loginPass.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); doLogin(); }
     });
 
     await discoverAutopilot();
