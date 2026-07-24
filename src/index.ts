@@ -14,7 +14,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev19";
+const PLUGIN_REVISION = "Rev20";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -126,6 +126,13 @@ module.exports = function (app: any) {
           description:
             "When on, this plugin registers itself as the SK Autopilot Provider (WilhelmSK, freeboard, etc. control it via /signalk/v2/api/vessels/self/autopilots). REQUIRES you to disable the official 'pypilot-autopilot-provider' plugin at the same time - otherwise both fight for the deviceId. Benefit: only one socket to pypilot_web (halves the load on a Pi Zero TinyPilot).",
           default: false,
+        },
+        enabledPaths: {
+          type: "object",
+          title: "Enabled paths (pypilot name -> boolean)",
+          description:
+            "Set to false to stop publishing a specific pypilot value as SK. Configure interactively via the webapp's Paths & API tab.",
+          default: {},
         },
       },
     }),
@@ -270,6 +277,7 @@ module.exports = function (app: any) {
           nudgeBig: props.nudgeBig ?? 10,
           absorbProvider: !!apProvider,
           apData: apProvider ? apProvider.data : null,
+          enabledPaths: props.enabledPaths || {},
         });
       });
 
@@ -295,7 +303,11 @@ module.exports = function (app: any) {
               : null,
           });
         }
-        res.json({ count: items.length, items });
+        res.json({
+          count: items.length,
+          items,
+          enabledPaths: props.enabledPaths || {},
+        });
       });
 
       router.get("/catalog", (_req: any, res: any) => {
@@ -454,7 +466,9 @@ module.exports = function (app: any) {
       nudgeSmall: typeof options.nudgeSmall === "number" ? options.nudgeSmall : 1,
       nudgeBig: typeof options.nudgeBig === "number" ? options.nudgeBig : 10,
       absorbProvider: options.absorbProvider === true,
-      enabledPaths: options.enabledPaths || {},
+      enabledPaths: (options.enabledPaths && typeof options.enabledPaths === "object")
+        ? options.enabledPaths
+        : {},
     };
   }
 
@@ -541,6 +555,10 @@ module.exports = function (app: any) {
 
   function publishValue(name: string, value: unknown): void {
     if (RESERVED_PYPILOT_KEYS.has(name)) return;
+    // Rev20: respect the user's per-path publish toggle. Default is "publish"
+    // unless the key is explicitly set to false in enabledPaths.
+    const en = props.enabledPaths || {};
+    if (Object.prototype.hasOwnProperty.call(en, name) && en[name] === false) return;
     let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
     if (!mapping) mapping = mapDynamicName(name, lastCatalog);
     if (!mapping) {

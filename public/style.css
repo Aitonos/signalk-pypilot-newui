@@ -175,9 +175,10 @@ main {
 .tab-panel.active { display: block; }
 
 /* -------- Control tab: dashboard with central compass rose -------- */
+/* Rev20: side widgets narrower (-40%), rose gets the extra room. */
 .dash-rose {
   display: grid;
-  grid-template-columns: 1fr 1.6fr 1fr;
+  grid-template-columns: 0.6fr 2.5fr 0.6fr;
   grid-template-rows: 1fr 1fr;
   gap: 6px;
   margin-bottom: 8px;
@@ -217,8 +218,27 @@ main {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: center;    /* Rev20: center value horizontally */
+  justify-content: center;/* Rev20: center value vertically */
   overflow: hidden;
+  text-align: center;
+}
+.dash-cell .label {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  text-align: left;
+}
+.dash-cell .unit {
+  position: absolute;
+  bottom: 6px;
+  right: 10px;
+  color: var(--fg-dim);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .dash-cell .label {
@@ -230,13 +250,20 @@ main {
 }
 .dash-cell .value {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: clamp(30px, 8vw, 56px);
+  font-size: clamp(26px, 7vw, 52px);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.02em;
+  margin: 0;
 }
-.dash-cell .unit  { color: var(--fg-dim); font-size: 11px; text-align: right; }
-.dash-cell .sub   { font-family: monospace; font-size: clamp(16px, 4vw, 24px); color: var(--fg); font-weight: 600; letter-spacing: -0.01em; }
+.dash-cell .sub {
+  font-family: monospace;
+  font-size: clamp(14px, 3.5vw, 22px);
+  color: var(--fg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 4px;
+}
 
 /* B&G-ish tile color coding: current heading in soft white, target in blue,
    wind in green, SOG in yellow. */
@@ -264,11 +291,34 @@ main {
   text-transform: uppercase;
 }
 
-.engage-row {
+/* Rev20: new secondary-controls row (Tack | Mode | Cal | Tack) 40% taller
+   than the nudges. Old .engage-row grid removed. */
+.control-row-tall {
   display: grid;
-  grid-template-columns: 1fr 2.2fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr 1.4fr 1.4fr 1fr;
+  gap: 6px;
   align-items: stretch;
+}
+.control-row-tall > * { min-height: 100px; }
+
+.engage-row-solo {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.cal-select {
+  min-height: 100px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0 10px;
+  text-align-last: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .tack-btn {
@@ -386,6 +436,13 @@ main {
 .rudder-widget .value { color: var(--accent); font-family: monospace; font-size: 13px; text-align: right; }
 
 /* -------- Tune tab -------- */
+/* Tune tab separator between gains and configuration sliders */
+hr.tune-separator {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0 12px;
+}
+
 .tune-header .row {
   display: flex;
   gap: 8px;

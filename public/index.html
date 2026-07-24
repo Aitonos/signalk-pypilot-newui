@@ -106,24 +106,7 @@
       </div>
 
       <div class="controls">
-        <div class="mode-row">
-          <select id="mode-select" class="mode-select" aria-label="Mode"></select>
-        </div>
-
-        <div class="engage-row">
-          <button class="tack-btn tack-port" id="tack-port-btn" title="Tack to port">
-            <span class="arrow">&#x2039;</span>
-            <span class="lbl">TACK</span>
-          </button>
-          <button id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
-            AP
-          </button>
-          <button class="tack-btn tack-star" id="tack-star-btn" title="Tack to starboard">
-            <span class="lbl">TACK</span>
-            <span class="arrow">&#x203A;</span>
-          </button>
-        </div>
-
+        <!-- Row 1: nudges (-10 -1 +1 +10) -->
         <div class="nudge-row">
           <button class="steer-btn nudge-big-port" data-nudge-kind="big-port">
             <span class="lbl" id="lbl-big-port">-10</span>
@@ -138,9 +121,35 @@
             <span class="lbl" id="lbl-big-star">+10</span>
           </button>
         </div>
-        <!-- Center rudder button lives outside the nudge grid so it does not
-             throw off the 4-equal-column layout. Hidden until we detect
-             rudder.source. -->
+
+        <!-- Row 2: secondary controls (Tack, Mode, Cal) - 40% taller than nudges -->
+        <div class="control-row-tall">
+          <button class="tack-btn tack-port" id="tack-port-btn" title="Tack to port">
+            <span class="arrow">&#x2039;</span>
+            <span class="lbl" data-i18n="tack">TACK</span>
+          </button>
+          <select id="mode-select" class="mode-select" aria-label="Mode"></select>
+          <select id="cal-select" class="cal-select" aria-label="Calibration">
+            <option value="" data-i18n="cal">CAL</option>
+            <option value="level" data-i18n="cal.level">Level (boat flat)</option>
+            <option value="rud-centered" data-i18n="cal.rudCentered">Rudder centered</option>
+            <option value="rud-port" data-i18n="cal.rudPort">Rudder port range</option>
+            <option value="rud-star" data-i18n="cal.rudStar">Rudder star range</option>
+            <option value="rud-reset" data-i18n="cal.rudReset">Rudder reset</option>
+          </select>
+          <button class="tack-btn tack-star" id="tack-star-btn" title="Tack to starboard">
+            <span class="lbl" data-i18n="tack">TACK</span>
+            <span class="arrow">&#x203A;</span>
+          </button>
+        </div>
+
+        <!-- Row 3: big AP toggle, centered -->
+        <div class="engage-row-solo">
+          <button id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
+            AP
+          </button>
+        </div>
+
         <button class="steer-btn center-outside" id="center-btn" title="Center rudder (disengaged)" hidden>Center rudder</button>
 
         <div id="rudder-widget" class="rudder-widget" hidden>
@@ -170,26 +179,10 @@
         <!-- Gain rows injected by app.js. Each row goes translucent while dragged. -->
       </div>
 
-      <div id="calibration-section" class="calibration-section">
-        <div class="section-title">Calibration</div>
-        <div class="calib-row">
-          <button id="cal-level" class="ghost">Level (boat is flat)</button>
-          <div id="cal-level-progress" class="progress"><div class="bar"></div></div>
-        </div>
-        <div class="calib-row">
-          <label>IMU heading offset (deg)</label>
-          <input type="number" id="cal-heading-offset" min="-180" max="180" step="0.1" />
-        </div>
-        <div class="calib-row">
-          <button id="cal-rud-centered" class="ghost">Rudder centered</button>
-          <button id="cal-rud-port"     class="ghost">Port range</button>
-          <button id="cal-rud-star"     class="ghost">Star range</button>
-          <button id="cal-rud-reset"    class="ghost">Reset</button>
-        </div>
-        <div class="calib-row">
-          <label>Rudder range (deg)</label>
-          <input type="number" id="cal-rud-range" min="10" max="100" step="1" />
-        </div>
+      <hr class="tune-separator" />
+      <div class="section-title" data-i18n="configuration">Configuration</div>
+      <div id="config-sliders" class="gains-container">
+        <!-- Configuration RangeSetting sliders injected by app.js. -->
       </div>
     </section>
 
@@ -199,13 +192,18 @@
         <div>Live catalog of Signal K paths this plugin publishes and PUT-handles. Use the Copy buttons to paste into KIP widget configs.</div>
         <button id="paths-refresh" class="ghost">Refresh</button>
       </div>
+      <div class="row" style="margin-bottom:8px; gap:8px;">
+        <button id="paths-save" class="primary" data-i18n="save">Save publish selection</button>
+        <span class="hint" data-i18n="paths.hint">Uncheck a path to stop publishing it. Applies after Save (plugin restart).</span>
+      </div>
       <table id="paths-table" class="paths-table">
         <thead>
           <tr>
-            <th>SK path</th>
-            <th>Units</th>
-            <th>PUT?</th>
-            <th>Copy</th>
+            <th data-i18n="paths.publish">Publish</th>
+            <th data-i18n="paths.skPath">SK path</th>
+            <th data-i18n="paths.units">Units</th>
+            <th data-i18n="paths.put">PUT?</th>
+            <th data-i18n="paths.copy">Copy</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -263,15 +261,50 @@
       </div>
 
       <div class="setup-block">
-        <div class="section-title">Nudge steps</div>
+        <div class="section-title" data-i18n="nudge.title">Nudge steps</div>
         <div class="row">
-          <label style="min-width:120px">Small (-1/+1)</label>
+          <label style="min-width:120px" data-i18n="nudge.small">Small (-1/+1)</label>
           <input type="number" id="cfg-nudge-small" min="0.1" max="45" step="0.5" value="1" />
-          <label style="min-width:120px">Big (-10/+10)</label>
+          <label style="min-width:120px" data-i18n="nudge.big">Big (-10/+10)</label>
           <input type="number" id="cfg-nudge-big" min="1" max="90" step="1" value="10" />
-          <button id="cfg-nudge-apply" class="primary">Save</button>
+          <button id="cfg-nudge-apply" class="primary" data-i18n="save">Save</button>
         </div>
-        <div class="hint">Degrees added to the target each time you press a nudge button. Also configurable in Signal K Admin -> Plugin Config -> PyPilot New-UI.</div>
+        <div class="hint" data-i18n="nudge.hint">Degrees added to the target each time you press a nudge button. Also configurable in Signal K Admin -> Plugin Config -> PyPilot New-UI.</div>
+      </div>
+
+      <div class="setup-block">
+        <div class="section-title" data-i18n="language.title">Language</div>
+        <div class="row">
+          <select id="lang-select" style="min-width:180px">
+            <option value="en">English</option>
+            <option value="es">Espanol</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Francais</option>
+          </select>
+        </div>
+        <div class="hint" data-i18n="language.hint">Persists in this browser only. No server round-trip.</div>
+      </div>
+
+      <div class="setup-block">
+        <div class="section-title" data-i18n="calibration.title">Calibration</div>
+        <div class="calib-row">
+          <button id="cal-level" class="ghost" data-i18n="cal.level">Level (boat is flat)</button>
+          <div id="cal-level-progress" class="progress"><div class="bar"></div></div>
+        </div>
+        <div class="calib-row">
+          <label data-i18n="cal.headingOffset">IMU heading offset (deg)</label>
+          <input type="number" id="cal-heading-offset" min="-180" max="180" step="0.1" />
+        </div>
+        <div class="calib-row">
+          <button id="cal-rud-centered" class="ghost" data-i18n="cal.rudCentered">Rudder centered</button>
+          <button id="cal-rud-port"     class="ghost" data-i18n="cal.rudPort">Port range</button>
+          <button id="cal-rud-star"     class="ghost" data-i18n="cal.rudStar">Star range</button>
+          <button id="cal-rud-reset"    class="ghost" data-i18n="cal.rudReset">Reset</button>
+        </div>
+        <div class="calib-row">
+          <label data-i18n="cal.rudRange">Rudder range (deg)</label>
+          <input type="number" id="cal-rud-range" min="10" max="100" step="1" />
+        </div>
       </div>
     </section>
   </main>
@@ -284,6 +317,6 @@
   </footer>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev19"></script>
+  <script src="app.js?v=Rev20"></script>
 </body>
 </html>

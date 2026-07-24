@@ -19,6 +19,137 @@
 
   const PLUGIN_ID = "signalk-pypilot-newui";
 
+  // ---- i18n (Rev20) ----
+  // Simple dictionary lookup by data-i18n attribute. Default language is
+  // English; persists per-browser in localStorage.
+  const I18N = {
+    en: {
+      "tack": "TACK",
+      "cal": "CAL",
+      "cal.level": "Level (boat flat)",
+      "cal.rudCentered": "Rudder centered",
+      "cal.rudPort": "Rudder port range",
+      "cal.rudStar": "Rudder star range",
+      "cal.rudReset": "Rudder reset",
+      "cal.headingOffset": "IMU heading offset (deg)",
+      "cal.rudRange": "Rudder range (deg)",
+      "configuration": "Configuration",
+      "calibration.title": "Calibration",
+      "save": "Save",
+      "paths.publish": "Publish",
+      "paths.skPath": "SK path",
+      "paths.units": "Units",
+      "paths.put": "PUT?",
+      "paths.copy": "Copy",
+      "paths.hint": "Uncheck a path to stop publishing it. Applies after Save (plugin restart).",
+      "nudge.title": "Nudge steps",
+      "nudge.small": "Small (-1/+1)",
+      "nudge.big": "Big (-10/+10)",
+      "nudge.hint": "Degrees added to the target each time you press a nudge button.",
+      "language.title": "Language",
+      "language.hint": "Persists in this browser only.",
+    },
+    es: {
+      "tack": "VIRAR",
+      "cal": "CAL",
+      "cal.level": "Nivelar (barco adrizado)",
+      "cal.rudCentered": "Timon centrado",
+      "cal.rudPort": "Rango babor",
+      "cal.rudStar": "Rango estribor",
+      "cal.rudReset": "Reset timon",
+      "cal.headingOffset": "Offset rumbo IMU (grados)",
+      "cal.rudRange": "Rango timon (grados)",
+      "configuration": "Configuracion",
+      "calibration.title": "Calibracion",
+      "save": "Guardar",
+      "paths.publish": "Publicar",
+      "paths.skPath": "Path SK",
+      "paths.units": "Unidades",
+      "paths.put": "PUT?",
+      "paths.copy": "Copiar",
+      "paths.hint": "Desmarca un path para dejar de publicarlo. Se aplica tras Guardar (reinicio plugin).",
+      "nudge.title": "Pasos nudge",
+      "nudge.small": "Pequeno (-1/+1)",
+      "nudge.big": "Grande (-10/+10)",
+      "nudge.hint": "Grados anadidos al target al pulsar cada boton nudge.",
+      "language.title": "Idioma",
+      "language.hint": "Solo en este navegador.",
+    },
+    de: {
+      "tack": "WENDEN",
+      "cal": "KAL",
+      "cal.level": "Waagerecht (Boot flach)",
+      "cal.rudCentered": "Ruder zentriert",
+      "cal.rudPort": "Ruder Backbord-Bereich",
+      "cal.rudStar": "Ruder Steuerbord-Bereich",
+      "cal.rudReset": "Ruder Reset",
+      "cal.headingOffset": "IMU Kursoffset (Grad)",
+      "cal.rudRange": "Ruderbereich (Grad)",
+      "configuration": "Konfiguration",
+      "calibration.title": "Kalibrierung",
+      "save": "Speichern",
+      "paths.publish": "Publizieren",
+      "paths.skPath": "SK-Pfad",
+      "paths.units": "Einheiten",
+      "paths.put": "PUT?",
+      "paths.copy": "Kopieren",
+      "paths.hint": "Abwahlen eines Pfads stoppt seine Publikation. Nach Speichern aktiv.",
+      "nudge.title": "Nudge-Schritte",
+      "nudge.small": "Klein (-1/+1)",
+      "nudge.big": "Gross (-10/+10)",
+      "nudge.hint": "Grad, die bei jedem Nudge-Klick zum Ziel addiert werden.",
+      "language.title": "Sprache",
+      "language.hint": "Nur in diesem Browser.",
+    },
+    fr: {
+      "tack": "VIRER",
+      "cal": "CAL",
+      "cal.level": "Nivele (bateau a plat)",
+      "cal.rudCentered": "Safran centre",
+      "cal.rudPort": "Amplitude babord",
+      "cal.rudStar": "Amplitude tribord",
+      "cal.rudReset": "Reset safran",
+      "cal.headingOffset": "Offset cap IMU (deg)",
+      "cal.rudRange": "Amplitude safran (deg)",
+      "configuration": "Configuration",
+      "calibration.title": "Calibration",
+      "save": "Enregistrer",
+      "paths.publish": "Publier",
+      "paths.skPath": "Path SK",
+      "paths.units": "Unites",
+      "paths.put": "PUT?",
+      "paths.copy": "Copier",
+      "paths.hint": "Decocher un path arrete sa publication. Applique apres Enregistrer.",
+      "nudge.title": "Pas nudge",
+      "nudge.small": "Petit (-1/+1)",
+      "nudge.big": "Grand (-10/+10)",
+      "nudge.hint": "Degres ajoutes au cap voulu a chaque appui.",
+      "language.title": "Langue",
+      "language.hint": "Uniquement dans ce navigateur.",
+    },
+  };
+  const LANG_KEY = "pypilot-newui.lang";
+  function currentLang() {
+    try { return localStorage.getItem(LANG_KEY) || "en"; } catch { return "en"; }
+  }
+  function setLang(l) {
+    if (!I18N[l]) l = "en";
+    try { localStorage.setItem(LANG_KEY, l); } catch {}
+    applyI18n();
+  }
+  function t(key) {
+    const d = I18N[currentLang()] || I18N.en;
+    return d[key] ?? I18N.en[key] ?? key;
+  }
+  function applyI18n() {
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      const s = t(key);
+      // <option> elements should replace textContent only, not innerHTML.
+      el.textContent = s;
+    });
+  }
+
   // ---- state ----
   const state = {
     values: {},          // path -> value cache
@@ -221,9 +352,8 @@
   }
 
   function renderWindTile() {
-    // Show TWA/TWS when the AP is in a "true wind" mode; AWA/AWS otherwise.
-    // Real B&G convention: negative angle = port side. We show absolute
-    // value + a small direction glyph so the tile stays compact.
+    // Rev20: SK convention is negative=port, positive=starboard. We display
+    // it directly with the sign, no P/S letters.
     const useTrue = String(state.mode || "").includes("true");
     const label = useTrue ? "TWA / TWS" : "AWA / AWS";
     const angleRad = useTrue ? state.windAngleTrue : state.windAngle;
@@ -233,11 +363,11 @@
       $("#wind-angle").textContent = "---";
     } else {
       const deg = angleRad * RAD2DEG;
-      const abs = Math.abs(deg).toFixed(0);
-      const side = deg < 0 ? "P " : (deg > 0 ? "S " : "");
-      $("#wind-angle").textContent = side + abs;
+      const rounded = deg.toFixed(0);
+      // Force a leading + for positive values (starboard) so the sign always shows.
+      $("#wind-angle").textContent = (deg > 0 ? "+" : "") + rounded;
     }
-    $("#wind-speed").textContent = speedMs == null ? "--- kn" : (speedMs * 1.94384).toFixed(1) + " kn";
+    $("#wind-speed").textContent = speedMs == null ? "---" : (speedMs * 1.94384).toFixed(1) + " kn";
   }
 
   function renderSogTile() {
@@ -356,11 +486,47 @@
     $("#rudder-value").textContent = deg.toFixed(1) + " deg";
   }
 
+  // Rev20: render "Configuration" RangeSetting sliders below gains with hr.
+  function renderConfigSliders() {
+    const cont = $("#config-sliders");
+    if (!cont) return;
+    cont.textContent = "";
+    const cat = state.catalog;
+    if (!cat) return;
+    const names = Object.keys(cat).filter((k) => cat[k]?.type === "RangeSetting");
+    names.sort();
+    for (const name of names) {
+      const meta = cat[name];
+      const row = document.createElement("div");
+      row.className = "gain-row";
+      row.dataset.pypilot = name;
+      const cur = state.values[`steering.autopilot.pypilot.${name.replace(/\./g, "_")}`];
+      row.innerHTML =
+        `<div class="name">${name}</div>` +
+        `<input type="range" min="${meta.min}" max="${meta.max}" step="${(meta.max - meta.min) / 200 || 0.001}" value="${cur ?? meta.min}">` +
+        `<div class="value">${cur == null ? "--" : Number(cur).toFixed(3)}</div>`;
+      const rng = row.querySelector("input[type=range]");
+      const val = row.querySelector(".value");
+      rng.addEventListener("pointerdown", () => {
+        document.body.classList.add("adjusting");
+        row.classList.add("active");
+      });
+      rng.addEventListener("pointerup", () => {
+        document.body.classList.remove("adjusting");
+        row.classList.remove("active");
+      });
+      rng.addEventListener("input", () => { val.textContent = Number(rng.value).toFixed(3); });
+      rng.addEventListener("change", () => { pluginRaw(name, Number(rng.value)); });
+      cont.appendChild(row);
+    }
+  }
+
   function renderGains() {
     const cont = $("#gains-container");
     cont.textContent = "";
     const cat = state.catalog;
     const pilot = state.pilot;
+    renderConfigSliders();
     if (!pilot) return;
     // pypilot exposes gains as ap.pilot.<pilot>.<gain> (singular).
     const gains = Object.keys(cat).filter((k) =>
@@ -659,13 +825,19 @@
       if (wasEngaged) {
         const r = await apDisengage();
         if (r && r.ok) {
-          // Optimistic local update so the UI reflects the change
-          // immediately instead of waiting for the SK stream delta.
           state.engaged = false;
           renderEngage();
         }
       } else {
-        if (state.heading != null) await apSetTargetRad(state.heading);
+        if (state.heading != null) {
+          const r0 = await apSetTargetRad(state.heading);
+          if (r0 && r0.ok) {
+            // Optimistic: target should reflect the snap-to-heading immediately.
+            state.target = state.heading;
+            state.localTargetRad = state.heading;
+            renderControl();
+          }
+        }
         const r = await apEngage();
         if (r && r.ok) {
           state.engaged = true;
@@ -698,6 +870,22 @@
     // Center rudder (disengaged only, hidden until we detect rudder.source)
     const centerBtn = $("#center-btn");
     if (centerBtn) centerBtn.addEventListener("click", () => pluginRaw("servo.position", 0));
+
+    // Calibration dropdown - Rev20. Executes the selected calibration and
+    // snaps back to the placeholder so it acts like an action menu.
+    const calSel = $("#cal-select");
+    if (calSel) calSel.addEventListener("change", (e) => {
+      const v = e.target.value;
+      if (!v) return;
+      switch (v) {
+        case "level":         pluginRaw("imu.alignmentCounter", 100); break;
+        case "rud-centered":  pluginRaw("rudder.calibration_state", "centered"); break;
+        case "rud-port":      pluginRaw("rudder.calibration_state", "port range"); break;
+        case "rud-star":      pluginRaw("rudder.calibration_state", "starboard range"); break;
+        case "rud-reset":     pluginRaw("rudder.calibration_state", "reset"); break;
+      }
+      e.target.value = "";
+    });
   }
 
   // ---- Tune tab wiring ----
@@ -737,26 +925,66 @@
     try {
       const res = await fetch(`/plugins/${PLUGIN_ID}/paths`, { credentials: "include" });
       const j = await res.json();
+      const enabledMap = j.enabledPaths || {}; // pyPilotName -> bool
       const tb = $("#paths-table tbody");
       tb.textContent = "";
       for (const it of (j.items || [])) {
         const tr = document.createElement("tr");
+        const checked = enabledMap[it.pypilotName] !== false; // default on
         tr.innerHTML =
+          `<td><input type="checkbox" class="publish-toggle" data-name="${it.pypilotName}" ${checked ? "checked" : ""} /></td>` +
           `<td class="path">${it.skPath}</td>` +
           `<td>${it.units || ""}</td>` +
           `<td class="put">${it.put ? "yes" : ""}</td>` +
-          `<td><button class="copy" data-copy="${it.skPath}">Copy</button></td>`;
+          `<td><button class="copy" data-copy="${it.skPath}">${t("paths.copy")}</button></td>`;
         tb.appendChild(tr);
       }
       tb.querySelectorAll("button.copy").forEach((b) => {
         b.addEventListener("click", () => {
           navigator.clipboard.writeText(b.dataset.copy);
-          b.textContent = "Copied";
-          setTimeout(() => (b.textContent = "Copy"), 800);
+          b.textContent = "OK";
+          setTimeout(() => (b.textContent = t("paths.copy")), 800);
         });
       });
     } catch (e) {
       console.warn("paths fetch failed", e);
+    }
+  }
+
+  async function savePublishSelection() {
+    const enabledPaths = {};
+    document.querySelectorAll(".publish-toggle").forEach((cb) => {
+      enabledPaths[cb.dataset.name] = cb.checked;
+    });
+    let cur = null;
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
+      if (r.ok) cur = await r.json();
+    } catch { /* fall through */ }
+    const configuration = {
+      host: cur?.host ?? "",
+      port: cur?.port ?? 80,
+      reconnectDelayMs: 3000,
+      allowWrites: cur?.allowWrites ?? true,
+      allowDirectServo: cur?.allowDirectServo ?? false,
+      publishUnmapped: false,
+      nudgeSmall: cur?.nudgeSmall ?? 1,
+      nudgeBig: cur?.nudgeBig ?? 10,
+      absorbProvider: cur?.absorbProvider ?? false,
+      enabledPaths,
+    };
+    try {
+      const res = await fetch(`/skServer/plugins/${PLUGIN_ID}/config`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true, configuration }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert("Saved. Plugin restarting.");
+      setTimeout(() => location.reload(), 3500);
+    } catch (e) {
+      alert("Save failed: " + e);
     }
   }
 
@@ -892,7 +1120,13 @@
     $("#scan-btn").addEventListener("click", scan);
     $("#cfg-apply").addEventListener("click", applyCfg);
     $("#paths-refresh").addEventListener("click", refreshPaths);
+    const ps = $("#paths-save"); if (ps) ps.addEventListener("click", savePublishSelection);
     const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);
+    const langSel = $("#lang-select");
+    if (langSel) {
+      langSel.value = currentLang();
+      langSel.addEventListener("change", (e) => setLang(e.target.value));
+    }
     const p = $("#cli-pause"); if (p) p.addEventListener("click", async () => {
       const res = await fetch(`/plugins/${PLUGIN_ID}/pause`, { method: "POST", credentials: "include" });
       if (res.ok) alert("Paused. TinyPilot socket disconnected. Press Resume when ready.");
@@ -964,6 +1198,7 @@
     wireControl();
     wireTune();
     wireSetup();
+    applyI18n();
     renderEngage();
     renderNudgeLabels();
 
