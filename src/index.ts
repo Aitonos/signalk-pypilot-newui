@@ -14,7 +14,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev18";
+const PLUGIN_REVISION = "Rev19";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -473,6 +473,30 @@ module.exports = function (app: any) {
       }
     } catch (e: any) {
       app.debug(`[absorb] autopilotUpdate failed: ${e?.message || e}`);
+    }
+    // ALSO emit canonical steering.autopilot.* deltas so anything subscribed
+    // to the WebSocket stream (including our own webapp) sees the change.
+    // autopilotUpdate() alone only feeds the REST endpoint - deltas would not
+    // arrive to stream subscribers otherwise.
+    const values: any[] = [
+      { path: "steering.autopilot.state",   value: apProvider.data.state },
+      { path: "steering.autopilot.mode",    value: apProvider.data.mode },
+      { path: "steering.autopilot.target",  value: apProvider.data.target },
+      { path: "steering.autopilot.engaged", value: apProvider.data.engaged },
+      { path: "steering.autopilot.availableActions",
+        value: apProvider.data.options.actions.filter((a) => a.available).map((a) => a.id) },
+    ];
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: new Date().toISOString(),
+          values,
+        }],
+      });
+    } catch (e: any) {
+      app.debug(`[absorb] canonical delta emit failed: ${e?.message || e}`);
     }
   }
 

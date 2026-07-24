@@ -655,12 +655,22 @@
     // Engage / disengage via Autopilot API v2.
     const eng = $("#engage-toggle");
     const doEngage = async () => {
-      if (state.engaged) {
-        await apDisengage();
+      const wasEngaged = state.engaged;
+      if (wasEngaged) {
+        const r = await apDisengage();
+        if (r && r.ok) {
+          // Optimistic local update so the UI reflects the change
+          // immediately instead of waiting for the SK stream delta.
+          state.engaged = false;
+          renderEngage();
+        }
       } else {
-        // Snap target to current heading first so we don't spin the boat.
         if (state.heading != null) await apSetTargetRad(state.heading);
-        await apEngage();
+        const r = await apEngage();
+        if (r && r.ok) {
+          state.engaged = true;
+          renderEngage();
+        }
       }
     };
     eng.addEventListener("click", doEngage);
