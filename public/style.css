@@ -214,31 +214,34 @@ main {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 8px 10px;
+  padding: 22px 8px 18px;   /* Rev21: room for absolute label (top) + unit (bottom-right) */
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;    /* Rev20: center value horizontally */
-  justify-content: center;/* Rev20: center value vertically */
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   text-align: center;
 }
 .dash-cell .label {
   position: absolute;
-  top: 6px;
-  left: 8px;
-  right: 8px;
+  top: 4px;
+  left: 6px;
+  right: 6px;
   text-align: left;
+  line-height: 1;
 }
 .dash-cell .unit {
   position: absolute;
-  bottom: 6px;
-  right: 10px;
+  bottom: 4px;
+  right: 8px;
   color: var(--fg-dim);
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
   text-transform: uppercase;
+  line-height: 1;
+  z-index: 2;
 }
 
 .dash-cell .label {
@@ -250,15 +253,22 @@ main {
 }
 .dash-cell .value {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: clamp(26px, 7vw, 52px);
+  /* Rev21: use vw-based clamp with tight ceiling. cqi (container query
+     inline size) would be ideal but fallback vw keeps 3-digit values from
+     overflowing narrow side tiles. */
+  font-size: clamp(20px, 5vw, 40px);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.02em;
   margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 .dash-cell .sub {
   font-family: monospace;
-  font-size: clamp(14px, 3.5vw, 22px);
+  font-size: clamp(12px, 2.8vw, 18px);
   color: var(--fg);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -291,38 +301,37 @@ main {
   text-transform: uppercase;
 }
 
-/* Rev20: new secondary-controls row (Tack | Mode | Cal | Tack) 40% taller
-   than the nudges. Old .engage-row grid removed. */
-.control-row-tall {
+/* Rev21: Row 2 = TACK P | MODE | TACK S in 3 equal columns. Row 3 = AP
+   solo, centered, same width & height as MODE. */
+.row-tack-mode {
   display: grid;
-  grid-template-columns: 1fr 1.4fr 1.4fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 6px;
   align-items: stretch;
+  margin-bottom: 6px;
 }
-.control-row-tall > * { min-height: 100px; }
+.row-tack-mode > * { min-height: 100px; }
 
-.engage-row-solo {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
+.row-ap {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
 }
-
-.cal-select {
+.row-ap #engage-toggle {
+  grid-column: 2 / 3;
   min-height: 100px;
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--fg);
-  font-size: 15px;
-  font-weight: 700;
-  padding: 0 10px;
-  text-align-last: center;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  height: 100px;
+}
+
+/* Mode select styled bigger so the native popup shows larger options. */
+.row-tack-mode .mode-select {
+  font-size: 22px;
+  min-height: 100px;
+  height: 100px;
 }
 
 .tack-btn {
-  min-height: 84px;
+  min-height: 100px;
   background: var(--bg-3);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -341,7 +350,7 @@ main {
 
 /* AP: simple solid button, color-only change (no sliding knob). */
 .engage-toggle {
-  height: 84px;
+  height: 100px;
   background: var(--bg-3);
   border: 2px solid var(--border);
   border-radius: var(--radius);

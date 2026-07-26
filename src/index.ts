@@ -14,7 +14,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev20";
+const PLUGIN_REVISION = "Rev21";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -312,6 +312,41 @@ module.exports = function (app: any) {
 
       router.get("/catalog", (_req: any, res: any) => {
         res.json(lastCatalog);
+      });
+
+      // Rev21: expose the current pypilot value cache so the webapp can
+      // populate slider positions (gains, calibration inputs, configuration
+      // RangeSetting sliders) with the actual values on tab open.
+      router.get("/values", (_req: any, res: any) => {
+        res.json(client ? client.getValues() : {});
+      });
+
+      // Rev21: hot-apply enabledPaths (per-path publish toggle) WITHOUT a
+      // plugin restart. Uses savePluginOptions to persist.
+      router.post("/publish", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const ep = req.body?.enabledPaths;
+        if (!ep || typeof ep !== "object") return res.status(400).json({ error: "enabledPaths object required" });
+        props.enabledPaths = ep;
+        try {
+          if (typeof (app as any).savePluginOptions === "function") {
+            (app as any).savePluginOptions({
+              host: props.host,
+              port: props.port,
+              reconnectDelayMs: props.reconnectDelayMs,
+              allowWrites: props.allowWrites,
+              allowDirectServo: props.allowDirectServo,
+              publishUnmapped: props.publishUnmapped,
+              nudgeSmall: props.nudgeSmall,
+              nudgeBig: props.nudgeBig,
+              absorbProvider: props.absorbProvider,
+              enabledPaths: ep,
+            }, () => { /* persisted */ });
+          }
+        } catch (e: any) {
+          app.debug(`[publish] savePluginOptions failed: ${e?.message || e}`);
+        }
+        res.json({ ok: true, count: Object.keys(ep).length });
       });
 
       router.get("/scan", async (req: any, res: any) => {

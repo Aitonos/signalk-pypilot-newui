@@ -486,7 +486,8 @@
     $("#rudder-value").textContent = deg.toFixed(1) + " deg";
   }
 
-  // Rev20: render "Configuration" RangeSetting sliders below gains with hr.
+  // Rev20/21: render "Configuration" RangeSetting sliders below gains.
+  // Reads current values from state.pypilotValues (populated by /values fetch).
   function renderConfigSliders() {
     const cont = $("#config-sliders");
     if (!cont) return;
@@ -500,7 +501,7 @@
       const row = document.createElement("div");
       row.className = "gain-row";
       row.dataset.pypilot = name;
-      const cur = state.values[`steering.autopilot.pypilot.${name.replace(/\./g, "_")}`];
+      const cur = (state.pypilotValues || {})[name];
       row.innerHTML =
         `<div class="name">${name}</div>` +
         `<input type="range" min="${meta.min}" max="${meta.max}" step="${(meta.max - meta.min) / 200 || 0.001}" value="${cur ?? meta.min}">` +
@@ -519,6 +520,38 @@
       rng.addEventListener("change", () => { pluginRaw(name, Number(rng.value)); });
       cont.appendChild(row);
     }
+  }
+
+  async function refreshPypilotValues() {
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/values`, { credentials: "include" });
+      if (!r.ok) return;
+      state.pypilotValues = await r.json();
+      // Refresh anything that depends on it.
+      renderConfigSliders();
+      // Populate Calibration inputs on Setup tab.
+      const off = $("#cal-heading-offset");
+      if (off && state.pypilotValues["imu.heading_offset"] != null) off.value = String(state.pypilotValues["imu.heading_offset"]);
+      const rr  = $("#cal-rud-range");
+      if (rr  && state.pypilotValues["rudder.range"] != null)      rr.value  = String(state.pypilotValues["rudder.range"]);
+      // Refresh gain slider positions in case the initial render was before values arrived.
+      for (const g of Object.keys(state.pypilotValues)) {
+        if (g.startsWith("ap.pilot.") && state.catalog?.[g]?.AutopilotGain) {
+          const parts = g.split(".");
+          const skPath = `steering.autopilot.pypilot.gains.${parts[2]}.${parts.slice(3).join(".")}`;
+          const row = document.querySelector(`.gain-row[data-sk="${skPath}"]`);
+          if (row) {
+            const rng = row.querySelector("input[type=range]");
+            const lbl = row.querySelector(".value");
+            const v = Number(state.pypilotValues[g]);
+            if (Number.isFinite(v) && !row.classList.contains("active")) {
+              if (rng) rng.value = String(v);
+              if (lbl) lbl.textContent = v.toFixed(4);
+            }
+          }
+        }
+      }
+    } catch (e) { /* silent */ }
   }
 
   function renderGains() {
@@ -871,21 +904,8 @@
     const centerBtn = $("#center-btn");
     if (centerBtn) centerBtn.addEventListener("click", () => pluginRaw("servo.position", 0));
 
-    // Calibration dropdown - Rev20. Executes the selected calibration and
-    // snaps back to the placeholder so it acts like an action menu.
-    const calSel = $("#cal-select");
-    if (calSel) calSel.addEventListener("change", (e) => {
-      const v = e.target.value;
-      if (!v) return;
-      switch (v) {
-        case "level":         pluginRaw("imu.alignmentCounter", 100); break;
-        case "rud-centered":  pluginRaw("rudder.calibration_state", "centered"); break;
-        case "rud-port":      pluginRaw("rudder.calibration_state", "port range"); break;
-        case "rud-star":      pluginRaw("rudder.calibration_state", "starboard range"); break;
-        case "rud-reset":     pluginRaw("rudder.calibration_state", "reset"); break;
-      }
-      e.target.value = "";
-    });
+    // Rev21: calibration dropdown removed from Control tab. Access via
+    // Setup > Calibration section instead.
   }
 
   // ---- Tune tab wiring ----
@@ -946,45 +966,24 @@
           setTimeout(() => (b.textContent = t("paths.copy")), 800);
         });
       });
+      // Rev21: hot-apply on change - no Save button needed.
+      tb.querySelectorAll(".publish-toggle").forEach((cb) => {
+        cb.addEventListener("change", async () => {
+          const map = {};
+          document.querySelectorAll(".publish-toggle").forEach((x) => {
+            map[x.dataset.name] = x.checked;
+          });
+          try {
+            await skFetch(`/plugins/${PLUGIN_ID}/publish`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ enabledPaths: map }),
+            });
+          } catch (e) { console.warn("publish hot-apply failed", e); }
+        });
+      });
     } catch (e) {
       console.warn("paths fetch failed", e);
-    }
-  }
-
-  async function savePublishSelection() {
-    const enabledPaths = {};
-    document.querySelectorAll(".publish-toggle").forEach((cb) => {
-      enabledPaths[cb.dataset.name] = cb.checked;
-    });
-    let cur = null;
-    try {
-      const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
-      if (r.ok) cur = await r.json();
-    } catch { /* fall through */ }
-    const configuration = {
-      host: cur?.host ?? "",
-      port: cur?.port ?? 80,
-      reconnectDelayMs: 3000,
-      allowWrites: cur?.allowWrites ?? true,
-      allowDirectServo: cur?.allowDirectServo ?? false,
-      publishUnmapped: false,
-      nudgeSmall: cur?.nudgeSmall ?? 1,
-      nudgeBig: cur?.nudgeBig ?? 10,
-      absorbProvider: cur?.absorbProvider ?? false,
-      enabledPaths,
-    };
-    try {
-      const res = await fetch(`/skServer/plugins/${PLUGIN_ID}/config`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: true, configuration }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      alert("Saved. Plugin restarting.");
-      setTimeout(() => location.reload(), 3500);
-    } catch (e) {
-      alert("Save failed: " + e);
     }
   }
 
@@ -1120,7 +1119,6 @@
     $("#scan-btn").addEventListener("click", scan);
     $("#cfg-apply").addEventListener("click", applyCfg);
     $("#paths-refresh").addEventListener("click", refreshPaths);
-    const ps = $("#paths-save"); if (ps) ps.addEventListener("click", savePublishSelection);
     const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);
     const langSel = $("#lang-select");
     if (langSel) {
@@ -1214,6 +1212,11 @@
 
     await discoverAutopilot();
     loadStatus();
+    // Rev21: pull current pypilot values once so sliders show real positions
+    // (gains, config, calibration inputs). Retry after 3s in case the
+    // catalog arrives late.
+    refreshPypilotValues();
+    setTimeout(refreshPypilotValues, 3000);
     connectSK();
   });
 })();

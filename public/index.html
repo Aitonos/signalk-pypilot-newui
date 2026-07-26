@@ -106,7 +106,7 @@
       </div>
 
       <div class="controls">
-        <!-- Row 1: nudges (-10 -1 +1 +10) -->
+        <!-- Row 1: nudges (-10 -1 +1 +10) - 4 equal columns -->
         <div class="nudge-row">
           <button class="steer-btn nudge-big-port" data-nudge-kind="big-port">
             <span class="lbl" id="lbl-big-port">-10</span>
@@ -122,29 +122,22 @@
           </button>
         </div>
 
-        <!-- Row 2: secondary controls (Tack, Mode, Cal) - 40% taller than nudges -->
-        <div class="control-row-tall">
+        <!-- Row 2: TACK P | MODE | TACK S - 3 equal columns (Tack Port and Tack Star
+             each as wide as two nudge buttons; Mode same width as either Tack). -->
+        <div class="row-tack-mode">
           <button class="tack-btn tack-port" id="tack-port-btn" title="Tack to port">
             <span class="arrow">&#x2039;</span>
             <span class="lbl" data-i18n="tack">TACK</span>
           </button>
           <select id="mode-select" class="mode-select" aria-label="Mode"></select>
-          <select id="cal-select" class="cal-select" aria-label="Calibration">
-            <option value="" data-i18n="cal">CAL</option>
-            <option value="level" data-i18n="cal.level">Level (boat flat)</option>
-            <option value="rud-centered" data-i18n="cal.rudCentered">Rudder centered</option>
-            <option value="rud-port" data-i18n="cal.rudPort">Rudder port range</option>
-            <option value="rud-star" data-i18n="cal.rudStar">Rudder star range</option>
-            <option value="rud-reset" data-i18n="cal.rudReset">Rudder reset</option>
-          </select>
           <button class="tack-btn tack-star" id="tack-star-btn" title="Tack to starboard">
             <span class="lbl" data-i18n="tack">TACK</span>
             <span class="arrow">&#x203A;</span>
           </button>
         </div>
 
-        <!-- Row 3: big AP toggle, centered -->
-        <div class="engage-row-solo">
+        <!-- Row 3: AP centered, same width/height as MODE. -->
+        <div class="row-ap">
           <button id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
             AP
           </button>
@@ -193,8 +186,7 @@
         <button id="paths-refresh" class="ghost">Refresh</button>
       </div>
       <div class="row" style="margin-bottom:8px; gap:8px;">
-        <button id="paths-save" class="primary" data-i18n="save">Save publish selection</button>
-        <span class="hint" data-i18n="paths.hint">Uncheck a path to stop publishing it. Applies after Save (plugin restart).</span>
+        <span class="hint" data-i18n="paths.hint">Uncheck a path to stop publishing it. Applied instantly, no restart.</span>
       </div>
       <table id="paths-table" class="paths-table">
         <thead>
@@ -317,6 +309,6 @@
   </footer>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev20"></script>
+  <script src="app.js?v=Rev21"></script>
 </body>
 </html>
