@@ -106,24 +106,7 @@
       </div>
 
       <div class="controls">
-        <!-- Row 1: nudges (-10 -1 +1 +10) - 4 equal columns -->
-        <div class="nudge-row">
-          <button class="steer-btn nudge-big-port" data-nudge-kind="big-port">
-            <span class="lbl" id="lbl-big-port">-10</span>
-          </button>
-          <button class="steer-btn nudge-small-port" data-nudge-kind="small-port">
-            <span class="lbl" id="lbl-small-port">-1</span>
-          </button>
-          <button class="steer-btn nudge-small-star" data-nudge-kind="small-star">
-            <span class="lbl" id="lbl-small-star">+1</span>
-          </button>
-          <button class="steer-btn nudge-big-star" data-nudge-kind="big-star">
-            <span class="lbl" id="lbl-big-star">+10</span>
-          </button>
-        </div>
-
-        <!-- Row 2: TACK P | MODE | TACK S - 3 equal columns (Tack Port and Tack Star
-             each as wide as two nudge buttons; Mode same width as either Tack). -->
+        <!-- Row 1: Tack Port | Mode | Tack Starboard (3 equal columns) -->
         <div class="row-tack-mode">
           <button class="tack-btn tack-port" id="tack-port-btn" title="Tack to port">
             <span class="arrow">&#x2039;</span>
@@ -136,10 +119,22 @@
           </button>
         </div>
 
-        <!-- Row 3: AP centered, same width/height as MODE. -->
-        <div class="row-ap">
+        <!-- Row 2: -10 | -1 | AP | +1 | +10 (5 equal columns, all same height as Tacks) -->
+        <div class="row-nudge-ap">
+          <button class="steer-btn nudge-big-port" data-nudge-kind="big-port">
+            <span class="lbl" id="lbl-big-port">-10</span>
+          </button>
+          <button class="steer-btn nudge-small-port" data-nudge-kind="small-port">
+            <span class="lbl" id="lbl-small-port">-1</span>
+          </button>
           <button id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
             AP
+          </button>
+          <button class="steer-btn nudge-small-star" data-nudge-kind="small-star">
+            <span class="lbl" id="lbl-small-star">+1</span>
+          </button>
+          <button class="steer-btn nudge-big-star" data-nudge-kind="big-star">
+            <span class="lbl" id="lbl-big-star">+10</span>
           </button>
         </div>
 
@@ -185,9 +180,11 @@
         <div>Live catalog of Signal K paths this plugin publishes and PUT-handles. Use the Copy buttons to paste into KIP widget configs.</div>
         <button id="paths-refresh" class="ghost">Refresh</button>
       </div>
-      <div class="row" style="margin-bottom:8px; gap:8px;">
-        <span class="hint" data-i18n="paths.hint">Uncheck a path to stop publishing it. Applied instantly, no restart.</span>
+      <div class="row" style="margin-bottom:8px; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="search" id="paths-search" placeholder="filter paths..." style="flex:1; min-width:180px; background:var(--bg-3); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px;" />
+        <span id="paths-counter" class="hint" style="font-family:monospace;">0 / 0</span>
       </div>
+      <div class="hint" data-i18n="paths.hint" style="margin-bottom:8px;">Uncheck a path to stop publishing it. Applied instantly, no restart. Essential paths cannot be disabled (the UI needs them).</div>
       <table id="paths-table" class="paths-table">
         <thead>
           <tr>
@@ -309,6 +306,6 @@
   </footer>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev21"></script>
+  <script src="app.js?v=Rev22"></script>
 </body>
 </html>

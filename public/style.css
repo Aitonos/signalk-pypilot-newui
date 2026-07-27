@@ -75,7 +75,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  height: 100dvh;              /* Rev22: pin to viewport height, no page scroll */
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--fg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -301,8 +302,10 @@ main {
   text-transform: uppercase;
 }
 
-/* Rev21: Row 2 = TACK P | MODE | TACK S in 3 equal columns. Row 3 = AP
-   solo, centered, same width & height as MODE. */
+/* Rev22 layout:
+   Row 1: [TACK P | MODE | TACK S]  - 3 equal cols
+   Row 2: [-10 | -1 | AP | +1 | +10] - 5 equal cols, ALL same height as row 1
+*/
 .row-tack-mode {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -310,24 +313,19 @@ main {
   align-items: stretch;
   margin-bottom: 6px;
 }
-.row-tack-mode > * { min-height: 100px; }
+.row-tack-mode > * { min-height: 96px; height: 96px; }
 
-.row-ap {
+.row-nudge-ap {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
+  align-items: stretch;
 }
-.row-ap #engage-toggle {
-  grid-column: 2 / 3;
-  min-height: 100px;
-  height: 100px;
-}
+.row-nudge-ap > * { min-height: 96px; height: 96px; }
 
-/* Mode select styled bigger so the native popup shows larger options. */
+/* Mode select bigger so the native picker options render larger. */
 .row-tack-mode .mode-select {
   font-size: 22px;
-  min-height: 100px;
-  height: 100px;
 }
 
 .tack-btn {
@@ -348,9 +346,11 @@ main {
 .tack-btn .arrow { font-size: 30px; line-height: 1; }
 .tack-btn.tack-active { background: var(--warn); color: var(--bg); border-color: var(--warn); }
 
-/* AP: simple solid button, color-only change (no sliding knob). */
+/* AP: simple solid button, color-only change (no sliding knob).
+   Rev22: height matches other buttons in the row (96 px), letters centered. */
 .engage-toggle {
-  height: 100px;
+  height: 96px;
+  min-height: 96px;
   background: var(--bg-3);
   border: 2px solid var(--border);
   border-radius: var(--radius);
@@ -359,9 +359,9 @@ main {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   user-select: none;
   -webkit-user-select: none;
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 900;
-  letter-spacing: 6px;
+  letter-spacing: 4px;
   text-align: center;
   display: flex;
   align-items: center;
@@ -405,18 +405,51 @@ main {
 .steer-btn:active { background: var(--accent-dim); }
 .steer-btn.center { min-width: 56px; font-size: 22px; }
 
-/* On tiny phones, dial the tiles back a touch */
+/* Portrait phones: default. Nothing to do. */
+
+/* Small phones */
 @media (max-width: 380px) {
-  .dash-rose { min-height: 38vh; }
-  .dash-cell .value { font-size: clamp(24px, 7vw, 40px); }
-  .engage-toggle { font-size: 24px; letter-spacing: 4px; }
-  .tack-btn { font-size: 16px; }
-  .steer-btn { font-size: 22px; min-height: 64px; }
+  .dash-rose { min-height: 32vh; }
+  .dash-cell .value { font-size: clamp(18px, 5.5vw, 32px); }
+  .engage-toggle { font-size: 22px; letter-spacing: 3px; }
+  .tack-btn { font-size: 14px; }
+  .steer-btn { font-size: 20px; min-height: 76px; height: 76px; }
+  .row-tack-mode > *, .row-nudge-ap > * { min-height: 76px; height: 76px; }
+  .engage-toggle { height: 76px; min-height: 76px; }
 }
 
-/* Landscape / tablet: give the rose more area */
-@media (min-height: 640px) {
-  .dash-rose { min-height: 50vh; }
+/* Landscape / tablet layout: dashboard on the left, controls on the right
+   so nothing scrolls on a typical 10-inch tablet. Only overrides the Control
+   tab - the other tabs keep their default absolute-positioned layout. */
+@media (orientation: landscape) and (min-width: 700px) {
+  #tab-control.active {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 10px;
+    padding: 8px;
+    /* Stay inside the fixed viewport so nothing scrolls. */
+    overflow: hidden;
+  }
+  #tab-control .dash-rose {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: unset;
+    height: 100%;
+  }
+  #tab-control .controls {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+  /* Buttons a bit shorter to fit two rows in the right column comfortably. */
+  .row-tack-mode > *, .row-nudge-ap > *, .engage-toggle {
+    min-height: 84px;
+    height: 84px;
+  }
 }
 
 .rudder-widget {

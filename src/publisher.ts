@@ -199,6 +199,19 @@ export const RESERVED_PYPILOT_KEYS = new Set<string>([
   "ap.mode",        // -> steering.autopilot.mode
 ]);
 
+// Paths the plugin needs internally to work (populate UI selectors, feed the
+// AutopilotProvider, gains discovery, etc). NEVER offered as a disable-able
+// toggle in the Paths & API tab.
+export const ESSENTIAL_PYPILOT_KEYS = new Set<string>([
+  "ap.pilot",
+  "ap.modes",
+  "profile",
+  "profiles",
+  "ap.tack.state",
+  "ap.tack.direction",
+  "servo.engaged",
+]);
+
 /**
  * Dynamic mapping for `ap.pilot.<pilot>.<gain>` values.
  * Returns a Mapping if the name matches, else null.

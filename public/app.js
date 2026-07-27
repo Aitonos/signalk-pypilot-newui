@@ -941,50 +941,87 @@
   }
 
   // ---- Paths tab ----
+  let _lastPathsItems = [];
+  let _lastEnabledMap = {};
+
   async function refreshPaths() {
     try {
       const res = await fetch(`/plugins/${PLUGIN_ID}/paths`, { credentials: "include" });
       const j = await res.json();
-      const enabledMap = j.enabledPaths || {}; // pyPilotName -> bool
-      const tb = $("#paths-table tbody");
-      tb.textContent = "";
-      for (const it of (j.items || [])) {
-        const tr = document.createElement("tr");
-        const checked = enabledMap[it.pypilotName] !== false; // default on
-        tr.innerHTML =
-          `<td><input type="checkbox" class="publish-toggle" data-name="${it.pypilotName}" ${checked ? "checked" : ""} /></td>` +
-          `<td class="path">${it.skPath}</td>` +
-          `<td>${it.units || ""}</td>` +
-          `<td class="put">${it.put ? "yes" : ""}</td>` +
-          `<td><button class="copy" data-copy="${it.skPath}">${t("paths.copy")}</button></td>`;
-        tb.appendChild(tr);
-      }
-      tb.querySelectorAll("button.copy").forEach((b) => {
-        b.addEventListener("click", () => {
-          navigator.clipboard.writeText(b.dataset.copy);
-          b.textContent = "OK";
-          setTimeout(() => (b.textContent = t("paths.copy")), 800);
-        });
-      });
-      // Rev21: hot-apply on change - no Save button needed.
-      tb.querySelectorAll(".publish-toggle").forEach((cb) => {
-        cb.addEventListener("change", async () => {
-          const map = {};
-          document.querySelectorAll(".publish-toggle").forEach((x) => {
-            map[x.dataset.name] = x.checked;
-          });
-          try {
-            await skFetch(`/plugins/${PLUGIN_ID}/publish`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ enabledPaths: map }),
-            });
-          } catch (e) { console.warn("publish hot-apply failed", e); }
-        });
-      });
+      _lastPathsItems = j.items || [];
+      _lastEnabledMap = j.enabledPaths || {};
+      renderPathsTable();
     } catch (e) {
       console.warn("paths fetch failed", e);
     }
+  }
+
+  function renderPathsTable() {
+    const tb = $("#paths-table tbody");
+    if (!tb) return;
+    tb.textContent = "";
+    const filter = ($("#paths-search")?.value || "").toLowerCase().trim();
+    let shown = 0;
+    for (const it of _lastPathsItems) {
+      if (filter && !(
+        it.skPath.toLowerCase().includes(filter) ||
+        it.pypilotName.toLowerCase().includes(filter) ||
+        (it.displayName || "").toLowerCase().includes(filter)
+      )) continue;
+      shown++;
+      const tr = document.createElement("tr");
+      const isEssential = !!it.essential;
+      // Essential paths are always published; checkbox visible but disabled.
+      const checked = isEssential ? true : (_lastEnabledMap[it.pypilotName] !== false);
+      const disabledAttr = isEssential ? "disabled" : "";
+      const essBadge = isEssential ? ' <span style="color:var(--warn); font-size:10px; font-weight:700;">ESSENTIAL</span>' : '';
+      tr.innerHTML =
+        `<td><input type="checkbox" class="publish-toggle" data-name="${it.pypilotName}" ${checked ? "checked" : ""} ${disabledAttr} /></td>` +
+        `<td class="path">${it.skPath}${essBadge}</td>` +
+        `<td>${it.units || ""}</td>` +
+        `<td class="put">${it.put ? "yes" : ""}</td>` +
+        `<td><button class="copy" data-copy="${it.skPath}">${t("paths.copy")}</button></td>`;
+      tb.appendChild(tr);
+    }
+    const counter = $("#paths-counter");
+    if (counter) counter.textContent = `${shown} / ${_lastPathsItems.length}`;
+
+    tb.querySelectorAll("button.copy").forEach((b) => {
+      b.addEventListener("click", () => {
+        navigator.clipboard.writeText(b.dataset.copy);
+        b.textContent = "OK";
+        setTimeout(() => (b.textContent = t("paths.copy")), 800);
+      });
+    });
+    // Rev21/22: hot-apply on change, feedback on failed persist.
+    tb.querySelectorAll(".publish-toggle").forEach((cb) => {
+      if (cb.disabled) return;
+      cb.addEventListener("change", async () => {
+        const map = { ..._lastEnabledMap };
+        map[cb.dataset.name] = cb.checked;
+        _lastEnabledMap = map;
+        try {
+          const r = await skFetch(`/plugins/${PLUGIN_ID}/publish`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabledPaths: map }),
+          });
+          if (!r.ok) {
+            console.warn("publish hot-apply HTTP", r.status);
+            cb.checked = !cb.checked; // revert visual state
+            return;
+          }
+          const j = await r.json();
+          if (j.persisted === false) {
+            console.warn("publish hot-apply not persisted:", j.warning);
+            alert("Change applied in memory but not persisted. Warning: " + (j.warning || "unknown"));
+          }
+        } catch (e) {
+          console.warn("publish hot-apply failed", e);
+          cb.checked = !cb.checked;
+        }
+      });
+    });
   }
 
   // ---- Setup tab ----
@@ -1188,6 +1225,9 @@
         if (id === "setup") loadStatus();
       });
     });
+    // Rev22: paths search filter (live).
+    const ps = $("#paths-search");
+    if (ps) ps.addEventListener("input", () => renderPathsTable());
   }
 
   // ---- Boot ----

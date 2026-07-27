@@ -1,5 +1,6 @@
 import { PypilotClient, PypilotCatalog } from "./pypilot-client";
 import {
+  ESSENTIAL_PYPILOT_KEYS,
   FIXED_MAPPINGS,
   RESERVED_PYPILOT_KEYS,
   autoMap,
@@ -14,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev21";
+const PLUGIN_REVISION = "Rev22";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -297,6 +298,7 @@ module.exports = function (app: any) {
             units: mapping.units,
             displayName: mapping.displayName,
             catalog: meta,
+            essential: ESSENTIAL_PYPILOT_KEYS.has(name),
             get: `/signalk/v1/api/vessels/self/${mapping.skPath.replace(/\./g, "/")}`,
             put: mapping.putKind === "plain"
               ? `PUT /plugins/${PLUGIN_ID}/raw  {"name":"${name}","value":<value>}`
@@ -307,6 +309,7 @@ module.exports = function (app: any) {
           count: items.length,
           items,
           enabledPaths: props.enabledPaths || {},
+          essentials: [...ESSENTIAL_PYPILOT_KEYS],
         });
       });
 
@@ -321,32 +324,45 @@ module.exports = function (app: any) {
         res.json(client ? client.getValues() : {});
       });
 
-      // Rev21: hot-apply enabledPaths (per-path publish toggle) WITHOUT a
-      // plugin restart. Uses savePluginOptions to persist.
+      // Rev21/22: hot-apply enabledPaths (per-path publish toggle) WITHOUT a
+      // plugin restart. Uses savePluginOptions to persist. Rev22: verifies
+      // the call worked and reports persistence status back to the webapp
+      // so a failure is visible in the UI (Carlos: "no se guardan").
       router.post("/publish", (req: any, res: any) => {
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const ep = req.body?.enabledPaths;
         if (!ep || typeof ep !== "object") return res.status(400).json({ error: "enabledPaths object required" });
         props.enabledPaths = ep;
-        try {
-          if (typeof (app as any).savePluginOptions === "function") {
-            (app as any).savePluginOptions({
-              host: props.host,
-              port: props.port,
-              reconnectDelayMs: props.reconnectDelayMs,
-              allowWrites: props.allowWrites,
-              allowDirectServo: props.allowDirectServo,
-              publishUnmapped: props.publishUnmapped,
-              nudgeSmall: props.nudgeSmall,
-              nudgeBig: props.nudgeBig,
-              absorbProvider: props.absorbProvider,
-              enabledPaths: ep,
-            }, () => { /* persisted */ });
-          }
-        } catch (e: any) {
-          app.debug(`[publish] savePluginOptions failed: ${e?.message || e}`);
+        const settings = {
+          host: props.host,
+          port: props.port,
+          reconnectDelayMs: props.reconnectDelayMs,
+          allowWrites: props.allowWrites,
+          allowDirectServo: props.allowDirectServo,
+          publishUnmapped: props.publishUnmapped,
+          nudgeSmall: props.nudgeSmall,
+          nudgeBig: props.nudgeBig,
+          absorbProvider: props.absorbProvider,
+          enabledPaths: ep,
+        };
+        const hasSave = typeof (app as any).savePluginOptions === "function";
+        if (!hasSave) {
+          app.error("[publish] app.savePluginOptions is not available; changes are in-memory only");
+          return res.json({ ok: true, count: Object.keys(ep).length, persisted: false, warning: "savePluginOptions API missing" });
         }
-        res.json({ ok: true, count: Object.keys(ep).length });
+        try {
+          (app as any).savePluginOptions(settings, (err: any) => {
+            if (err) {
+              app.error(`[publish] savePluginOptions callback error: ${err?.message || err}`);
+              return res.json({ ok: true, count: Object.keys(ep).length, persisted: false, warning: String(err?.message || err) });
+            }
+            app.debug(`[publish] persisted ${Object.keys(ep).length} toggles`);
+            res.json({ ok: true, count: Object.keys(ep).length, persisted: true });
+          });
+        } catch (e: any) {
+          app.error(`[publish] savePluginOptions threw: ${e?.message || e}`);
+          res.json({ ok: true, count: Object.keys(ep).length, persisted: false, warning: String(e?.message || e) });
+        }
       });
 
       router.get("/scan", async (req: any, res: any) => {
@@ -590,10 +606,13 @@ module.exports = function (app: any) {
 
   function publishValue(name: string, value: unknown): void {
     if (RESERVED_PYPILOT_KEYS.has(name)) return;
-    // Rev20: respect the user's per-path publish toggle. Default is "publish"
-    // unless the key is explicitly set to false in enabledPaths.
-    const en = props.enabledPaths || {};
-    if (Object.prototype.hasOwnProperty.call(en, name) && en[name] === false) return;
+    // Rev20/22: respect the user's per-path publish toggle. Essential paths
+    // (ESSENTIAL_PYPILOT_KEYS) are ALWAYS published - the UI needs them.
+    // Everything else: publish unless explicitly disabled in enabledPaths.
+    if (!ESSENTIAL_PYPILOT_KEYS.has(name)) {
+      const en = props.enabledPaths || {};
+      if (Object.prototype.hasOwnProperty.call(en, name) && en[name] === false) return;
+    }
     let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
     if (!mapping) mapping = mapDynamicName(name, lastCatalog);
     if (!mapping) {
