@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev22";
+const PLUGIN_REVISION = "Rev23";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -39,7 +39,14 @@ interface PluginProps {
   nudgeSmall?: number;   // small step in degrees for the -1/+1 buttons
   nudgeBig?: number;     // big step in degrees for the -10/+10 buttons
   absorbProvider?: boolean; // register as SK Autopilot Provider (replaces the official one)
-  enabledPaths?: Record<string, boolean>;  // SK path -> publish yes/no
+  enabledPaths?: Record<string, boolean>;  // pypilot name -> publish yes/no
+  // Rev23: publish policy. When true, publishValue only emits essentials
+  // + paths the user explicitly enabled in enabledPaths. When false, the
+  // old behavior: publish everything except paths explicitly disabled.
+  // Auto-detected on first boot: fresh installs -> true, upgrades from
+  // configs that already have enabledPaths populated -> false (do NOT
+  // silently shrink what a user already had set up).
+  publishOnlyEssentials?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,8 +139,15 @@ module.exports = function (app: any) {
           type: "object",
           title: "Enabled paths (pypilot name -> boolean)",
           description:
-            "Set to false to stop publishing a specific pypilot value as SK. Configure interactively via the webapp's Paths & API tab.",
+            "When publishOnlyEssentials is true: publish a non-essential path by setting it to true. When false: skip a path by setting it to false. Configure interactively via the webapp's Paths & API tab.",
           default: {},
+        },
+        publishOnlyEssentials: {
+          type: "boolean",
+          title: "Publish only essential paths (opt-in the rest)",
+          description:
+            "When ON, this plugin only publishes state/mode/target/engaged + the paths the UI needs (pilot list, modes list, tack, servo.engaged) + paths you explicitly turn on in the Paths & API tab. Reduces noise on the SK data browser. New installs default to ON.",
+          default: true,
         },
       },
     }),
@@ -279,6 +293,7 @@ module.exports = function (app: any) {
           absorbProvider: !!apProvider,
           apData: apProvider ? apProvider.data : null,
           enabledPaths: props.enabledPaths || {},
+          publishOnlyEssentials: !!props.publishOnlyEssentials,
         });
       });
 
@@ -310,6 +325,7 @@ module.exports = function (app: any) {
           items,
           enabledPaths: props.enabledPaths || {},
           essentials: [...ESSENTIAL_PYPILOT_KEYS],
+          publishOnlyEssentials: !!props.publishOnlyEssentials,
         });
       });
 
@@ -344,6 +360,7 @@ module.exports = function (app: any) {
           nudgeBig: props.nudgeBig,
           absorbProvider: props.absorbProvider,
           enabledPaths: ep,
+          publishOnlyEssentials: props.publishOnlyEssentials,
         };
         const hasSave = typeof (app as any).savePluginOptions === "function";
         if (!hasSave) {
@@ -504,6 +521,20 @@ module.exports = function (app: any) {
   // ---- helpers ----
 
   function normalizeProps(options: Partial<PluginProps>): PluginProps {
+    // Rev23 migration: infer publishOnlyEssentials for legacy configs so we
+    // do not silently stop publishing paths a user already had turned on.
+    // Rule: field explicitly set -> respect it. Field missing AND
+    // enabledPaths already populated -> user is on a legacy setup, default
+    // to false (keep publishing everything except the ones they disabled).
+    // Field missing AND enabledPaths empty -> fresh install, default to true.
+    let poe: boolean;
+    if (typeof options.publishOnlyEssentials === "boolean") {
+      poe = options.publishOnlyEssentials;
+    } else if (options.enabledPaths && typeof options.enabledPaths === "object" && Object.keys(options.enabledPaths).length > 0) {
+      poe = false;
+    } else {
+      poe = true;
+    }
     return {
       host: (options.host || "").trim(),
       port: typeof options.port === "number" ? options.port : 80,
@@ -520,6 +551,7 @@ module.exports = function (app: any) {
       enabledPaths: (options.enabledPaths && typeof options.enabledPaths === "object")
         ? options.enabledPaths
         : {},
+      publishOnlyEssentials: poe,
     };
   }
 
@@ -606,12 +638,17 @@ module.exports = function (app: any) {
 
   function publishValue(name: string, value: unknown): void {
     if (RESERVED_PYPILOT_KEYS.has(name)) return;
-    // Rev20/22: respect the user's per-path publish toggle. Essential paths
-    // (ESSENTIAL_PYPILOT_KEYS) are ALWAYS published - the UI needs them.
-    // Everything else: publish unless explicitly disabled in enabledPaths.
+    // Rev23 policy:
+    //  - Essential paths (ESSENTIAL_PYPILOT_KEYS) ALWAYS publish.
+    //  - Non-essentials: if publishOnlyEssentials, require enabledPaths[name] === true.
+    //  - Otherwise (legacy mode): publish unless explicitly false.
     if (!ESSENTIAL_PYPILOT_KEYS.has(name)) {
       const en = props.enabledPaths || {};
-      if (Object.prototype.hasOwnProperty.call(en, name) && en[name] === false) return;
+      if (props.publishOnlyEssentials) {
+        if (en[name] !== true) return;
+      } else {
+        if (Object.prototype.hasOwnProperty.call(en, name) && en[name] === false) return;
+      }
     }
     let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
     if (!mapping) mapping = mapDynamicName(name, lastCatalog);

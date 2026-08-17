@@ -180,11 +180,17 @@
         <div>Live catalog of Signal K paths this plugin publishes and PUT-handles. Use the Copy buttons to paste into KIP widget configs.</div>
         <button id="paths-refresh" class="ghost">Refresh</button>
       </div>
-      <div class="row" style="margin-bottom:8px; gap:8px; flex-wrap:wrap; align-items:center;">
+      <div class="row" style="margin-bottom:6px; gap:8px; flex-wrap:wrap; align-items:center;">
         <input type="search" id="paths-search" placeholder="filter paths..." style="flex:1; min-width:180px; background:var(--bg-3); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px;" />
         <span id="paths-counter" class="hint" style="font-family:monospace;">0 / 0</span>
       </div>
-      <div class="hint" data-i18n="paths.hint" style="margin-bottom:8px;">Uncheck a path to stop publishing it. Applied instantly, no restart. Essential paths cannot be disabled (the UI needs them).</div>
+      <div class="row" style="margin-bottom:8px; gap:8px; align-items:center;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
+          <input type="checkbox" id="cfg-only-essentials" />
+          <span>Publish only essentials + explicitly enabled (recommended)</span>
+        </label>
+      </div>
+      <div class="hint" data-i18n="paths.hint" style="margin-bottom:8px;">Applies instantly, no restart. Essential paths (state / mode / target / tack / selectors) always publish. When "essentials only" is ON, tick the checkbox to opt-in a path; when OFF, tick to keep publishing and untick to stop.</div>
       <table id="paths-table" class="paths-table">
         <thead>
           <tr>
@@ -306,6 +312,6 @@
   </footer>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev22"></script>
+  <script src="app.js?v=Rev23"></script>
 </body>
 </html>

@@ -944,12 +944,17 @@
   let _lastPathsItems = [];
   let _lastEnabledMap = {};
 
+  let _publishOnlyEssentials = true;
+
   async function refreshPaths() {
     try {
       const res = await fetch(`/plugins/${PLUGIN_ID}/paths`, { credentials: "include" });
       const j = await res.json();
       _lastPathsItems = j.items || [];
       _lastEnabledMap = j.enabledPaths || {};
+      _publishOnlyEssentials = !!j.publishOnlyEssentials;
+      const cb = $("#cfg-only-essentials");
+      if (cb) cb.checked = _publishOnlyEssentials;
       renderPathsTable();
     } catch (e) {
       console.warn("paths fetch failed", e);
@@ -971,8 +976,14 @@
       shown++;
       const tr = document.createElement("tr");
       const isEssential = !!it.essential;
-      // Essential paths are always published; checkbox visible but disabled.
-      const checked = isEssential ? true : (_lastEnabledMap[it.pypilotName] !== false);
+      // Rev23: checkbox reflects whether this path is currently being published.
+      // Semantics differ per mode:
+      //   publishOnlyEssentials=true  -> checkbox checked if explicitly true in enabledPaths
+      //   publishOnlyEssentials=false -> checkbox checked unless explicitly false
+      let checked;
+      if (isEssential) checked = true;
+      else if (_publishOnlyEssentials) checked = _lastEnabledMap[it.pypilotName] === true;
+      else checked = _lastEnabledMap[it.pypilotName] !== false;
       const disabledAttr = isEssential ? "disabled" : "";
       const essBadge = isEssential ? ' <span style="color:var(--warn); font-size:10px; font-weight:700;">ESSENTIAL</span>' : '';
       tr.innerHTML =
@@ -1228,6 +1239,40 @@
     // Rev22: paths search filter (live).
     const ps = $("#paths-search");
     if (ps) ps.addEventListener("input", () => renderPathsTable());
+    // Rev23: toggle publishOnlyEssentials (hot-apply).
+    const oeCb = $("#cfg-only-essentials");
+    if (oeCb) oeCb.addEventListener("change", async () => {
+      const newVal = oeCb.checked;
+      try {
+        // Read current status to preserve everything else, then POST full config.
+        const s = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
+        if (!s.ok) throw new Error("status " + s.status);
+        const cur = await s.json();
+        const configuration = {
+          host: cur.host, port: cur.port,
+          reconnectDelayMs: 3000,
+          allowWrites: cur.allowWrites, allowDirectServo: cur.allowDirectServo,
+          publishUnmapped: false,
+          nudgeSmall: cur.nudgeSmall, nudgeBig: cur.nudgeBig,
+          absorbProvider: cur.absorbProvider,
+          enabledPaths: cur.enabledPaths || {},
+          publishOnlyEssentials: newVal,
+        };
+        const r = await fetch(`/skServer/plugins/${PLUGIN_ID}/config`, {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: true, configuration }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        alert(newVal
+          ? "Essentials-only mode ON. Non-essential paths will only publish when explicitly ticked."
+          : "Legacy mode: all paths publish unless explicitly unticked.");
+        setTimeout(() => refreshPaths(), 2500);
+      } catch (e) {
+        alert("Config save failed: " + e);
+        oeCb.checked = !newVal;
+      }
+    });
   }
 
   // ---- Boot ----

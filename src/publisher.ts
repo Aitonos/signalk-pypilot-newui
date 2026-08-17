@@ -199,16 +199,22 @@ export const RESERVED_PYPILOT_KEYS = new Set<string>([
   "ap.mode",        // -> steering.autopilot.mode
 ]);
 
-// Paths the plugin needs internally to work (populate UI selectors, feed the
-// AutopilotProvider, gains discovery, etc). NEVER offered as a disable-able
-// toggle in the Paths & API tab.
+// Rev23: pypilot values the plugin ALWAYS publishes. Everything else is
+// opt-in when publishOnlyEssentials is on (new default). The webapp does
+// not need any of these to render Control tab (the SK Autopilot API v2
+// covers state/mode/target/engaged/availableActions with our absorbed
+// provider), but keeping them essential means Ajustes / Paths & API tabs
+// still work without asking the user to hunt for individual toggles.
 export const ESSENTIAL_PYPILOT_KEYS = new Set<string>([
+  // UI selectors
   "ap.pilot",
   "ap.modes",
   "profile",
   "profiles",
+  // Tack action buttons
   "ap.tack.state",
   "ap.tack.direction",
+  // Servo state for the small indicator
   "servo.engaged",
 ]);
 
