@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev23";
+const PLUGIN_REVISION = "Rev24";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -219,6 +219,11 @@ module.exports = function (app: any) {
           if (changed) pushAutopilotUpdate();
         }
       });
+
+      // Rev24: register KIP-friendly action PUT handlers regardless of
+      // absorbProvider. These give KIP simple bool/number/string paths to
+      // PUT from custom buttons (+10, AP toggle, tack).
+      registerActionHandlers();
 
       // Optional: absorb the official pypilot-autopilot-provider by registering
       // ourselves as the SK Autopilot Provider. Reduces the second socket to
@@ -764,6 +769,104 @@ module.exports = function (app: any) {
       const m = mapDynamicName(name, catalog);
       if (m) registerOne(m.skPath);
     }
+  }
+
+  // Rev24: dedicated ACTION paths for KIP-friendly PUT buttons.
+  // KIP has widgets that PUT a fixed value on click - perfect for +10/+1/AP/Tack buttons.
+  // These paths always exist regardless of publishOnlyEssentials.
+  function registerActionHandlers(): void {
+    const ACTIONS_PREFIX = "steering.autopilot.pypilot.actions";
+    const ok = { state: "COMPLETED", statusCode: 200 };
+    const bad = (msg: string) => ({ state: "COMPLETED", statusCode: 400, message: msg });
+    const noConn = () => ({ state: "COMPLETED", statusCode: 503, message: "not connected" });
+
+    // ENGAGE - bool. true=engage, false=disengage.
+    try {
+      app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.engage`, (_c: string, _p: string, value: unknown) => {
+        if (typeof value !== "boolean") return bad("value must be boolean");
+        if (!client?.connected) return noConn();
+        if (apProvider) {
+          if (value) {
+            // Snap target to current heading first, then engage.
+            const iface = apProvider.toProviderInterface() as any;
+            iface.engage(apProvider.deviceId).catch(() => {});
+          } else {
+            const iface = apProvider.toProviderInterface() as any;
+            iface.disengage(apProvider.deviceId).catch(() => {});
+          }
+        } else {
+          client.set("ap.enabled", value);
+        }
+        return ok;
+      }, SOURCE_LABEL);
+      putHandlersRegistered.add(`${ACTIONS_PREFIX}.engage`);
+    } catch (e: any) { app.debug(`[actions] engage register failed: ${e?.message || e}`); }
+
+    // NUDGE - number, degrees. Adds this delta to the current target.
+    try {
+      app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.nudge`, (_c: string, _p: string, value: unknown) => {
+        const delta = Number(value);
+        if (!Number.isFinite(delta)) return bad("value must be a number in degrees");
+        if (!client?.connected) return noConn();
+        if (apProvider) {
+          const rad = delta * Math.PI / 180;
+          const iface = apProvider.toProviderInterface() as any;
+          iface.adjustTarget(rad, apProvider.deviceId).catch(() => {});
+        } else {
+          // Fallback: read current heading_command, add delta, write back.
+          const cur = client.getValues()["ap.heading_command"];
+          const base = typeof cur === "number" ? cur : 0;
+          client.set("ap.heading_command", base + delta);
+        }
+        return ok;
+      }, SOURCE_LABEL);
+      putHandlersRegistered.add(`${ACTIONS_PREFIX}.nudge`);
+    } catch (e: any) { app.debug(`[actions] nudge register failed: ${e?.message || e}`); }
+
+    // TACK - string "port" | "starboard" | "cancel".
+    try {
+      app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.tack`, (_c: string, _p: string, value: unknown) => {
+        if (typeof value !== "string") return bad("value must be a string");
+        if (!client?.connected) return noConn();
+        if (value === "cancel") {
+          client.set("ap.tack.state", "none");
+          return ok;
+        }
+        if (value !== "port" && value !== "starboard") return bad("value must be port, starboard or cancel");
+        if (apProvider) {
+          const iface = apProvider.toProviderInterface() as any;
+          iface.tack(value, apProvider.deviceId).catch(() => {});
+        } else {
+          client.set("ap.tack.direction", value);
+          client.set("ap.tack.state", "begin");
+        }
+        return ok;
+      }, SOURCE_LABEL);
+      putHandlersRegistered.add(`${ACTIONS_PREFIX}.tack`);
+    } catch (e: any) { app.debug(`[actions] tack register failed: ${e?.message || e}`); }
+
+    // Emit an initial null value for each so the paths appear in the SK
+    // data model with supportsPut=true (KIP won't offer PUT widgets on
+    // paths that don't exist yet).
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: new Date().toISOString(),
+          values: [
+            { path: `${ACTIONS_PREFIX}.engage`, value: null },
+            { path: `${ACTIONS_PREFIX}.nudge`,  value: null },
+            { path: `${ACTIONS_PREFIX}.tack`,   value: null },
+          ],
+          meta: [
+            { path: `${ACTIONS_PREFIX}.engage`, value: { supportsPut: true, displayName: "AP engage (bool)", description: "PUT true to engage the autopilot, false to disengage" } },
+            { path: `${ACTIONS_PREFIX}.nudge`,  value: { supportsPut: true, displayName: "Nudge target (deg)", description: "PUT a number in degrees (+10, +1, -1, -10) to shift the AP target" } },
+            { path: `${ACTIONS_PREFIX}.tack`,   value: { supportsPut: true, displayName: "Tack action (string)", description: "PUT 'port', 'starboard' or 'cancel' to start or cancel a tack" } },
+          ],
+        }],
+      });
+    } catch (e: any) { app.debug(`[actions] initial delta failed: ${e?.message || e}`); }
   }
 
   return plugin;

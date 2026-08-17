@@ -1004,6 +1004,17 @@
         setTimeout(() => (b.textContent = t("paths.copy")), 800);
       });
     });
+    // Rev24: also wire the static KIP-actions table copy buttons (they live
+    // in the DOM outside the injected tbody).
+    document.querySelectorAll("#tab-paths > .setup-block button.copy").forEach((b) => {
+      if (b.__wired) return;
+      b.__wired = true;
+      b.addEventListener("click", () => {
+        navigator.clipboard.writeText(b.dataset.copy);
+        b.textContent = "OK";
+        setTimeout(() => (b.textContent = "Copy"), 800);
+      });
+    });
     // Rev21/22: hot-apply on change, feedback on failed persist.
     tb.querySelectorAll(".publish-toggle").forEach((cb) => {
       if (cb.disabled) return;
