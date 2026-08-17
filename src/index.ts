@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev26";
+const PLUGIN_REVISION = "Rev27";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -224,6 +224,10 @@ module.exports = function (app: any) {
       // absorbProvider. These give KIP simple bool/number/string paths to
       // PUT from custom buttons (+10, AP toggle, tack).
       registerActionHandlers();
+      // Rev27: force one autopilot-update push after start so canonical
+      // steering.autopilot.{state,mode,target,engaged} appear immediately
+      // even if pypilot has not sent an ap.enabled/mode update yet.
+      setTimeout(() => pushAutopilotUpdate(), 4000);
 
       // Optional: absorb the official pypilot-autopilot-provider by registering
       // ourselves as the SK Autopilot Provider. Reduces the second socket to
@@ -920,20 +924,35 @@ module.exports = function (app: any) {
 
     // Keep them alive: some KIP versions expire paths that stop receiving
     // updates. Republish the current values every 30 s so they never drop
-    // out of the model.
+    // out of the model. Rev27: ALSO republish the canonical Autopilot API
+    // paths (state/mode/target/engaged/availableActions) so those show up
+    // in the SK tree even when pypilot has not emitted an ap.enabled/mode
+    // change since restart.
     const keepAlive = setInterval(() => {
       try {
+        const engaged = apProvider?.data?.engaged ?? false;
+        const values: any[] = [
+          { path: `${ACTIONS_PREFIX}.engage`, value: engaged },
+          { path: `${ACTIONS_PREFIX}.nudge`,  value: 0 },
+          { path: `${ACTIONS_PREFIX}.tack`,   value: apProvider?.data ? ((apProvider.data.options.actions.find((a) => a.id === "tack")?.available) ? "ready" : "none") : "none" },
+          { path: SW_ENGAGE,                  value: engaged },
+        ];
+        if (apProvider) {
+          values.push(
+            { path: "steering.autopilot.state",   value: apProvider.data.state },
+            { path: "steering.autopilot.mode",    value: apProvider.data.mode },
+            { path: "steering.autopilot.target",  value: apProvider.data.target },
+            { path: "steering.autopilot.engaged", value: engaged },
+            { path: "steering.autopilot.availableActions",
+              value: apProvider.data.options.actions.filter((a) => a.available).map((a) => a.id) },
+          );
+        }
         app.handleMessage(PLUGIN_ID, {
           context: "vessels." + app.selfId,
           updates: [{
             $source: SOURCE_LABEL,
             timestamp: new Date().toISOString(),
-            values: [
-              { path: `${ACTIONS_PREFIX}.engage`, value: apProvider?.data?.engaged ?? false },
-              { path: `${ACTIONS_PREFIX}.nudge`,  value: 0 },
-              { path: `${ACTIONS_PREFIX}.tack`,   value: apProvider?.data ? ((apProvider.data.options.actions.find((a) => a.id === "tack")?.available) ? "ready" : "none") : "none" },
-              { path: SW_ENGAGE,                  value: apProvider?.data?.engaged ?? false },
-            ],
+            values,
           }],
         });
       } catch { /* silent */ }
