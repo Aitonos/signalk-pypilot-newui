@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev24";
+const PLUGIN_REVISION = "Rev26";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -263,6 +263,9 @@ module.exports = function (app: any) {
         try { client.stop(); } catch { /* defensive */ }
         client = null;
       }
+      // Clear the action-paths keep-alive interval registered on the app.
+      const ka = (app as any)._pypilotNewuiKeepAlive;
+      if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
       // The SK autopilot API does not expose an unregister; on plugin stop
       // the server drops our provider when it garbage-collects the plugin.
       apProvider = null;
@@ -845,9 +848,9 @@ module.exports = function (app: any) {
       putHandlersRegistered.add(`${ACTIONS_PREFIX}.tack`);
     } catch (e: any) { app.debug(`[actions] tack register failed: ${e?.message || e}`); }
 
-    // Emit an initial null value for each so the paths appear in the SK
-    // data model with supportsPut=true (KIP won't offer PUT widgets on
-    // paths that don't exist yet).
+    // Emit INITIAL VALID VALUES for each action path. KIP filters paths with
+    // value:null in its picker because it cannot infer the type. Meta also
+    // includes an explicit `type` string so KIP knows without guessing.
     try {
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
@@ -855,18 +858,89 @@ module.exports = function (app: any) {
           $source: SOURCE_LABEL,
           timestamp: new Date().toISOString(),
           values: [
-            { path: `${ACTIONS_PREFIX}.engage`, value: null },
-            { path: `${ACTIONS_PREFIX}.nudge`,  value: null },
-            { path: `${ACTIONS_PREFIX}.tack`,   value: null },
+            { path: `${ACTIONS_PREFIX}.engage`, value: false },
+            { path: `${ACTIONS_PREFIX}.nudge`,  value: 0 },
+            { path: `${ACTIONS_PREFIX}.tack`,   value: "none" },
           ],
           meta: [
-            { path: `${ACTIONS_PREFIX}.engage`, value: { supportsPut: true, displayName: "AP engage (bool)", description: "PUT true to engage the autopilot, false to disengage" } },
-            { path: `${ACTIONS_PREFIX}.nudge`,  value: { supportsPut: true, displayName: "Nudge target (deg)", description: "PUT a number in degrees (+10, +1, -1, -10) to shift the AP target" } },
-            { path: `${ACTIONS_PREFIX}.tack`,   value: { supportsPut: true, displayName: "Tack action (string)", description: "PUT 'port', 'starboard' or 'cancel' to start or cancel a tack" } },
+            { path: `${ACTIONS_PREFIX}.engage`, value: {
+                supportsPut: true, type: "boolean",
+                displayName: "AP engage (bool)",
+                description: "PUT true to engage the autopilot, false to disengage",
+              } },
+            { path: `${ACTIONS_PREFIX}.nudge`,  value: {
+                supportsPut: true, type: "number", units: "deg",
+                displayName: "Nudge target (deg)",
+                description: "PUT a number in degrees (+10, +1, -1, -10) to shift the AP target",
+              } },
+            { path: `${ACTIONS_PREFIX}.tack`,   value: {
+                supportsPut: true, type: "string",
+                enum: ["port", "starboard", "cancel", "none"],
+                displayName: "Tack action (string)",
+                description: "PUT 'port', 'starboard' or 'cancel' to start or cancel a tack",
+              } },
           ],
         }],
       });
     } catch (e: any) { app.debug(`[actions] initial delta failed: ${e?.message || e}`); }
+
+    // Rev26: alias the AP engage bool under electrical.switches.* so KIP's
+    // "Simple Switch" widget (which filters paths by that prefix) finds it.
+    // The alias points to the SAME action - the PUT handler here proxies to
+    // .actions.engage. Kip lists this instantly under any switch selector.
+    const SW_ENGAGE = "electrical.switches.pypilot.ap.state";
+    try {
+      app.registerPutHandler("vessels.self", SW_ENGAGE, (_c: string, _p: string, value: unknown) => {
+        if (typeof value !== "boolean") return bad("value must be boolean");
+        if (!client?.connected) return noConn();
+        if (apProvider) {
+          const iface = apProvider.toProviderInterface() as any;
+          if (value) iface.engage(apProvider.deviceId).catch(() => {});
+          else iface.disengage(apProvider.deviceId).catch(() => {});
+        } else {
+          client.set("ap.enabled", value);
+        }
+        return ok;
+      }, SOURCE_LABEL);
+      putHandlersRegistered.add(SW_ENGAGE);
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: new Date().toISOString(),
+          values: [{ path: SW_ENGAGE, value: false }],
+          meta: [{ path: SW_ENGAGE, value: {
+            supportsPut: true, type: "boolean",
+            displayName: "AP engage switch",
+            description: "Alias of steering.autopilot.pypilot.actions.engage under electrical.switches.* so KIP's Simple Switch widget lists it in its default picker.",
+          } }],
+        }],
+      });
+    } catch (e: any) { app.debug(`[actions] switch alias register failed: ${e?.message || e}`); }
+
+    // Keep them alive: some KIP versions expire paths that stop receiving
+    // updates. Republish the current values every 30 s so they never drop
+    // out of the model.
+    const keepAlive = setInterval(() => {
+      try {
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: new Date().toISOString(),
+            values: [
+              { path: `${ACTIONS_PREFIX}.engage`, value: apProvider?.data?.engaged ?? false },
+              { path: `${ACTIONS_PREFIX}.nudge`,  value: 0 },
+              { path: `${ACTIONS_PREFIX}.tack`,   value: apProvider?.data ? ((apProvider.data.options.actions.find((a) => a.id === "tack")?.available) ? "ready" : "none") : "none" },
+              { path: SW_ENGAGE,                  value: apProvider?.data?.engaged ?? false },
+            ],
+          }],
+        });
+      } catch { /* silent */ }
+    }, 30_000);
+    // Track it so plugin.stop() cleans up (we do not currently, but a leak
+    // here would leave the interval running past a plugin restart).
+    (app as any)._pypilotNewuiKeepAlive = keepAlive;
   }
 
   return plugin;
