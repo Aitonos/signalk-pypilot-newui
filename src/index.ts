@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev27";
+const PLUGIN_REVISION = "Rev29";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -783,28 +783,44 @@ module.exports = function (app: any) {
   // These paths always exist regardless of publishOnlyEssentials.
   function registerActionHandlers(): void {
     const ACTIONS_PREFIX = "steering.autopilot.pypilot.actions";
+    const okLog = (path: string, v: unknown) => {
+      app.error(`[pypilot-newui ACTION] PUT ${path} value=${JSON.stringify(v)}`);
+      return { state: "COMPLETED", statusCode: 200 };
+    };
     const ok = { state: "COMPLETED", statusCode: 200 };
     const bad = (msg: string) => ({ state: "COMPLETED", statusCode: 400, message: msg });
     const noConn = () => ({ state: "COMPLETED", statusCode: 503, message: "not connected" });
 
+    // Rev29: KIP (and OpenPlotter switches) send booleans as 1/0 int or "on"/"off"
+    // string, not true/false. Ewelink plugin accepts all of them. We do the same.
+    const coerceBool = (v: unknown): boolean | null => {
+      if (v === true || v === 1 || v === "1" || v === "on" || v === "true") return true;
+      if (v === false || v === 0 || v === "0" || v === "off" || v === "false") return false;
+      return null;
+    };
+    const coerceNum = (v: unknown): number | null => {
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string") {
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : null;
+      }
+      return null;
+    };
+
     // ENGAGE - bool. true=engage, false=disengage.
     try {
       app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.engage`, (_c: string, _p: string, value: unknown) => {
-        if (typeof value !== "boolean") return bad("value must be boolean");
+        const b = coerceBool(value);
+        if (b === null) return bad("value must be boolean-like (true/false/1/0/on/off)");
         if (!client?.connected) return noConn();
         if (apProvider) {
-          if (value) {
-            // Snap target to current heading first, then engage.
-            const iface = apProvider.toProviderInterface() as any;
-            iface.engage(apProvider.deviceId).catch(() => {});
-          } else {
-            const iface = apProvider.toProviderInterface() as any;
-            iface.disengage(apProvider.deviceId).catch(() => {});
-          }
+          const iface = apProvider.toProviderInterface() as any;
+          if (b) iface.engage(apProvider.deviceId).catch(() => {});
+          else iface.disengage(apProvider.deviceId).catch(() => {});
         } else {
-          client.set("ap.enabled", value);
+          client.set("ap.enabled", b);
         }
-        return ok;
+        return okLog(`${ACTIONS_PREFIX}.engage`, b);
       }, SOURCE_LABEL);
       putHandlersRegistered.add(`${ACTIONS_PREFIX}.engage`);
     } catch (e: any) { app.debug(`[actions] engage register failed: ${e?.message || e}`); }
@@ -812,8 +828,8 @@ module.exports = function (app: any) {
     // NUDGE - number, degrees. Adds this delta to the current target.
     try {
       app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.nudge`, (_c: string, _p: string, value: unknown) => {
-        const delta = Number(value);
-        if (!Number.isFinite(delta)) return bad("value must be a number in degrees");
+        const delta = coerceNum(value);
+        if (delta === null) return bad("value must be a number in degrees");
         if (!client?.connected) return noConn();
         if (apProvider) {
           const rad = delta * Math.PI / 180;
@@ -825,7 +841,7 @@ module.exports = function (app: any) {
           const base = typeof cur === "number" ? cur : 0;
           client.set("ap.heading_command", base + delta);
         }
-        return ok;
+        return okLog(`${ACTIONS_PREFIX}.nudge`, delta);
       }, SOURCE_LABEL);
       putHandlersRegistered.add(`${ACTIONS_PREFIX}.nudge`);
     } catch (e: any) { app.debug(`[actions] nudge register failed: ${e?.message || e}`); }
@@ -837,7 +853,7 @@ module.exports = function (app: any) {
         if (!client?.connected) return noConn();
         if (value === "cancel") {
           client.set("ap.tack.state", "none");
-          return ok;
+          return okLog(`${ACTIONS_PREFIX}.tack`, "cancel");
         }
         if (value !== "port" && value !== "starboard") return bad("value must be port, starboard or cancel");
         if (apProvider) {
@@ -847,7 +863,7 @@ module.exports = function (app: any) {
           client.set("ap.tack.direction", value);
           client.set("ap.tack.state", "begin");
         }
-        return ok;
+        return okLog(`${ACTIONS_PREFIX}.tack`, value);
       }, SOURCE_LABEL);
       putHandlersRegistered.add(`${ACTIONS_PREFIX}.tack`);
     } catch (e: any) { app.debug(`[actions] tack register failed: ${e?.message || e}`); }
@@ -895,28 +911,42 @@ module.exports = function (app: any) {
     const SW_ENGAGE = "electrical.switches.pypilot.ap.state";
     try {
       app.registerPutHandler("vessels.self", SW_ENGAGE, (_c: string, _p: string, value: unknown) => {
-        if (typeof value !== "boolean") return bad("value must be boolean");
+        const b = coerceBool(value);
+        if (b === null) return bad("value must be boolean-like");
         if (!client?.connected) return noConn();
         if (apProvider) {
           const iface = apProvider.toProviderInterface() as any;
-          if (value) iface.engage(apProvider.deviceId).catch(() => {});
+          if (b) iface.engage(apProvider.deviceId).catch(() => {});
           else iface.disengage(apProvider.deviceId).catch(() => {});
         } else {
-          client.set("ap.enabled", value);
+          client.set("ap.enabled", b);
         }
-        return ok;
+        // Mirror the new state into the switch value so KIP's toggle reflects it.
+        try {
+          app.handleMessage(PLUGIN_ID, {
+            context: "vessels." + app.selfId,
+            updates: [{
+              $source: SOURCE_LABEL,
+              timestamp: new Date().toISOString(),
+              values: [{ path: SW_ENGAGE, value: b ? 1 : 0 }],
+            }],
+          });
+        } catch { /* silent */ }
+        return okLog(SW_ENGAGE, b);
       }, SOURCE_LABEL);
       putHandlersRegistered.add(SW_ENGAGE);
+      // Rev29: emit initial value as INTEGER 1/0, matching OpenPlotter/Sonoff
+      // convention. KIP's Simple Switch widget expects 1/0, not true/false.
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
         updates: [{
           $source: SOURCE_LABEL,
           timestamp: new Date().toISOString(),
-          values: [{ path: SW_ENGAGE, value: false }],
+          values: [{ path: SW_ENGAGE, value: 0 }],
           meta: [{ path: SW_ENGAGE, value: {
             supportsPut: true, type: "boolean",
             displayName: "AP engage switch",
-            description: "Alias of steering.autopilot.pypilot.actions.engage under electrical.switches.* so KIP's Simple Switch widget lists it in its default picker.",
+            description: "AP engage switch. PUT 1 to engage the autopilot, 0 to disengage. Accepts boolean, 1/0, 'on'/'off' or 'true'/'false'.",
           } }],
         }],
       });
