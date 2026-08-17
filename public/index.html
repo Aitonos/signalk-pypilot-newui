@@ -226,13 +226,27 @@
             <tr style="background: rgba(55,182,255,0.08);">
               <td><b>AP (Simple Switch)</b></td>
               <td class="path">electrical.switches.pypilot.ap.state</td>
-              <td>boolean</td>
-              <td>true / false</td>
+              <td>boolean int</td>
+              <td>1 / 0</td>
               <td><button class="copy" data-copy="electrical.switches.pypilot.ap.state">Copy</button></td>
+            </tr>
+            <tr style="background: rgba(46,204,113,0.10);">
+              <td><b>AP (Numeric Put)</b></td>
+              <td class="path">steering.autopilot.pypilot.actions.engageInt</td>
+              <td>number</td>
+              <td>1 = engage, 0 = disengage</td>
+              <td><button class="copy" data-copy="steering.autopilot.pypilot.actions.engageInt">Copy</button></td>
+            </tr>
+            <tr style="background: rgba(46,204,113,0.10);">
+              <td><b>Tack (Numeric Put)</b></td>
+              <td class="path">steering.autopilot.pypilot.actions.tackInt</td>
+              <td>number</td>
+              <td>1 = port, 2 = starboard, 0 = cancel</td>
+              <td><button class="copy" data-copy="steering.autopilot.pypilot.actions.tackInt">Copy</button></td>
             </tr>
           </tbody>
         </table>
-        <div class="hint" style="margin-top:8px;">Last row is an alias under <b>electrical.switches.*</b> so KIP's Simple Switch widget picks it up in its default path picker (KIP filters that prefix for switches).</div>
+        <div class="hint" style="margin-top:8px;">Rows in <b>green</b> are numeric aliases so a single KIP widget family (Numeric Put) can drive engage / nudge / tack from fixed-value buttons. Blue row is the electrical.switches alias for the Simple Switch widget.</div>
       </div>
 
       <div class="section-title" style="margin-top:14px;">All published paths</div>
@@ -368,6 +382,6 @@
   </footer>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev27"></script>
+  <script src="app.js?v=Rev30"></script>
 </body>
 </html>

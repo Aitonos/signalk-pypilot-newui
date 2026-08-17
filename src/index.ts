@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev29";
+const PLUGIN_REVISION = "Rev30";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -903,6 +903,75 @@ module.exports = function (app: any) {
         }],
       });
     } catch (e: any) { app.debug(`[actions] initial delta failed: ${e?.message || e}`); }
+
+    // Rev30: NUMERIC aliases for engage and tack so KIP's "Numeric Put"
+    // widget (which only lists paths of type number in its picker) can
+    // drive them from a single widget family. Semantics:
+    //   engageInt: PUT 1 to engage, 0 to disengage
+    //   tackInt:   PUT 1 to tack port, 2 to tack starboard, 0 to cancel
+    try {
+      app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.engageInt`, (_c: string, _p: string, value: unknown) => {
+        const n = coerceNum(value);
+        if (n === null) return bad("value must be 1 (engage) or 0 (disengage)");
+        const b = n >= 1;
+        if (!client?.connected) return noConn();
+        if (apProvider) {
+          const iface = apProvider.toProviderInterface() as any;
+          if (b) iface.engage(apProvider.deviceId).catch(() => {});
+          else iface.disengage(apProvider.deviceId).catch(() => {});
+        } else {
+          client.set("ap.enabled", b);
+        }
+        return okLog(`${ACTIONS_PREFIX}.engageInt`, n);
+      }, SOURCE_LABEL);
+      putHandlersRegistered.add(`${ACTIONS_PREFIX}.engageInt`);
+    } catch (e: any) { app.debug(`[actions] engageInt failed: ${e?.message || e}`); }
+
+    try {
+      app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.tackInt`, (_c: string, _p: string, value: unknown) => {
+        const n = coerceNum(value);
+        if (n === null) return bad("value must be 1 (port) / 2 (starboard) / 0 (cancel)");
+        if (!client?.connected) return noConn();
+        if (n === 0) {
+          client.set("ap.tack.state", "none");
+          return okLog(`${ACTIONS_PREFIX}.tackInt`, "cancel");
+        }
+        const dir = n === 1 ? "port" : n === 2 ? "starboard" : null;
+        if (!dir) return bad("value must be 1 / 2 / 0");
+        if (apProvider) {
+          const iface = apProvider.toProviderInterface() as any;
+          iface.tack(dir, apProvider.deviceId).catch(() => {});
+        } else {
+          client.set("ap.tack.direction", dir);
+          client.set("ap.tack.state", "begin");
+        }
+        return okLog(`${ACTIONS_PREFIX}.tackInt`, dir);
+      }, SOURCE_LABEL);
+      putHandlersRegistered.add(`${ACTIONS_PREFIX}.tackInt`);
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: new Date().toISOString(),
+          values: [
+            { path: `${ACTIONS_PREFIX}.engageInt`, value: 0 },
+            { path: `${ACTIONS_PREFIX}.tackInt`,   value: 0 },
+          ],
+          meta: [
+            { path: `${ACTIONS_PREFIX}.engageInt`, value: {
+              supportsPut: true, type: "number",
+              displayName: "AP engage (int)",
+              description: "PUT 1 to engage, 0 to disengage. Numeric alias for KIP's Numeric Put widget.",
+            } },
+            { path: `${ACTIONS_PREFIX}.tackInt`, value: {
+              supportsPut: true, type: "number",
+              displayName: "Tack (int)",
+              description: "PUT 1 to tack to port, 2 to starboard, 0 to cancel. Numeric alias for KIP's Numeric Put widget.",
+            } },
+          ],
+        }],
+      });
+    } catch (e: any) { app.debug(`[actions] tackInt failed: ${e?.message || e}`); }
 
     // Rev26: alias the AP engage bool under electrical.switches.* so KIP's
     // "Simple Switch" widget (which filters paths by that prefix) finds it.
