@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev32";
+const PLUGIN_REVISION = "Rev33";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -1034,6 +1034,97 @@ module.exports = function (app: any) {
       });
     } catch (e: any) { app.debug(`[actions] switch alias register failed: ${e?.message || e}`); }
 
+    // Rev33: momentary boolean switches under electrical.switches.pypilot.* .
+    // KIP has no "Numeric Put" widget - its Simple Switch only writes booleans.
+    // So each concrete action (+10, +1, -1, -10, tack port/star/cancel) needs
+    // its own boolean path. PUT true triggers the action, then we emit false
+    // ~200 ms later so the KIP toggle springs back and can be pressed again.
+    const SW_NUDGE_PREFIX = "electrical.switches.pypilot.nudge";
+    const SW_TACK_PREFIX  = "electrical.switches.pypilot.tack";
+    const momentaryPaths: string[] = [];
+
+    const registerMomentaryBool = (skPath: string, displayName: string, action: () => void) => {
+      try {
+        app.registerPutHandler("vessels.self", skPath, (_c: string, _p: string, value: unknown) => {
+          const b = coerceBool(value);
+          if (b === null) return bad("value must be boolean-like");
+          if (!client?.connected) return noConn();
+          if (b) {
+            try { action(); } catch (e: any) { app.error(`[actions] ${skPath} action failed: ${e?.message || e}`); }
+            // Auto-reset to false so the KIP switch returns to OFF and can be
+            // pressed again. 200 ms is enough for the round-trip to be visible.
+            setTimeout(() => {
+              try {
+                app.handleMessage(PLUGIN_ID, {
+                  context: "vessels." + app.selfId,
+                  updates: [{
+                    $source: SOURCE_LABEL,
+                    timestamp: new Date().toISOString(),
+                    values: [{ path: skPath, value: false }],
+                  }],
+                });
+              } catch { /* silent */ }
+            }, 200);
+          }
+          return okLog(skPath, b);
+        }, SOURCE_LABEL);
+        putHandlersRegistered.add(skPath);
+        momentaryPaths.push(skPath);
+        // Initial value + meta so KIP's picker sees the path immediately.
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: new Date().toISOString(),
+            values: [{ path: skPath, value: false }],
+            meta: [{ path: skPath, value: {
+              supportsPut: true, type: "boolean", units: "bool",
+              displayName,
+              description: `Momentary switch. PUT true to trigger; auto-resets to false in 200 ms so the KIP toggle can be pressed again.`,
+            } }],
+          }],
+        });
+      } catch (e: any) { app.debug(`[actions] momentary ${skPath} register failed: ${e?.message || e}`); }
+    };
+
+    // Nudge helper: applies delta degrees to ap.heading_command using the same
+    // logic as the numeric .actions.nudge handler above.
+    const doNudge = (delta: number) => {
+      if (!client) return;
+      if (apProvider) {
+        const rad = delta * Math.PI / 180;
+        const iface = apProvider.toProviderInterface() as any;
+        iface.adjustTarget(rad, apProvider.deviceId).catch(() => {});
+      } else {
+        const cur = client.getValues()["ap.heading_command"];
+        const base = typeof cur === "number" ? cur : 0;
+        client.set("ap.heading_command", base + delta);
+      }
+    };
+    registerMomentaryBool(`${SW_NUDGE_PREFIX}.plus10`,  "Nudge +10", () => doNudge(+10));
+    registerMomentaryBool(`${SW_NUDGE_PREFIX}.plus1`,   "Nudge +1",  () => doNudge(+1));
+    registerMomentaryBool(`${SW_NUDGE_PREFIX}.minus1`,  "Nudge -1",  () => doNudge(-1));
+    registerMomentaryBool(`${SW_NUDGE_PREFIX}.minus10`, "Nudge -10", () => doNudge(-10));
+
+    // Tack helper: same two-write sequence as .actions.tack above.
+    const doTack = (direction: "port" | "starboard") => {
+      if (!client) return;
+      if (apProvider) {
+        const iface = apProvider.toProviderInterface() as any;
+        iface.tack(direction, apProvider.deviceId).catch(() => {});
+      } else {
+        client.set("ap.tack.direction", direction);
+        client.set("ap.tack.state", "begin");
+      }
+    };
+    const doTackCancel = () => {
+      if (!client) return;
+      client.set("ap.tack.state", "none");
+    };
+    registerMomentaryBool(`${SW_TACK_PREFIX}.port`,      "Tack Port",      () => doTack("port"));
+    registerMomentaryBool(`${SW_TACK_PREFIX}.starboard`, "Tack Starboard", () => doTack("starboard"));
+    registerMomentaryBool(`${SW_TACK_PREFIX}.cancel`,    "Tack Cancel",    () => doTackCancel());
+
     // Keep them alive: some KIP versions expire paths that stop receiving
     // updates. Republish the current values every 30 s so they never drop
     // out of the model. Rev27: ALSO republish the canonical Autopilot API
@@ -1049,6 +1140,9 @@ module.exports = function (app: any) {
           { path: `${ACTIONS_PREFIX}.tack`,   value: apProvider?.data ? ((apProvider.data.options.actions.find((a) => a.id === "tack")?.available) ? "ready" : "none") : "none" },
           { path: SW_ENGAGE,                  value: engaged },
         ];
+        // Rev33: keep the momentary boolean switches alive at value=false so
+        // KIP does not drop them from its picker after a period of idleness.
+        for (const p of momentaryPaths) values.push({ path: p, value: false });
         if (apProvider) {
           values.push(
             { path: "steering.autopilot.state",   value: apProvider.data.state },
