@@ -1,7 +1,7 @@
 {
   "name": "signalk-pypilot-newui",
-  "version": "0.1.0",
-  "description": "PyPilot New-UI + SK Paths — modern touch-first control panel for pypilot autopilot with tunable gains/calibration and full autopilot data (servo, gains, calibration, tack, warnings) as first-class Signal K paths (KIP-ready). Coexists with the official pypilot-autopilot-provider; adds every path it does not cover.",
+  "version": "1.0.0",
+  "description": "Signal K friendly UI for the pypilot autopilot, with the capability to spread its functions and buttons to other programs like KIP, WilhelmSK and freeboard. Touch-first mobile visor + full pypilot data (servo, gains, calibration, tack, warnings) as first-class Signal K paths and Simple Switches. Coexists with pypilot-autopilot-provider.",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -28,7 +28,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@signalk/server-api": "^2.0.0",
-    "socket.io-client": "^4.7.5"
+    "socket.io-client": "^4.7.5",
+    "ssh2": "^1.15.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -37,9 +38,15 @@
   },
   "signalk-plugin-enabled-by-default": true,
   "signalk": {
-    "appIcon": "./public/icon.svg",
+    "appIcon": "./public/Pypilot_New_UI.svg",
     "displayName": "PyPilot New-UI + SK Paths",
-    "webapp": "./public"
+    "webapp": "./public",
+    "screenshots": [
+      { "src": "./public/screenshots/01-control-rose.jpg", "title": "Control - compass rose with sailing wedges, AWA/TWA arrows, target diamond" },
+      { "src": "./public/screenshots/02-tune-gains.jpg",   "title": "Tune - PID gain sliders with -10/-1/+1/+10 fine-tune and safety lock" },
+      { "src": "./public/screenshots/03-info.jpg",         "title": "Info - quick start, credits, license, GitHub link, config export/import" },
+      { "src": "./public/screenshots/04-setup.jpg",        "title": "Setup - LAN scan, absorb provider, remote RESTART pypilot via SSH" }
+    ]
   },
   "files": [
     "dist/",

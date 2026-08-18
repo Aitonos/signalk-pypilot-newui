@@ -15,7 +15,15 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev34";
+const PLUGIN_REVISION = "Rev62";
+
+// Rev59: read package.json once at load time so /status can report the
+// npm package version alongside the internal Rev counter.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PLUGIN_PKG_VERSION: string = (() => {
+  try { return require("../package.json").version || ""; }
+  catch { return ""; }
+})();
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -47,6 +55,11 @@ interface PluginProps {
   // configs that already have enabledPaths populated -> false (do NOT
   // silently shrink what a user already had set up).
   publishOnlyEssentials?: boolean;
+  // Rev55: SSH credentials used by /restart-pypilot to reboot the
+  // pypilot process on the TinyPilot. Password-based auth (no key
+  // setup needed). Stored plain in the config file.
+  sshUser?: string;
+  sshPassword?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,6 +162,20 @@ module.exports = function (app: any) {
             "When ON, this plugin only publishes state/mode/target/engaged + the paths the UI needs (pilot list, modes list, tack, servo.engaged) + paths you explicitly turn on in the Paths & API tab. Reduces noise on the SK data browser. New installs default to ON.",
           default: true,
         },
+        sshUser: {
+          type: "string",
+          title: "SSH user on the TinyPilot",
+          description:
+            "Username used by the 'Restart pypilot' button in Setup to log into the machine hosting pypilot_web. Default 'tc' matches TinyCore-based images.",
+          default: "tc",
+        },
+        sshPassword: {
+          type: "string",
+          title: "SSH password (used by 'Restart pypilot')",
+          description:
+            "Password for the SSH user above. Stored in the plugin's config file in plain text (Signal K does not encrypt plugin settings). Leave blank to disable remote restart.",
+          default: "",
+        },
       },
     }),
 
@@ -218,6 +245,13 @@ module.exports = function (app: any) {
           const changed = apProvider.receiveValue(name, value);
           if (changed) pushAutopilotUpdate();
         }
+        // Rev38: forward profile / profiles updates to the dynamic profile
+        // switch registrar so KIP's radio group stays in sync.
+        try {
+          const hook = (app as any)._pypilotNewuiProfileHook as
+            ((n: string, v: unknown) => void) | undefined;
+          if (hook) hook(name, value);
+        } catch { /* silent */ }
       });
 
       // Rev24: register KIP-friendly action PUT handlers regardless of
@@ -291,6 +325,7 @@ module.exports = function (app: any) {
       router.get("/status", (_req: any, res: any) => {
         res.json({
           revision: PLUGIN_REVISION,
+          version: PLUGIN_PKG_VERSION,
           host: props.host,
           port: props.port,
           connected: client?.connected ?? false,
@@ -309,6 +344,8 @@ module.exports = function (app: any) {
           apData: apProvider ? apProvider.data : null,
           enabledPaths: props.enabledPaths || {},
           publishOnlyEssentials: !!props.publishOnlyEssentials,
+          sshUser: props.sshUser || "tc",
+          sshPasswordSet: !!(props.sshPassword && props.sshPassword.length),
         });
       });
 
@@ -530,6 +567,83 @@ module.exports = function (app: any) {
           res.status(500).json({ error: e?.message || String(e) });
         }
       });
+
+      // Rev55: restart pypilot on the TinyPilot via SSH password auth.
+      // Credentials come from plugin config (sshUser + sshPassword). Uses
+      // the ssh2 npm package - no reliance on external ssh/sshpass binaries.
+      // Falls back to local socket reconnect if credentials are missing
+      // or the SSH connection fails.
+      router.post("/restart-pypilot", async (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const host = props.host;
+        const sshUser = props.sshUser || "tc";
+        const sshPassword = props.sshPassword || "";
+        const restartCmd = "sudo systemctl restart pypilot pypilot_web 2>&1 || sudo /etc/init.d/pypilot restart 2>&1 || true";
+        // Local reconnect helper used both on success and on error paths.
+        const doReconnect = () => { try { client?.pause(); setTimeout(() => client?.resume(), 800); } catch {} };
+        if (!sshPassword) {
+          doReconnect();
+          return res.status(202).json({
+            ok: false,
+            method: "reconnect-only",
+            hint: "SSH password not set. Open Plugin Config in SK Admin (or the Setup tab) and fill 'SSH password'. Meanwhile the local socket was reconnected.",
+          });
+        }
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { Client } = require("ssh2");
+          const conn = new Client();
+          const runOnce = () => new Promise<{ ok: boolean; out: string; code?: number }>((resolve) => {
+            let settled = false;
+            const finish = (r: { ok: boolean; out: string; code?: number }) => {
+              if (settled) return;
+              settled = true;
+              try { conn.end(); } catch {}
+              resolve(r);
+            };
+            conn.on("ready", () => {
+              conn.exec(restartCmd, { pty: true }, (err: any, stream: any) => {
+                if (err) { finish({ ok: false, out: err.message }); return; }
+                let out = "";
+                stream.on("close", (code: number) => finish({ ok: code === 0, out, code }));
+                stream.on("data", (data: Buffer) => { out += data.toString(); });
+                stream.stderr.on("data", (data: Buffer) => { out += data.toString(); });
+                // If sudo prompts for a password on stdin (NOPASSWD not
+                // configured), feed the SSH password again. Works on many
+                // TinyCore setups where the same password is used for both.
+                setTimeout(() => { try { stream.write(sshPassword + "\n"); } catch {} }, 300);
+              });
+            });
+            conn.on("error", (err: any) => finish({ ok: false, out: `ssh: ${err?.message || err}` }));
+            conn.on("timeout", () => finish({ ok: false, out: "ssh timeout" }));
+            try {
+              conn.connect({
+                host, port: 22, username: sshUser, password: sshPassword,
+                readyTimeout: 8000,
+                tryKeyboard: true,
+              });
+              conn.on("keyboard-interactive", (_n: any, _i: any, _l: any, _p: any, finish2: any) => {
+                finish2([sshPassword]);
+              });
+            } catch (e: any) { finish({ ok: false, out: e?.message || String(e) }); }
+          });
+          const r = await runOnce();
+          if (r.ok) {
+            setTimeout(doReconnect, 3000);
+            return res.json({ ok: true, method: "ssh", detail: r.out.slice(0, 400) });
+          }
+          doReconnect();
+          return res.status(202).json({
+            ok: false,
+            method: "reconnect-only",
+            hint: `SSH to ${sshUser}@${host} failed (check password + user). Local socket was reconnected.`,
+            detail: r.out.slice(0, 400),
+          });
+        } catch (e: any) {
+          doReconnect();
+          return res.status(500).json({ error: e?.message || String(e) });
+        }
+      });
     },
   };
 
@@ -567,6 +681,9 @@ module.exports = function (app: any) {
         ? options.enabledPaths
         : {},
       publishOnlyEssentials: poe,
+      sshUser: typeof options.sshUser === "string" && options.sshUser.trim()
+        ? options.sshUser.trim() : "tc",
+      sshPassword: typeof options.sshPassword === "string" ? options.sshPassword : "",
     };
   }
 
@@ -623,6 +740,16 @@ module.exports = function (app: any) {
     // High-rate: engage/mode changes and gains that the user might slide.
     for (const name of Object.keys(catalog)) {
       if (RESERVED_PYPILOT_KEYS.has(name)) continue;
+      // Rev45: watch EVERY RangeSetting in the catalog. Before, only the
+      // explicit branches below covered ap.tack.*, servo telemetry and
+      // imu/rudder. That left servo.max_slew_speed, servo.max_slew_slow,
+      // servo.min_speed, servo.max_current and any future RangeSetting
+      // unwatched, so their Ajustes sliders were empty forever.
+      const meta = catalog[name] as any;
+      if (meta && meta.type === "RangeSetting") {
+        c.watch(name, WATCH_MED);
+        continue;
+      }
       // Note: pypilot exposes gains as ap.pilot.<pilot>.<gain> (SINGULAR),
       // not ap.pilots.*. Confirmed by inspecting pypilot_values on the wire.
       if (name.startsWith("ap.pilot.") && !RESERVED_PYPILOT_KEYS.has(name)) {
@@ -1208,6 +1335,96 @@ module.exports = function (app: any) {
       } catch (e: any) { app.debug(`[actions] mode switch ${skPath} register failed: ${e?.message || e}`); }
     }
 
+    // Rev38: dynamic profile switches under electrical.switches.pypilot.profile.* .
+    // Profiles are user-defined and change at runtime (add/remove/rename),
+    // so we cannot enumerate them at boot. Instead we hook into the value
+    // stream: when 'profiles' arrives (list of names), we register one
+    // boolean radio switch per profile; when 'profile' arrives (active
+    // name), we broadcast which switch is currently true. Only one is true.
+    const SW_PROFILE_PREFIX = "electrical.switches.pypilot.profile";
+    const profileSwitchKey = (s: string) => s.replace(/[^A-Za-z0-9_]/g, "_") || "unnamed";
+    const profileSwitchPath = (s: string) => `${SW_PROFILE_PREFIX}.${profileSwitchKey(s)}`;
+    let profilesList: string[] = [];
+    let activeProfile: string | null = null;
+    const registeredProfileSwitches: Set<string> = new Set();
+    const emitProfileSwitches = () => {
+      if (!profilesList.length) return;
+      try {
+        const values = profilesList.map((p) => ({
+          path: profileSwitchPath(p),
+          value: activeProfile != null && p === activeProfile,
+        }));
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: new Date().toISOString(),
+            values,
+          }],
+        });
+      } catch { /* silent */ }
+    };
+    const ensureProfileSwitchHandler = (profileName: string) => {
+      const skPath = profileSwitchPath(profileName);
+      if (registeredProfileSwitches.has(skPath) || putHandlersRegistered.has(skPath)) return;
+      try {
+        app.registerPutHandler("vessels.self", skPath, (_c: string, _p: string, value: unknown) => {
+          const b = coerceBool(value);
+          if (b === null) return bad("value must be boolean-like");
+          if (!client?.connected) return noConn();
+          // PUT false on a radio switch is a no-op: profiles cannot be
+          // "turned off" individually, only replaced by picking another.
+          if (!b) return okLog(skPath, false);
+          if (!profilesList.includes(profileName)) {
+            return bad(`profile "${profileName}" no longer exists`);
+          }
+          client.set("profile", profileName);
+          // Optimistic radio flip; the confirmation delta will re-emit
+          // authoritatively when pypilot echoes the new 'profile' value.
+          activeProfile = profileName;
+          emitProfileSwitches();
+          return okLog(skPath, profileName);
+        }, SOURCE_LABEL);
+        putHandlersRegistered.add(skPath);
+        registeredProfileSwitches.add(skPath);
+        // Initial value + meta so KIP's picker sees the path immediately.
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: new Date().toISOString(),
+            values: [{ path: skPath, value: activeProfile === profileName }],
+            meta: [{ path: skPath, value: {
+              supportsPut: true, type: "boolean", units: "bool",
+              displayName: `Profile: ${profileName}`,
+              description: `PUT true to activate pypilot profile "${profileName}". Radio-group behavior: only one profile.* switch is true at a time. PUT false is ignored.`,
+            } }],
+          }],
+        });
+      } catch (e: any) { app.debug(`[actions] profile switch ${skPath} register failed: ${e?.message || e}`); }
+    };
+    // Hook invoked from client.on('value') above. Handles both 'profiles'
+    // (array of names) and 'profile' (currently active name) updates.
+    (app as any)._pypilotNewuiProfileHook = (name: string, value: unknown) => {
+      if (name === "profiles" && Array.isArray(value)) {
+        const next = value.map(String);
+        profilesList = next;
+        for (const p of next) ensureProfileSwitchHandler(p);
+        emitProfileSwitches();
+      } else if (name === "profile" && typeof value === "string") {
+        activeProfile = value;
+        // If pypilot revealed a profile name we did not yet know about,
+        // register it lazily so KIP still sees the switch immediately.
+        if (!profilesList.includes(value)) {
+          profilesList = [...profilesList, value];
+          ensureProfileSwitchHandler(value);
+        }
+        emitProfileSwitches();
+      }
+    };
+    // Helper for the keep-alive so it can re-emit the profile switches.
+    (app as any)._pypilotNewuiEmitProfileSwitches = emitProfileSwitches;
+
     // Keep them alive: some KIP versions expire paths that stop receiving
     // updates. Republish the current values every 30 s so they never drop
     // out of the model. Rev27: ALSO republish the canonical Autopilot API
@@ -1232,6 +1449,12 @@ module.exports = function (app: any) {
         for (const m of SW_MODE_MAP) {
           values.push({ path: swModePathOf(m.key), value: currentModePy === m.py });
         }
+        // Rev38: keep the profile radio switches alive too.
+        try {
+          const emitP = (app as any)._pypilotNewuiEmitProfileSwitches as
+            (() => void) | undefined;
+          if (emitP) emitP();
+        } catch { /* silent */ }
         if (apProvider) {
           values.push(
             { path: "steering.autopilot.state",   value: apProvider.data.state },

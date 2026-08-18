@@ -5,3 +5,7 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+# Rev61: raw WhatsApp screenshots in root are working copies. The
+# published ones live under public/screenshots/ with proper names.
+IMG-*.jpg
+

@@ -1,0 +1,5 @@
+# Rev61: keep the 725 KB PNG logo out of the npm tarball - the SVG
+# variant is what signalk.appIcon points to and it renders identically
+# at any size. The PNG stays in the git repo for other uses (README
+# hero, social cards, etc).
+public/Pypilot_New_UI.png

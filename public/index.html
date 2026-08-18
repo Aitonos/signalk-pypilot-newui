@@ -9,6 +9,14 @@
 </head>
 <body class="theme-dark">
 
+  <!-- Rev39: Regatta timer HUD overlay. Visible in every tab except Regata
+       itself when the timer is not idle. Semi-transparent so it does not
+       obscure Control/Setup content. Tap to jump to the Regata tab. -->
+  <div id="regata-hud" class="regata-hud" hidden onclick="document.querySelector('.tab-btn[data-tab=&quot;regata&quot;]').click()">
+    <span class="regata-hud-clock" id="regata-hud-clock">05:00</span>
+    <span class="regata-hud-state" id="regata-hud-state">IDLE</span>
+  </div>
+
   <!-- Login modal: opens when SK returns 401 on a write. Gets a JWT from
        /signalk/v1/auth/login and caches it in localStorage - no more cookie
        dependency, no more red banner. -->
@@ -32,38 +40,56 @@
 
   <!-- Tabs -->
   <nav id="tabbar">
-    <button class="tab-btn active" data-tab="control">Control</button>
-    <button class="tab-btn" data-tab="tune">Ajustes</button>
-    <button class="tab-btn" data-tab="paths">Paths &amp; API</button>
-    <button class="tab-btn" data-tab="setup">Setup</button>
+    <button class="tab-btn active" data-tab="control" data-i18n="tab.control">Control</button>
+    <button class="tab-btn"        data-tab="tune"    data-i18n="tab.tune">Tune</button>
+    <button class="tab-btn"        data-tab="regata"  data-i18n="tab.regata">Race</button>
+    <button class="tab-btn"        data-tab="paths"   data-i18n="tab.paths">Paths &amp; API</button>
+    <button class="tab-btn"        data-tab="setup"   data-i18n="tab.setup">Setup</button>
+    <button class="tab-btn"        data-tab="info"    data-i18n="tab.info">Info</button>
   </nav>
+
+  <!-- Rev53: legacy IDs kept out of the DOM as hidden stubs; some JS
+       still writes to them at boot to populate the rev tag. Off-screen. -->
+  <span id="rev-tag" style="display:none"></span>
+  <a href="#" id="link-oldui-a" style="display:none"></a>
 
   <!-- Main content per tab -->
   <main>
 
     <!-- CONTROL TAB - dashboard with central wind rose.
-         Layout: HDG top-left, TGT bottom-left, ROSE center (2 rows tall),
-         WIND top-right, SOG bottom-right. Below: mode select + AP + per-side
-         tack + dynamic nudges. -->
+         Rev47: HDG/Wind/TGT/SOG now overlaid on the four corners of the
+         rose square so the rose can grow to fill the available space.
+         Long-press on any corner opens a legend popup. -->
     <section id="tab-control" class="tab-panel active">
       <div class="dash-rose">
-        <div class="dash-cell heading">
-          <div class="label">HDG</div>
-          <div id="heading-value" class="value">---</div>
-        </div>
-        <div class="dash-cell wind" id="wind-widget">
-          <div class="label" id="wind-label">AWA</div>
-          <div id="wind-angle" class="value">---</div>
-          <div id="wind-speed" class="sub">--- kn</div>
-        </div>
         <div class="rose-wrap">
+          <!-- Rev48: 4 configurable corner cells. Each gets its content
+               populated by _dashRenderCorners() based on the user's
+               choice stored in localStorage. Long-press opens the
+               selector popup. -->
+          <div class="dash-cell corner-tl" data-corner="tl"></div>
+          <div class="dash-cell corner-tr" data-corner="tr"></div>
+          <div class="dash-cell corner-bl" data-corner="bl"></div>
+          <div class="dash-cell corner-br" data-corner="br"></div>
           <svg id="wind-rose" class="rose-svg" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
             <circle cx="0" cy="0" r="94" fill="none" stroke="#2b3542" stroke-width="2"/>
-            <!-- Tack sector arcs. Drawn dynamically. -->
-            <path id="rose-star-sector" d="" fill="none" stroke="#2ecc71" stroke-width="8" stroke-linecap="round"/>
-            <path id="rose-port-sector" d="" fill="none" stroke="#e74c3c" stroke-width="8" stroke-linecap="round"/>
-            <!-- Rotating compass card: cardinals + ticks. Rotated by -heading. -->
+            <!-- Rev58: sailing zones as PIE SLICES from origin (r=0) out
+                 to the compass ring (r=90). The boat SVG renders AFTER the
+                 wedges so its opaque hull hides the inner tips - visually
+                 the wedges look like they meet under the boat. Fixed to
+                 boat centerline (NOT wind): green stbd at +30..+60, red
+                 port at -60..-30. -->
+            <g id="rose-boat-sectors">
+              <path fill="#2ecc71" fill-opacity="0.32" stroke="#2ecc71" stroke-width="1.2" stroke-opacity="0.55"
+                    d="M 0,0 L 45,-77.94 A 90,90 0 0 1 77.94,-45 Z"/>
+              <path fill="#e74c3c" fill-opacity="0.32" stroke="#e74c3c" stroke-width="1.2" stroke-opacity="0.55"
+                    d="M 0,0 L -77.94,-45 A 90,90 0 0 1 -45,-77.94 Z"/>
+            </g>
+            <!-- Rotating compass card: cardinals + ticks + degree labels.
+                 Rev56: every 30 deg tick now carries the numeric heading
+                 (030/060/120/...); cardinals show letter instead.
+                 Rotated by -heading so N stays put in the world frame. -->
             <g id="rose-card">
               <g stroke="#3a4553" stroke-width="1">
                 <line x1="0" y1="-94" x2="0" y2="-84"/>
@@ -79,29 +105,108 @@
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(300)"/>
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(330)"/>
               </g>
-              <text x="0" y="-70" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="800">N</text>
-              <text x="72" y="6" text-anchor="middle" fill="#8b98a5" font-size="12" font-weight="700">E</text>
-              <text x="0" y="80" text-anchor="middle" fill="#8b98a5" font-size="12" font-weight="700">S</text>
-              <text x="-72" y="6" text-anchor="middle" fill="#8b98a5" font-size="12" font-weight="700">W</text>
+              <!-- 4 cardinals: N accent yellow, ESW dim white. -->
+              <text x="0" y="-70" text-anchor="middle" dominant-baseline="middle" fill="#ffd54a" font-size="14" font-weight="900">N</text>
+              <text x="70" y="0" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">E</text>
+              <text x="0" y="70" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">S</text>
+              <text x="-70" y="0" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">W</text>
+              <!-- 8 numeric labels at 30 deg increments (skip cardinals). -->
+              <g fill="#8b98a5" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
+                <text transform="rotate(30)  translate(0,-72)">030</text>
+                <text transform="rotate(60)  translate(0,-72)">060</text>
+                <text transform="rotate(120) translate(0,-72)">120</text>
+                <text transform="rotate(150) translate(0,-72)">150</text>
+                <text transform="rotate(210) translate(0,-72)">210</text>
+                <text transform="rotate(240) translate(0,-72)">240</text>
+                <text transform="rotate(300) translate(0,-72)">300</text>
+                <text transform="rotate(330) translate(0,-72)">330</text>
+              </g>
             </g>
-            <!-- Boat silhouette (bow up, fixed) -->
-            <polygon id="rose-boat" points="0,-30 12,18 0,14 -12,18" fill="#37b6ff" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
-            <!-- Wind arrow (rotates to windAngle) -->
+            <!-- Rev58: HDG pushed to y=-82 (right against the top rim);
+                 wind speed dropped to y=+82 (bottom rim) to keep the
+                 whole center free for the boat + arrows. Number CENTERED
+                 on the digits only; the degree symbol is positioned by
+                 JS just after them so "9" and "298" both anchor at x=0. -->
+            <text id="rose-hdg-value" x="0" y="-82" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="18" font-weight="900" font-family="ui-monospace, monospace">---</text>
+            <text id="rose-hdg-deg"   x="0" y="-82" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="13" font-weight="700">°</text>
+            <!-- Rev50: boat overhead SVG (mareas-ihm), scaled 0.22 so
+                 the hull spans ~100 units = 50 % of the 200-unit rose
+                 diameter. Rotated -90 so bow points up. -->
+            <g id="rose-boat" transform="rotate(-90) scale(0.22)">
+              <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
+            </g>
+            <!-- Rev58: two independent wind arrows so the crew can watch
+                 apparent AND true at the same time. AWA in amber (crew
+                 default), TWA in magenta with a dashed shaft. Each is
+                 toggled independently from the corner popup (localStorage). -->
             <g id="rose-wind-arrow" style="display:none">
-              <line x1="0" y1="-86" x2="0" y2="-36" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>
-              <polygon points="0,-30 -7,-42 7,-42" fill="#e74c3c"/>
+              <line x1="0" y1="-86" x2="0" y2="-36" stroke="#ffd54a" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="0,-30 -7,-42 7,-42" fill="#ffd54a" stroke="#8a6a00" stroke-width="0.6"/>
             </g>
-            <!-- Center wind speed -->
-            <text id="rose-speed" x="0" y="52" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="800">--- kn</text>
+            <g id="rose-wind-arrow-twa" style="display:none">
+              <line x1="0" y1="-86" x2="0" y2="-36" stroke="#c780f5" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="4 3"/>
+              <polygon points="0,-30 -6,-40 6,-40" fill="#c780f5" stroke="#3f1d5c" stroke-width="0.6"/>
+            </g>
+            <!-- Rev57: target indicator - CYAN diamond just outside the
+                 compass ring, only shown when AP is engaged. Rotated to
+                 (target - heading) so it always points where pypilot is
+                 steering. -->
+            <g id="rose-target-arrow" style="display:none">
+              <polygon points="0,-104 -7,-96 0,-88 7,-96" fill="#4dd4ff" stroke="#003b52" stroke-width="1.2"/>
+            </g>
+            <!-- Rev58: wind speed dropped to y=+82 (bottom rim) to keep
+                 the boat area clean. Sub-label picks the source with a
+                 hint (AWS / TWS / both). -->
+            <text id="rose-speed" x="0" y="82" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="800">--- kn</text>
           </svg>
         </div>
-        <div class="dash-cell target">
-          <div class="label">TGT</div>
-          <div id="target-value" class="value">---</div>
-        </div>
-        <div class="dash-cell sog">
-          <div class="label">SOG</div>
-          <div id="sog-value" class="value">---</div>
+      </div>
+
+      <!-- Rev48: configurable corner selector opened by long-press on
+           any corner cell. 4 dropdowns, one per corner. Choice persists
+           in localStorage so each user gets their own layout. -->
+      <div class="popup-overlay" id="dash-help-pop" onclick="if(event.target.id==='dash-help-pop')this.classList.remove('open')">
+        <div class="popup-box" onclick="event.stopPropagation()">
+          <button class="popup-close" onclick="document.getElementById('dash-help-pop').classList.remove('open')">✕</button>
+          <h4 data-i18n="dash.help.title">Configure the rose corners</h4>
+          <p class="dash-help-body" data-i18n="dash.help.body">Pick which datum shows in each corner. Saved in your browser.</p>
+          <div class="dash-corner-cfg">
+            <label><span data-i18n="dash.corner.tl">Top left</span> <select id="dash-corner-tl" data-corner="tl"></select></label>
+            <label><span data-i18n="dash.corner.tr">Top right</span> <select id="dash-corner-tr" data-corner="tr"></select></label>
+            <label><span data-i18n="dash.corner.bl">Bottom left</span> <select id="dash-corner-bl" data-corner="bl"></select></label>
+            <label><span data-i18n="dash.corner.br">Bottom right</span> <select id="dash-corner-br" data-corner="br"></select></label>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
+          <div class="dash-corner-cfg" style="gap:6px">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.wind.arrows">WIND ARROWS</div>
+            <label style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="dash-wind-arrow-awa" />
+              <span><span style="color:#ffd54a;font-weight:900">&#9650;</span> <span data-i18n="dash.wind.awa">AWA (apparent, amber)</span></span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="dash-wind-arrow-twa" />
+              <span><span style="color:#c780f5;font-weight:900">&#9650;</span> <span data-i18n="dash.wind.twa">TWA (true, magenta)</span></span>
+            </label>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
+          <div class="dash-corner-cfg" style="gap:6px">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.polar.title">POLAR PERFORMANCE</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.polar.hint">Enable the ones you want available in the corner selectors. Requires the signalk-polar-performance-plugin.</div>
+            <div id="dash-polar-toggles"></div>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
+          <div class="dash-corner-cfg" style="gap:6px">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.custom.title">CUSTOM SK PATH</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.custom.hint">Add any path published by Signal K. Shown as it appears on the bus (no conversion).</div>
+            <div class="row" style="gap:6px;flex-wrap:wrap">
+              <input type="text" id="dash-custom-path" list="dash-custom-path-list" data-i18n-placeholder="dash.custom.path.ph" placeholder="e.g. environment.water.temperature" style="flex:2;min-width:200px" />
+              <input type="text" id="dash-custom-label" data-i18n-placeholder="dash.custom.label.ph" placeholder="Label" style="flex:1;min-width:80px;max-width:120px" />
+              <input type="text" id="dash-custom-unit"  data-i18n-placeholder="dash.custom.unit.ph"  placeholder="Unit (opt)" style="flex:1;min-width:70px;max-width:100px" />
+              <button id="dash-custom-add" class="ghost" data-i18n="dash.custom.add">Add</button>
+            </div>
+            <datalist id="dash-custom-path-list"></datalist>
+            <div id="dash-custom-list"></div>
+          </div>
         </div>
       </div>
 
@@ -145,6 +250,21 @@
           <div class="bar"><div id="rudder-fill" class="fill"></div></div>
           <div id="rudder-value" class="value">--</div>
         </div>
+
+        <!-- Rev53: swipe affordance strip with central triangle toggle.
+             Left/right arrows navigate to prev/next tab (like a mini
+             breadcrumb + swipe hint). Central yellow glow triangle
+             hides/shows the top nav bar. This lets the user reclaim
+             the full viewport for the rose. Only visible inside Control. -->
+        <div class="swipe-hint" id="swipe-hint" aria-hidden="true">
+          <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
+          <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
+          <button class="nav-toggle" id="nav-toggle" aria-label="Mostrar / ocultar barra de pestañas" title="Mostrar / ocultar barra de pestañas">
+            <span class="tri">▼</span>
+          </button>
+          <span class="swipe-hint-arrow" data-swipe-dir="next">›</span>
+          <span class="swipe-hint-arrow" data-swipe-dir="next">›</span>
+        </div>
       </div>
     </section>
 
@@ -152,17 +272,25 @@
     <section id="tab-tune" class="tab-panel">
       <div class="tune-header">
         <div class="row">
-          <label>Pilot</label>
+          <label data-i18n="tune.pilot">Pilot</label>
           <select id="pilot-select"></select>
         </div>
         <div class="row">
-          <label>Profile</label>
+          <label data-i18n="tune.profile">Profile</label>
           <select id="profile-select"></select>
           <button id="profile-add" class="ghost">+</button>
           <button id="profile-remove" class="ghost">-</button>
         </div>
       </div>
 
+      <!-- Rev42: safety lock. Sliders + nudge buttons are read-only until
+           the user explicitly ticks the unlock checkbox. -->
+      <div class="tune-unlock-row">
+        <label class="tune-unlock">
+          <input type="checkbox" id="tune-unlock" />
+          <span data-i18n="tune.unlock">Unlock settings (auto-relock on tab exit)</span>
+        </label>
+      </div>
       <div id="gains-container" class="gains-container">
         <!-- Gain rows injected by app.js. Each row goes translucent while dragged. -->
       </div>
@@ -174,155 +302,185 @@
       </div>
     </section>
 
+    <!-- REGATA TAB (Rev35) - Race countdown timer T1/T2 with audible beeps. -->
+    <section id="tab-regata" class="tab-panel">
+      <div class="regata-wrap">
+        <div id="regata-state" class="regata-state" data-i18n="regata.state.idle">IDLE</div>
+        <div id="regata-clock" class="regata-clock">05:00</div>
+        <div class="regata-buttons">
+          <button id="regata-timer-btn" class="regata-btn primary" data-i18n="regata.timer">TIMER</button>
+          <button id="regata-sync-btn"  class="regata-btn"         data-i18n="regata.sync">SYNC</button>
+          <button id="regata-reset-btn" class="regata-btn ghost"   data-i18n="regata.reset">RESET</button>
+        </div>
+        <div class="regata-config">
+          <label>T1 (min) <input type="number" id="regata-t1" min="1" max="60" step="1" value="5" /></label>
+          <label>T2 (min) <input type="number" id="regata-t2" min="1" max="59" step="1" value="4" /></label>
+          <label class="regata-check"><input type="checkbox" id="regata-beep"  checked /><span data-i18n="regata.beeps">Beeps</span></label>
+          <label class="regata-check"><input type="checkbox" id="regata-voice" checked /><span data-i18n="regata.voice">Voice</span></label>
+        </div>
+        <div class="regata-hint" data-i18n="regata.hint">
+          TIMER: start / pause. In race (after 0), stops. SYNC: in countdown rounds to the nearest minute; in idle starts from T2. RESET: back to idle.
+        </div>
+      </div>
+    </section>
+
     <!-- PATHS & API TAB -->
     <section id="tab-paths" class="tab-panel">
       <div class="paths-header">
-        <div>Live catalog of Signal K paths this plugin publishes and PUT-handles. Use the Copy buttons to paste into KIP widget configs.</div>
-        <button id="paths-refresh" class="ghost">Refresh</button>
+        <div data-i18n="paths.header">Live catalog of Signal K paths this plugin publishes and PUT-handles. Use the Copy buttons to paste into KIP widget configs.</div>
+        <button id="paths-refresh" class="ghost" data-i18n="paths.refresh">Refresh</button>
       </div>
 
-      <!-- Rev24: KIP-ready action paths. Fixed list, always present. -->
+      <!-- Rev56: KIP action paths trimmed to the current API surface.
+           Simple Switch (electrical.switches.pypilot.*) is what KIP widgets
+           actually bind to today; the SK Autopilot API paths cover mode/target
+           for WilhelmSK. The old .actions.engage/nudge/tack aliases (Rev24)
+           and their numeric variants (Rev33) are still registered in the
+           backend for backwards compat but no longer surfaced here -- they
+           duplicated the switches and confused users. -->
       <div class="setup-block" style="border-color: var(--accent);">
-        <div class="section-title" style="color: var(--accent);">KIP action paths</div>
-        <div class="hint" style="margin-bottom:8px;">Wire these to KIP "Put" widgets (or any button widget that sends a value on click).</div>
-        <table class="paths-table">
-          <thead><tr><th>Widget</th><th>Path</th><th>Type</th><th>Value(s)</th><th>Copy</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><b>AP toggle</b></td>
-              <td class="path">steering.autopilot.pypilot.actions.engage</td>
-              <td>boolean</td>
-              <td>true / false</td>
-              <td><button class="copy" data-copy="steering.autopilot.pypilot.actions.engage">Copy</button></td>
-            </tr>
-            <tr>
-              <td><b>Nudge +10</b></td>
-              <td class="path">steering.autopilot.pypilot.actions.nudge</td>
-              <td>number (deg)</td>
-              <td>+10 / +1 / -1 / -10</td>
-              <td><button class="copy" data-copy="steering.autopilot.pypilot.actions.nudge">Copy</button></td>
-            </tr>
-            <tr>
-              <td><b>Tack</b></td>
-              <td class="path">steering.autopilot.pypilot.actions.tack</td>
-              <td>string</td>
-              <td>"port" / "starboard" / "cancel"</td>
-              <td><button class="copy" data-copy="steering.autopilot.pypilot.actions.tack">Copy</button></td>
-            </tr>
-            <tr>
-              <td><b>Mode</b></td>
-              <td class="path">steering.autopilot.mode</td>
-              <td>string</td>
-              <td>"compass" / "gps" / "wind" / "true wind" / "nav"</td>
-              <td><button class="copy" data-copy="steering.autopilot.mode">Copy</button></td>
-            </tr>
-            <tr>
-              <td>Target (abs)</td>
-              <td class="path">steering.autopilot.target</td>
-              <td>number (rad)</td>
-              <td>e.g. 1.57 for 90 deg</td>
-              <td><button class="copy" data-copy="steering.autopilot.target">Copy</button></td>
-            </tr>
-            <tr style="background: rgba(55,182,255,0.08);">
-              <td><b>AP (Simple Switch)</b></td>
-              <td class="path">electrical.switches.pypilot.ap.state</td>
-              <td>boolean int</td>
-              <td>1 / 0</td>
-              <td><button class="copy" data-copy="electrical.switches.pypilot.ap.state">Copy</button></td>
-            </tr>
-            <tr style="background: rgba(46,204,113,0.10);">
-              <td><b>AP (Numeric Put)</b></td>
-              <td class="path">steering.autopilot.pypilot.actions.engageInt</td>
-              <td>number</td>
-              <td>1 = engage, 0 = disengage</td>
-              <td><button class="copy" data-copy="steering.autopilot.pypilot.actions.engageInt">Copy</button></td>
-            </tr>
-            <tr style="background: rgba(46,204,113,0.10);">
-              <td><b>Tack (Numeric Put)</b></td>
-              <td class="path">steering.autopilot.pypilot.actions.tackInt</td>
-              <td>number</td>
-              <td>1 = port, 2 = starboard, 0 = cancel</td>
-              <td><button class="copy" data-copy="steering.autopilot.pypilot.actions.tackInt">Copy</button></td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="hint" style="margin-top:8px;">Rows in <b>green</b> are numeric aliases so a single KIP widget family (Numeric Put) can drive engage / nudge / tack from fixed-value buttons. Blue row is the electrical.switches alias for the Simple Switch widget.</div>
+        <div class="section-title" style="color: var(--accent);" data-i18n="paths.kip.title">KIP action paths</div>
+        <div class="hint" style="margin-bottom:8px;" data-i18n="paths.kip.hint">Wire these to KIP "Simple Switch" widgets (blue rows) or "Put" widgets (green rows).</div>
+        <div class="paths-scroll">
+          <table class="paths-table">
+            <thead><tr><th>Widget</th><th>Path</th><th>Type</th><th>Value(s)</th><th>Copy</th></tr></thead>
+            <tbody>
+              <tr style="background: rgba(55,182,255,0.08);">
+                <td><b>AP engage</b></td>
+                <td class="path">electrical.switches.pypilot.ap.state</td>
+                <td>Simple Switch</td>
+                <td>1 = engage, 0 = disengage</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.ap.state">Copy</button></td>
+              </tr>
+              <tr style="background: rgba(55,182,255,0.08);">
+                <td>Nudge <code>-10 / -1 / +1 / +10</code></td>
+                <td class="path">electrical.switches.pypilot.nudge.{bigPort,smallPort,smallStar,bigStar}</td>
+                <td>Simple Switch (momentary)</td>
+                <td>1 = fire, auto-resets</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.nudge.smallStar">Copy +1</button></td>
+              </tr>
+              <tr style="background: rgba(55,182,255,0.08);">
+                <td>Tack <code>port / starboard / cancel</code></td>
+                <td class="path">electrical.switches.pypilot.tack.{port,starboard,cancel}</td>
+                <td>Simple Switch (momentary)</td>
+                <td>1 = fire</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.tack.port">Copy port</button></td>
+              </tr>
+              <tr style="background: rgba(55,182,255,0.08);">
+                <td>Mode <code>compass / gps / wind / true / nav</code></td>
+                <td class="path">electrical.switches.pypilot.mode.{compass,gps,wind,trueWind,nav}</td>
+                <td>Simple Switch (radio)</td>
+                <td>1 = select</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.mode.compass">Copy compass</button></td>
+              </tr>
+              <tr style="background: rgba(55,182,255,0.08);">
+                <td>Profile <code>&lt;name&gt;</code></td>
+                <td class="path">electrical.switches.pypilot.profile.&lt;name&gt;</td>
+                <td>Simple Switch (radio, dynamic)</td>
+                <td>1 = select</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.profile.">Copy prefix</button></td>
+              </tr>
+              <tr style="background: rgba(46,204,113,0.10);">
+                <td><b>Mode</b> (Put)</td>
+                <td class="path">steering.autopilot.mode</td>
+                <td>string</td>
+                <td>"compass" / "gps" / "wind" / "true wind" / "nav"</td>
+                <td><button class="copy" data-copy="steering.autopilot.mode">Copy</button></td>
+              </tr>
+              <tr style="background: rgba(46,204,113,0.10);">
+                <td>Target (Put)</td>
+                <td class="path">steering.autopilot.target</td>
+                <td>number (rad)</td>
+                <td>e.g. 1.57 for 90 deg</td>
+                <td><button class="copy" data-copy="steering.autopilot.target">Copy</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="section-title" style="margin-top:14px;">All published paths</div>
+      <div class="section-title" style="margin-top:14px;" data-i18n="paths.all.title">All published paths</div>
       <div class="row" style="margin-bottom:6px; gap:8px; flex-wrap:wrap; align-items:center;">
-        <input type="search" id="paths-search" placeholder="filter paths..." style="flex:1; min-width:180px; background:var(--bg-3); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px;" />
+        <input type="search" id="paths-search" data-i18n-placeholder="paths.search.ph" placeholder="filter paths..." style="flex:1; min-width:180px; background:var(--bg-3); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px;" />
         <span id="paths-counter" class="hint" style="font-family:monospace;">0 / 0</span>
       </div>
       <div class="row" style="margin-bottom:8px; gap:8px; align-items:center;">
         <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
           <input type="checkbox" id="cfg-only-essentials" />
-          <span>Publish only essentials + explicitly enabled (recommended)</span>
+          <span data-i18n="paths.essentials.label">Publish only essentials + explicitly enabled (recommended)</span>
         </label>
       </div>
-      <div class="hint" data-i18n="paths.hint" style="margin-bottom:8px;">Applies instantly, no restart. Essential paths (state / mode / target / tack / selectors) always publish. When "essentials only" is ON, tick the checkbox to opt-in a path; when OFF, tick to keep publishing and untick to stop.</div>
-      <table id="paths-table" class="paths-table">
-        <thead>
-          <tr>
-            <th data-i18n="paths.publish">Publish</th>
-            <th data-i18n="paths.skPath">SK path</th>
-            <th data-i18n="paths.units">Units</th>
-            <th data-i18n="paths.put">PUT?</th>
-            <th data-i18n="paths.copy">Copy</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="hint" data-i18n="paths.hint" style="margin-bottom:8px;">Applies instantly, no restart. Essential paths (state / mode / target / tack / selectors) always publish.</div>
+      <div class="paths-scroll">
+        <table id="paths-table" class="paths-table">
+          <thead>
+            <tr>
+              <th data-i18n="paths.publish">Publish</th>
+              <th data-i18n="paths.skPath">SK path</th>
+              <th data-i18n="paths.units">Units</th>
+              <th data-i18n="paths.put">PUT?</th>
+              <th data-i18n="paths.copy">Copy</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
 
     <!-- SETUP TAB -->
     <section id="tab-setup" class="tab-panel">
       <div class="setup-block">
-        <div class="section-title">Connection</div>
-        <div id="setup-status" class="status-block">loading...</div>
+        <div class="section-title" data-i18n="setup.connection">Connection</div>
+        <div id="setup-status" class="status-block" data-i18n="loading">loading...</div>
       </div>
 
       <div class="setup-block">
-        <div class="section-title">Scan LAN for pypilot_web</div>
+        <div class="section-title" data-i18n="setup.scan.title">Scan LAN for pypilot_web</div>
         <div class="row">
-          <input type="text" id="scan-subnet" placeholder="auto-detect (e.g. 192.168.1.0/24)" />
-          <button id="scan-btn" class="primary">Scan</button>
+          <input type="text" id="scan-subnet" data-i18n-placeholder="setup.scan.subnet.ph" placeholder="auto-detect (e.g. 192.168.1.0/24)" />
+          <button id="scan-btn" class="primary" data-i18n="setup.scan.btn">Scan</button>
         </div>
         <div id="scan-results" class="scan-results"></div>
       </div>
 
       <div class="setup-block">
-        <div class="section-title">Manual host</div>
+        <div class="section-title" data-i18n="setup.manual.title">Manual host</div>
         <div class="row">
-          <input type="text" id="cfg-host" placeholder="192.168.1.115" />
+          <input type="text"   id="cfg-host" data-i18n-placeholder="setup.host.ph" placeholder="192.168.1.115" />
           <input type="number" id="cfg-port" placeholder="80" style="max-width:6em" />
-          <button id="cfg-apply" class="primary">Apply &amp; reconnect</button>
+          <button id="cfg-apply" class="primary" data-i18n="setup.apply.btn">Apply &amp; reconnect</button>
         </div>
-        <div class="hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
+        <div class="hint" data-i18n="setup.manual.hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
       </div>
 
       <div class="setup-block">
-        <div class="section-title">Autopilot Provider (one-socket mode)</div>
+        <div class="section-title" data-i18n="setup.absorb.title">Autopilot Provider (one-socket mode)</div>
         <div class="row">
-          <label style="min-width:140px">Absorb official provider</label>
+          <label style="min-width:140px" data-i18n="setup.absorb.label">Absorb official provider</label>
           <input type="checkbox" id="cfg-absorb" style="transform:scale(1.5); margin-right:12px;" />
-          <button id="cfg-absorb-apply" class="primary">Save &amp; restart</button>
+          <button id="cfg-absorb-apply" class="primary" data-i18n="setup.absorb.btn">Save &amp; restart</button>
         </div>
-        <div class="hint" style="color: var(--warn);">
-          When ON, this plugin registers itself as the SK Autopilot Provider
-          (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots).
-          <b>You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin</b>
-          - two providers would fight for the pilot ID. Benefit: one socket less to the Pi Zero TinyPilot.
+        <div class="hint" style="color: var(--warn);" data-i18n="setup.absorb.hint">
+          When ON, this plugin registers itself as the Signal K Autopilot Provider (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.
         </div>
       </div>
 
       <div class="setup-block" style="border: 2px solid var(--err);">
-        <div class="section-title" style="color: var(--err);">Emergency: pause client</div>
-        <div class="row">
-          <button id="cli-pause" class="primary" style="background: var(--err); border-color: var(--err);">PAUSE pypilot client</button>
-          <button id="cli-resume" class="ghost">RESUME</button>
+        <div class="section-title" style="color: var(--err);" data-i18n="setup.emergency">Emergency</div>
+        <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center">
+          <label style="min-width:100px" data-i18n="setup.ssh.user">SSH user</label>
+          <input type="text"     id="cfg-ssh-user"     placeholder="tc" style="max-width:9em" autocomplete="off" />
+          <label style="min-width:120px" data-i18n="setup.ssh.password">SSH password</label>
+          <input type="password" id="cfg-ssh-password" data-i18n-placeholder="setup.ssh.password.ph.notset" placeholder="(not set)" style="max-width:14em" autocomplete="new-password" />
+          <button id="cfg-ssh-save" class="ghost" data-i18n="setup.ssh.save.btn">Save</button>
         </div>
-        <div class="hint">If pypilot_web on the TinyPilot chokes (Pi Zero maxed out, other clients slowing to a crawl), pausing here disconnects our socket without disabling the plugin. Resume when things settle.</div>
+        <div id="cfg-ssh-status" class="hint" style="margin-top:6px"></div>
+        <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
+          <button id="cli-restart-pypilot" class="primary" style="background: var(--warn, #f37812); border-color: var(--warn, #f37812);" data-i18n="setup.restart.btn">RESTART pypilot</button>
+        </div>
+        <div id="cli-restart-status" class="hint" style="margin-top:8px"></div>
+        <div class="hint" data-i18n="setup.restart.hint">Restarts the pypilot process on the TinyPilot via SSH using the user+password above.</div>
+        <div class="hint" data-i18n="setup.security.hint" style="margin-top:6px">Signal K stores plugin config in plain text at ~/.signalk/plugin-config-data/.</div>
       </div>
 
       <div class="setup-block">
@@ -342,9 +500,9 @@
         <div class="row">
           <select id="lang-select" style="min-width:180px">
             <option value="en">English</option>
-            <option value="es">Espanol</option>
+            <option value="es">Espa&ntilde;ol</option>
             <option value="de">Deutsch</option>
-            <option value="fr">Francais</option>
+            <option value="fr">Fran&ccedil;ais</option>
           </select>
         </div>
         <div class="hint" data-i18n="language.hint">Persists in this browser only. No server round-trip.</div>
@@ -372,16 +530,294 @@
         </div>
       </div>
     </section>
+
+    <!-- INFO TAB (Rev58) - short instructions + about + license. -->
+    <section id="tab-info" class="tab-panel">
+      <div class="info-scroll">
+        <div class="info-header">
+          <div class="info-title">PyPilot New-UI + SK Paths</div>
+          <div class="info-sub">
+            <span id="info-version">v? &middot; Rev?</span>
+            <span class="info-sep">&middot;</span>
+            <a id="info-oldui-link" href="#" target="_blank" rel="noopener">Interfaz cl&aacute;sica de pypilot</a>
+          </div>
+        </div>
+
+        <!-- Safety notice -->
+        <div class="safety-notice">
+          <div data-lang="en">
+            <b>Safety notice.</b> This plugin is an aid to navigation and steering. It does not
+            replace the vigilance of the skipper, correct manoeuvring, direct observation of the
+            surroundings, or official charts and notices. Autopilot reliability depends on the
+            quality of the sensors, the link with the TinyPilot, and pypilot's own tuning. Always
+            verify in safe waters before relying on the autopilot for demanding manoeuvres.
+          </div>
+          <div data-lang="es">
+            <b>Aviso de seguridad.</b> Este plugin es una ayuda a la navegaci&oacute;n y al pilotaje.
+            No sustituye la vigilancia del patr&oacute;n, la maniobra correcta, la observaci&oacute;n directa
+            del entorno ni las cartas y avisos oficiales. La fiabilidad del autopiloto y de los
+            datos depende de la calidad de los sensores, del enlace con la TinyPilot y del ajuste
+            del propio pypilot. Verifica siempre en aguas seguras antes de fiarte del piloto en
+            maniobras exigentes.
+          </div>
+        </div>
+
+        <!-- Quick instructions -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title">Quick start</div>
+            <ol class="info-list">
+              <li><b>Setup &rarr; Manual host</b>: enter the IP and port of your <code>pypilot_web</code> (port 80 on TinyPilot by default). Apply &amp; reconnect.</li>
+              <li><b>Setup &rarr; Emergency</b>: save the TinyPilot SSH user + password. The <b>RESTART pypilot</b> button then reboots the remote process without leaving the browser.</li>
+              <li><b>Control</b>: tap <b>AP</b> to engage the pilot on the current heading. <b>&plusmn;1 / &plusmn;10</b> nudges the target. <b>TACK &lang; / &rang;</b> tacks to port or starboard. The centre dropdown switches the mode (compass / gps / wind / true wind / nav).</li>
+              <li><b>Rose</b>: N/E/S/W plus degree ticks every 30&deg;. Green / red wedges are hull-fixed and mark the sailing zones. Amber arrow = AWA, magenta = TWA (toggle from long-press on any corner). Cyan diamond = AP target.</li>
+              <li><b>Corners</b>: long-press any corner of the rose to pick which datum to show (HDG, wind, SOG, COG, target, depth, mode, polars&hellip;).</li>
+              <li><b>Tune</b>: tick <b>Unlock settings</b> before touching. Each slider has &minus;10 / &minus;1 / slider / +1 / +10. When unlocked, the previous value is shown in orange as a reference.</li>
+              <li><b>Race</b>: T1/T2 countdown timer with audible beeps + screen flash + spoken seconds. Runs in the background across tabs.</li>
+              <li><b>Paths &amp; API</b>: Signal K paths this plugin publishes. Wire the <i>Simple Switch</i> rows (blue) to KIP.</li>
+              <li><b>Swipe</b>: drag horizontally across any tab to go to the next / previous. Blocked over unlocked sliders and horizontally-scrollable tables.</li>
+              <li><b>Tab bar</b>: tap the yellow triangle at the bottom-centre to hide it and give the rose more room.</li>
+            </ol>
+          </div>
+          <div data-lang="es">
+            <div class="section-title">Instrucciones r&aacute;pidas</div>
+            <ol class="info-list">
+              <li><b>Setup &rarr; Manual host</b>: escribe la IP y puerto de tu <code>pypilot_web</code> (por defecto 80 de la TinyPilot). Apply &amp; reconnect.</li>
+              <li><b>Setup &rarr; Emergency</b>: guarda el usuario+password SSH de la TinyPilot. Con eso el bot&oacute;n <b>REINICIAR pypilot</b> reinicia el proceso remoto sin salir del navegador.</li>
+              <li><b>Control</b>: pulsa <b>AP</b> para enganchar el piloto en el rumbo actual. <b>&plusmn;1 / &plusmn;10</b> mueve el rumbo objetivo. <b>VIRAR &lang; / &rang;</b> vira por babor o estribor. El desplegable central cambia el modo (compass / gps / wind / true wind / nav).</li>
+              <li><b>Rosa</b>: N/E/S/W y grados cada 30&deg;. Sectores verde/rojo fijos a la cruj&iacute;a marcan las zonas de amura. Flecha amber = AWA, magenta = TWA (activadas con long-press en cualquier esquina). Diamante cyan = target del AP.</li>
+              <li><b>Esquinas</b>: long-press en cualquier esquina de la rosa para elegir qu&eacute; dato mostrar (HDG, viento, SOG, COG, target, sonda, modo, polares&hellip;).</li>
+              <li><b>Ajustes</b>: marca <b>Desbloquear ajustes</b> antes de tocar. Cada slider tiene &minus;10 / &minus;1 / slider / +1 / +10. Al desbloquear ves el valor original en naranja para saber contra qu&eacute; comparas.</li>
+              <li><b>Regata</b>: timer T1/T2 con beeps + flash de pantalla + voz. Corre de fondo en cualquier pesta&ntilde;a.</li>
+              <li><b>Paths &amp; API</b>: paths SK que este plugin publica. Usa los <i>Simple Switch</i> (fila azul) para conectar con KIP.</li>
+              <li><b>Swipe</b>: desliza el dedo horizontalmente en cualquier pesta&ntilde;a para cambiar a la siguiente / anterior. Bloqueado sobre sliders desbloqueados o tablas con scroll horizontal.</li>
+              <li><b>Barra de pesta&ntilde;as</b>: pulsa el tri&aacute;ngulo amarillo (abajo del centro) para ocultarla y ganar espacio para la rosa.</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- About -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">About</div>
+            <p class="info-p">
+              <b>PyPilot New-UI + SK Paths</b> is a modern touch interface for the
+              <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a>
+              autopilot, plus a full bridge of its data to Signal K (KIP-ready). Runs alongside
+              <code>pypilot-autopilot-provider</code> and adds paths that plugin does not cover.
+            </p>
+            <p class="info-p">Author: <a href="https://github.com/Aitonos" target="_blank" rel="noopener">Aitonos</a> / Tunatunes.</p>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Acerca de</div>
+            <p class="info-p">
+              <b>PyPilot New-UI + SK Paths</b> es una interfaz t&aacute;ctil moderna para el autopiloto
+              <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a>
+              + puente completo de sus datos a Signal K (KIP-ready). Convive con
+              <code>pypilot-autopilot-provider</code> sin pisarse y a&ntilde;ade paths que ese no cubre.
+            </p>
+            <p class="info-p">Autor: <a href="https://github.com/Aitonos" target="_blank" rel="noopener">Aitonos</a> / Tunatunes.</p>
+          </div>
+        </div>
+
+        <!-- Acknowledgements -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">Acknowledgements</div>
+            <ul class="info-list">
+              <li><b>Sean D'Epagnier</b> &mdash; creator of <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a>, the open-source autopilot that makes this plugin possible. None of this would exist without his open work.</li>
+              <li><b>Jean-Marc</b> at <a href="https://www.navitop.fr/" target="_blank" rel="noopener">Navitop</a> &mdash; for the TinyPilot hardware and marine integrations, and for making pypilot accessible to European sailors.</li>
+              <li>The <a href="https://signalk.org/" target="_blank" rel="noopener">Signal K</a> community and OpenPlotter for the open ecosystem this plugin runs on.</li>
+            </ul>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Agradecimientos</div>
+            <ul class="info-list">
+              <li><b>Sean D'Epagnier</b> &mdash; creador de <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a>, el autopiloto libre que hace posible este plugin. Sin su trabajo abierto no existir&iacute;a nada de esto.</li>
+              <li><b>Jean-Marc</b> de <a href="https://www.navitop.fr/" target="_blank" rel="noopener">Navitop</a> &mdash; por el hardware TinyPilot y las integraciones marinas, y por acercar pypilot al navegante europeo.</li>
+              <li>Comunidad <a href="https://signalk.org/" target="_blank" rel="noopener">Signal K</a> y OpenPlotter por el ecosistema abierto sobre el que corre este plugin.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- License -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">License</div>
+            <p class="info-p">
+              Released under the <b>Apache License 2.0</b>. Full text:
+              <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">apache.org/licenses/LICENSE-2.0</a>.
+            </p>
+            <p class="info-p">
+              The <code>src/autopilot-provider.ts</code> adapter derives its structure from
+              <a href="https://github.com/panaaj/pypilot-autopilot-provider" target="_blank" rel="noopener">pypilot-autopilot-provider</a> (Panaaj, Apache 2.0).
+              The socket.io protocol against <code>pypilot_web</code> was confirmed against
+              <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a>'s sources (LGPL-3.0); no derived code is distributed.
+            </p>
+            <p class="info-p" style="opacity:0.7;font-size:13px">&copy; 2026 Aitonos.</p>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Licencia</div>
+            <p class="info-p">
+              Publicado bajo <b>Apache License 2.0</b>. Copia completa:
+              <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">apache.org/licenses/LICENSE-2.0</a>.
+            </p>
+            <p class="info-p">
+              El adaptador <code>src/autopilot-provider.ts</code> deriva su estructura del proyecto
+              <a href="https://github.com/panaaj/pypilot-autopilot-provider" target="_blank" rel="noopener">pypilot-autopilot-provider</a> (Panaaj, Apache 2.0).
+              El protocolo socket.io hacia <code>pypilot_web</code> se confirm&oacute; contra las fuentes de
+              <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a> (LGPL-3.0), no se distribuye c&oacute;digo derivado.
+            </p>
+            <p class="info-p" style="opacity:0.7;font-size:13px">&copy; 2026 Aitonos.</p>
+          </div>
+        </div>
+
+        <!-- Coexistence with pypilot-autopilot-provider -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">Working alongside <code>pypilot-autopilot-provider</code></div>
+            <p class="info-p">
+              This plugin builds on top of the excellent work by <b>Panaaj</b> with
+              <code>pypilot-autopilot-provider</code>. That plugin gives Signal K the standard
+              <b>Autopilot API v2</b> (<code>/signalk/v2/api/vessels/self/autopilots/*</code>) &mdash;
+              the canonical interface used by WilhelmSK, freeboard and other clients to drive the
+              pilot. It focuses tightly on that API and opens its own socket.io connection to
+              pypilot_web.
+            </p>
+            <p class="info-p">
+              We add on top ~50 paths Panaaj does not cover (gains, servo, calibration, warnings,
+              profiles, tack detail&hellip;), the touch UI, and &mdash; optionally &mdash; an
+              <b>Absorb Provider</b> mode (Setup) that registers the Autopilot API v2 from this
+              plugin itself, leaving <b>a single connection</b> to pypilot_web (handy on Pi Zero W).
+            </p>
+            <p class="info-p">
+              Signal K only allows one provider per pilot ID, so if you enable <b>Absorb</b> here
+              you should disable Panaaj's plugin (otherwise both try to register the same AP).
+              Sensible setups:
+            </p>
+            <ul class="info-list">
+              <li><b>Panaaj ON + Absorb OFF</b> (default): both work happily together. Panaaj owns the AP v2 API, we add the extra paths and the UI. <b>2 sockets</b> to pypilot_web.</li>
+              <li><b>Panaaj OFF + Absorb ON</b>: only this plugin. Same AP v2 API + all the extras. <b>1 socket</b>. Handy on Pi Zero W.</li>
+              <li><b>Panaaj ON + Absorb ON</b>: both try to register the same AP &mdash; leave one off.</li>
+              <li><b>Panaaj OFF + Absorb OFF</b>: WilhelmSK / KIP won't see the AP. Only if you use this webapp exclusively.</li>
+            </ul>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Conviviendo con <code>pypilot-autopilot-provider</code></div>
+            <p class="info-p">
+              Este plugin se apoya en el excelente trabajo de <b>Panaaj</b> con
+              <code>pypilot-autopilot-provider</code>. Su plugin ofrece a Signal K la
+              <b>Autopilot API v2</b> est&aacute;ndar
+              (<code>/signalk/v2/api/vessels/self/autopilots/*</code>) &mdash; la interfaz can&oacute;nica
+              que usan WilhelmSK, freeboard y otros clientes para pilotar. Est&aacute; enfocado
+              exclusivamente a eso y abre su propia conexi&oacute;n socket.io a pypilot_web.
+            </p>
+            <p class="info-p">
+              Nosotros a&ntilde;adimos por encima ~50 paths que Panaaj no cubre (gains, servo,
+              calibraci&oacute;n, warnings, perfiles, tack detalle&hellip;), la UI t&aacute;ctil, y &mdash; opcionalmente &mdash;
+              el modo <b>Absorb Provider</b> (Setup) que registra la Autopilot API v2 desde este
+              mismo plugin para dejar <b>una sola conexi&oacute;n</b> a pypilot_web (&uacute;til en Pi Zero W).
+            </p>
+            <p class="info-p">
+              Signal K solo admite un provider por pilot ID, as&iacute; que si activas <b>Absorb</b> aqu&iacute;
+              desactiva el plugin de Panaaj (si no, ambos intentan registrar el mismo AP).
+              Configuraciones sensatas:
+            </p>
+            <ul class="info-list">
+              <li><b>Panaaj ON + Absorb OFF</b> (por defecto): funcionan juntos sin problemas. Panaaj lleva la API v2, nosotros aportamos los paths extra y la UI. <b>2 sockets</b> a pypilot_web.</li>
+              <li><b>Panaaj OFF + Absorb ON</b>: solo este plugin. Misma API v2 + todo lo extra. <b>1 socket</b>. C&oacute;modo en Pi Zero W.</li>
+              <li><b>Panaaj ON + Absorb ON</b>: ambos intentan registrar el mismo AP &mdash; deja uno apagado.</li>
+              <li><b>Panaaj OFF + Absorb OFF</b>: WilhelmSK / KIP no ver&aacute;n el AP. S&oacute;lo si usas este webapp en exclusiva.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Report issue -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">Report an issue / feature request</div>
+            <p class="info-p">
+              Bug, feature request or crash? Open an issue on GitHub &mdash;
+              <a href="https://github.com/Aitonos/signalk-pypilot-newui/issues/new" target="_blank" rel="noopener">github.com/Aitonos/signalk-pypilot-newui/issues/new</a>.
+              Include the Rev (see Setup &rarr; Connection above), what you expected, what happened, and a screenshot if possible.
+            </p>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Reportar issue / Sugerencia</div>
+            <p class="info-p">
+              &iquest;Bug, feature request o crash? Abre un issue en GitHub &mdash;
+              <a href="https://github.com/Aitonos/signalk-pypilot-newui/issues/new" target="_blank" rel="noopener">github.com/Aitonos/signalk-pypilot-newui/issues/new</a>.
+              Incluye el Rev (arriba, Setup &rarr; Connection), qu&eacute; esperabas, qu&eacute; ocurri&oacute; y si puedes un pantallazo.
+            </p>
+          </div>
+        </div>
+
+        <!-- GitHub buttons (language-agnostic) -->
+        <div class="row" style="gap:8px;flex-wrap:wrap;margin:6px 0 4px">
+          <a class="btn-like" href="https://github.com/Aitonos/signalk-pypilot-newui/issues/new" target="_blank" rel="noopener">
+            <span data-lang="en">New issue</span>
+            <span data-lang="es">Nuevo issue</span>
+          </a>
+          <a class="btn-like ghost" href="https://github.com/Aitonos/signalk-pypilot-newui" target="_blank" rel="noopener">
+            <span data-lang="en">Source code</span>
+            <span data-lang="es">C&oacute;digo fuente</span>
+          </a>
+          <a class="btn-like ghost" href="https://github.com/Aitonos/signalk-pypilot-newui/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+        </div>
+
+        <!-- Visor config export/import -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">Visor configuration</div>
+            <p class="info-p">
+              Save or share your rose layout, AWA/TWA arrows, enabled polars and custom paths.
+              Config is auto-saved in your browser (localStorage); this only exports it so you can
+              migrate it to another device or send it to support.
+            </p>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Configuraci&oacute;n del visor</div>
+            <p class="info-p">
+              Guarda o comparte tu layout de la rosa, flechas AWA/TWA, polares habilitadas y paths
+              personalizados. La configuraci&oacute;n se guarda autom&aacute;ticamente en tu navegador (localStorage);
+              esto solo la exporta para migrarla a otro dispositivo o mandarla al soporte.
+            </p>
+          </div>
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap;margin:6px 0 4px">
+          <button id="cfg-export-share" class="primary">
+            <span data-lang="en">Share / Send (email, WhatsApp&hellip;)</span>
+            <span data-lang="es">Compartir / Enviar (email, WhatsApp&hellip;)</span>
+          </button>
+          <button id="cfg-export-file" class="ghost">
+            <span data-lang="en">Download .json</span>
+            <span data-lang="es">Descargar .json</span>
+          </button>
+          <button id="cfg-export-copy" class="ghost">
+            <span data-lang="en">Copy to clipboard</span>
+            <span data-lang="es">Copiar al portapapeles</span>
+          </button>
+          <label class="btn-like ghost" style="cursor:pointer">
+            <span data-lang="en">Import from file</span>
+            <span data-lang="es">Importar desde archivo</span>
+            <input type="file" id="cfg-import-file" accept="application/json" hidden />
+          </label>
+          <button id="cfg-import-paste" class="ghost">
+            <span data-lang="en">Import from text&hellip;</span>
+            <span data-lang="es">Importar desde texto&hellip;</span>
+          </button>
+          <button id="cfg-reset" class="ghost" style="border-color:var(--err,#e74c3c);color:var(--err,#e74c3c)">
+            <span data-lang="en">Reset</span>
+            <span data-lang="es">Resetear</span>
+          </button>
+        </div>
+        <div id="cfg-export-status" class="hint" style="margin-top:6px"></div>
+      </div>
+    </section>
   </main>
 
-  <footer id="ftr">
-    <span id="rev-tag">PyPilot New-UI</span>
-    <span id="link-oldui">
-      <a href="#" id="link-oldui-a" target="_blank" rel="noopener">Open classic pypilot UI</a>
-    </span>
-  </footer>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev31"></script>
+  <script src="app.js?v=Rev62"></script>
 </body>
 </html>
