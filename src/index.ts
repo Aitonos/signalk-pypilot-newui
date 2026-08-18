@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev33";
+const PLUGIN_REVISION = "Rev34";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -610,6 +610,13 @@ module.exports = function (app: any) {
     } catch (e: any) {
       app.debug(`[absorb] canonical delta emit failed: ${e?.message || e}`);
     }
+    // Rev34: mirror the active mode into the mode.* radio switch group
+    // so KIP's Simple Switch widgets reflect pypilot's current mode.
+    try {
+      const emit = (app as any)._pypilotNewuiEmitModeSwitches as
+        ((activePy: string | null) => void) | undefined;
+      if (emit) emit(apProvider.data.mode);
+    } catch { /* silent */ }
   }
 
   function setupWatches(c: PypilotClient, catalog: PypilotCatalog): void {
@@ -1125,6 +1132,82 @@ module.exports = function (app: any) {
     registerMomentaryBool(`${SW_TACK_PREFIX}.starboard`, "Tack Starboard", () => doTack("starboard"));
     registerMomentaryBool(`${SW_TACK_PREFIX}.cancel`,    "Tack Cancel",    () => doTackCancel());
 
+    // Rev34: mode switches under electrical.switches.pypilot.mode.* .
+    // Unlike nudge/tack these are NOT momentary - they behave as a radio
+    // group so KIP shows which mode is currently active. Only one is true
+    // at a time; PUTting true on one sets pypilot's ap.mode and the others
+    // flip to false when the mode confirmation comes back from pypilot.
+    const SW_MODE_PREFIX = "electrical.switches.pypilot.mode";
+    // Each entry maps the URL-safe SK path key to the pypilot mode string.
+    // "true wind" has a space, so its path is trueWind (camelCase).
+    const SW_MODE_MAP: Array<{ key: string; py: string; label: string }> = [
+      { key: "compass",  py: "compass",    label: "Mode Compass"    },
+      { key: "gps",      py: "gps",        label: "Mode GPS"        },
+      { key: "wind",     py: "wind",       label: "Mode Wind"       },
+      { key: "trueWind", py: "true wind",  label: "Mode True Wind"  },
+    ];
+    const swModePathOf = (key: string) => `${SW_MODE_PREFIX}.${key}`;
+    // emitModeSwitches broadcasts the current mode state as a radio group.
+    // Called from pushAutopilotUpdate() and the keep-alive so KIP always
+    // reflects the truth on the wire.
+    const emitModeSwitches = (activePy: string | null) => {
+      try {
+        const values = SW_MODE_MAP.map((m) => ({
+          path: swModePathOf(m.key),
+          value: activePy === m.py,
+        }));
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: new Date().toISOString(),
+            values,
+          }],
+        });
+      } catch { /* silent */ }
+    };
+    (app as any)._pypilotNewuiEmitModeSwitches = emitModeSwitches;
+    for (const m of SW_MODE_MAP) {
+      const skPath = swModePathOf(m.key);
+      try {
+        app.registerPutHandler("vessels.self", skPath, (_c: string, _p: string, value: unknown) => {
+          const b = coerceBool(value);
+          if (b === null) return bad("value must be boolean-like");
+          if (!client?.connected) return noConn();
+          // PUT false on a radio switch is a no-op: modes cannot be
+          // "turned off" individually, only replaced by picking another.
+          if (!b) return okLog(skPath, false);
+          if (apProvider) {
+            const iface = apProvider.toProviderInterface() as any;
+            iface.setMode(m.py, apProvider.deviceId).catch(() => {});
+          } else {
+            client.set("ap.mode", m.py);
+          }
+          // Optimistically flip the radio group now so the KIP UI feels
+          // instant. When pypilot confirms via receiveValue('ap.mode',...),
+          // pushAutopilotUpdate() re-emits the true state a fraction later.
+          emitModeSwitches(m.py);
+          return okLog(skPath, m.py);
+        }, SOURCE_LABEL);
+        putHandlersRegistered.add(skPath);
+        // Initial value: false unless pypilot has already told us the mode.
+        const currentPy = apProvider?.data?.mode ?? null;
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: new Date().toISOString(),
+            values: [{ path: skPath, value: currentPy === m.py }],
+            meta: [{ path: skPath, value: {
+              supportsPut: true, type: "boolean", units: "bool",
+              displayName: m.label,
+              description: `PUT true to switch pypilot to ${m.py} mode. Radio-group behavior: only one of the mode.* switches is true at any time. PUT false is ignored.`,
+            } }],
+          }],
+        });
+      } catch (e: any) { app.debug(`[actions] mode switch ${skPath} register failed: ${e?.message || e}`); }
+    }
+
     // Keep them alive: some KIP versions expire paths that stop receiving
     // updates. Republish the current values every 30 s so they never drop
     // out of the model. Rev27: ALSO republish the canonical Autopilot API
@@ -1143,6 +1226,12 @@ module.exports = function (app: any) {
         // Rev33: keep the momentary boolean switches alive at value=false so
         // KIP does not drop them from its picker after a period of idleness.
         for (const p of momentaryPaths) values.push({ path: p, value: false });
+        // Rev34: keep the mode radio switches alive with the current mode
+        // reflected so KIP does not expire them and always shows the truth.
+        const currentModePy = apProvider?.data?.mode ?? null;
+        for (const m of SW_MODE_MAP) {
+          values.push({ path: swModePathOf(m.key), value: currentModePy === m.py });
+        }
         if (apProvider) {
           values.push(
             { path: "steering.autopilot.state",   value: apProvider.data.state },
