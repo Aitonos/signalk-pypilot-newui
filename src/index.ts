@@ -15,7 +15,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev30";
+const PLUGIN_REVISION = "Rev32";
 
 const PLUGIN_ID = "signalk-pypilot-newui";
 const SOURCE_LABEL = "pypilot-newui";
@@ -241,11 +241,14 @@ module.exports = function (app: any) {
             apProvider.toProviderInterface(),
             apProvider.pilotIds
           );
-          // Watches needed to feed the autopilot state to SK
-          client.watch("ap.enabled", 0.5);
-          client.watch("ap.mode", 0.5);
-          client.watch("ap.heading_command", 0.5);
-          client.watch("ap.modes", 1);
+          // Watches for ap.enabled/mode/heading_command/modes are registered
+          // in setupWatches() after the catalog arrives. Registering them here
+          // (pre-connect) raced with the socket.io connect + pypilot_values
+          // burst and the subscriptions were silently dropped by pypilot_web:
+          // Rev32 diagnosis on Tunatunes showed apProvider.data stuck at the
+          // "off-line" default for the whole session because ap.enabled never
+          // arrived. ap.tack.* worked because setupWatches registers it
+          // post-catalog when the socket is fully settled.
           app.setPluginStatus(
             `${PLUGIN_REVISION} - AutopilotProvider registered. IMPORTANT: disable the 'pypilot-autopilot-provider' plugin to avoid conflict.`
           );
@@ -646,6 +649,16 @@ module.exports = function (app: any) {
       // Anything else is left unwatched by default. User can request via /raw
       // (future: expose per-path opt-in via config UI).
     }
+    // Rev32: watch the four core AP vars that RESERVED_PYPILOT_KEYS skips
+    // above. These feed apProvider.data.{state,mode,target,engaged} which in
+    // turn drive the canonical steering.autopilot.* deltas. Registered here
+    // (post-catalog) rather than in plugin.start() so the socket is fully
+    // settled and pypilot_web does not drop the subscription.
+    if (apProvider) {
+      c.watch("ap.enabled", WATCH_HIGH);
+      c.watch("ap.mode", WATCH_HIGH);
+      c.watch("ap.heading_command", WATCH_HIGH);
+    }
   }
 
   function publishValue(name: string, value: unknown): void {
@@ -884,7 +897,7 @@ module.exports = function (app: any) {
           ],
           meta: [
             { path: `${ACTIONS_PREFIX}.engage`, value: {
-                supportsPut: true, type: "boolean",
+                supportsPut: true, type: "boolean", units: "bool",
                 displayName: "AP engage (bool)",
                 description: "PUT true to engage the autopilot, false to disengage",
               } },
@@ -894,7 +907,7 @@ module.exports = function (app: any) {
                 description: "PUT a number in degrees (+10, +1, -1, -10) to shift the AP target",
               } },
             { path: `${ACTIONS_PREFIX}.tack`,   value: {
-                supportsPut: true, type: "string",
+                supportsPut: true, type: "string", units: "enum",
                 enum: ["port", "starboard", "cancel", "none"],
                 displayName: "Tack action (string)",
                 description: "PUT 'port', 'starboard' or 'cancel' to start or cancel a tack",
@@ -959,12 +972,12 @@ module.exports = function (app: any) {
           ],
           meta: [
             { path: `${ACTIONS_PREFIX}.engageInt`, value: {
-              supportsPut: true, type: "number",
+              supportsPut: true, type: "number", units: "bool",
               displayName: "AP engage (int)",
               description: "PUT 1 to engage, 0 to disengage. Numeric alias for KIP's Numeric Put widget.",
             } },
             { path: `${ACTIONS_PREFIX}.tackInt`, value: {
-              supportsPut: true, type: "number",
+              supportsPut: true, type: "number", units: "enum",
               displayName: "Tack (int)",
               description: "PUT 1 to tack to port, 2 to starboard, 0 to cancel. Numeric alias for KIP's Numeric Put widget.",
             } },
@@ -1013,7 +1026,7 @@ module.exports = function (app: any) {
           timestamp: new Date().toISOString(),
           values: [{ path: SW_ENGAGE, value: 0 }],
           meta: [{ path: SW_ENGAGE, value: {
-            supportsPut: true, type: "boolean",
+            supportsPut: true, type: "boolean", units: "bool",
             displayName: "AP engage switch",
             description: "AP engage switch. PUT 1 to engage the autopilot, 0 to disengage. Accepts boolean, 1/0, 'on'/'off' or 'true'/'false'.",
           } }],
