@@ -36,9 +36,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
+
+      # setup-node@v4 with Node 22 still ships npm 10.x, which pre-dates
+      # full support for Trusted Publishing (OIDC) as a publish credential
+      # (the provenance signing works but the final PUT fails with 404).
+      # Force the latest npm so `npm publish` and Trusted Publisher agree
+      # on the OIDC handshake. Reference:
+      # https://docs.npmjs.com/trusted-publishers
+      - name: Upgrade npm to latest (Trusted Publishing needs >= 11.5.1)
+        run: |
+          npm install -g npm@latest
+          echo "npm version: $(npm --version)"
 
       - name: Sanity check - package.json version matches tag
         if: startsWith(github.ref, 'refs/tags/v')
