@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1 — 2026-08-20 — Rev64
+
+Patch release to validate the GitHub Actions publish pipeline with
+[npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
+(OIDC-based, no NPM_TOKEN secret in the repo). No functional changes
+versus 2.0.0. Look for the "verified provenance" badge on the npm page.
+
 ## 2.0.0 — 2026-08-20 — Rev63
 
 **Breaking release addressing feedback from Sean D'Epagnier (pypilot author,
