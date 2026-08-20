@@ -71,7 +71,7 @@
           <div class="dash-cell corner-tr" data-corner="tr"></div>
           <div class="dash-cell corner-bl" data-corner="bl"></div>
           <div class="dash-cell corner-br" data-corner="br"></div>
-          <svg id="wind-rose" class="rose-svg" viewBox="-100 -100 200 210" preserveAspectRatio="xMidYMid meet">
+          <svg id="wind-rose" class="rose-svg" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
             <circle cx="0" cy="0" r="94" fill="none" stroke="#2b3542" stroke-width="2"/>
             <!-- Rev58: sailing zones as PIE SLICES from origin (r=0) out
@@ -106,13 +106,10 @@
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(330)"/>
               </g>
               <!-- 4 cardinals: N accent yellow, ESW dim white. -->
-              <text x="0"  y="-70" text-anchor="middle" dominant-baseline="middle" fill="#ffd54a" font-size="14" font-weight="900">N</text>
-              <text x="70" y="0"   text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">E</text>
-              <!-- Rev65: S moved inward from y=70 to y=58 so the AWS/TWS
-                   bottom-of-rose label at y=70 does not overlap it when the
-                   card sits at heading 0. -->
-              <text x="0"  y="58"  text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">S</text>
-              <text x="-70" y="0"  text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">W</text>
+              <text x="0" y="-70" text-anchor="middle" dominant-baseline="middle" fill="#ffd54a" font-size="14" font-weight="900">N</text>
+              <text x="70" y="0" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">E</text>
+              <text x="0" y="70" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">S</text>
+              <text x="-70" y="0" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">W</text>
               <!-- 8 numeric labels at 30 deg increments (skip cardinals). -->
               <g fill="#8b98a5" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
                 <text transform="rotate(30)  translate(0,-72)">030</text>
@@ -125,46 +122,30 @@
                 <text transform="rotate(330) translate(0,-72)">330</text>
               </g>
             </g>
-            <!-- Rev65 / 2.0.2: HDG in a small chip that straddles the top
-                 rim. The chip's top edge sits above the ring by ~4 units
-                 (visually "asomando" per Carlos), the bottom edge sits
-                 just below the ring so the chip clearly reads as an
-                 overlay on top of the compass, not as a floating badge.
-                 The chip does NOT push the SVG viewBox up - only the
-                 painted rect crosses the ring line. Number CENTERED on
-                 the digits only; degree glyph placed by JS after the
-                 digits so "9" and "298" both anchor at x=0. -->
-            <g id="rose-hdg-chip">
-              <rect x="-24" y="-100" width="48" height="18" rx="4" ry="4"
-                    fill="rgba(0,0,0,0.72)" stroke="#4a5867" stroke-width="1"/>
-              <text id="rose-hdg-value" x="0" y="-90" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="14" font-weight="900" font-family="ui-monospace, monospace">---</text>
-              <text id="rose-hdg-deg"   x="0" y="-90" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="10" font-weight="700">°</text>
-            </g>
+            <!-- Rev58: HDG pushed to y=-82 (right against the top rim);
+                 wind speed dropped to y=+82 (bottom rim) to keep the
+                 whole center free for the boat + arrows. Number CENTERED
+                 on the digits only; the degree symbol is positioned by
+                 JS just after them so "9" and "298" both anchor at x=0. -->
+            <text id="rose-hdg-value" x="0" y="-82" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="18" font-weight="900" font-family="ui-monospace, monospace">---</text>
+            <text id="rose-hdg-deg"   x="0" y="-82" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="13" font-weight="700">°</text>
             <!-- Rev50: boat overhead SVG (mareas-ihm), scaled 0.22 so
                  the hull spans ~100 units = 50 % of the 200-unit rose
                  diameter. Rotated -90 so bow points up. -->
             <g id="rose-boat" transform="rotate(-90) scale(0.22)">
               <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
             </g>
-            <!-- Rev65 / 2.0.2: two independent wind arrows, both solid
-                 (no more dashed shaft), each labelled AWA / TWA in text
-                 that rotates with the arrow so it always reads from the
-                 head. AWA = amber (the wind the crew feels), big head.
-                 TWA = sea-green (informational), smaller head. Both
-                 toggled independently from the corner popup. -->
+            <!-- Rev58: two independent wind arrows so the crew can watch
+                 apparent AND true at the same time. AWA in amber (crew
+                 default), TWA in magenta with a dashed shaft. Each is
+                 toggled independently from the corner popup (localStorage). -->
             <g id="rose-wind-arrow" style="display:none">
-              <line x1="0" y1="-86" x2="0" y2="-32" stroke="#ffd54a" stroke-width="3" stroke-linecap="round"/>
-              <polygon points="0,-24 -9,-40 9,-40" fill="#ffd54a" stroke="#8a6a00" stroke-width="0.6"/>
-              <text x="0" y="-58" text-anchor="middle" dominant-baseline="middle"
-                    fill="#ffd54a" stroke="#3a2600" stroke-width="0.4" paint-order="stroke fill"
-                    font-size="8" font-weight="900" letter-spacing="1">AWA</text>
+              <line x1="0" y1="-86" x2="0" y2="-36" stroke="#ffd54a" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="0,-30 -7,-42 7,-42" fill="#ffd54a" stroke="#8a6a00" stroke-width="0.6"/>
             </g>
             <g id="rose-wind-arrow-twa" style="display:none">
-              <line x1="0" y1="-86" x2="0" y2="-38" stroke="#5ce8c0" stroke-width="2.5" stroke-linecap="round"/>
-              <polygon points="0,-32 -6,-42 6,-42" fill="#5ce8c0" stroke="#1a4438" stroke-width="0.6"/>
-              <text x="0" y="-62" text-anchor="middle" dominant-baseline="middle"
-                    fill="#5ce8c0" stroke="#0f2620" stroke-width="0.4" paint-order="stroke fill"
-                    font-size="7" font-weight="900" letter-spacing="1">TWA</text>
+              <line x1="0" y1="-86" x2="0" y2="-36" stroke="#c780f5" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="4 3"/>
+              <polygon points="0,-30 -6,-40 6,-40" fill="#c780f5" stroke="#3f1d5c" stroke-width="0.6"/>
             </g>
             <!-- Rev57: target indicator - CYAN diamond just outside the
                  compass ring, only shown when AP is engaged. Rotated to
@@ -173,17 +154,10 @@
             <g id="rose-target-arrow" style="display:none">
               <polygon points="0,-104 -7,-96 0,-88 7,-96" fill="#4dd4ff" stroke="#003b52" stroke-width="1.2"/>
             </g>
-            <!-- Rev65 / 2.0.2: wind speed split into two stacked lines
-                 - a small dim label (AWS/TWS/both) and a large white
-                 number - separated by empty space so the S cardinal and
-                 the surrounding rose stay visible in between. The whole
-                 stack sits below the compass ring: label just outside at
-                 y=+100, number below at y=+108, both fitting inside the
-                 expanded viewBox (extra 10 units at the bottom). -->
-            <text id="rose-speed-label" x="0" y="98" text-anchor="middle" dominant-baseline="middle"
-                  fill="#8b98a5" font-size="8" font-weight="700" letter-spacing="1.5"></text>
-            <text id="rose-speed"       x="0" y="108" text-anchor="middle" dominant-baseline="middle"
-                  fill="#ffffff" font-size="15" font-weight="900" font-family="ui-monospace, monospace">--- kn</text>
+            <!-- Rev58: wind speed dropped to y=+82 (bottom rim) to keep
+                 the boat area clean. Sub-label picks the source with a
+                 hint (AWS / TWS / both). -->
+            <text id="rose-speed" x="0" y="82" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="800">--- kn</text>
           </svg>
         </div>
       </div>
@@ -277,18 +251,12 @@
           <div id="rudder-value" class="value">--</div>
         </div>
 
-        <!-- Rev53/65: swipe affordance strip with central triangle toggle
-             AND (Rev65 / 2.0.2) a rudder-angle indicator painted on the
-             same strip. Track: horizontal gradient from red (port) at the
-             left to green (stbd) at the right, on a black band. Marker:
-             a thin vertical bar that sits at the exact centre when the
-             rudder is amidships and slides left/right proportional to
-             `state.rudderAngle / state.rudderRange`. The central yellow
-             triangle keeps its nav-toggle role AND visually reads as the
-             "zero" reference of the rudder bar. -->
+        <!-- Rev53: swipe affordance strip with central triangle toggle.
+             Left/right arrows navigate to prev/next tab (like a mini
+             breadcrumb + swipe hint). Central yellow glow triangle
+             hides/shows the top nav bar. This lets the user reclaim
+             the full viewport for the rose. Only visible inside Control. -->
         <div class="swipe-hint" id="swipe-hint" aria-hidden="true">
-          <div class="rudder-track"></div>
-          <div class="rudder-marker" id="rudder-marker" style="left:50%"></div>
           <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
           <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
           <button class="nav-toggle" id="nav-toggle" aria-label="Mostrar / ocultar barra de pestañas" title="Mostrar / ocultar barra de pestañas">
@@ -918,6 +886,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev65"></script>
+  <script src="app.js?v=Rev66"></script>
 </body>
 </html>

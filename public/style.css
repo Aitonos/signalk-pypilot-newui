@@ -1543,15 +1543,13 @@ main { touch-action: pan-y; overflow-x: hidden; }
    strip with subtle motion cueing that swipe is available. Also acts
    as tappable arrows for tab navigation. */
 .swipe-hint {
-  position: relative;      /* Rev65: anchor for the rudder track + marker */
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-top: 10px;
   padding: 8px 12px;
-  background: #08111c;      /* Rev65: solid dark base; the rudder track
-                               below paints its own gradient on top. */
+  background: linear-gradient(90deg, rgba(55,182,255,0.14) 0%, rgba(55,182,255,0.05) 50%, rgba(55,182,255,0.14) 100%);
   border: 1px dashed rgba(55,182,255,0.35);
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.65);
@@ -1560,46 +1558,6 @@ main { touch-action: pan-y; overflow-x: hidden; }
   text-transform: uppercase;
   user-select: none;
   overflow: hidden;
-}
-
-/* Rev65 / 2.0.2 - Rudder angle bar painted inside the swipe-hint strip.
-   .rudder-track is a full-width horizontal gradient (red = port left,
-   green = stbd right) with a dim mid-tone so amidships reads as
-   "neutral". The three foreground layers (arrows, nav-toggle triangle,
-   marker) sit above it via z-index. The nav-toggle's own yellow
-   triangle visually stands in for the 0 deg reference. */
-.swipe-hint .rudder-track {
-  position: absolute;
-  inset: 4px 8px;                         /* small inset from the strip edge */
-  border-radius: 8px;
-  background: linear-gradient(
-    90deg,
-    rgba(231, 76, 60, 0.65) 0%,           /* PORT: red */
-    rgba(231, 76, 60, 0.20) 40%,
-    rgba(46, 46, 46, 0.30) 50%,           /* dim mid = amidships */
-    rgba(46, 204, 113, 0.20) 60%,
-    rgba(46, 204, 113, 0.65) 100%         /* STBD: green */
-  );
-  z-index: 0;
-  pointer-events: none;
-}
-.swipe-hint .rudder-marker {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  width: 4px;
-  margin-left: -2px;                      /* center on `left` */
-  background: #ffffff;
-  border-radius: 2px;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
-  z-index: 1;
-  transition: left 180ms ease-out;
-  pointer-events: none;
-}
-.swipe-hint-arrow,
-.swipe-hint .nav-toggle {
-  position: relative;                     /* stack above the rudder track */
-  z-index: 2;
 }
 .swipe-hint-arrow {
   font-size: 28px;
