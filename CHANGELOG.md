@@ -1,5 +1,96 @@
 # Changelog
 
+## 2.0.0 — 2026-08-20 — Rev63
+
+**Breaking release addressing feedback from Sean D'Epagnier (pypilot author,
+[#1](https://github.com/Aitonos/signalk-pypilot-newui/issues/1) and
+[#2](https://github.com/Aitonos/signalk-pypilot-newui/issues/2)).**
+
+### Breaking - path standardisation (issue #1)
+
+Every pypilot key now maps 1:1 to `steering.autopilot.pypilot.<key>`
+verbatim. The old `FIXED_MAPPINGS` table with hand-picked renames and
+C -> K / deg -> rad conversions is gone. Signal K infers units cleanly
+enough from the path type, consumers pick their display unit, and we
+surface pypilot's own `meta.units` verbatim.
+
+**If you have KIP widgets or WilhelmSK dashboards wired to 1.0.0 paths,
+rewire them per the table below**:
+
+| Old (1.0.0)                                                       | New (2.0.0)                                              |
+|-------------------------------------------------------------------|----------------------------------------------------------|
+| `steering.autopilot.pypilot.availableModes`                       | `steering.autopilot.pypilot.ap.modes`                    |
+| `steering.autopilot.pypilot.pilot`                                | `steering.autopilot.pypilot.ap.pilot`                    |
+| `steering.autopilot.pypilot.gains.<pilot>.<gain>`                 | `steering.autopilot.pypilot.ap.pilot.<pilot>.<gain>`     |
+| `steering.autopilot.pypilot.servo.controllerTemperature` (K)      | `steering.autopilot.pypilot.servo.controller_temp` (C)   |
+| `steering.autopilot.pypilot.servo.motorTemperature` (K)           | `steering.autopilot.pypilot.servo.motor_temp` (C)        |
+| `steering.autopilot.pypilot.servo.ampHours`                       | `steering.autopilot.pypilot.servo.amp_hours`             |
+| `steering.autopilot.pypilot.calibration.imuHeadingOffset` (rad)   | `steering.autopilot.pypilot.imu.heading_offset` (deg)    |
+| `steering.autopilot.pypilot.calibration.rudderRange` (rad)        | `steering.autopilot.pypilot.rudder.range` (deg)          |
+| `steering.autopilot.pypilot.calibration.rudderOffset`             | `steering.autopilot.pypilot.rudder.offset`               |
+| `steering.autopilot.pypilot.calibration.rudderScale`              | `steering.autopilot.pypilot.rudder.scale`                |
+| `steering.autopilot.pypilot.calibration.rudderNonlinearity`       | `steering.autopilot.pypilot.rudder.nonlinearity`         |
+| `steering.autopilot.pypilot.calibration.state`                    | `steering.autopilot.pypilot.rudder.calibration_state`    |
+| `steering.autopilot.pypilot.tack.state`                           | `steering.autopilot.pypilot.ap.tack.state`               |
+| `steering.autopilot.pypilot.tack.direction`                       | `steering.autopilot.pypilot.ap.tack.direction`           |
+| `steering.autopilot.pypilot.tack.timeout`                         | `steering.autopilot.pypilot.ap.tack.timeout`             |
+| `steering.autopilot.pypilot.errors.imu`                           | `steering.autopilot.pypilot.imu.error`                   |
+| `steering.autopilot.pypilot.warnings.imu`                         | `steering.autopilot.pypilot.imu.warning`                 |
+| `steering.autopilot.pypilot.errors.controller`                    | `steering.autopilot.pypilot.servo.controller`            |
+
+`steering.autopilot.pypilot.profile`, `.profiles`, `.availablePilots`,
+`.version`, `.runtime`, `.servo.voltage`, `.servo.current`,
+`.servo.engaged`, `.servo.flags`, `.servo.controller` are unchanged
+(their pypilot keys already matched the SK-side name).
+
+### Fixed (issue #2) - `pypilot_values` is not one-shot
+
+Sean noted that `pypilot_values` can arrive multiple times, and on
+subsequent deliveries it carries only the newly-appeared keys (typically
+during boot while calibration is still loading). Our code assumed
+one-shot AND replaced `this.catalog` wholesale on each delivery.
+
+- Comment in `pypilot-client.ts` fixed.
+- Catalog is now MERGED, not replaced.
+- `catalog` event carries `{ isDelta, newKeys }` so downstream handlers
+  can register put-handlers only for the new keys and avoid re-emitting
+  meta for paths already published.
+
+### Added - Debug console in Setup
+
+New closed-whitelist SSH endpoint `POST /plugins/*/debug-cmd` accepting
+one of the following presets (nothing arbitrary):
+
+- `logs.pypilot` - last 200 lines of `journalctl -u pypilot`
+- `logs.pypilot_web` - last 200 lines of the web unit
+- `logs.follow` - last 30 s (polled every 3 s from the UI when
+  "Follow logs" is on)
+- `dmesg.tail` - last 100 lines of `dmesg`
+- `top.snapshot` - one-shot `top -bn1`
+- `uptime`, `df`, `pypilot.version`
+- `restart.web` - restart only `pypilot_web` (level 1 of the triad)
+- `reboot.pi` - full `sudo reboot` (level 3 of the triad)
+
+UI in Setup: preset buttons, scrollable output textarea, follow-logs
+toggle (3 s polling), copy-to-clipboard, share-to-anywhere (Web Share
+API), clear.
+
+### Changed - three escalated restart levels in Setup / Emergency
+
+The old single "RESTART pypilot" button becomes a triad, colour-coded
+from green (safest) to red (loudest):
+
+- **1. restart pypilot_web** (~3-5 s) - AP keeps steering.
+- **2. RESTART pypilot** (~10-15 s) - the previous behaviour: AP drops
+  the heading briefly and re-engages after reconnect.
+- **3. reboot Pi** (~35-60 s) - full Raspberry Pi reboot, no AP for
+  almost a minute.
+
+All three go through a shared **helm-manned confirmation modal** that
+states the outage duration and scope in the current UI language and
+asks the operator to confirm someone is at the helm before executing.
+Cancel button, click outside and Escape all decline safely.
+
 ## 1.0.0 — 2026-08-18 — Rev32..Rev62 first public release
 
 The webapp went from a minimum viable control panel to a full-blown touch

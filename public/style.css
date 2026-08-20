@@ -891,6 +891,96 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   border: 1px solid var(--border);
 }
 
+/* Rev63 / 2.0.0 - Escalated restart / reboot triad. Three buttons in a
+   row, colour intensity matches destructiveness. Each carries a numbered
+   badge, title and one-line description. Wraps to a column on narrow
+   screens. */
+.restart-block .restart-title,
+.debug-block   .restart-title {
+  font-weight: 700;
+  color: var(--fg-dim);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+}
+.restart-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .restart-row { grid-template-columns: 1fr; }
+}
+.restart-btn {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--bg-3);
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: transform 80ms ease, background 100ms ease, border-color 100ms ease;
+}
+.restart-btn:hover  { border-color: var(--fg-dim); }
+.restart-btn:active { transform: scale(0.97); }
+.restart-btn .rb-num {
+  grid-row: 1 / span 2;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 15px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg);
+}
+.restart-btn .rb-title { font-weight: 800; font-size: 14px; letter-spacing: 0.5px; }
+.restart-btn .rb-sub   { font-size: 12px; color: var(--fg-dim); }
+/* Level 1: green tint, safest - AP keeps steering. */
+.restart-btn.level-1 { border-color: rgba(46, 204, 113, 0.55); }
+.restart-btn.level-1 .rb-num  { background: rgba(46, 204, 113, 0.22); color: #2ecc71; }
+.restart-btn.level-1:hover    { background: rgba(46, 204, 113, 0.10); }
+/* Level 2: amber, brief AP outage. Matches the old RESTART pypilot look. */
+.restart-btn.level-2 { border-color: var(--warn, #f37812); }
+.restart-btn.level-2 .rb-num  { background: rgba(243, 120, 18, 0.25); color: var(--warn, #f37812); }
+.restart-btn.level-2:hover    { background: rgba(243, 120, 18, 0.10); }
+/* Level 3: red, full Pi reboot. Loudest. */
+.restart-btn.level-3 { border-color: var(--err, #e74c3c); }
+.restart-btn.level-3 .rb-num  { background: rgba(231, 76, 60, 0.30); color: var(--err, #e74c3c); }
+.restart-btn.level-3:hover    { background: rgba(231, 76, 60, 0.10); }
+
+/* Rev63 - Helm-manned confirmation modal. Same overlay pattern as
+   #dash-help-pop but with a danger accent on the confirm button and a
+   loud warning line. */
+.popup-box.danger { border-color: var(--err, #e74c3c); }
+.helm-warn {
+  background: rgba(231, 76, 60, 0.10);
+  border-left: 4px solid var(--err, #e74c3c);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: var(--fg);
+  margin: 12px 0;
+  line-height: 1.5;
+}
+.helm-go {
+  background: var(--err, #e74c3c) !important;
+  border-color: var(--err, #e74c3c) !important;
+  color: #ffffff !important;
+}
+
+/* Rev63 - Debug console. Preset buttons + textarea + follow toggle. */
+.debug-block .debug-preset {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+#debug-status:empty { display: none; }
+
 /* Rev58: custom-path chips + polar toggle rows in the dash popup. */
 #dash-polar-toggles label,
 #dash-custom-list  .chip {

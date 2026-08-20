@@ -1,13 +1,10 @@
 import { PypilotClient, PypilotCatalog } from "./pypilot-client";
 import {
   ESSENTIAL_PYPILOT_KEYS,
-  FIXED_MAPPINGS,
   RESERVED_PYPILOT_KEYS,
-  autoMap,
-  convertForSK,
   extractCatalogDerivedPublishes,
-  mapDynamicName,
   Mapping,
+  mappingFor,
   skPathToPypilotName,
 } from "./publisher";
 import { scanLan } from "./scanner";
@@ -15,7 +12,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev62";
+const PLUGIN_REVISION = "Rev63";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -223,16 +220,25 @@ module.exports = function (app: any) {
         lastPingLatencyMs = latency;
       });
 
-      client.on("catalog", (catalog: PypilotCatalog) => {
+      client.on("catalog", (catalog: PypilotCatalog, info?: { isDelta: boolean; newKeys: string[] }) => {
+        const isDelta = !!info?.isDelta;
         lastCatalog = catalog;
-        metaSent = new Set(); // resend meta on catalog refresh
+        // Rev63 / 2.0.0 (issue #2): only reset the meta-sent tracker on the
+        // INITIAL catalog. A delta catalog carries only newly-appeared keys
+        // (typically calibration finishing to load a few seconds after
+        // core), and we do NOT want to re-emit meta for the paths we
+        // already published - it would flood the SK bus with duplicate
+        // meta blobs. `metaSent` naturally excludes the new keys because
+        // they were never added to it, so those will emit meta on first
+        // publish as expected.
+        if (!isDelta) metaSent = new Set();
         const catalogKeys = Object.keys(catalog);
         const gainKeys = catalogKeys.filter(
           (k) => k.startsWith("ap.pilot.") && (catalog[k] as any).AutopilotGain
         );
         const apKeys = catalogKeys.filter((k) => k.startsWith("ap.pilot."));
         app.setPluginStatus(
-          `${PLUGIN_REVISION} - connected, catalog ${catalogKeys.length} vars (ap.pilots.*=${apKeys.length}, AutopilotGain=${gainKeys.length})`
+          `${PLUGIN_REVISION} - connected, catalog ${catalogKeys.length} vars (ap.pilots.*=${apKeys.length}, AutopilotGain=${gainKeys.length})${isDelta ? " [+" + info!.newKeys.length + " new]" : ""}`
         );
         setupWatches(client!, catalog);
         registerPutHandlers(catalog);
@@ -353,12 +359,7 @@ module.exports = function (app: any) {
         const items: any[] = [];
         for (const [name, meta] of Object.entries(lastCatalog)) {
           if (RESERVED_PYPILOT_KEYS.has(name)) continue;
-          let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
-          if (!mapping) mapping = mapDynamicName(name, lastCatalog);
-          if (!mapping) {
-            if (props.publishUnmapped) mapping = autoMap(name);
-            else continue;
-          }
+          const mapping = mappingFor(name, meta);
           items.push({
             pypilotName: name,
             skPath: mapping.skPath,
@@ -644,6 +645,92 @@ module.exports = function (app: any) {
           return res.status(500).json({ error: e?.message || String(e) });
         }
       });
+
+      // Rev63 / 2.0.0: Debug console. A whitelist of preset commands
+      // executed over the same ssh2 session as /restart-pypilot. The
+      // whitelist is CLOSED - the endpoint refuses any command not in
+      // DEBUG_PRESETS below, so a leaked JWT cannot be used to run
+      // arbitrary shell on the TinyPilot. Requires allowWrites.
+      const DEBUG_PRESETS: Record<string, string> = {
+        "logs.pypilot":      "journalctl -u pypilot -n 200 --no-pager 2>&1 || (test -f /var/log/pypilot.log && tail -n 200 /var/log/pypilot.log) || echo 'no journal / no logfile'",
+        "logs.pypilot_web":  "journalctl -u pypilot_web -n 200 --no-pager 2>&1 || echo 'no pypilot_web unit'",
+        "logs.follow":       "journalctl -u pypilot --since '30 seconds ago' --no-pager 2>&1",
+        "dmesg.tail":        "dmesg 2>&1 | tail -100",
+        "top.snapshot":      "top -bn1 2>&1 | head -20",
+        "uptime":            "uptime && cat /proc/loadavg",
+        "df":                "df -h 2>&1",
+        "pypilot.version":   "pypilot --version 2>&1 || (test -f /home/tc/pypilot/version && cat /home/tc/pypilot/version) || echo 'unknown'",
+        "restart.web":       "sudo systemctl restart pypilot_web 2>&1 && echo OK",
+        "reboot.pi":         "sudo reboot",
+      };
+      router.post("/debug-cmd", async (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const preset = (req.body && req.body.preset) || "";
+        const cmd = DEBUG_PRESETS[preset];
+        if (!cmd) {
+          return res.status(400).json({
+            error: "unknown preset",
+            available: Object.keys(DEBUG_PRESETS),
+          });
+        }
+        const sshUser = props.sshUser || "tc";
+        const sshPassword = props.sshPassword || "";
+        if (!sshPassword) {
+          return res.status(202).json({
+            ok: false,
+            preset,
+            hint: "SSH password not set - open Setup > Emergency and save it.",
+          });
+        }
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { Client } = require("ssh2");
+          const conn = new Client();
+          const t0 = Date.now();
+          const result = await new Promise<{ ok: boolean; stdout: string; code?: number }>((resolve) => {
+            let settled = false;
+            const finish = (r: { ok: boolean; stdout: string; code?: number }) => {
+              if (settled) return;
+              settled = true;
+              try { conn.end(); } catch {}
+              resolve(r);
+            };
+            conn.on("ready", () => {
+              conn.exec(cmd, { pty: true }, (err: any, stream: any) => {
+                if (err) { finish({ ok: false, stdout: err.message }); return; }
+                let out = "";
+                stream.on("close", (code: number) => finish({ ok: code === 0, stdout: out, code }));
+                stream.on("data", (data: Buffer) => { out += data.toString(); });
+                stream.stderr.on("data", (data: Buffer) => { out += data.toString(); });
+                setTimeout(() => { try { stream.write(sshPassword + "\n"); } catch {} }, 300);
+              });
+            });
+            conn.on("error", (err: any) => finish({ ok: false, stdout: `ssh: ${err?.message || err}` }));
+            conn.on("timeout", () => finish({ ok: false, stdout: "ssh timeout" }));
+            try {
+              conn.connect({
+                host: props.host, port: 22,
+                username: sshUser, password: sshPassword,
+                readyTimeout: 8000, tryKeyboard: true,
+              });
+              conn.on("keyboard-interactive", (_n: any, _i: any, _l: any, _p: any, finish2: any) => {
+                finish2([sshPassword]);
+              });
+            } catch (e: any) { finish({ ok: false, stdout: e?.message || String(e) }); }
+          });
+          // For reboot.pi the ssh session drops as the box goes down, so we
+          // report success even on a non-zero exit if we at least connected.
+          return res.json({
+            ok: preset === "reboot.pi" ? true : result.ok,
+            preset,
+            elapsedMs: Date.now() - t0,
+            code: result.code,
+            stdout: result.stdout.slice(0, 32000),
+          });
+        } catch (e: any) {
+          return res.status(500).json({ error: e?.message || String(e), preset });
+        }
+      });
     },
   };
 
@@ -809,15 +896,11 @@ module.exports = function (app: any) {
         if (Object.prototype.hasOwnProperty.call(en, name) && en[name] === false) return;
       }
     }
-    let mapping: Mapping | null = FIXED_MAPPINGS[name] || null;
-    if (!mapping) mapping = mapDynamicName(name, lastCatalog);
-    if (!mapping) {
-      if (!props.publishUnmapped) return;
-      mapping = autoMap(name);
-    }
-    if (mapping.reserved) return;
-
-    const skValue = convertForSK(mapping, value);
+    // Rev63 / 2.0.0: every pypilot key derives to steering.autopilot.pypilot.<key>
+    // verbatim (Sean D'Epagnier's suggestion in #1). No conversions, no rename,
+    // no hardcoded table - Signal K + downstream consumers handle units.
+    const mapping = mappingFor(name, lastCatalog[name]);
+    const skValue = value;
     const updateEntry: any = {
       $source: SOURCE_LABEL,
       timestamp: new Date().toISOString(),
@@ -894,13 +977,10 @@ module.exports = function (app: any) {
         if (!name) {
           return { state: "COMPLETED", statusCode: 404, message: "unknown path" };
         }
-        // Reverse unit conversion for angle paths that we stored in rad.
-        let pypilotValue: unknown = value;
-        const mapping = FIXED_MAPPINGS[name];
-        if (mapping?.units === "rad" && typeof value === "number") {
-          pypilotValue = value * 180 / Math.PI;
-        }
-        client.set(name, pypilotValue);
+        // Rev63 / 2.0.0: values are surfaced verbatim, so PUT writes verbatim
+        // too. No reverse conversion needed - what the consumer sends is what
+        // pypilot receives.
+        client.set(name, value);
         return { state: "COMPLETED", statusCode: 200 };
       };
       try {
@@ -911,17 +991,13 @@ module.exports = function (app: any) {
       }
     };
 
-    for (const [name, mapping] of Object.entries(FIXED_MAPPINGS)) {
-      if (mapping.putKind !== "plain") continue;
-      if (!catalog[name]) continue;
-      registerOne(mapping.skPath);
-    }
-    // Gains: register handler for each discovered ap.pilots.<pilot>.<gain> that
-    // catalog exposes as AutopilotGain.
+    // Register a PUT handler for every catalog key we consider writeable.
+    // With verbatim mapping (Rev63) this collapses to a single loop.
     for (const [name, meta] of Object.entries(catalog)) {
-      if (!meta.AutopilotGain) continue;
-      const m = mapDynamicName(name, catalog);
-      if (m) registerOne(m.skPath);
+      if (RESERVED_PYPILOT_KEYS.has(name)) continue;
+      const mapping = mappingFor(name, meta);
+      if (mapping.putKind !== "plain") continue;
+      registerOne(mapping.skPath);
     }
   }
 

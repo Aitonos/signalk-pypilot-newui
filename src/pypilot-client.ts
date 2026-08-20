@@ -11,7 +11,12 @@ import { io, Socket } from "socket.io-client";
 //     socket.emit('language', '<lang>')                    // i18n (unused here)
 //
 //   Server -> client:
-//     socket.on('pypilot_values',   json_string_of_catalog)   // ONE-SHOT on connect
+//     socket.on('pypilot_values',   json_string_of_catalog)
+//         First delivery after connect carries the full catalog. Subsequent
+//         deliveries (typically during boot while the calibration subsystem
+//         is still loading) can arrive and carry ONLY the newly-appeared
+//         keys - so consumers MUST merge, not replace. Confirmed by Sean
+//         D'Epagnier in issue #2 of this repo.
 //     socket.on('pypilot',          json_string_of_updates)   // updates dict
 //     socket.on('pypilot_disconnect')                         // pypilot core gone
 //     socket.on('pong')                                       // latency reply
@@ -45,12 +50,16 @@ export interface PypilotClientOpts {
 /**
  * Talks to pypilot_web on TinyPilot / classic pypilot install.
  * Emits:
- *   'connect'                       socket.io session established
- *   'disconnect'      (reason)      transport dropped
- *   'catalog'         (catalog)     full var dict after `pypilot_values` event
- *   'value'           (name, val)   each key parsed from a `pypilot` event
- *   'pypilot_offline'               pypilot core reported gone
- *   'pong'            (latencyMs)   ping reply
+ *   'connect'                                  socket.io session established
+ *   'disconnect'      (reason)                 transport dropped
+ *   'catalog'         (catalog, {isDelta})     merged catalog after each
+ *                                              `pypilot_values` delivery;
+ *                                              isDelta=false on first arrival,
+ *                                              true on any subsequent delivery
+ *                                              carrying only new keys
+ *   'value'           (name, val)              each key parsed from a `pypilot` event
+ *   'pypilot_offline'                          pypilot core reported gone
+ *   'pong'            (latencyMs)              ping reply
  */
 export class PypilotClient extends EventEmitter {
   private socket: Socket | null = null;
@@ -126,12 +135,23 @@ export class PypilotClient extends EventEmitter {
     this.socket.on("pypilot_values", (msg: unknown) => {
       try {
         const raw = typeof msg === "string" ? JSON.parse(msg) : msg;
-        this.catalog = raw as PypilotCatalog;
+        const incoming = raw as PypilotCatalog;
+        const hadKeys = Object.keys(this.catalog).length;
+        // Rev63 / 2.0.0 (issue #2, Sean D'Epagnier): merge instead of
+        // replace. Second and subsequent `pypilot_values` deliveries carry
+        // only the newly-appeared keys, typically as pypilot's calibration
+        // subsystem finishes loading a few seconds after core.
+        const newKeys: string[] = [];
+        for (const [k, v] of Object.entries(incoming)) {
+          if (!(k in this.catalog)) newKeys.push(k);
+          this.catalog[k] = v;
+        }
+        const isDelta = hadKeys > 0;
         this.opts.log(
           "info",
-          `[pypilot] catalog received: ${Object.keys(this.catalog).length} vars`
+          `[pypilot] catalog ${isDelta ? "delta" : "initial"}: +${newKeys.length} new / ${Object.keys(this.catalog).length} total`
         );
-        this.emit("catalog", this.catalog);
+        this.emit("catalog", this.catalog, { isDelta, newKeys });
       } catch (e: any) {
         this.opts.log("error", `[pypilot] catalog parse failed: ${e?.message || e}`);
       }

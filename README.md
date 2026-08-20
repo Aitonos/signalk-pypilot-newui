@@ -9,6 +9,24 @@ and switches out of the box.
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
 
+## Upgrading from 1.0.0 to 2.0.0
+
+2.0.0 is a **breaking release** addressing feedback from Sean D'Epagnier
+(pypilot author). Every pypilot key now maps 1:1 to
+`steering.autopilot.pypilot.<key>` verbatim - no more hand-picked renames
+or C -> K / deg -> rad conversions. If you have KIP widgets or WilhelmSK
+dashboards wired to 1.0.0 paths, see the full migration table in
+[`CHANGELOG.md`](./CHANGELOG.md) - most notable examples:
+
+- `.servo.controllerTemperature` (K) -> `.servo.controller_temp` (C)
+- `.calibration.rudderRange` (rad) -> `.rudder.range` (deg)
+- `.gains.<pilot>.<gain>` -> `.ap.pilot.<pilot>.<gain>`
+
+Also new in 2.0.0: three escalated **restart / reboot levels** in
+Setup -> Emergency, all guarded by a helm-manned confirmation modal, and
+a **Debug console** with an SSH-based whitelist of preset diagnostic
+commands (logs, dmesg, top, uptime, df, pypilot version).
+
 ## What it does
 
 **Touch webapp** (mobile / tablet / chart-plotter, dark theme):
@@ -98,13 +116,34 @@ register the same ID and behaviour is undefined). Valid setups:
 
 Absorb mode lives in **Setup → Autopilot Provider (one-socket mode)**.
 
-## Remote `RESTART pypilot`
+## Remote restart / reboot triad + Debug console
 
 When the autopilot process on the TinyPilot gets wedged you don't need to open
 an SSH session by hand. In **Setup → Emergency**, save the TinyPilot's SSH user
-+ password once; the **RESTART pypilot** button then runs
-`sudo systemctl restart pypilot pypilot_web` over SSH and reconnects the local
-socket. Signal K stores plugin configs in plain text under
++ password once. From then on you get three escalated actions, colour-coded
+from safest to loudest, each guarded by a helm-manned confirmation modal that
+asks whether someone is at the helm before executing:
+
+1. **restart pypilot_web** (~3-5 s) - only the web server restarts. The AP
+   core keeps steering. Use when the visor gets stuck but the pilot is fine.
+2. **RESTART pypilot** (~10-15 s) - restarts pypilot core + web. The AP drops
+   the heading briefly and re-engages when it comes back up.
+3. **reboot Pi** (~35-60 s) - full `sudo reboot` of the Raspberry Pi. No
+   autopilot for almost a minute. Last-resort when the box is in a bad state.
+
+Underneath the triad there is a **Debug console** that runs a closed
+whitelist of preset diagnostic commands over the same SSH session:
+`logs pypilot`, `logs pypilot_web`, `dmesg`, `top`, `uptime`, `df`,
+`pypilot --version`. Output goes into a scrollable textarea, a "Follow
+logs" toggle polls `journalctl --since '30 s ago'` every 3 seconds, and
+Copy / Share buttons let you paste the dump straight into a GitHub
+issue or a WhatsApp / email conversation with your friendly rigger.
+
+The endpoint (`POST /plugins/*/debug-cmd`) refuses any command that is
+not in the whitelist, so a leaked JWT cannot be used to run arbitrary
+shell on the TinyPilot.
+
+Signal K stores plugin configs in plain text under
 `~/.signalk/plugin-config-data/` so use credentials that are only valid for
 that isolated TinyPilot.
 
@@ -117,7 +156,8 @@ that isolated TinyPilot.
 | `GET`  | `/plugins/signalk-pypilot-newui/paths`         | Live list of published SK paths with GET / PUT URLs and units |
 | `GET`  | `/plugins/signalk-pypilot-newui/catalog`       | Raw pypilot catalog (all values + metadata) |
 | `PUT`  | `/plugins/signalk-pypilot-newui/raw`           | Send raw `name=value` to pypilot (protected by `allowWrites`) |
-| `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH remote restart, uses `sshUser` + `sshPassword` from plugin config |
+| `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH remote restart (level 2 of the triad), uses `sshUser` + `sshPassword` from plugin config |
+| `POST` | `/plugins/signalk-pypilot-newui/debug-cmd`     | Run one of a closed whitelist of preset diagnostic / restart commands over SSH (levels 1 and 3 of the triad + logs / dmesg / top / etc). Body: `{ "preset": "<name>" }` |
 | `POST` | `/plugins/signalk-pypilot-newui/pause`         | Disconnect local socket (for scripts) |
 | `POST` | `/plugins/signalk-pypilot-newui/resume`        | Reconnect local socket (for scripts) |
 

@@ -164,6 +164,33 @@
       "info.cfg.importFail": "Import failed",
       "info.cfg.reset": "Config wiped. Reloading...",
       "info.cfg.downloadFail": "Download failed",
+      // Rev63 / 2.0.0: escalated restart triad + helm-manned confirmation
+      "setup.restart.title":         "Restart / reboot (escalated)",
+      "setup.restart.web.title":     "restart pypilot_web",
+      "setup.restart.web.sub":       "~3-5 s · AP keeps steering",
+      "setup.restart.pypilot.title": "RESTART pypilot",
+      "setup.restart.pypilot.sub":   "~10-15 s · AP drops the heading",
+      "setup.restart.reboot.title":  "reboot Pi",
+      "setup.restart.reboot.sub":    "~35-60 s · full outage",
+      "setup.restart.hint":          "All three actions use the SSH user+password above. Level 1 does not interrupt steering; levels 2 and 3 do. A confirmation asking whether someone is at the helm is shown before executing.",
+      "setup.restart.outage.web":     "The pypilot web socket restarts. The AP core keeps steering the boat during those seconds.",
+      "setup.restart.outage.pypilot": "Both pypilot core and its web server restart. The AP releases the heading briefly and re-engages after reconnect.",
+      "setup.restart.outage.reboot":  "The whole Raspberry Pi reboots (kernel, services, network). NO autopilot for ~35-60 seconds. Cold restart from scratch.",
+      "helm.outage":  "Autopilot outage:",
+      "helm.warn":    "MAKE SURE SOMEONE IS AT THE HELM before you continue. This is not the moment to be below deck.",
+      "helm.cancel":  "Cancel",
+      "helm.confirm": "I confirm - helm is manned",
+      // Debug console
+      "setup.debug.title":      "Debug console",
+      "setup.debug.output.ph":  "Press a preset above. Output shows here.",
+      "setup.debug.follow":     "Follow logs (poll every 3 s)",
+      "setup.debug.copy":       "Copy",
+      "setup.debug.send":       "Share / send",
+      "setup.debug.clear":      "Clear",
+      "setup.debug.running":    "Running preset...",
+      "setup.debug.ok":         "OK",
+      "setup.debug.failed":     "Failed",
+      "setup.debug.noSsh":      "SSH not configured - save the SSH password above first.",
     },
     es: {
       "tack": "VIRAR",
@@ -304,6 +331,33 @@
       "info.cfg.importFail": "Import fallo",
       "info.cfg.reset": "Config borrada. Recargando...",
       "info.cfg.downloadFail": "Download fallo",
+      // Rev63 / 2.0.0: escalated restart triad + helm-manned confirmation
+      "setup.restart.title":         "Restart / reboot (escalado)",
+      "setup.restart.web.title":     "restart pypilot_web",
+      "setup.restart.web.sub":       "~3-5 s · el AP sigue pilotando",
+      "setup.restart.pypilot.title": "REINICIAR pypilot",
+      "setup.restart.pypilot.sub":   "~10-15 s · el AP suelta el rumbo",
+      "setup.restart.reboot.title":  "reboot de la Pi",
+      "setup.restart.reboot.sub":    "~35-60 s · corte total",
+      "setup.restart.hint":          "Las tres acciones usan el usuario+password SSH de arriba. El nivel 1 no interrumpe el pilotaje; los niveles 2 y 3 sí. Se muestra una confirmacion pidiendo que haya alguien al timon antes de ejecutar.",
+      "setup.restart.outage.web":     "Se reinicia solo el servidor web de pypilot. El core sigue pilotando durante esos segundos.",
+      "setup.restart.outage.pypilot": "Se reinician el core pypilot y su servidor web. El AP suelta el rumbo brevemente y se reengancha tras reconectar.",
+      "setup.restart.outage.reboot":  "Se reinicia la Raspberry Pi entera (kernel, servicios, red). NO hay autopiloto durante ~35-60 segundos. Arranque en frio.",
+      "helm.outage":  "Corte del piloto:",
+      "helm.warn":    "ASEGURATE DE QUE ALGUIEN ESTA AL TIMON antes de continuar. No es el momento de estar bajo cubierta.",
+      "helm.cancel":  "Cancelar",
+      "helm.confirm": "Confirmo - hay alguien al timon",
+      // Debug console
+      "setup.debug.title":      "Consola debug",
+      "setup.debug.output.ph":  "Pulsa un preset de arriba. La salida aparecera aqui.",
+      "setup.debug.follow":     "Follow logs (poll cada 3 s)",
+      "setup.debug.copy":       "Copiar",
+      "setup.debug.send":       "Compartir / enviar",
+      "setup.debug.clear":      "Limpiar",
+      "setup.debug.running":    "Ejecutando preset...",
+      "setup.debug.ok":         "OK",
+      "setup.debug.failed":     "Fallo",
+      "setup.debug.noSsh":      "SSH no configurado - guarda el password SSH arriba primero.",
     },
     de: {
       "tack": "WENDEN",
@@ -343,6 +397,11 @@
       "setup.restart.btn": "pypilot NEU STARTEN",
       "setup.ssh.user":     "SSH-Benutzer",
       "setup.ssh.password": "SSH-Passwort",
+      // Restart triad + helm
+      "setup.restart.title":         "Neustart / Reboot (eskaliert)",
+      "helm.warn":    "STELL SICHER, DASS JEMAND AM RUDER STEHT, bevor du fortfahrst. Nicht der Moment, unter Deck zu sein.",
+      "helm.cancel":  "Abbrechen",
+      "helm.confirm": "Bestatigt - Rudergaenger ist am Platz",
     },
     fr: {
       "tack": "VIRER",
@@ -382,6 +441,11 @@
       "setup.restart.btn": "REDEMARRER pypilot",
       "setup.ssh.user":     "Utilisateur SSH",
       "setup.ssh.password": "Mot de passe SSH",
+      // Restart triad + helm
+      "setup.restart.title":         "Redemarrage / reboot (escalade)",
+      "helm.warn":    "ASSURE-TOI QU'UNE PERSONNE EST A LA BARRE avant de continuer. Ce n'est pas le moment d'etre en bas.",
+      "helm.cancel":  "Annuler",
+      "helm.confirm": "Confirme - quelqu'un est a la barre",
     },
   };
   const LANG_KEY = "pypilot-newui.lang";
@@ -583,7 +647,8 @@
       for (const v of values) {
         state.values[v.path] = v.value;
         applyValue(v.path, v.value);
-        if (v.path.startsWith("steering.autopilot.pypilot.gains.")) {
+        // Rev63 / 2.0.0: gain paths now verbatim (see publisher.ts refactor).
+        if (v.path.startsWith("steering.autopilot.pypilot.ap.pilot.")) {
           touchedGain = true;
           const row = document.querySelector(`.gain-row[data-sk="${v.path}"]`);
           if (row) {
@@ -611,10 +676,12 @@
       case "steering.autopilot.target":           state.target = numericOrNull(value); renderTargetArrow(); break;
       case "steering.autopilot.engaged":          state.engaged = !!value; renderEngage(); renderTargetArrow(); break;
       case "steering.autopilot.availableActions": state.availableActions = value || []; break;
-      case "steering.autopilot.pypilot.availableModes":
+      // Rev63 / 2.0.0: verbatim path is `ap.modes` (was `availableModes` alias).
+      case "steering.autopilot.pypilot.ap.modes":
         if (Array.isArray(value)) { state.modeList = value; fillSelect("#mode-select", value); }
         break;
-      case "steering.autopilot.pypilot.pilot":
+      // Rev63 / 2.0.0: verbatim - was `.pilot`, now `.ap.pilot` (from pypilot key `ap.pilot`).
+      case "steering.autopilot.pypilot.ap.pilot":
         state.pilot = value; setSelect("#pilot-select", value); renderGains();
         break;
       case "steering.autopilot.pypilot.availablePilots":
@@ -639,7 +706,8 @@
       case "steering.autopilot.pypilot.profiles":
         if (Array.isArray(value)) { state.profiles = value; fillSelect("#profile-select", value); }
         break;
-      case "steering.autopilot.pypilot.tack.state":
+      // Rev63 / 2.0.0: verbatim - was `.tack.state`, now `.ap.tack.state` (from pypilot key `ap.tack.state`).
+      case "steering.autopilot.pypilot.ap.tack.state":
         renderTackButton(value); break;
       case "navigation.headingMagnetic":
         state.heading = numericOrNull(value); break;
@@ -1270,8 +1338,8 @@
       // Refresh gain slider positions in case the initial render was before values arrived.
       for (const g of Object.keys(state.pypilotValues)) {
         if (g.startsWith("ap.pilot.") && state.catalog?.[g]?.AutopilotGain) {
-          const parts = g.split(".");
-          const skPath = `steering.autopilot.pypilot.gains.${parts[2]}.${parts.slice(3).join(".")}`;
+          // Rev63 / 2.0.0: verbatim path derivation, same as publisher.ts.
+          const skPath = `steering.autopilot.pypilot.${g}`;
           const row = document.querySelector(`.gain-row[data-sk="${skPath}"]`);
           if (row) {
             const rng = row.querySelector("input[type=range]");
@@ -1305,7 +1373,8 @@
     for (const g of gains) {
       const meta = cat[g];
       const shortName = g.split(".").slice(3).join(".");
-      const skPath = `steering.autopilot.pypilot.gains.${pilot}.${shortName}`;
+      // Rev63 / 2.0.0: verbatim path (`steering.autopilot.pypilot.ap.pilot.<pilot>.<gain>`).
+      const skPath = `steering.autopilot.pypilot.${g}`;
       const cur = state.values[skPath];
       // Rev36: use shared _buildSliderRow (2-row layout + nudge buttons).
       const { row, rng, val } = _buildSliderRow({
@@ -1947,19 +2016,34 @@
       langSel.value = currentLang();
       langSel.addEventListener("change", (e) => setLang(e.target.value));
     }
-    // Rev56: Pause/Resume buttons removed from Setup UI - RESTART pypilot
-    // does everything they did (plus actually restarts the remote process),
-    // and the /pause /resume backend endpoints stay for scripts if needed.
-    // Rev54: restart pypilot on the TinyPilot via SSH from Pi Tunatunes.
-    const rp = $("#cli-restart-pypilot");
+    // Rev63 / 2.0.0 - three escalated restart levels sharing a common
+    // helm-manned confirmation modal + a shared status line. Level 2 is
+    // the classic RESTART pypilot (existing /restart-pypilot endpoint);
+    // levels 1 and 3 hit the new /debug-cmd whitelist with presets
+    // "restart.web" and "reboot.pi" respectively.
     const rpStatus = $("#cli-restart-status");
-    if (rp) rp.addEventListener("click", async () => {
-      if (!confirm(t("confirm.restartPypilot"))) return;
+    const runRestartLevel = async (btn, opts) => {
+      // opts: { titleKey, outageKey, durationLabel, endpoint }
+      const ok = await askHelmConfirm({
+        titleKey: opts.titleKey,
+        outageKey: opts.outageKey,
+        duration: opts.durationLabel,
+      });
+      if (!ok) return;
       if (rpStatus) rpStatus.textContent = t("setup.restart.wait");
-      rp.disabled = true;
+      btn.disabled = true;
       try {
-        const res = await skFetch(`/plugins/${PLUGIN_ID}/restart-pypilot`, { method: "POST" });
-        const j = await res.json().catch(() => ({}));
+        let res, j;
+        if (opts.endpoint === "restart-pypilot") {
+          res = await skFetch(`/plugins/${PLUGIN_ID}/restart-pypilot`, { method: "POST" });
+        } else {
+          res = await skFetch(`/plugins/${PLUGIN_ID}/debug-cmd`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ preset: opts.endpoint }),
+          });
+        }
+        j = await res.json().catch(() => ({}));
         if (res.ok && j.ok) {
           if (rpStatus) rpStatus.innerHTML = `<span style="color:#2ecc71">✓ ${t("setup.restart.ok")}</span> ${t("setup.restart.reconnecting")}`;
         } else if (res.status === 202 && j.hint) {
@@ -1970,8 +2054,91 @@
       } catch (e) {
         if (rpStatus) rpStatus.innerHTML = `<span style="color:#e74c3c">✗ ${t("setup.restart.network")}:</span> ${e}`;
       } finally {
-        setTimeout(() => { rp.disabled = false; }, 3000);
+        setTimeout(() => { btn.disabled = false; }, 3000);
       }
+    };
+    const btnWeb  = $("#btn-restart-web");
+    const btnPyp  = $("#cli-restart-pypilot");
+    const btnPi   = $("#btn-reboot-pi");
+    if (btnWeb) btnWeb.addEventListener("click", () => runRestartLevel(btnWeb, {
+      titleKey: "setup.restart.web.title",
+      outageKey: "setup.restart.outage.web",
+      durationLabel: "~3-5 s",
+      endpoint: "restart.web",
+    }));
+    if (btnPyp) btnPyp.addEventListener("click", () => runRestartLevel(btnPyp, {
+      titleKey: "setup.restart.pypilot.title",
+      outageKey: "setup.restart.outage.pypilot",
+      durationLabel: "~10-15 s",
+      endpoint: "restart-pypilot",
+    }));
+    if (btnPi) btnPi.addEventListener("click", () => runRestartLevel(btnPi, {
+      titleKey: "setup.restart.reboot.title",
+      outageKey: "setup.restart.outage.reboot",
+      durationLabel: "~35-60 s",
+      endpoint: "reboot.pi",
+    }));
+
+    // Rev63 / 2.0.0 - Debug console. Preset buttons + textarea + follow
+    // polling + copy/share via existing helpers.
+    const dbgOut  = $("#debug-output");
+    const dbgStat = $("#debug-status");
+    let _dbgFollowTimer = null;
+    const runDebugPreset = async (preset) => {
+      if (dbgStat) dbgStat.textContent = t("setup.debug.running");
+      try {
+        const res = await skFetch(`/plugins/${PLUGIN_ID}/debug-cmd`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preset }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (res.status === 202 && j.hint) {
+          if (dbgOut) dbgOut.value = t("setup.debug.noSsh") + "\n\n" + (j.hint || "");
+          if (dbgStat) dbgStat.textContent = t("setup.debug.failed");
+          return;
+        }
+        if (dbgOut) dbgOut.value = (j.stdout || "").trim();
+        if (dbgStat) dbgStat.textContent = `${t(j.ok ? "setup.debug.ok" : "setup.debug.failed")} (${j.elapsedMs || 0} ms, exit ${j.code ?? "?"})`;
+      } catch (e) {
+        if (dbgOut) dbgOut.value = "" + e;
+        if (dbgStat) dbgStat.textContent = t("setup.debug.failed");
+      }
+    };
+    $$(".debug-preset").forEach((b) => {
+      b.addEventListener("click", () => runDebugPreset(b.dataset.preset));
+    });
+    const dbgFollow = $("#debug-follow");
+    if (dbgFollow) dbgFollow.addEventListener("change", () => {
+      if (_dbgFollowTimer) { clearInterval(_dbgFollowTimer); _dbgFollowTimer = null; }
+      if (dbgFollow.checked) {
+        runDebugPreset("logs.follow");
+        _dbgFollowTimer = setInterval(() => runDebugPreset("logs.follow"), 3000);
+      }
+    });
+    const dbgCopy = $("#debug-copy");
+    if (dbgCopy) dbgCopy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(dbgOut?.value || ""); if (dbgStat) dbgStat.textContent = t("info.cfg.copied"); }
+      catch (e) { if (dbgStat) dbgStat.textContent = t("info.cfg.copyFail"); }
+    });
+    const dbgSend = $("#debug-send");
+    if (dbgSend) dbgSend.addEventListener("click", async () => {
+      const text = dbgOut?.value || "";
+      if (!text) return;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "pypilot-newui debug", text });
+          if (dbgStat) dbgStat.textContent = t("info.cfg.shared");
+          return;
+        }
+      } catch (e) { if (String(e).includes("AbortError")) { if (dbgStat) dbgStat.textContent = t("info.cfg.cancelled"); return; } }
+      _downloadFile(`pypilot-newui-debug-${new Date().toISOString().slice(0,19).replace(/:/g,"-")}.txt`, text);
+      if (dbgStat) dbgStat.textContent = t("info.cfg.downloaded");
+    });
+    const dbgClear = $("#debug-clear");
+    if (dbgClear) dbgClear.addEventListener("click", () => {
+      if (dbgOut) dbgOut.value = "";
+      if (dbgStat) dbgStat.textContent = "";
     });
     const ab = $("#cfg-absorb-apply"); if (ab) ab.addEventListener("click", applyAbsorbCfg);
     // Rev55: Save SSH creds (user + password) into plugin config.
@@ -2010,6 +2177,45 @@
     } catch (e) {
       alert(t("alert.saveFail") + "\n" + e);
     }
+  }
+
+  // Rev63 / 2.0.0 - helm-manned confirmation modal used by the 3
+  // escalated restart levels. Fills the shared modal in index.html with
+  // the level-specific title, outage duration and scope, then returns a
+  // Promise that resolves to true (user confirmed) or false (cancelled).
+  // Cancelling via Cancel button, click outside, or Escape all resolve
+  // false so a helm operator never confirms by accident.
+  function askHelmConfirm({ titleKey, outageKey, duration }) {
+    return new Promise((resolve) => {
+      const overlay = document.getElementById("helm-confirm-pop");
+      const titleEl = document.getElementById("helm-modal-title");
+      const durEl   = document.getElementById("helm-modal-duration");
+      const scopeEl = document.getElementById("helm-modal-scope");
+      const cancel  = document.getElementById("helm-cancel");
+      const confirm = document.getElementById("helm-confirm");
+      if (!overlay || !titleEl || !durEl || !scopeEl || !cancel || !confirm) {
+        resolve(false); return;
+      }
+      titleEl.innerHTML = `&#9888; ${t(titleKey)}`;
+      durEl.textContent = duration;
+      scopeEl.textContent = t(outageKey);
+      const cleanup = () => {
+        overlay.classList.remove("open");
+        cancel.removeEventListener("click",  onCancel);
+        confirm.removeEventListener("click", onConfirm);
+        overlay.removeEventListener("click", onOverlay);
+        document.removeEventListener("keydown", onKey);
+      };
+      const onCancel  = () => { cleanup(); resolve(false); };
+      const onConfirm = () => { cleanup(); resolve(true); };
+      const onOverlay = (e) => { if (e.target === overlay) onCancel(); };
+      const onKey     = (e) => { if (e.key === "Escape") onCancel(); };
+      cancel.addEventListener("click",  onCancel);
+      confirm.addEventListener("click", onConfirm);
+      overlay.addEventListener("click", onOverlay);
+      document.addEventListener("keydown", onKey);
+      overlay.classList.add("open");
+    });
   }
 
   // ---- Info tab (Rev59) ----
