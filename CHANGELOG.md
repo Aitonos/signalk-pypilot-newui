@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.0.2 — 2026-08-20 — Rev65
+
+Bug fix + UI polish batch.
+
+### Fixed
+
+- **Target diamond drifted after tapping AP on laggy links** (Tailscale,
+  4G). We were re-reading `state.heading` inside the parallel promise
+  chain, so between the click and the actual POST the heading could have
+  moved a few degrees. Consequence: we sent one target to the server,
+  asigned another locally, and the diamond jumped to a third when the
+  real delta arrived. Now the heading is captured ONCE at the click and
+  reused for the POST, the optimistic assign and any later reference in
+  the handler.
+
+### Changed - compass rose
+
+- HDG now shown in a small dark chip that straddles the top of the ring
+  (asoma un poco por encima) instead of floating text. Font shrunk from
+  18 to 14 to fit inside the chip.
+- Wind arrows redrawn: both solid (no more dashed shaft on TWA), amber
+  AWA keeps a big head, sea-green (#5ce8c0) TWA gets a smaller head, and
+  each carries its own `AWA` / `TWA` text label rotating with the arrow.
+  The magenta is gone.
+- Bottom of rose: `AWS` / `TWS` label small on top and the number large
+  below, split into two lines with the S cardinal reubicated so the
+  gap between them stays visible for the rose itself.
+- Short tap on a corner mapped to "wind" now flips the label between
+  AWA/AWS and TWA/TWS and pins that choice. When the AP mode changes to
+  a true-wind mode the label auto-follows to TWS (unless the user has
+  already pinned it manually).
+
+### Added - rudder angle indicator in the swipe-hint bar
+
+The bar under the Control tab now carries a horizontal red-to-green
+gradient (port → stbd) with a moving white marker showing the current
+rudder angle. The central yellow nav-toggle triangle sits at 0 deg,
+doubling as the amidships reference. Scale comes from the pypilot
+catalog's `rudder.range` (default 45 deg when unavailable).
+
 ## 2.0.1 — 2026-08-20 — Rev64
 
 Patch release to validate the GitHub Actions publish pipeline with

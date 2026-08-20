@@ -534,6 +534,20 @@
     windAngleTrue: null,
     windSpeedTrue: null,
     sog: null,                 // m/s
+    // Rev65 / 2.0.2 - wind-corner display preference. "awa" or "twa".
+    // Initial value derives from the browser-stored preference; if
+    // absent, defaults to "awa" and later auto-follows the AP mode
+    // (see _syncWindCornerFromMode).
+    windCornerShow: (() => {
+      try { return localStorage.getItem("pypilot-newui.windCornerShow") || "awa"; }
+      catch { return "awa"; }
+    })(),
+    windCornerUserPinned: (() => {
+      // User's manual tap "pins" the choice so mode changes stop
+      // overwriting it. Persistent per browser.
+      try { return localStorage.getItem("pypilot-newui.windCornerPinned") === "1"; }
+      catch { return false; }
+    })(),
   };
 
   const RAD2DEG = 180 / Math.PI;
@@ -672,7 +686,7 @@
   function applyValue(path, value) {
     switch (path) {
       case "steering.autopilot.state":            state.apState = value; break;
-      case "steering.autopilot.mode":             state.mode = value; setSelect("#mode-select", value); break;
+      case "steering.autopilot.mode":             state.mode = value; setSelect("#mode-select", value); _syncWindCornerFromMode(value); break;
       case "steering.autopilot.target":           state.target = numericOrNull(value); renderTargetArrow(); break;
       case "steering.autopilot.engaged":          state.engaged = !!value; renderEngage(); renderTargetArrow(); break;
       case "steering.autopilot.availableActions": state.availableActions = value || []; break;
@@ -780,9 +794,12 @@
         // getComputedTextLength() only works on rendered SVG text nodes.
         // Fall back to a heuristic width if the SVG has not laid out yet
         // (e.g. tab is not visible).
+        // Fallback width when SVG has not laid out yet (tab not visible).
+        // Rev65: HDG font shrunk from 18 to 14 for the new chip, so the
+        // per-char heuristic drops from 12 to 9 units.
         let w;
-        try { w = hdgTxt.getComputedTextLength(); } catch { w = s.length * 12; }
-        if (!isFinite(w) || w <= 0) w = s.length * 12;
+        try { w = hdgTxt.getComputedTextLength(); } catch { w = s.length * 9; }
+        if (!isFinite(w) || w <= 0) w = s.length * 9;
         hdgDeg.setAttribute("x", (w / 2 + 1).toFixed(1));
       }
     }
@@ -804,9 +821,15 @@
     twa:   { label: "TWA", read: () => state.windAngleTrue == null ? "---" : _sgn(state.windAngleTrue * RAD2DEG) + "°" },
     tws:   { label: "TWS", read: () => state.windSpeedTrue == null ? "---" : (state.windSpeedTrue * 1.94384).toFixed(1) + " kn" },
     twd:   { label: "TWD", read: () => state.windDirTrue   == null ? "---" : Math.round(state.windDirTrue * RAD2DEG) + "°" },
-    wind:  { label: () => (String(state.mode || "").includes("true") ? "TWA/TWS" : "AWA/AWS"),
+    // Rev65 / 2.0.2: the "wind" corner now honours a user-toggleable
+    // preference (state.windCornerShow: "awa" or "twa"), overridable by
+    // a short tap on the corner. When the AP mode changes TO true-wind,
+    // the preference auto-flips to TWA/TWS; when it changes AWAY from
+    // true-wind, it flips back to AWA/AWS. Manual taps after that stick
+    // until the mode flips again (see _syncWindCornerFromMode).
+    wind:  { label: () => (state.windCornerShow === "twa" ? "TWA/TWS" : "AWA/AWS"),
              read: () => {
-               const useTrue = String(state.mode || "").includes("true");
+               const useTrue = state.windCornerShow === "twa";
                const ang = useTrue ? state.windAngleTrue : state.windAngle;
                const spd = useTrue ? state.windSpeedTrue : state.windSpeed;
                const a = ang == null ? "---" : _sgn(ang * RAD2DEG) + "°";
@@ -885,6 +908,32 @@
     });
   }
   _refreshCustomDashEntries();
+  // Rev65 / 2.0.2: short tap on the "wind" corner flips the preference
+  // between AWA/AWS and TWA/TWS, and pins it so mode auto-changes stop
+  // overwriting it until the user opts back into auto-follow.
+  function _toggleWindCornerShow() {
+    state.windCornerShow = (state.windCornerShow === "twa") ? "awa" : "twa";
+    state.windCornerUserPinned = true;
+    try {
+      localStorage.setItem("pypilot-newui.windCornerShow", state.windCornerShow);
+      localStorage.setItem("pypilot-newui.windCornerPinned", "1");
+    } catch {}
+    _dashRenderCorners();
+    renderWindRose();
+  }
+  // Called from applyValue whenever the AP mode changes. If the user has
+  // not pinned the wind-corner preference, follow the mode: true-wind
+  // modes show TWA/TWS, everything else shows AWA/AWS.
+  function _syncWindCornerFromMode(mode) {
+    if (state.windCornerUserPinned) return;
+    const wantTrue = String(mode || "").toLowerCase().includes("true");
+    const next = wantTrue ? "twa" : "awa";
+    if (state.windCornerShow === next) return;
+    state.windCornerShow = next;
+    try { localStorage.setItem("pypilot-newui.windCornerShow", next); } catch {}
+    _dashRenderCorners();
+    renderWindRose();
+  }
   function _sgn(n) { return (n > 0 ? "+" : "") + Math.round(n); }
   function _dashLoadCfg() {
     try {
@@ -1062,9 +1111,10 @@
   }
 
   // SVG compass rose. The card (cardinals + ticks) rotates so N points to
-  // magnetic north regardless of boat heading; the boat is fixed pointing up;
-  // TWO independent wind arrows (AWA amber solid, TWA magenta dashed) rotate
-  // to their respective angles; wedges are boat-fixed helm guides.
+  // magnetic north regardless of boat heading; the boat is fixed pointing
+  // up; TWO independent wind arrows (AWA amber solid, TWA sea-green solid)
+  // rotate to their respective angles; wedges are boat-fixed helm guides;
+  // the bottom AWS/TWS readout follows the user's wind-corner preference.
   function renderWindRose() {
     const card = document.getElementById("rose-card");
     if (card && state.heading != null) {
@@ -1090,22 +1140,29 @@
       }
     }
 
-    // Speed readout at the bottom: prefer the source that is enabled; if
-    // both are enabled, show apparent (the one the crew feels).
-    const showAws = _windArrowShow.awa && state.windSpeed != null;
-    const showTws = _windArrowShow.twa && state.windSpeedTrue != null;
-    let windSpeed = null, tag = "";
-    if (showAws) { windSpeed = state.windSpeed; tag = "AWS"; }
-    else if (showTws) { windSpeed = state.windSpeedTrue; tag = "TWS"; }
-
-    // Rev56: sailing zones (green stbd / red port) are DRAWN STATIC in
-    // the SVG at fixed boat-centerline angles +/-30..60, so nothing to
-    // update here.
-    const speedText = document.getElementById("rose-speed");
+    // Rev65 / 2.0.2: bottom AWS/TWS readout now uses TWO separate text
+    // nodes (small dim label on top, big white number below) and follows
+    // `state.windCornerShow` so a tap on the wind corner also swaps the
+    // readout at the bottom of the rose. Falls back gracefully if the
+    // chosen source has no value yet.
+    const useTrue = state.windCornerShow === "twa";
+    const primarySpd = useTrue ? state.windSpeedTrue : state.windSpeed;
+    const primaryTag = useTrue ? "TWS" : "AWS";
+    let windSpeed = primarySpd, tag = primaryTag;
+    if (windSpeed == null) {
+      // Fall back to the other source so the number is not "---" when only
+      // one wind flavour is available (typical on boats without SOG).
+      const altSpd = useTrue ? state.windSpeed : state.windSpeedTrue;
+      const altTag = useTrue ? "AWS" : "TWS";
+      if (altSpd != null) { windSpeed = altSpd; tag = altTag; }
+    }
+    const speedLabel = document.getElementById("rose-speed-label");
+    const speedText  = document.getElementById("rose-speed");
+    if (speedLabel) speedLabel.textContent = windSpeed == null ? "" : tag;
     if (speedText) {
       speedText.textContent = windSpeed == null
         ? "--- kn"
-        : (windSpeed * 1.94384).toFixed(1) + " kn" + (tag ? " " + tag : "");
+        : (windSpeed * 1.94384).toFixed(1) + " kn";
     }
   }
 
@@ -1200,14 +1257,36 @@
   }
 
   function renderRudder(rad) {
-    if (rad == null) { $("#rudder-widget").setAttribute("hidden", ""); return; }
-    $("#rudder-widget").removeAttribute("hidden");
+    // Legacy widget (still hidden by default) - kept in case someone wires it.
+    const w = $("#rudder-widget");
+    if (rad == null) {
+      if (w) w.setAttribute("hidden", "");
+      // Also center the swipe-hint rudder marker so it looks amidships
+      // when data is missing rather than sticking to some old value.
+      const m = $("#rudder-marker");
+      if (m) m.style.left = "50%";
+      return;
+    }
+    if (w) w.removeAttribute("hidden");
     const deg = rad * RAD2DEG;
-    const pct = Math.max(-1, Math.min(1, deg / 45));
+    const pct45 = Math.max(-1, Math.min(1, deg / 45));
     const fill = $("#rudder-fill");
-    fill.style.width = Math.abs(pct * 50) + "%";
-    fill.style.transform = pct < 0 ? "translateX(-100%)" : "translateX(0%)";
-    $("#rudder-value").textContent = deg.toFixed(1) + " deg";
+    if (fill) {
+      fill.style.width = Math.abs(pct45 * 50) + "%";
+      fill.style.transform = pct45 < 0 ? "translateX(-100%)" : "translateX(0%)";
+    }
+    const val = $("#rudder-value");
+    if (val) val.textContent = deg.toFixed(1) + " deg";
+    // Rev65 / 2.0.2: paint the rudder marker on the swipe-hint bar. Range
+    // comes from the pypilot catalog (`rudder.range` in degrees) when
+    // available, else defaults to 45 deg either side.
+    const marker = $("#rudder-marker");
+    if (marker) {
+      const rangeDeg = Number(state.values?.["steering.autopilot.pypilot.rudder.range"]) || 45;
+      const pct = Math.max(-1, Math.min(1, deg / rangeDeg));
+      // pct = -1 -> left edge (0%), 0 -> center (50%), +1 -> right edge (100%).
+      marker.style.left = (50 + pct * 50).toFixed(1) + "%";
+    }
   }
 
   // Rev36 helper: build a slider row with nudge buttons -10/-1/+1/+10.
@@ -1667,6 +1746,16 @@
       _apPending = true;
       eng.classList.add("pending");
       const wasEngaged = state.engaged;
+      // Rev65 / 2.0.2: snapshot the heading the USER IS SEEING at the exact
+      // moment of the click, and use that same value for (a) the target we
+      // send to the server, (b) the optimistic local assign, (c) any later
+      // reference in this handler. Previously we re-read state.heading on
+      // each await point - on a laggy Tailscale link (200-800 ms RTT) the
+      // heading could have drifted a few degrees by the time the POST
+      // executed, so we sent one value to the server, assigned another
+      // locally, and the diamond jumped to a third when the real delta
+      // arrived. Carlos's report: "el diamante no se fija bien".
+      const capturedHeading = state.heading;
       // Optimistic: flip the visual state before waiting on the network.
       state.engaged = !wasEngaged;
       renderEngage();
@@ -1680,12 +1769,12 @@
           // does not serialise 2 round-trips before the AP actually engages.
           const [rEng, rTgt] = await Promise.all([
             _apRetry(apEngage),
-            state.heading != null ? _apRetry(() => apSetTargetRad(state.heading)) : Promise.resolve({ ok: true }),
+            capturedHeading != null ? _apRetry(() => apSetTargetRad(capturedHeading)) : Promise.resolve({ ok: true }),
           ]);
           ok = !!(rEng && rEng.ok);
-          if (rTgt && rTgt.ok && state.heading != null) {
-            state.target = state.heading;
-            state.localTargetRad = state.heading;
+          if (rTgt && rTgt.ok && capturedHeading != null) {
+            state.target = capturedHeading;
+            state.localTargetRad = capturedHeading;
             renderControl();
           }
         }
@@ -2487,35 +2576,50 @@
         _activateTab(ids[nextIdx], dir === 1 ? "next" : "prev");
       });
     });
-    // Rev48: long-press on any of the 4 corner cells opens the selector
-    // popup so the user assigns whatever data they want per corner.
+    // Rev48/65: long-press opens the corner-selector popup. Short tap on
+    // a corner whose current mapping is "wind" flips the label between
+    // AWA/AWS and TWA/TWS, pinning the user's choice so subsequent AP
+    // mode changes stop auto-flipping it (see _syncWindCornerFromMode).
     _dashLoadCfg();
     _dashPopulateSelectors();
     _dashRenderCorners();
     let _dashLongPressTimer = null;
+    let _dashPressStartedAt = 0;
+    let _dashPressWasLong = false;
     $$(".dash-rose .dash-cell[data-corner]").forEach((cell) => {
       const openSelector = (e) => {
         e && e.preventDefault();
+        _dashPressWasLong = true;
         _dashPopulateSelectors();
         const pop = document.getElementById("dash-help-pop");
         if (pop) pop.classList.add("open");
       };
-      cell.addEventListener("touchstart", (e) => {
+      const startPress = (e) => {
+        _dashPressStartedAt = Date.now();
+        _dashPressWasLong = false;
         if (_dashLongPressTimer) clearTimeout(_dashLongPressTimer);
         _dashLongPressTimer = setTimeout(() => openSelector(e), 500);
-      }, { passive: true });
-      const cancel = () => { if (_dashLongPressTimer) { clearTimeout(_dashLongPressTimer); _dashLongPressTimer = null; } };
-      cell.addEventListener("touchend", cancel, { passive: true });
-      cell.addEventListener("touchmove", cancel, { passive: true });
-      cell.addEventListener("touchcancel", cancel, { passive: true });
+      };
+      const endPress = () => {
+        if (_dashLongPressTimer) { clearTimeout(_dashLongPressTimer); _dashLongPressTimer = null; }
+        // Short tap on a wind-corner cell -> toggle AWS/TWS.
+        if (_dashPressWasLong) return;
+        const elapsed = Date.now() - _dashPressStartedAt;
+        if (elapsed >= 500) return;
+        const corner = cell.dataset.corner;
+        if (_dashCornerCfg[corner] === "wind") _toggleWindCornerShow();
+      };
+      cell.addEventListener("touchstart", startPress, { passive: true });
+      cell.addEventListener("touchend",   endPress,   { passive: true });
+      cell.addEventListener("touchmove",  () => { if (_dashLongPressTimer) { clearTimeout(_dashLongPressTimer); _dashLongPressTimer = null; } _dashPressWasLong = true; }, { passive: true });
+      cell.addEventListener("touchcancel",() => { if (_dashLongPressTimer) { clearTimeout(_dashLongPressTimer); _dashLongPressTimer = null; } }, { passive: true });
       cell.addEventListener("contextmenu", openSelector);
-      let _mouseTimer = null;
       cell.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return;
-        _mouseTimer = setTimeout(() => openSelector(e), 600);
+        startPress(e);
       });
-      cell.addEventListener("mouseup",    () => { if (_mouseTimer) { clearTimeout(_mouseTimer); _mouseTimer = null; } });
-      cell.addEventListener("mouseleave", () => { if (_mouseTimer) { clearTimeout(_mouseTimer); _mouseTimer = null; } });
+      cell.addEventListener("mouseup",    endPress);
+      cell.addEventListener("mouseleave", () => { if (_dashLongPressTimer) { clearTimeout(_dashLongPressTimer); _dashLongPressTimer = null; } });
     });
     // Rev43: horizontal swipe between tabs on mobile/tablet.
     // Rules:
