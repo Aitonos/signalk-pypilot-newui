@@ -1,5 +1,86 @@
 # Changelog
 
+## 2.0.4 — 2026-08-21 — Rev67
+
+Reintroduces (with proper QA) the UI polish + reliability work that was
+withdrawn in 2.0.3 when 2.0.2 hit regressions. Every item below was
+tested on Carlos's Tunatunes Pi Zero W setup before publish.
+
+### Fixed
+
+- **Restart engine now uses `sv` (runit), not `systemctl`.** piCore does
+  not ship systemd; the previous `sudo systemctl restart pypilot pypilot_web`
+  was silently falling through to `|| true` on every install. Only the
+  `pkill -9` had any effect, and runit's `runsv` was auto-relaunching
+  the killed processes into a slightly inconsistent state that
+  accumulated zombies + I2C contention until the Pi Zero locked up.
+  Fixed to `sudo sv restart /etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat`
+  with a selective `pkill -9 -f 'python.*pypilot --version'` safety net.
+- **`pypilot --version` preset in Debug console wrapped in `timeout 3`.**
+  On piCore that command starts the full pypilot process and never
+  exits cleanly; each click was leaving a zombie holding I2C and TCP
+  resources. Falls back to reading the packaged version file.
+- **Target diamond drifted after tapping AP on laggy links.** The
+  optimistic-target assign now happens INSTANTLY on click (same tick),
+  not after the parallel promise resolves - so the diamond snaps to
+  the captured heading immediately, without a jump to the stale value
+  then back. Nudge also updates `state.target` optimistically so the
+  diamond moves in the same tick as the button press.
+- **socket.io auto-reconnect no longer gives up.** `reconnectionAttempts`
+  changed from 30 (which could exhaust on a long outage) to Infinity;
+  backoff capped at 30 s. Restarts done via `/debug-cmd` (`restart.web`
+  / `reboot.pi`) now schedule an explicit `pause+resume` after the
+  operation.
+- **Reconnection watchdog** (every 60 s, was 30 s): if the socket has
+  been disconnected > 90 s, force a pause+resume once. Max 3 forced
+  reconnects in a rolling 15-min window so a permanently-dead
+  pypilot_web is not turned into a local DDoS. Watchdog interval
+  loosened per Carlos: "con la Pi Zero debemos ser suuuuuper ratas".
+
+### Changed - Emergency section simplified
+
+The 3-level escalated restart triad shipped in 2.0.2 has been trimmed
+to 2 levels in Setup -> Emergency: **RESTART pypilot** (level 2, ~10-15 s
+outage) + **reboot Pi** (level 3, ~35-60 s). The old level 1
+(`restart pypilot_web`) rarely helps in practice - when the Pi Zero is
+saturated a full reboot is what actually helps - so it moved to the
+Debug console below as an advanced preset for the ~5 % edge cases.
+
+### Compass rose
+
+- HDG in a small dark chip that straddles the top of the ring, narrowed
+  from 48 to 40 units wide so the enlarged target diamond can peek out
+  on all four sides even when target is dead ahead.
+- Target diamond enlarged (28 wide, 30 tall) so its top point asoma
+  above the HDG chip and its bottom point below it.
+- Wind arrows both solid (no dashed shaft on TWA), amber AWA (big head)
+  + sea-green (#5ce8c0) TWA (small head), each with its own rotating
+  text label placed at very different radii so they never overlap even
+  when both arrows point in the same direction.
+- Wind speed at the bottom of the rose now inside a small dark chip
+  (same look as the HDG chip on top). Short-tap on the chip OR on a
+  corner mapped to "wind" flips AWS/TWS. Long-press opens the popup.
+- Corner options `AWA` and `TWA` now show angle AND matching wind speed
+  (AWA/AWS and TWA/TWS) as a combined 2-line cell, consistent with the
+  `wind` combo.
+
+### Rudder angle indicator in the swipe-hint bar
+
+- Default range **±70°** (was ±45°), matching typical TinyPilot configs.
+- Explicit numeric labels at both ends showing the actual range from
+  the pypilot catalog.
+- Intermediate tick marks every 10° plus numeric mid-labels at 20°, 40°
+  and 60° each side, so the operator reads the rudder angle at a glance.
+
+### Internal
+
+- Debug console preset `pypilot.version` now `timeout 3 python3 -c
+  'import pypilot; print(pypilot.__version__)'` with fallback.
+- Merge-based `_pluginConfigMerge()` helper preserved.
+- Per-cell state for the long-press / short-tap handler on the corner
+  dashboard (Rev65's shared timer flags were race-flipping and killing
+  the tap toggle intermittently).
+
 ## 2.0.3 — 2026-08-20 — Rev66 - rollback of 2.0.2
 
 Codebase is functionally identical to 2.0.1. Version 2.0.2 introduced

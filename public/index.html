@@ -71,7 +71,7 @@
           <div class="dash-cell corner-tr" data-corner="tr"></div>
           <div class="dash-cell corner-bl" data-corner="bl"></div>
           <div class="dash-cell corner-br" data-corner="br"></div>
-          <svg id="wind-rose" class="rose-svg" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
+          <svg id="wind-rose" class="rose-svg" viewBox="-100 -110 200 220" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
             <circle cx="0" cy="0" r="94" fill="none" stroke="#2b3542" stroke-width="2"/>
             <!-- Rev58: sailing zones as PIE SLICES from origin (r=0) out
@@ -106,10 +106,13 @@
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(330)"/>
               </g>
               <!-- 4 cardinals: N accent yellow, ESW dim white. -->
-              <text x="0" y="-70" text-anchor="middle" dominant-baseline="middle" fill="#ffd54a" font-size="14" font-weight="900">N</text>
-              <text x="70" y="0" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">E</text>
-              <text x="0" y="70" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">S</text>
-              <text x="-70" y="0" text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">W</text>
+              <text x="0"  y="-70" text-anchor="middle" dominant-baseline="middle" fill="#ffd54a" font-size="14" font-weight="900">N</text>
+              <text x="70" y="0"   text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">E</text>
+              <!-- Rev65: S moved inward from y=70 to y=58 so the AWS/TWS
+                   bottom-of-rose label at y=70 does not overlap it when the
+                   card sits at heading 0. -->
+              <text x="0"  y="58"  text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">S</text>
+              <text x="-70" y="0"  text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">W</text>
               <!-- 8 numeric labels at 30 deg increments (skip cardinals). -->
               <g fill="#8b98a5" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
                 <text transform="rotate(30)  translate(0,-72)">030</text>
@@ -122,42 +125,79 @@
                 <text transform="rotate(330) translate(0,-72)">330</text>
               </g>
             </g>
-            <!-- Rev58: HDG pushed to y=-82 (right against the top rim);
-                 wind speed dropped to y=+82 (bottom rim) to keep the
-                 whole center free for the boat + arrows. Number CENTERED
-                 on the digits only; the degree symbol is positioned by
-                 JS just after them so "9" and "298" both anchor at x=0. -->
-            <text id="rose-hdg-value" x="0" y="-82" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="18" font-weight="900" font-family="ui-monospace, monospace">---</text>
-            <text id="rose-hdg-deg"   x="0" y="-82" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="13" font-weight="700">°</text>
+            <!-- Rev65 / 2.0.2: HDG in a small chip that straddles the top
+                 rim. The chip's top edge sits above the ring by ~4 units
+                 (visually "asomando" per Carlos), the bottom edge sits
+                 just below the ring so the chip clearly reads as an
+                 overlay on top of the compass, not as a floating badge.
+                 The chip does NOT push the SVG viewBox up - only the
+                 painted rect crosses the ring line. Number CENTERED on
+                 the digits only; degree glyph placed by JS after the
+                 digits so "9" and "298" both anchor at x=0. -->
+            <!-- Rev66 / 2.0.4: chip narrowed from 48 to 40 wide + font
+                 shrunk from 14 to 12, so the enlarged target diamond
+                 below can peek out on the LEFT and RIGHT of the chip
+                 even when the target is dead ahead (rotation 0). -->
+            <g id="rose-hdg-chip">
+              <rect x="-20" y="-100" width="40" height="16" rx="4" ry="4"
+                    fill="rgba(0,0,0,0.72)" stroke="#4a5867" stroke-width="1"/>
+              <text id="rose-hdg-value" x="0" y="-91" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
+              <text id="rose-hdg-deg"   x="0" y="-91" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
+            </g>
             <!-- Rev50: boat overhead SVG (mareas-ihm), scaled 0.22 so
                  the hull spans ~100 units = 50 % of the 200-unit rose
                  diameter. Rotated -90 so bow points up. -->
             <g id="rose-boat" transform="rotate(-90) scale(0.22)">
               <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
             </g>
-            <!-- Rev58: two independent wind arrows so the crew can watch
-                 apparent AND true at the same time. AWA in amber (crew
-                 default), TWA in magenta with a dashed shaft. Each is
-                 toggled independently from the corner popup (localStorage). -->
+            <!-- Rev65/66 / 2.0.4: two independent wind arrows, both solid,
+                 each labelled AWA / TWA in text that rotates with the arrow
+                 so it always reads from the head. AWA = amber (big head,
+                 the wind the crew feels). TWA = sea-green (small head).
+                 Rev66: labels are placed at very different radii along
+                 the shaft (AWA near the ring at y=-72, TWA near the boat
+                 at y=-52) so they never overlap even when both arrows
+                 point in exactly the same direction. -->
             <g id="rose-wind-arrow" style="display:none">
-              <line x1="0" y1="-86" x2="0" y2="-36" stroke="#ffd54a" stroke-width="3" stroke-linecap="round"/>
-              <polygon points="0,-30 -7,-42 7,-42" fill="#ffd54a" stroke="#8a6a00" stroke-width="0.6"/>
+              <line x1="0" y1="-86" x2="0" y2="-32" stroke="#ffd54a" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="0,-24 -9,-40 9,-40" fill="#ffd54a" stroke="#8a6a00" stroke-width="0.6"/>
+              <text x="0" y="-72" text-anchor="middle" dominant-baseline="middle"
+                    fill="#ffd54a" stroke="#3a2600" stroke-width="0.4" paint-order="stroke fill"
+                    font-size="8" font-weight="900" letter-spacing="1">AWA</text>
             </g>
             <g id="rose-wind-arrow-twa" style="display:none">
-              <line x1="0" y1="-86" x2="0" y2="-36" stroke="#c780f5" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="4 3"/>
-              <polygon points="0,-30 -6,-40 6,-40" fill="#c780f5" stroke="#3f1d5c" stroke-width="0.6"/>
+              <line x1="0" y1="-86" x2="0" y2="-38" stroke="#5ce8c0" stroke-width="2.5" stroke-linecap="round"/>
+              <polygon points="0,-32 -6,-42 6,-42" fill="#5ce8c0" stroke="#1a4438" stroke-width="0.6"/>
+              <text x="0" y="-52" text-anchor="middle" dominant-baseline="middle"
+                    fill="#5ce8c0" stroke="#0f2620" stroke-width="0.4" paint-order="stroke fill"
+                    font-size="7" font-weight="900" letter-spacing="1">TWA</text>
             </g>
-            <!-- Rev57: target indicator - CYAN diamond just outside the
-                 compass ring, only shown when AP is engaged. Rotated to
+            <!-- Rev66 / 2.0.4: cyan diamond enlarged (28 wide, 30 tall).
+                 With the narrowed HDG chip above (40 wide) the diamond
+                 asoma por los lados AND por arriba AND por debajo del
+                 chip even when target is dead ahead. Rotated to
                  (target - heading) so it always points where pypilot is
-                 steering. -->
+                 steering (compass/gps/nav modes) or to target directly
+                 (wind modes, target already in boat frame). -->
             <g id="rose-target-arrow" style="display:none">
-              <polygon points="0,-104 -7,-96 0,-88 7,-96" fill="#4dd4ff" stroke="#003b52" stroke-width="1.2"/>
+              <polygon points="0,-108 -14,-93 0,-78 14,-93" fill="#4dd4ff" stroke="#003b52" stroke-width="1.5"/>
             </g>
-            <!-- Rev58: wind speed dropped to y=+82 (bottom rim) to keep
-                 the boat area clean. Sub-label picks the source with a
-                 hint (AWS / TWS / both). -->
-            <text id="rose-speed" x="0" y="82" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="800">--- kn</text>
+            <!-- Rev66 / 2.0.4: wind speed now inside a small dark chip
+                 that straddles the bottom of the compass ring, same
+                 look as the HDG chip on top. Top of the chip sits a
+                 couple of units INSIDE the ring, bottom asoma below.
+                 Contains a small dim AWS/TWS label above the number.
+                 The whole group carries `id=rose-speed-chip` so the
+                 short-tap toggle (fix #5) can attach a listener to
+                 the chip itself, not just the corner cells. -->
+            <g id="rose-speed-chip">
+              <rect x="-32" y="90" width="64" height="22" rx="4" ry="4"
+                    fill="rgba(0,0,0,0.72)" stroke="#4a5867" stroke-width="1"/>
+              <text id="rose-speed-label" x="0" y="96" text-anchor="middle" dominant-baseline="middle"
+                    fill="#8b98a5" font-size="7" font-weight="700" letter-spacing="1.2"></text>
+              <text id="rose-speed"       x="0" y="106" text-anchor="middle" dominant-baseline="middle"
+                    fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">--- kn</text>
+            </g>
           </svg>
         </div>
       </div>
@@ -251,12 +291,25 @@
           <div id="rudder-value" class="value">--</div>
         </div>
 
-        <!-- Rev53: swipe affordance strip with central triangle toggle.
-             Left/right arrows navigate to prev/next tab (like a mini
-             breadcrumb + swipe hint). Central yellow glow triangle
-             hides/shows the top nav bar. This lets the user reclaim
-             the full viewport for the rose. Only visible inside Control. -->
+        <!-- Rev53/65: swipe affordance strip with central triangle toggle
+             AND (Rev65 / 2.0.2) a rudder-angle indicator painted on the
+             same strip. Track: horizontal gradient from red (port) at the
+             left to green (stbd) at the right, on a black band. Marker:
+             a thin vertical bar that sits at the exact centre when the
+             rudder is amidships and slides left/right proportional to
+             `state.rudderAngle / state.rudderRange`. The central yellow
+             triangle keeps its nav-toggle role AND visually reads as the
+             "zero" reference of the rudder bar. -->
         <div class="swipe-hint" id="swipe-hint" aria-hidden="true">
+          <div class="rudder-track"></div>
+          <!-- Rev66 / 2.0.4: rudder scale ticks + labels populated by
+               renderRudder() based on the actual pypilot rudder.range
+               (default 70 deg). Ticks every 10 deg, numeric labels
+               every 20 deg (0, 20, 40, 60) plus explicit ends. -->
+          <div class="rudder-ticks" id="rudder-ticks"></div>
+          <span class="rudder-label rudder-label-left"  id="rudder-label-left">-70</span>
+          <span class="rudder-label rudder-label-right" id="rudder-label-right">+70</span>
+          <div class="rudder-marker" id="rudder-marker" style="left:50%"></div>
           <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
           <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
           <button class="nav-toggle" id="nav-toggle" aria-label="Mostrar / ocultar barra de pestañas" title="Mostrar / ocultar barra de pestañas">
@@ -476,23 +529,20 @@
         </div>
         <div id="cfg-ssh-status" class="hint" style="margin-top:6px"></div>
 
-        <!-- Rev63 / 2.0.0: three escalated restart levels. Each fires a
-             helm-manned confirmation modal before executing. -->
+        <!-- Rev66 / 2.0.4: simplified to 2 levels. `restart pypilot_web`
+             (level 1) rarely helps in practice - when the Pi Zero is
+             saturated the whole box needs a full reboot. Moved to the
+             Debug console below as an advanced preset for the 5 % of
+             cases where only the web layer is stuck but the AP core
+             keeps steering (rare). -->
         <div class="restart-block" style="margin-top:14px">
-          <div class="restart-title" data-i18n="setup.restart.title">Restart / reboot (escalated)</div>
-          <div class="restart-row">
-            <button id="btn-restart-web" class="restart-btn level-1" data-preset="restart.web" data-outage-i18n="setup.restart.outage.web">
-              <span class="rb-num">1</span>
-              <span class="rb-title" data-i18n="setup.restart.web.title">restart pypilot_web</span>
-              <span class="rb-sub"   data-i18n="setup.restart.web.sub">~3-5 s &middot; AP keeps steering</span>
-            </button>
+          <div class="restart-title" data-i18n="setup.restart.title">Restart / reboot</div>
+          <div class="restart-row two-cols">
             <button id="cli-restart-pypilot" class="restart-btn level-2" data-outage-i18n="setup.restart.outage.pypilot">
-              <span class="rb-num">2</span>
               <span class="rb-title" data-i18n="setup.restart.pypilot.title">RESTART pypilot</span>
               <span class="rb-sub"   data-i18n="setup.restart.pypilot.sub">~10-15 s &middot; AP drops the heading</span>
             </button>
             <button id="btn-reboot-pi" class="restart-btn level-3" data-preset="reboot.pi" data-outage-i18n="setup.restart.outage.reboot">
-              <span class="rb-num">3</span>
               <span class="rb-title" data-i18n="setup.restart.reboot.title">reboot Pi</span>
               <span class="rb-sub"   data-i18n="setup.restart.reboot.sub">~35-60 s &middot; full outage</span>
             </button>
@@ -500,7 +550,7 @@
         </div>
 
         <div id="cli-restart-status" class="hint" style="margin-top:8px"></div>
-        <div class="hint" data-i18n="setup.restart.hint">All three actions use the SSH user+password above. Level 1 does not interrupt steering; levels 2 and 3 do. A confirmation asking whether someone is at the helm is shown before executing.</div>
+        <div class="hint" data-i18n="setup.restart.hint">Both actions use the SSH user + password above and show a helm-manned confirmation before executing. Use RESTART pypilot for the common case; reboot Pi when the TinyPilot has degraded and needs a cold reset. For a lighter web-only restart see the Debug console below.</div>
         <div class="hint" data-i18n="setup.security.hint" style="margin-top:6px">Signal K stores plugin config in plain text at ~/.signalk/plugin-config-data/.</div>
 
         <!-- Rev63 / 2.0.0: Debug console. Closed whitelist of preset
@@ -516,6 +566,10 @@
             <button class="ghost debug-preset" data-preset="uptime">uptime</button>
             <button class="ghost debug-preset" data-preset="df">df</button>
             <button class="ghost debug-preset" data-preset="pypilot.version">pypilot --version</button>
+            <!-- Rev66 / 2.0.4: moved from the Emergency triad. Rarely
+                 needed on a healthy Pi; when the box is saturated a full
+                 reboot is what actually helps. Kept here for edge cases. -->
+            <button class="ghost debug-preset" data-preset="restart.web">restart pypilot_web</button>
           </div>
           <textarea id="debug-output" readonly rows="12"
             style="width:100%;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px;font-family:ui-monospace,monospace;font-size:12px;resize:vertical;"
@@ -886,6 +940,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev66"></script>
+  <script src="app.js?v=Rev67"></script>
 </body>
 </html>

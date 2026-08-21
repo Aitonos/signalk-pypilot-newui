@@ -105,13 +105,18 @@ export class PypilotClient extends EventEmitter {
     this.opts.log("info", `[pypilot] connecting socket.io to ${url}`);
     this.socket = io(url, {
       transports: ["websocket", "polling"],
-      // Reconnect but with a ceiling so a wedged pypilot_web (Pi Zero pinned
-      // at 100% CPU) does not get hammered forever. After the ceiling we
-      // give up until the user pushes /resume from the webapp.
+      // Rev66 / 2.0.4: infinite reconnect attempts. The old 30-attempt
+      // ceiling meant a long-ish outage (say a Pi reboot that takes 45 s +
+      // a couple of socket.io backoff cycles) could exhaust the counter
+      // and leave the socket "closed forever" - the only recovery was
+      // toggling the plugin in SK Admin. With infinite retries plus the
+      // 30 s cap on backoff delay, the client keeps trying at most every
+      // 30 s until pypilot_web comes back on its own or the watchdog in
+      // index.ts triggers a hard pause+resume.
       reconnection: true,
-      reconnectionAttempts: 30,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: this.opts.reconnectDelayMs,
-      reconnectionDelayMax: 20000,
+      reconnectionDelayMax: 30000,
       timeout: 10000,
       autoConnect: true,
     });

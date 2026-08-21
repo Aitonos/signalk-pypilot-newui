@@ -12,7 +12,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev66";
+const PLUGIN_REVISION = "Rev67";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -313,6 +313,11 @@ module.exports = function (app: any) {
       // Clear the action-paths keep-alive interval registered on the app.
       const ka = (app as any)._pypilotNewuiKeepAlive;
       if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
+      // Rev66 / 2.0.4: clear the reconnection watchdog interval, otherwise
+      // a Disable+Enable cycle in SK Admin would leave the previous
+      // watchdog running against a null `client` forever.
+      const wd = (app as any)._pypilotNewuiWatchdogTimer;
+      if (wd) { try { clearInterval(wd); } catch { /* defensive */ } (app as any)._pypilotNewuiWatchdogTimer = null; }
       // The SK autopilot API does not expose an unregister; on plugin stop
       // the server drops our provider when it garbage-collects the plugin.
       apProvider = null;
@@ -328,6 +333,13 @@ module.exports = function (app: any) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     registerWithRouter: (router: any) => {
+      // Rev66 / 2.0.4: shared "hard reconnect" helper - pauses the socket
+      // and re-opens it after a short beat. Used by /restart-pypilot,
+      // /debug-cmd (restart.web / reboot.pi presets) and the watchdog.
+      const doReconnect = () => {
+        try { client?.pause(); setTimeout(() => client?.resume(), 800); } catch {}
+      };
+
       router.get("/status", (_req: any, res: any) => {
         res.json({
           revision: PLUGIN_REVISION,
@@ -579,9 +591,29 @@ module.exports = function (app: any) {
         const host = props.host;
         const sshUser = props.sshUser || "tc";
         const sshPassword = props.sshPassword || "";
-        const restartCmd = "sudo systemctl restart pypilot pypilot_web 2>&1 || sudo /etc/init.d/pypilot restart 2>&1 || true";
-        // Local reconnect helper used both on success and on error paths.
-        const doReconnect = () => { try { client?.pause(); setTimeout(() => client?.resume(), 800); } catch {} };
+        // Rev66 / 2.0.4: TinyPilot runs piCore Linux which uses runit,
+        // NOT systemd. Our previous `sudo systemctl restart ...` command
+        // was silently falling through to `|| true` on every install
+        // because systemctl does not exist. The only step that had any
+        // effect was the pkill; runsv then auto-relaunched the killed
+        // processes. That inconsistent "kill without a clean start"
+        // pattern was accumulating zombies + saturating the Pi Zero's
+        // RAM until it hung.
+        //
+        // The runit-native way: `sudo sv restart /etc/sv/<service>` sends
+        // SIGTERM to the child, waits for it to exit, and starts it back
+        // up under supervision. Clean by design. We keep pkill as a
+        // belt-and-braces safety net in case a python child ignores TERM
+        // (some pypilot subprocesses have historically done that).
+        const restartCmd = [
+          "sudo sv restart /etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat 2>&1 || true",
+          "sleep 2",
+          "sudo pkill -9 -f 'python.*pypilot --version' 2>&1 || true",
+          "sleep 1",
+          "sudo sv up /etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat 2>&1 || true",
+        ].join(" ; ");
+        // `doReconnect` is defined at the router scope (Rev66) and reused by
+        // /restart-pypilot, /debug-cmd and the watchdog.
         if (!sshPassword) {
           doReconnect();
           return res.status(202).json({
@@ -659,8 +691,22 @@ module.exports = function (app: any) {
         "top.snapshot":      "top -bn1 2>&1 | head -20",
         "uptime":            "uptime && cat /proc/loadavg",
         "df":                "df -h 2>&1",
-        "pypilot.version":   "pypilot --version 2>&1 || (test -f /home/tc/pypilot/version && cat /home/tc/pypilot/version) || echo 'unknown'",
-        "restart.web":       "sudo systemctl restart pypilot_web 2>&1 && echo OK",
+        // Rev66 / 2.0.4: `pypilot --version` starts the full pypilot
+        // process and never exits cleanly on TinyCore + pypilot 2021 -
+        // every click of this preset left a python zombie holding I2C
+        // and TCP resources. Wrap with `timeout 3` so the exec is killed
+        // after 3 s, then fall back to reading the packaged version
+        // file. Also `python3 -c 'import pypilot; print(pypilot.__version__)'`
+        // as belt-and-braces.
+        "pypilot.version":   "timeout 3 python3 -c 'import pypilot; print(pypilot.__version__)' 2>&1 || (test -f /home/tc/pypilot/version && cat /home/tc/pypilot/version) || (ls -1 /usr/local/lib/python3.8/site-packages/pypilot-*.dist-info 2>&1 | head -1) || echo 'unknown'",
+        // Rev66 / 2.0.4: piCore uses runit, not systemd. `sudo sv
+        // restart /etc/sv/pypilot_web` is the correct clean-restart
+        // primitive - it TERMs the child, waits, then supervise brings
+        // it back up. Scoped to the web unit so the AP core keeps
+        // steering. Kept as an advanced preset in the Debug console
+        // (the Emergency triad simplified to 2 levels: RESTART pypilot
+        // + reboot Pi).
+        "restart.web":       "sudo sv restart /etc/sv/pypilot_web 2>&1 && echo OK",
         "reboot.pi":         "sudo reboot",
       };
       router.post("/debug-cmd", async (req: any, res: any) => {
@@ -718,6 +764,13 @@ module.exports = function (app: any) {
               });
             } catch (e: any) { finish({ ok: false, stdout: e?.message || String(e) }); }
           });
+          // Rev66 / 2.0.4: schedule a hard reconnect after presets that
+          // disrupt pypilot_web. Level 1 (restart.web) is quick - 4 s is
+          // enough for the socket to notice + wait for pypilot_web to be
+          // back up. Level 3 (reboot.pi) needs to survive a ~40 s cold
+          // reboot; the watchdog below picks up anything longer than that.
+          if (preset === "restart.web") setTimeout(doReconnect, 4000);
+          if (preset === "reboot.pi")   setTimeout(doReconnect, 60000);
           // For reboot.pi the ssh session drops as the box goes down, so we
           // report success even on a non-zero exit if we at least connected.
           return res.json({
@@ -731,6 +784,47 @@ module.exports = function (app: any) {
           return res.status(500).json({ error: e?.message || String(e), preset });
         }
       });
+
+      // Rev66 / 2.0.4: reconnection watchdog. If the socket has been
+      // disconnected for > 90 s (much longer than any legitimate
+      // pypilot_web restart), force a pause+resume to kick socket.io out
+      // of whatever state it got stuck in. Anti-loop: at most 3 forced
+      // reconnects in a rolling 15-min window - after that we stop
+      // trying automatically so a permanently-dead pypilot_web does
+      // not turn into a local DDoS.
+      // Rev66 / 2.0.4: watchdog tick every 60 s (was 30 s). The Pi Zero
+      // running pypilot is fragile so we minimise every recurring
+      // operation - a check that took 30 s worth of wakeups now takes 60 s.
+      // Combined with the >90 s "down" threshold, the watchdog only ever
+      // acts when the socket has been dead for a while, not on transient
+      // Tailscale hiccups.
+      let _wdogDisconnectSince: number | null = null;
+      let _wdogForcedAttempts: number[] = [];   // timestamps of forced reconnects
+      const _wdogTimer = setInterval(() => {
+        try {
+          if (client?.connected) {
+            _wdogDisconnectSince = null;
+            return;
+          }
+          if (_wdogDisconnectSince == null) {
+            _wdogDisconnectSince = Date.now();
+            return;
+          }
+          const downMs = Date.now() - _wdogDisconnectSince;
+          if (downMs < 90_000) return;
+          // Prune attempts older than 15 min.
+          const cutoff = Date.now() - 15 * 60_000;
+          _wdogForcedAttempts = _wdogForcedAttempts.filter((t) => t > cutoff);
+          if (_wdogForcedAttempts.length >= 3) return;
+          _wdogForcedAttempts.push(Date.now());
+          _wdogDisconnectSince = Date.now();   // reset the timer for the next check
+          app.debug(`[watchdog] socket down ${(downMs/1000)|0}s - forcing pause+resume (attempt ${_wdogForcedAttempts.length}/3 in 15 min)`);
+          doReconnect();
+        } catch { /* silent */ }
+      }, 60_000);
+      // Store on `app` so plugin.stop() can clear it (defensive - the
+      // registerWithRouter closure does not have a stop hook here).
+      (app as any)._pypilotNewuiWatchdogTimer = _wdogTimer;
     },
   };
 

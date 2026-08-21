@@ -904,48 +904,71 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   text-transform: uppercase;
   margin: 0 0 8px;
 }
+/* Rev66 / 2.0.4: default 3 cols for legacy 3-level layouts; the
+   Emergency simplified layout in Rev66 uses .two-cols to switch to
+   2 cols on desktop. Both collapse to 1 col on narrow phones. */
 .restart-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
-@media (max-width: 640px) {
-  .restart-row { grid-template-columns: 1fr; }
+.restart-row.two-cols {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+@media (max-width: 640px) {
+  .restart-row,
+  .restart-row.two-cols { grid-template-columns: 1fr; }
+}
+/* Rev66 / 2.0.4: simple flex column layout - the numbered badge is
+   gone in the 2-level Emergency, and the previous grid template still
+   assumed a 28 px badge column, which stretched the title into two
+   awkward lines with the sub label overlapping. Flex column stacks
+   title on top of sub cleanly regardless of button width. */
 .restart-btn {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: 2px 10px;
-  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;         /* Rev66 fix: text centered per Carlos */
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 16px;
+  min-height: 68px;
   border-radius: 10px;
   border: 2px solid var(--border);
   background: var(--bg-3);
   color: var(--fg);
   cursor: pointer;
-  text-align: left;
+  text-align: center;          /* Rev66 fix: text centered */
   font-family: inherit;
   transition: transform 80ms ease, background 100ms ease, border-color 100ms ease;
 }
 .restart-btn:hover  { border-color: var(--fg-dim); }
 .restart-btn:active { transform: scale(0.97); }
+.restart-btn .rb-title {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+.restart-btn .rb-sub {
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 1.2;
+}
+/* Optional numbered badge - only rendered by markup that still uses
+   the old 3-level layout. When present it sits inline before the
+   title on the first row via nested flex, without breaking the plain
+   layout when absent. */
 .restart-btn .rb-num {
-  grid-row: 1 / span 2;
-  width: 28px; height: 28px;
+  width: 24px; height: 24px;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 13px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--fg);
+  margin-right: 6px;
+  vertical-align: middle;
 }
-.restart-btn .rb-title { font-weight: 800; font-size: 14px; letter-spacing: 0.5px; }
-.restart-btn .rb-sub   { font-size: 12px; color: var(--fg-dim); }
-/* Level 1: green tint, safest - AP keeps steering. */
-.restart-btn.level-1 { border-color: rgba(46, 204, 113, 0.55); }
-.restart-btn.level-1 .rb-num  { background: rgba(46, 204, 113, 0.22); color: #2ecc71; }
-.restart-btn.level-1:hover    { background: rgba(46, 204, 113, 0.10); }
-/* Level 2: amber, brief AP outage. Matches the old RESTART pypilot look. */
+/* Level 2: amber, brief AP outage. */
 .restart-btn.level-2 { border-color: var(--warn, #f37812); }
 .restart-btn.level-2 .rb-num  { background: rgba(243, 120, 18, 0.25); color: var(--warn, #f37812); }
 .restart-btn.level-2:hover    { background: rgba(243, 120, 18, 0.10); }
@@ -953,6 +976,10 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
 .restart-btn.level-3 { border-color: var(--err, #e74c3c); }
 .restart-btn.level-3 .rb-num  { background: rgba(231, 76, 60, 0.30); color: var(--err, #e74c3c); }
 .restart-btn.level-3:hover    { background: rgba(231, 76, 60, 0.10); }
+/* Level 1: kept for backwards-compat if some markup uses it. */
+.restart-btn.level-1 { border-color: rgba(46, 204, 113, 0.55); }
+.restart-btn.level-1 .rb-num  { background: rgba(46, 204, 113, 0.22); color: #2ecc71; }
+.restart-btn.level-1:hover    { background: rgba(46, 204, 113, 0.10); }
 
 /* Rev63 - Helm-manned confirmation modal. Same overlay pattern as
    #dash-help-pop but with a danger accent on the confirm button and a
@@ -1543,13 +1570,15 @@ main { touch-action: pan-y; overflow-x: hidden; }
    strip with subtle motion cueing that swipe is available. Also acts
    as tappable arrows for tab navigation. */
 .swipe-hint {
+  position: relative;      /* Rev65: anchor for the rudder track + marker */
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-top: 10px;
   padding: 8px 12px;
-  background: linear-gradient(90deg, rgba(55,182,255,0.14) 0%, rgba(55,182,255,0.05) 50%, rgba(55,182,255,0.14) 100%);
+  background: #08111c;      /* Rev65: solid dark base; the rudder track
+                               below paints its own gradient on top. */
   border: 1px dashed rgba(55,182,255,0.35);
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.65);
@@ -1558,6 +1587,95 @@ main { touch-action: pan-y; overflow-x: hidden; }
   text-transform: uppercase;
   user-select: none;
   overflow: hidden;
+}
+
+/* Rev65 / 2.0.2 - Rudder angle bar painted inside the swipe-hint strip.
+   .rudder-track is a full-width horizontal gradient (red = port left,
+   green = stbd right) with a dim mid-tone so amidships reads as
+   "neutral". The three foreground layers (arrows, nav-toggle triangle,
+   marker) sit above it via z-index. The nav-toggle's own yellow
+   triangle visually stands in for the 0 deg reference. */
+.swipe-hint .rudder-track {
+  position: absolute;
+  inset: 4px 8px;                         /* small inset from the strip edge */
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(231, 76, 60, 0.65) 0%,           /* PORT: red */
+    rgba(231, 76, 60, 0.20) 40%,
+    rgba(46, 46, 46, 0.30) 50%,           /* dim mid = amidships */
+    rgba(46, 204, 113, 0.20) 60%,
+    rgba(46, 204, 113, 0.65) 100%         /* STBD: green */
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+.swipe-hint .rudder-marker {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 4px;
+  margin-left: -2px;                      /* center on `left` */
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
+  z-index: 1;
+  transition: left 180ms ease-out;
+  pointer-events: none;
+}
+/* Rev66 / 2.0.4 - rudder scale labels at both ends of the swipe-hint
+   bar. Small dim numbers indicating the rudder range in degrees. Text
+   populated by renderRudder() with the current pypilot rudder.range
+   (default 70 deg). Pointer-events off so they don't block taps. */
+.swipe-hint .rudder-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  z-index: 1;
+  pointer-events: none;
+  padding: 0 6px;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.5px;
+}
+.swipe-hint .rudder-label-left  { left: 6px; }
+.swipe-hint .rudder-label-right { right: 6px; }
+/* Rev66 / 2.0.4 - intermediate tick container. renderRudder() fills
+   this with small marks every 10 deg + numeric labels every 20 deg. */
+.swipe-hint .rudder-ticks {
+  position: absolute;
+  inset: 4px 8px;
+  z-index: 0;
+  pointer-events: none;
+}
+.swipe-hint .rudder-ticks .rt {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: rgba(255, 255, 255, 0.25);
+}
+.swipe-hint .rudder-ticks .rt.major {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.45);
+}
+.swipe-hint .rudder-ticks .rl {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: ui-monospace, monospace;
+  pointer-events: none;
+}
+.swipe-hint-arrow,
+.swipe-hint .nav-toggle {
+  position: relative;                     /* stack above the rudder track */
+  z-index: 2;
 }
 .swipe-hint-arrow {
   font-size: 28px;
