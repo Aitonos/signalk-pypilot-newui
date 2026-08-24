@@ -21,7 +21,8 @@
 * { box-sizing: border-box; }
 
 /* -------- Login modal (Rev17) - replaces the old red banner -------- */
-#login-modal {
+#login-modal,
+#access-request-modal {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.7);
@@ -30,7 +31,29 @@
   justify-content: center;
   z-index: 1000;
 }
-#login-modal[hidden] { display: none; }
+#login-modal[hidden],
+#access-request-modal[hidden] { display: none; }
+/* Rev87: same modal chrome as the JWT login modal. */
+#access-request-modal .modal-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  width: min(400px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#access-request-modal h3 { margin: 0; font-size: 18px; }
+#access-request-modal p { margin: 0; font-size: 13px; color: var(--fg-dim); line-height: 1.4; }
+#access-request-modal .primary {
+  background: var(--accent, #4dd4ff);
+  color: #001622;
+  font-weight: 700;
+}
 #login-modal .modal-card {
   background: var(--bg-2);
   border: 1px solid var(--border);
@@ -322,6 +345,50 @@ main {
 .dash-rose .dash-cell.corner-tr { top: 6px;    right: 6px;   text-align: right; align-items: flex-end;   }
 .dash-rose .dash-cell.corner-bl { bottom: 6px; left: 6px;    text-align: left;  align-items: flex-start; }
 .dash-rose .dash-cell.corner-br { bottom: 6px; right: 6px;   text-align: right; align-items: flex-end;   }
+/* Rev71: wind-speed chip centered at the bottom of the rose square.
+   Rev72: extracted from .dash-cell to its own .wind-chip class so it
+   is NOT picked up by the corner-selector forEach and its tap handler
+   stays fully custom (short-tap only, no long-press menu, no swipe
+   hijack from <main>). Same visual result: text baseline aligned with
+   BL / BR corner cells at bottom: 6px, dark chip skin retained.
+   `touch-action: manipulation` kills the horizontal-swipe interception
+   by main's tab-swipe listener. */
+.dash-rose .wind-chip {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 40%;
+  min-width: 72px;
+  padding: 3px 10px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid #4a5867;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.dash-rose .wind-chip .label {
+  font-size: 10px;
+  line-height: 1;
+  margin-bottom: 2px;
+  color: var(--fg-dim);
+  letter-spacing: 1.2px;
+}
+.dash-rose .wind-chip .value {
+  font-size: clamp(18px, 3.5vw, 34px);
+  line-height: 1;
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+}
+.dash-rose .wind-chip:active { transform: translateX(-50%) scale(0.96); }
 .dash-rose .dash-cell {
   display: flex;
   flex-direction: column;
@@ -464,6 +531,66 @@ main {
 }
 @media (max-width: 500px) {
   .dash-corner-cfg { grid-template-columns: 1fr; }
+}
+
+/* Rev85 revamp: overlay cards (AWA / TWA / COG / Current) in the
+   corner-selector popup. Each card = big SVG sample + human title +
+   data-requirement line + hidden checkbox. Clicking anywhere on the
+   card toggles the enable state and border color reflects it. */
+.overlay-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+@media (max-width: 460px) {
+  .overlay-cards { grid-template-columns: 1fr; }
+}
+.overlay-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px 12px;
+  background: var(--bg-3, #1a2230);
+  border: 1.5px solid var(--border, #2b3542);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.overlay-card:hover { background: rgba(77, 212, 255, 0.06); }
+.overlay-card input[type=checkbox] {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  accent-color: var(--accent, #4dd4ff);
+  transform: scale(1.15);
+  cursor: pointer;
+}
+.overlay-card:has(input:checked) {
+  border-color: var(--accent, #4dd4ff);
+  background: rgba(77, 212, 255, 0.10);
+}
+.overlay-card .overlay-preview {
+  width: 60px;
+  height: 60px;
+  display: block;
+  margin-bottom: 2px;
+}
+.overlay-card .overlay-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg, #e5eaf3);
+  text-align: center;
+}
+.overlay-card .overlay-needs {
+  font-size: 11px;
+  color: var(--fg-dim, #8b98a5);
+  text-align: center;
+  line-height: 1.3;
 }
 
 /* Rev53: central nav toggle button inside the swipe-hint strip (Control
@@ -667,7 +794,12 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Rev70: kill any browser double-tap-to-zoom delay + swallow context
+     menu on long-press so the pointerdown handler is the sole trigger. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
+.engage-toggle::-moz-focus-inner { border: 0; padding: 0; }
 .engage-toggle.engaged {
   background: var(--engaged);
   border-color: var(--engaged);

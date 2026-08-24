@@ -12,7 +12,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev67";
+const PLUGIN_REVISION = "Rev87";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -276,6 +276,14 @@ module.exports = function (app: any) {
         try {
           apProvider = new AutopilotProvider(client, app, {
             allowDodge: !!props.allowDirectServo,
+            // Rev68: setTarget/adjustTarget assign optimistically and need
+            // to push a canonical steering.autopilot.target delta right
+            // then so JS + KIP + WilhelmSK snap without waiting for the
+            // pypilot echo round-trip.
+            // Rev84: forward the field mask ("engaged" / "target" /
+            // "all") so pushAutopilotUpdate filters the emitted delta
+            // paths accordingly.
+            onDataChanged: (fields) => pushAutopilotUpdate(fields),
           });
           app.registerAutopilotProvider(
             apProvider.toProviderInterface(),
@@ -868,34 +876,55 @@ module.exports = function (app: any) {
     };
   }
 
-  function pushAutopilotUpdate(): void {
+  function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
     if (!apProvider) return;
     try {
-      // Push structured update through the Autopilot API (WilhelmSK etc.)
+      // Push structured update through the Autopilot API (WilhelmSK etc.).
+      // The App API accepts partial updates - only include changed fields
+      // so a target-only or engaged-only notify does not overwrite the
+      // sibling field's provider-visible value with a stale copy.
       if (typeof app.autopilotUpdate === "function") {
-        app.autopilotUpdate(apProvider.deviceId, {
-          state: apProvider.data.state,
-          mode: apProvider.data.mode,
-          target: apProvider.data.target,
-          engaged: apProvider.data.engaged,
-          actions: apProvider.data.options.actions,
-        });
+        const apUpdate: any = {};
+        if (fields === "all" || fields === "engaged") {
+          apUpdate.state = apProvider.data.state;
+          apUpdate.engaged = apProvider.data.engaged;
+          apUpdate.actions = apProvider.data.options.actions;
+        }
+        if (fields === "all" || fields === "target") {
+          apUpdate.target = apProvider.data.target;
+        }
+        if (fields === "all") {
+          apUpdate.mode = apProvider.data.mode;
+        }
+        app.autopilotUpdate(apProvider.deviceId, apUpdate);
       }
     } catch (e: any) {
       app.debug(`[absorb] autopilotUpdate failed: ${e?.message || e}`);
     }
-    // ALSO emit canonical steering.autopilot.* deltas so anything subscribed
-    // to the WebSocket stream (including our own webapp) sees the change.
-    // autopilotUpdate() alone only feeds the REST endpoint - deltas would not
-    // arrive to stream subscribers otherwise.
-    const values: any[] = [
-      { path: "steering.autopilot.state",   value: apProvider.data.state },
-      { path: "steering.autopilot.mode",    value: apProvider.data.mode },
-      { path: "steering.autopilot.target",  value: apProvider.data.target },
-      { path: "steering.autopilot.engaged", value: apProvider.data.engaged },
-      { path: "steering.autopilot.availableActions",
-        value: apProvider.data.options.actions.filter((a) => a.available).map((a) => a.id) },
-    ];
+    // Rev84: canonical SK deltas now filtered by the same field mask.
+    // setTarget publishes ONLY steering.autopilot.target, setState
+    // publishes ONLY state/engaged/availableActions. This kills the
+    // race where a parallel /engage + /target pair produced two deltas
+    // each carrying both fields; whichever landed second would clobber
+    // the sibling with a stale copy (the "DIA jumps to 115° then back
+    // to 75°" Carlos reported on Rev82). "all" is still used by the
+    // 30-s keep-alive and startup push.
+    const values: any[] = [];
+    if (fields === "all" || fields === "engaged") {
+      values.push(
+        { path: "steering.autopilot.state",   value: apProvider.data.state },
+        { path: "steering.autopilot.engaged", value: apProvider.data.engaged },
+        { path: "steering.autopilot.availableActions",
+          value: apProvider.data.options.actions.filter((a) => a.available).map((a) => a.id) },
+      );
+    }
+    if (fields === "all" || fields === "target") {
+      values.push({ path: "steering.autopilot.target",  value: apProvider.data.target });
+    }
+    if (fields === "all") {
+      values.push({ path: "steering.autopilot.mode",    value: apProvider.data.mode });
+    }
+    if (values.length === 0) return;
     try {
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
@@ -910,11 +939,14 @@ module.exports = function (app: any) {
     }
     // Rev34: mirror the active mode into the mode.* radio switch group
     // so KIP's Simple Switch widgets reflect pypilot's current mode.
-    try {
-      const emit = (app as any)._pypilotNewuiEmitModeSwitches as
-        ((activePy: string | null) => void) | undefined;
-      if (emit) emit(apProvider.data.mode);
-    } catch { /* silent */ }
+    // Only when publishing the "all" or a mode-carrying update.
+    if (fields === "all") {
+      try {
+        const emit = (app as any)._pypilotNewuiEmitModeSwitches as
+          ((activePy: string | null) => void) | undefined;
+        if (emit) emit(apProvider.data.mode);
+      } catch { /* silent */ }
+    }
   }
 
   function setupWatches(c: PypilotClient, catalog: PypilotCatalog): void {

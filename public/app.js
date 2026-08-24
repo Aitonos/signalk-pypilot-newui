@@ -90,7 +90,6 @@
       "setup.ssh.password.ph.set": "(set - retype to change)",
       "setup.ssh.save.btn": "Save",
       "setup.restart.btn": "RESTART pypilot",
-      "setup.restart.hint": "Restarts the pypilot process on the TinyPilot via SSH using the user+password above, running sudo systemctl restart pypilot pypilot_web. If SSH fails, falls back to a local socket reconnect.",
       "setup.security.hint": "Signal K stores plugin config in plain text at ~/.signalk/plugin-config-data/. Use a password that is only valid for this isolated TinyPilot.",
       // Tune tab
       "tune.pilot": "Pilot",
@@ -115,6 +114,16 @@
       "dash.wind.arrows": "WIND ARROWS",
       "dash.wind.awa": "AWA (apparent, amber)",
       "dash.wind.twa": "TWA (true, magenta)",
+      "dash.overlays.title": "ROSE OVERLAYS",
+      "dash.overlays.hint": "Toggle what floats on the compass rose. Each card lists what data it needs to render.",
+      "dash.overlay.awa.title": "Apparent wind",
+      "dash.overlay.awa.needs": "Needs a wind sensor (AWA).",
+      "dash.overlay.twa.title": "True wind",
+      "dash.overlay.twa.needs": "Needs a wind sensor + SOG (TWA).",
+      "dash.overlay.cog.title": "Course over ground",
+      "dash.overlay.cog.needs": "Only shows when SOG > 0.15 kn (boat moving).",
+      "dash.overlay.current.title": "Current vector",
+      "dash.overlay.current.needs": "Only shows when the log (SOW) is publishing and current > 0.2 kn.",
       "dash.polar.title": "POLAR PERFORMANCE",
       "dash.polar.hint": "Enable the ones you want available in the corner selectors. Requires the signalk-polar-performance-plugin.",
       "dash.custom.title": "CUSTOM SK PATH",
@@ -165,14 +174,14 @@
       "info.cfg.reset": "Config wiped. Reloading...",
       "info.cfg.downloadFail": "Download failed",
       // Rev63 / 2.0.0: escalated restart triad + helm-manned confirmation
-      "setup.restart.title":         "Restart / reboot (escalated)",
+      "setup.restart.title":         "Emergency restart / reboot",
       "setup.restart.web.title":     "restart pypilot_web",
       "setup.restart.web.sub":       "~3-5 s · AP keeps steering",
       "setup.restart.pypilot.title": "RESTART pypilot",
       "setup.restart.pypilot.sub":   "~10-15 s · AP drops the heading",
       "setup.restart.reboot.title":  "reboot Pi",
       "setup.restart.reboot.sub":    "~35-60 s · full outage",
-      "setup.restart.hint":          "All three actions use the SSH user+password above. Level 1 does not interrupt steering; levels 2 and 3 do. A confirmation asking whether someone is at the helm is shown before executing.",
+      "setup.restart.hint":          "Both buttons use the SSH user+password above. RESTART pypilot briefly drops the heading; reboot Pi is a full outage. A helm-manned confirmation is shown before executing. Restart pypilot_web (no steering interruption) is available as a preset in the Debug console below.",
       "setup.restart.outage.web":     "The pypilot web socket restarts. The AP core keeps steering the boat during those seconds.",
       "setup.restart.outage.pypilot": "Both pypilot core and its web server restart. The AP releases the heading briefly and re-engages after reconnect.",
       "setup.restart.outage.reboot":  "The whole Raspberry Pi reboots (kernel, services, network). NO autopilot for ~35-60 seconds. Cold restart from scratch.",
@@ -257,7 +266,6 @@
       "setup.ssh.password.ph.set": "(configurado - reescribe para cambiarlo)",
       "setup.ssh.save.btn": "Guardar",
       "setup.restart.btn": "REINICIAR pypilot",
-      "setup.restart.hint": "Reinicia el proceso pypilot en la TinyPilot via SSH usando el usuario+password de arriba, ejecutando sudo systemctl restart pypilot pypilot_web. Si el SSH falla, cae a un reconnect local del socket.",
       "setup.security.hint": "Signal K guarda la config del plugin en texto plano en ~/.signalk/plugin-config-data/. Usa un password que solo valga para esta TinyPilot aislada.",
       // Tune tab
       "tune.pilot": "Piloto",
@@ -282,6 +290,16 @@
       "dash.wind.arrows": "FLECHAS DE VIENTO",
       "dash.wind.awa": "AWA (aparente, amber)",
       "dash.wind.twa": "TWA (real, magenta)",
+      "dash.overlays.title": "CAPAS SOBRE LA ROSA",
+      "dash.overlays.hint": "Activa las que quieras ver sobre la rosa. Cada tarjeta indica qué datos necesita.",
+      "dash.overlay.awa.title": "Viento aparente",
+      "dash.overlay.awa.needs": "Necesita sensor de viento (AWA).",
+      "dash.overlay.twa.title": "Viento real",
+      "dash.overlay.twa.needs": "Necesita sensor de viento + SOG (TWA).",
+      "dash.overlay.cog.title": "Rumbo real (COG)",
+      "dash.overlay.cog.needs": "Solo se ve si SOG > 0,15 nudos (barco en movimiento).",
+      "dash.overlay.current.title": "Vector corriente",
+      "dash.overlay.current.needs": "Solo se ve si la corredera (SOW) publica y la corriente supera 0,2 nudos.",
       "dash.polar.title": "DATOS DE POLARES",
       "dash.polar.hint": "Activa las que quieras que aparezcan en los selectores de esquinas. Requiere el plugin signalk-polar-performance-plugin.",
       "dash.custom.title": "SK PATH PERSONALIZADO",
@@ -332,14 +350,14 @@
       "info.cfg.reset": "Config borrada. Recargando...",
       "info.cfg.downloadFail": "Download fallo",
       // Rev63 / 2.0.0: escalated restart triad + helm-manned confirmation
-      "setup.restart.title":         "Restart / reboot (escalado)",
+      "setup.restart.title":         "Emergencia: reinicio / reboot",
       "setup.restart.web.title":     "restart pypilot_web",
       "setup.restart.web.sub":       "~3-5 s · el AP sigue pilotando",
       "setup.restart.pypilot.title": "REINICIAR pypilot",
       "setup.restart.pypilot.sub":   "~10-15 s · el AP suelta el rumbo",
       "setup.restart.reboot.title":  "reboot de la Pi",
       "setup.restart.reboot.sub":    "~35-60 s · corte total",
-      "setup.restart.hint":          "Las tres acciones usan el usuario+password SSH de arriba. El nivel 1 no interrumpe el pilotaje; los niveles 2 y 3 sí. Se muestra una confirmacion pidiendo que haya alguien al timon antes de ejecutar.",
+      "setup.restart.hint":          "Los dos botones usan el usuario+password SSH de arriba. RESTART pypilot suelta brevemente el pilotaje; reboot de la Pi es corte total. Se muestra una confirmacion pidiendo que haya alguien al timon antes de ejecutar. El restart de pypilot_web (sin interrumpir pilotaje) esta como preset en la consola de Debug de abajo.",
       "setup.restart.outage.web":     "Se reinicia solo el servidor web de pypilot. El core sigue pilotando durante esos segundos.",
       "setup.restart.outage.pypilot": "Se reinician el core pypilot y su servidor web. El AP suelta el rumbo brevemente y se reengancha tras reconectar.",
       "setup.restart.outage.reboot":  "Se reinicia la Raspberry Pi entera (kernel, servicios, red). NO hay autopiloto durante ~35-60 segundos. Arranque en frio.",
@@ -398,7 +416,7 @@
       "setup.ssh.user":     "SSH-Benutzer",
       "setup.ssh.password": "SSH-Passwort",
       // Restart triad + helm
-      "setup.restart.title":         "Neustart / Reboot (eskaliert)",
+      "setup.restart.title":         "Notfall-Neustart / Reboot",
       "helm.warn":    "STELL SICHER, DASS JEMAND AM RUDER STEHT, bevor du fortfahrst. Nicht der Moment, unter Deck zu sein.",
       "helm.cancel":  "Abbrechen",
       "helm.confirm": "Bestatigt - Rudergaenger ist am Platz",
@@ -442,7 +460,7 @@
       "setup.ssh.user":     "Utilisateur SSH",
       "setup.ssh.password": "Mot de passe SSH",
       // Restart triad + helm
-      "setup.restart.title":         "Redemarrage / reboot (escalade)",
+      "setup.restart.title":         "Urgence : redemarrage / reboot",
       "helm.warn":    "ASSURE-TOI QU'UNE PERSONNE EST A LA BARRE avant de continuer. Ce n'est pas le moment d'etre en bas.",
       "helm.cancel":  "Annuler",
       "helm.confirm": "Confirme - quelqu'un est a la barre",
@@ -534,6 +552,7 @@
     windAngleTrue: null,
     windSpeedTrue: null,
     sog: null,                 // m/s
+    sow: null,                 // m/s (Rev85: navigation.speedThroughWater)
     // Rev65 / 2.0.2 - wind-corner display preference. "awa" or "twa".
     // Initial value derives from the browser-stored preference; if
     // absent, defaults to "awa" and later auto-follows the AP mode
@@ -552,6 +571,21 @@
 
   const RAD2DEG = 180 / Math.PI;
   const DEG2RAD = Math.PI / 180;
+
+  // Rev82: piece-label flip helper. Given a piece's rotation in
+  // degrees, returns the LOCAL rotation to apply to its "A"/"T"
+  // letter so the letter has only TWO possible orientations
+  // (0° or 180° in the piece's local frame). Rule per Carlos:
+  //   piece_angle normalized to [0, 360):
+  //     [271, 360) ∪ [0, 90]  → 0   (front half, letter as-is)
+  //     [91, 270]             → 180 (rear half, letter flipped)
+  // The letter's vertical axis stays on the piece's tips axis in
+  // both cases; the flip just prevents the glyph from ending up
+  // completely upside-down when the piece points aft.
+  function _pieceLabelFlipDeg(pieceDeg) {
+    const n = ((pieceDeg % 360) + 360) % 360;
+    return (n >= 91 && n <= 270) ? 180 : 0;
+  }
 
   // ---- helpers ----
   const $ = (sel) => document.querySelector(sel);
@@ -611,6 +645,9 @@
       "navigation.headingMagnetic",
       "navigation.speedOverGround",
       "navigation.courseOverGroundTrue",
+      // Rev85: SOW (speedThroughWater) needed to compute the current
+      // vector as (SOG − SOW).
+      "navigation.speedThroughWater",
       "steering.rudderAngle",
       "environment.wind.angleApparent",
       "environment.wind.speedApparent",
@@ -724,7 +761,7 @@
       case "steering.autopilot.pypilot.ap.tack.state":
         renderTackButton(value); break;
       case "navigation.headingMagnetic":
-        state.heading = numericOrNull(value); break;
+        state.heading = numericOrNull(value); renderCogAndCurrent(); break;
       case "steering.rudderAngle":
         renderRudder(numericOrNull(value)); break;
       case "environment.wind.angleApparent":
@@ -737,9 +774,11 @@
       case "environment.wind.speedTrue":
         state.windSpeedTrue = numericOrNull(value); break;
       case "navigation.speedOverGround":
-        state.sog = numericOrNull(value); break;
+        state.sog = numericOrNull(value); renderCogAndCurrent(); break;
       case "navigation.courseOverGroundTrue":
-        state.cog = numericOrNull(value); break;
+        state.cog = numericOrNull(value); renderCogAndCurrent(); break;
+      case "navigation.speedThroughWater":
+        state.sow = numericOrNull(value); renderCogAndCurrent(); break;
       case "environment.wind.directionTrue":
         state.windDirTrue = numericOrNull(value); break;
       case "environment.depth.belowKeel":
@@ -1018,6 +1057,13 @@
     const twaCb = document.getElementById("dash-wind-arrow-twa");
     if (awaCb) { awaCb.checked = _windArrowShow.awa; awaCb.onchange = () => _setWindArrow("awa", awaCb.checked); }
     if (twaCb) { twaCb.checked = _windArrowShow.twa; twaCb.onchange = () => _setWindArrow("twa", twaCb.checked); }
+    // Rev85: navigation overlays — COG line (yellow chevrons from bow)
+    // and current vector (SOG − SOW blue arrow at boat). Each stored
+    // independently in localStorage. Toggle re-renders immediately.
+    const cogCb = document.getElementById("dash-show-cog");
+    const curCb = document.getElementById("dash-show-current");
+    if (cogCb) { cogCb.checked = _showCog;     cogCb.onchange = () => _setShowCog(cogCb.checked); }
+    if (curCb) { curCb.checked = _showCurrent; curCb.onchange = () => _setShowCurrent(curCb.checked); }
 
     // Polar toggles.
     const polBox = document.getElementById("dash-polar-toggles");
@@ -1120,6 +1166,83 @@
     renderWindRose();
   }
 
+  // Rev85: preferences for the new COG line + current vector overlays.
+  // Each stored independently in localStorage; toggled by the selector
+  // popup checkboxes (dash-show-cog / dash-show-current) or via
+  // long-press on any corner cell or the boat sprite.
+  const SHOW_COG_LS     = "pypilot-newui.showCog";
+  const SHOW_CURRENT_LS = "pypilot-newui.showCurrent";
+  let _showCog = false;
+  let _showCurrent = false;
+  try {
+    const c = localStorage.getItem(SHOW_COG_LS);
+    const u = localStorage.getItem(SHOW_CURRENT_LS);
+    if (c != null) _showCog = c === "1";
+    if (u != null) _showCurrent = u === "1";
+  } catch {}
+  function _setShowCog(on) {
+    _showCog = !!on;
+    try { localStorage.setItem(SHOW_COG_LS, on ? "1" : "0"); } catch {}
+    renderCogAndCurrent();
+  }
+  function _setShowCurrent(on) {
+    _showCurrent = !!on;
+    try { localStorage.setItem(SHOW_CURRENT_LS, on ? "1" : "0"); } catch {}
+    renderCogAndCurrent();
+  }
+
+  // Rev85: compute current vector from SOG (over ground) minus SOW
+  // (over water). Both need direction. SOG uses COG; SOW uses HDG
+  // (water flows past the boat parallel to its heading). Returns
+  // { dirFromBoat, magKn } or null if any input missing or negligible.
+  // `dirFromBoat` is the direction the current COMES FROM in boat
+  // frame (radians, 0 = bow). The arrow is rendered with its TIP
+  // pointing at the boat, so rotating by dirFromBoat places the
+  // tail at the "come-from" angle and the tip on the boat.
+  function _computeCurrent() {
+    if (state.sog == null || state.cog == null || state.sow == null || state.heading == null) return null;
+    const sogE = state.sog * Math.sin(state.cog);
+    const sogN = state.sog * Math.cos(state.cog);
+    const sowE = state.sow * Math.sin(state.heading);
+    const sowN = state.sow * Math.cos(state.heading);
+    const curE = sogE - sowE;
+    const curN = sogN - sowN;
+    const magMs = Math.sqrt(curE * curE + curN * curN);
+    if (magMs < 0.1) return null; // < ~0.2 kn - noise, hide
+    const dirFlowWorld = Math.atan2(curE, curN);       // rad, 0=N, where flow GOES
+    const dirFromWorld = dirFlowWorld + Math.PI;        // where flow COMES FROM
+    const dirFromBoat  = dirFromWorld - state.heading;  // relative to bow
+    return { dirFromBoat, magKn: magMs * 1.94384 };
+  }
+
+  function renderCogAndCurrent() {
+    // COG line: yellow chevron chain from bow toward course-over-ground
+    // direction. Only visible when SOG > 0.15 kn (~ moving) and toggle on.
+    const cogEl = document.getElementById("rose-cog-line");
+    if (cogEl) {
+      const cogSog = (state.sog || 0) * 1.94384;
+      if (_showCog && state.cog != null && state.heading != null && cogSog > 0.15) {
+        const dirBoat = (state.cog - state.heading) * RAD2DEG;
+        cogEl.setAttribute("transform", `rotate(${dirBoat.toFixed(1)})`);
+        cogEl.style.display = "";
+      } else {
+        cogEl.style.display = "none";
+      }
+    }
+    // Current vector: two parallel wavy blue lines + 3 triangles
+    // pointing at the boat.
+    const curEl = document.getElementById("rose-current-arrow");
+    if (curEl) {
+      const cur = _showCurrent ? _computeCurrent() : null;
+      if (cur) {
+        curEl.setAttribute("transform", `rotate(${(cur.dirFromBoat * RAD2DEG).toFixed(1)})`);
+        curEl.style.display = "";
+      } else {
+        curEl.style.display = "none";
+      }
+    }
+  }
+
   // SVG compass rose. The card (cardinals + ticks) rotates so N points to
   // magnetic north regardless of boat heading; the boat is fixed pointing
   // up; TWO independent wind arrows (AWA amber solid, TWA sea-green solid)
@@ -1131,22 +1254,56 @@
       card.setAttribute("transform", `rotate(${-state.heading * RAD2DEG})`);
     }
 
-    const awa = document.getElementById("rose-wind-arrow");
+    // Rev73: gota-chain redesign. IDs updated from rose-wind-arrow /
+    // rose-wind-arrow-twa (line + arrowhead + text label) to
+    // rose-piece-awa / rose-piece-twa (concave-quadrilateral SVG
+    // shapes that interlock with the target diamond into a "gota"
+    // when target = AWA = TWA). Rotation logic unchanged: each piece
+    // sits at its own wind angle in the boat frame.
+    // Rev81/82: label inside each piece uses a TWO-ORIENTATION flip
+    // (0° or 180° in the piece's local frame) so its vertical axis
+    // stays on the piece's tips axis (spine). Front-half angles
+    // (271°..90° through bow) → no local rotation. Rear-half angles
+    // (91°..270° through stern) → local 180° flip so the glyph is
+    // not fully upside-down when the piece points aft.
+    const awa = document.getElementById("rose-piece-awa");
+    const awaRaya = document.getElementById("rose-raya-awa");
     if (awa) {
       if (_windArrowShow.awa && state.windAngle != null) {
-        awa.setAttribute("transform", `rotate(${state.windAngle * RAD2DEG})`);
+        const awaDeg = state.windAngle * RAD2DEG;
+        awa.setAttribute("transform", `rotate(${awaDeg})`);
+        const awaLbl = document.getElementById("rose-piece-awa-label");
+        if (awaLbl) awaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -60)`);
         awa.style.display = "";
+        // Rev83: matching amber ring tick that marks the exact AWA
+        // angle on the rose, floating outside the ring, disconnected
+        // from the piece.
+        if (awaRaya) {
+          awaRaya.setAttribute("transform", `rotate(${awaDeg})`);
+          awaRaya.style.display = "";
+        }
       } else {
         awa.style.display = "none";
+        if (awaRaya) awaRaya.style.display = "none";
       }
     }
-    const twa = document.getElementById("rose-wind-arrow-twa");
+    const twa = document.getElementById("rose-piece-twa");
+    const twaRaya = document.getElementById("rose-raya-twa");
     if (twa) {
       if (_windArrowShow.twa && state.windAngleTrue != null) {
-        twa.setAttribute("transform", `rotate(${state.windAngleTrue * RAD2DEG})`);
+        const twaDeg = state.windAngleTrue * RAD2DEG;
+        twa.setAttribute("transform", `rotate(${twaDeg})`);
+        const twaLbl = document.getElementById("rose-piece-twa-label");
+        if (twaLbl) twaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(twaDeg)}, 0, -45)`);
         twa.style.display = "";
+        // Rev83: matching sea-green ring tick for TWA.
+        if (twaRaya) {
+          twaRaya.setAttribute("transform", `rotate(${twaDeg})`);
+          twaRaya.style.display = "";
+        }
       } else {
         twa.style.display = "none";
+        if (twaRaya) twaRaya.style.display = "none";
       }
     }
 
@@ -1184,9 +1341,11 @@
   // so rotate by target directly.
   function renderTargetArrow() {
     const g = document.getElementById("rose-target-arrow");
+    const raya = document.getElementById("rose-raya");
     if (!g) return;
     if (!state.engaged || state.target == null) {
       g.style.display = "none";
+      if (raya) raya.style.display = "none";
       return;
     }
     const modeStr = String(state.mode || "").toLowerCase();
@@ -1205,10 +1364,19 @@
     } else {
       // No heading yet - cannot resolve; hide.
       g.style.display = "none";
+      if (raya) raya.style.display = "none";
       return;
     }
-    g.setAttribute("transform", `rotate(${deg.toFixed(1)})`);
+    const rot = deg.toFixed(1);
+    g.setAttribute("transform", `rotate(${rot})`);
     g.style.display = "";
+    // Rev73: raya rotates with the target and shows on top of the
+    // diamond as a black tick with a subtle white halo. Only visible
+    // when the AP is engaged (i.e., when there is a target to point at).
+    if (raya) {
+      raya.setAttribute("transform", `rotate(${rot})`);
+      raya.style.display = "";
+    }
   }
 
   // Build an SVG arc path from compass angle a1 to a2 (degrees). r is radius.
@@ -1602,6 +1770,151 @@
     const t = getToken();
     return t ? { "Authorization": `JWT ${t}` } : {};
   }
+
+  // Rev87: SK Access Request flow. The username/password JWT (Rev17) is a
+  // short-lived session token — SK server invalidates it on every restart
+  // and it also expires by TTL (typically 1 h). That forces the user to
+  // log in again after every plugin deploy, which Carlos rightly called
+  // out as unacceptable ("esto debe ser seamless; no podemos estar a
+  // expensas de que caduquen se borren los token"). SK's Access Request
+  // API instead gives us a PERMANENT device token: user (SK admin)
+  // approves the visor ONCE at /admin/#/security/access-requests, and
+  // from then on the token survives SK restarts, browser reloads, and
+  // deploys. Stored in localStorage under the same TOKEN_KEY.
+  const CLIENT_ID_KEY = "pypilot-newui.clientId";
+  function getClientId() {
+    try {
+      let cid = localStorage.getItem(CLIENT_ID_KEY);
+      if (!cid) {
+        // RFC 4122 v4 UUID (crypto if available, fallback otherwise)
+        if (window.crypto && crypto.randomUUID) cid = crypto.randomUUID();
+        else cid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+        localStorage.setItem(CLIENT_ID_KEY, cid);
+      }
+      return cid;
+    } catch { return "pypilot-newui-fallback"; }
+  }
+
+  // Test whether the current token still authenticates. Uses a lightweight
+  // GET that requires auth in "secure" SK setups (the /plugins/... path
+  // returns 401 when the token is missing or expired). 200/404/403 all
+  // count as "at least reachable"; only an explicit 401 forces us to
+  // start a new access request.
+  async function isAuthValid() {
+    if (!getToken()) return false;
+    try {
+      const r = await fetch("/plugins/pypilot-newui/status", {
+        headers: authHeaders(),
+        credentials: "include",
+      });
+      return r.status !== 401;
+    } catch { return false; }
+  }
+
+  // Start (or resume) an SK Access Request. Returns true if the request
+  // completes and a token was stored; false if pending / denied /
+  // network error. When pending, opens the "waiting for admin approval"
+  // modal so the user knows where to go.
+  async function requestAccess() {
+    const clientId = getClientId();
+    try {
+      const r = await fetch("/signalk/v1/access/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          description: "PyPilot New-UI visor",
+          permissions: "admin",
+        }),
+      });
+      if (!r.ok && r.status !== 202) return false;
+      const j = await r.json().catch(() => ({}));
+      if (j.state === "COMPLETED" && (j.accessRequest?.token || j.token)) {
+        setToken(j.accessRequest?.token || j.token);
+        hideAccessRequestModal();
+        return true;
+      }
+      // PENDING → show modal, start polling
+      const href = j.href || j.requestId ? (`/signalk/v1/requests/${j.requestId}`) : null;
+      if (href) {
+        showAccessRequestModal();
+        return pollAccessRequest(href);
+      }
+      return false;
+    } catch { return false; }
+  }
+
+  // Poll the access-request href every 4 s for up to 20 minutes. When
+  // the admin approves, the response transitions to COMPLETED with the
+  // permanent token. When denied, we bail out and let the user retry.
+  async function pollAccessRequest(href) {
+    for (let i = 0; i < 300; i++) {
+      await new Promise((res) => setTimeout(res, 4000));
+      try {
+        const r = await fetch(href);
+        if (!r.ok) continue;
+        const j = await r.json().catch(() => ({}));
+        if (j.state === "COMPLETED" && (j.accessRequest?.token || j.token)) {
+          setToken(j.accessRequest?.token || j.token);
+          hideAccessRequestModal();
+          return true;
+        }
+        if (j.state === "DENIED") {
+          showAccessRequestModal("Admin denied the access request. Try again from Setup.");
+          return false;
+        }
+      } catch { /* retry */ }
+    }
+    return false;
+  }
+
+  // Modal helpers — showAccessRequestModal / hideAccessRequestModal.
+  // The modal is added dynamically the first time it is shown so we do
+  // not have to touch the HTML for the boot happy-path.
+  function showAccessRequestModal(errText) {
+    let m = document.getElementById("access-request-modal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "access-request-modal";
+      m.innerHTML = `
+        <div class="modal-card">
+          <h3>Signal K device access</h3>
+          <p>This visor is waiting for one-time approval from your Signal K admin so it can send commands to the autopilot.</p>
+          <ol style="margin:0 0 8px 20px;font-size:13px;color:var(--fg-dim);line-height:1.5">
+            <li>Open the SK admin panel (link below).</li>
+            <li>Go to <b>Security → Access Requests</b>.</li>
+            <li>Approve the pending request from <b>PyPilot New-UI visor</b>.</li>
+          </ol>
+          <a id="access-request-admin-link" class="primary" style="text-decoration:none;text-align:center;padding:10px 12px;border-radius:8px;display:block" target="_blank">Open SK admin</a>
+          <div id="access-request-status" style="font-size:12px;color:var(--fg-dim);margin-top:6px;text-align:center">Waiting for approval…</div>
+        </div>`;
+      document.body.appendChild(m);
+      const link = m.querySelector("#access-request-admin-link");
+      if (link) link.href = `${location.origin}/admin/#/security/access`;
+    }
+    m.removeAttribute("hidden");
+    const status = m.querySelector("#access-request-status");
+    if (status && errText) status.textContent = errText;
+  }
+  function hideAccessRequestModal() {
+    const m = document.getElementById("access-request-modal");
+    if (m) m.setAttribute("hidden", "");
+  }
+
+  // Boot-time auth guard: called ONCE on visor load before we try any
+  // writes. If already authed, no-op. Otherwise, silently start an
+  // access request. Never blocks the boot itself — reads work through
+  // the WebSocket subscription regardless of auth on Tunatunes-style
+  // setups.
+  async function ensureAccessOnBoot() {
+    if (await isAuthValid()) return;
+    // Wipe the stale token so authHeaders() stops sending it.
+    setToken("");
+    await requestAccess();
+  }
   async function skFetch(url, opts) {
     const o = opts || {};
     const merged = {
@@ -1659,7 +1972,16 @@
     if (!res) return res;
     if (res.status === 401) {
       console.warn(`[pypilot-newui] auth 401 on:`, res.url);
-      openLoginModal("Your saved token expired or was rejected - re-enter your password.");
+      // Rev87: fire-and-forget a new SK Access Request instead of the old
+      // username/password modal. If the admin has already approved this
+      // clientId once (typical after first install), the server returns
+      // a fresh permanent token immediately and the modal never shows.
+      // Only when the admin has to approve for the first time will the
+      // access-request modal appear with instructions.
+      try {
+        setToken("");
+        requestAccess().catch(() => {});
+      } catch {}
     } else if (res.status < 400) {
       console.info(`[pypilot-newui] write ok ${res.status}:`, res.url);
     } else {
@@ -1783,6 +2105,18 @@
     // guard blocks double-taps from firing two opposite POSTs.
     const eng = $("#engage-toggle");
     let _apPending = false;
+    // Rev70: switched trigger from `click` to `pointerdown` (fires ONCE on
+    // touch or mouse without waiting for the browser-synthesised click,
+    // and the subsequent click is swallowed via preventDefault below).
+    // This eliminates the "ghost click" path where a single tap produces
+    // pointerdown + click both firing doEngage.
+    // Rev71: cooldown trimmed from 1200 to 800 ms - the pointerdown +
+    // preventDefault chain already kills the ghost path, so the cooldown
+    // only needs to cover genuine rapid double-taps (~300 ms) with margin,
+    // not the whole ghost-click window. Carlos: "1.5 segundos sea mucho
+    // tiempo de espera".
+    let _lastEngageTs = 0;
+    const AP_CLICK_COOLDOWN_MS = 800;
     const _apRetry = async (fn) => {
       // Try twice: first attempt, then a 400ms-delayed retry on any error/non-2xx.
       for (let i = 0; i < 2; i++) {
@@ -1796,34 +2130,46 @@
     };
     const doEngage = async () => {
       if (_apPending) return;
+      // Rev69: cooldown gate before the async guard fires. Blocks the
+      // second edge of a rapid double-click (and any touch-emulated
+      // ghost click after touchend) from producing an engage-disengage
+      // bounce once _apPending has cleared.
+      const nowTs = Date.now();
+      if (nowTs - _lastEngageTs < AP_CLICK_COOLDOWN_MS) return;
+      _lastEngageTs = nowTs;
       _apPending = true;
       eng.classList.add("pending");
       const wasEngaged = state.engaged;
       // Rev65 / 2.0.2: snapshot the heading the USER IS SEEING at the exact
       // moment of the click, and use that same value for (a) the target we
       // send to the server, (b) the optimistic local assign, (c) any later
-      // reference in this handler. Previously we re-read state.heading on
-      // each await point - on a laggy Tailscale link (200-800 ms RTT) the
-      // heading could have drifted a few degrees by the time the POST
-      // executed, so we sent one value to the server, assigned another
-      // locally, and the diamond jumped to a third when the real delta
-      // arrived. Carlos's report: "el diamante no se fija bien".
-      const capturedHeading = state.heading;
+      // reference in this handler.
+      // Rev69: mode-aware target capture. In WIND / TRUE WIND modes pypilot
+      // interprets ap.heading_command as the WIND ANGLE to hold (radians,
+      // signed +/-pi), NOT as an absolute compass heading. Sending
+      // state.heading in wind mode stores a compass-degrees value where
+      // pypilot expects a wind angle, and the diamond then renders at
+      // 60-90 degrees off from the actual wind. Carlos on Rev68: engaged
+      // in wind mode with HDG=296 and the diamond landed at ~245 (i.e.
+      // 296 read as wind angle -> upper-left of bow). Fix: capture
+      // apparent wind angle for "wind" mode, true wind angle for the
+      // "true wind" / "trueWind" modes, and only fall back to heading
+      // for compass / gps / nav.
+      const modeStrEng = String(state.mode || "").toLowerCase();
+      const isWindEng = modeStrEng.includes("wind");
+      const isTrueWindEng = isWindEng && modeStrEng.includes("true");
+      const capturedTarget = isWindEng
+        ? (isTrueWindEng ? state.windAngleTrue : state.windAngle)
+        : state.heading;
       // Optimistic: flip the visual state AND the target reference before
-      // waiting on the network. Rev66 / 2.0.4: without this early assign
-      // the target diamond was painted at the STALE state.target (last
-      // engage's value) until the server's target-set reply arrived
-      // hundreds of ms later, and then jumped to the fresh value. The
-      // user saw the diamond "sale donde le sale de los huevos". Now
-      // the diamond snaps to the captured heading in the same tick as
-      // the click, and if the server rejects the operation we roll
-      // both engaged and target back below.
+      // waiting on the network (Rev66 / 2.0.4 fix; still needed as a
+      // fallback if the backend delta is delayed).
       const prevTarget = state.target;
       const prevLocalTarget = state.localTargetRad;
       state.engaged = !wasEngaged;
-      if (!wasEngaged && capturedHeading != null) {
-        state.target = capturedHeading;
-        state.localTargetRad = capturedHeading;
+      if (!wasEngaged && capturedTarget != null) {
+        state.target = capturedTarget;
+        state.localTargetRad = capturedTarget;
       }
       renderEngage();
       renderTargetArrow();
@@ -1833,23 +2179,28 @@
           const r = await _apRetry(apDisengage);
           ok = !!(r && r.ok);
         } else {
-          // Fire target-set + engage in PARALLEL so a slow Tailscale RTT
-          // does not serialise 2 round-trips before the AP actually engages.
+          // Rev84: BACK to parallel Promise.all after Rev83's serial fix
+          // introduced a click-reliability regression (Carlos: "no
+          // siempre coge el click; es un problema de arquitectura").
+          // The 115°-flash race that motivated Rev83's serial is now
+          // fixed at the ARCHITECTURAL level: the backend's
+          // AutopilotProvider now publishes ONLY the field it actually
+          // changed (setTarget → target, setState → engaged/state/
+          // actions), so parallel POSTs no longer produce deltas that
+          // clobber each other with stale sibling values. Best of both
+          // worlds: fast engage response AND no visible target jump.
+          // Rev69: if capturedTarget is null (no wind data yet) skip the
+          // target-set and let pypilot pick its own current default.
           const [rEng, rTgt] = await Promise.all([
             _apRetry(apEngage),
-            capturedHeading != null ? _apRetry(() => apSetTargetRad(capturedHeading)) : Promise.resolve({ ok: true }),
+            capturedTarget != null ? _apRetry(() => apSetTargetRad(capturedTarget)) : Promise.resolve({ ok: true }),
           ]);
           ok = !!(rEng && rEng.ok);
-          // The optimistic assign above already painted the diamond in the
-          // right spot; just re-render in case renderControl needs to
-          // catch up other widgets that read state.target.
-          if (rTgt && rTgt.ok && capturedHeading != null) renderControl();
+          if (rTgt && rTgt.ok && capturedTarget != null) renderControl();
         }
       } catch (_) { ok = false; }
       if (!ok) {
-        // Revert the optimistic flip so the UI reflects reality. Rev66:
-        // also revert the target snapshot we assigned above so the
-        // diamond does not stay stuck on a target the server rejected.
+        // Revert the optimistic flip so the UI reflects reality.
         state.engaged = wasEngaged;
         state.target = prevTarget;
         state.localTargetRad = prevLocalTarget;
@@ -1861,7 +2212,23 @@
       eng.classList.remove("pending");
       _apPending = false;
     };
-    eng.addEventListener("click", doEngage);
+    // Rev70: primary trigger is pointerdown (fires exactly once per press
+    // on both touch and mouse, before the browser synthesises `click`).
+    // The `click` listener swallows the phantom that follows so it cannot
+    // race the cooldown. Keyboard activation stays on keydown.
+    eng.addEventListener("pointerdown", (e) => {
+      // Only main button / primary pointer. Skip anything else so
+      // right-click / middle-click never toggle the AP.
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      doEngage();
+    });
+    eng.addEventListener("click", (e) => {
+      // Swallowed - pointerdown already handled the intent. Prevents
+      // the synthesised click from also firing doEngage.
+      e.preventDefault();
+      e.stopPropagation();
+    });
     eng.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); doEngage(); }
     });
@@ -2707,14 +3074,68 @@
         if (_dashCornerCfg[cell.dataset.corner] === "wind") _toggleWindCornerShow();
       });
     });
-    // Rev66 / 2.0.4 - Carlos yes, the wind-speed chip below the rose
-    // also acts as a tap target: short-tap on it toggles AWS/TWS.
-    // Long-press behaves like long-press on any corner cell -> opens
-    // the popup.
+    // Rev81: boat sprite (rose-boat) also opens the corner selector on
+    // long-press, so the user does not have to hunt for a corner cell.
+    // Short-tap on the boat does nothing. Carlos Rev80 QA: "que el
+    // selecto pueda ser tambien activado hacidndo long press en el
+    // barco".
+    const boatSprite = document.getElementById("rose-boat");
+    if (boatSprite) {
+      boatSprite.style.cursor = "pointer";
+      attachLongTap(boatSprite, () => { /* no short-tap action */ });
+    }
+    // Rev72: short-tap-only handler on the wind chip. Previously used
+    // attachLongTap, but the 500 ms timer inside it opened the corner
+    // selector popup - unwanted on the chip (it is not a corner). Also
+    // stops touch/pointer propagation so the global <main> tab-swipe
+    // listener does not treat a chip tap as a horizontal swipe (Carlos
+    // Rev71: "el chip se desliza a la derecha e incluso a veces abre el
+    // menu de esquinas"). Uses pointerdown/pointerup as primary and
+    // touch stop-propagation as belt-and-suspenders. Fires the AWS/TWS
+    // toggle only if elapsed < 400 ms AND finger did not move.
     const speedChip = document.getElementById("rose-speed-chip");
     if (speedChip) {
-      speedChip.style.cursor = "pointer";
-      attachLongTap(speedChip, () => _toggleWindCornerShow());
+      let chipDownTs = 0;
+      let chipDownX = 0, chipDownY = 0;
+      let chipMoved = false;
+      const CHIP_TAP_MAX_MS = 400;
+      const CHIP_MOVE_TOLERANCE_PX = 8;
+      speedChip.addEventListener("pointerdown", (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+        chipDownTs = Date.now();
+        chipDownX = e.clientX;
+        chipDownY = e.clientY;
+        chipMoved = false;
+        e.stopPropagation();
+      });
+      speedChip.addEventListener("pointermove", (e) => {
+        if (!chipDownTs) return;
+        const dx = e.clientX - chipDownX;
+        const dy = e.clientY - chipDownY;
+        if (Math.abs(dx) > CHIP_MOVE_TOLERANCE_PX || Math.abs(dy) > CHIP_MOVE_TOLERANCE_PX) {
+          chipMoved = true;
+        }
+      });
+      speedChip.addEventListener("pointerup", (e) => {
+        e.stopPropagation();
+        if (!chipDownTs) return;
+        const elapsed = Date.now() - chipDownTs;
+        chipDownTs = 0;
+        if (chipMoved) return;
+        if (elapsed > CHIP_TAP_MAX_MS) return;
+        _toggleWindCornerShow();
+      });
+      // Kill the synthesised click that follows pointer events so it
+      // cannot bubble up and trigger anything else on <main>.
+      speedChip.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      // Belt-and-suspenders: stop touch propagation too so main's
+      // touchmove-based swipe never fires from a chip drag.
+      speedChip.addEventListener("touchstart",  (e) => e.stopPropagation(), { passive: true });
+      speedChip.addEventListener("touchmove",   (e) => e.stopPropagation(), { passive: true });
+      speedChip.addEventListener("touchend",    (e) => e.stopPropagation(), { passive: true });
     }
     // Rev43: horizontal swipe between tabs on mobile/tablet.
     // Rules:
@@ -3233,5 +3654,9 @@
     setTimeout(refreshPypilotValues, 8000);
     setTimeout(refreshPypilotValues, 20000);
     connectSK();
+    // Rev87: verify (or acquire) a permanent SK device token so the
+    // AP mutations (engage / mode / target) do not silently 401 after
+    // the SK server restarts.
+    ensureAccessOnBoot().catch(() => {});
   });
 })();

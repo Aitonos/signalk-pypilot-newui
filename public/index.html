@@ -86,10 +86,172 @@
               <path fill="#e74c3c" fill-opacity="0.32" stroke="#e74c3c" stroke-width="1.2" stroke-opacity="0.55"
                     d="M 0,0 L -77.94,-45 A 90,90 0 0 1 -45,-77.94 Z"/>
             </g>
-            <!-- Rotating compass card: cardinals + ticks + degree labels.
-                 Rev56: every 30 deg tick now carries the numeric heading
-                 (030/060/120/...); cardinals show letter instead.
-                 Rotated by -heading so N stays put in the world frame. -->
+            <!-- Rev73 QA #4: BOAT SPRITE drawn AFTER the wind sectors so
+                 the hull covers the sectors' inner tips (no more
+                 triangular overlap in the boat's centerline), but
+                 BEFORE the gota pieces and the rose card so the pieces
+                 can visually land on the hull and the compass labels
+                 sit ON TOP of everything except the chips. -->
+            <g id="rose-boat" transform="rotate(-90) scale(0.22)">
+              <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
+            </g>
+            <!-- Rev73: "Gota Chain" - target + AWA + TWA rediseño.
+                 Tres piezas concéntricas SVG que se ensamblan en una
+                 gota cuando los tres ángulos coinciden (target ≡ AWA ≡
+                 TWA). Interlock exacto: los lados rectos de cada pieza
+                 son collinear con las paredes de la V hembra de la
+                 pieza vecina, así que cuando alinean, las V hembras
+                 quedan tapadas por las puntas macho y sólo se ve UNA
+                 gota limpia. Cuando divergen, cada V hembra queda
+                 hueca y su apertura señala el desalineamiento.
+                 Diseño validado con Carlos en Artifact v3 antes de
+                 portar. Radios y vértices exactos definidos en
+                 CHANGELOG Rev73. -->
+            <!-- Rev77: TWA vuelve a la estructura Rev74 (4-vértices
+                 concave quad) pero con hombros a ±15° (24.33,-90.79)
+                 — ligeramente MÁS ANCHOS que AWA (±13°) para que
+                 aterrice adyacente al borde externo de AWA en el
+                 aro, con AMBAS líneas (la del cuerpo hacia la punta
+                 y la de la V-hembra hacia el socket) convergiendo
+                 al MISMO PUNTO shoulder. Stroke bumpeado a 2 para
+                 que la "llegada" al aro sea visualmente más
+                 gruesa. Carlos Rev76 QA #1: "las dos lineas...
+                 lleguen al mismo punto de la rosa, adyacente al
+                 borde EXTERNO de AWA... como antes era pero un
+                 poco mas gruesa en la lleguada". -->
+            <g id="rose-piece-twa" style="display:none">
+              <!-- Rev81: TWA vuelve a 4 vértices con hombro en ±13°
+                   (21.15,-91.59) — el MISMO punto que AWA. Las dos
+                   líneas (V-hueco walls + body sides externas) se
+                   tocan en un solo punto en el aro (punta afilada,
+                   sin wings). V-hueco walls quedan collinear exactas
+                   con las paredes externas de AWA. Carlos Rev80 QA
+                   #2: "haz que las puntas de linea interna Vhueco y
+                   externa se toquen en el contacto con la rosa, no
+                   quiero eso ancho, que acabe en punta". -->
+              <path d="M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z"
+                    fill="#5ce8c0" stroke="#38b596" stroke-width="0.75"
+                    stroke-linejoin="round"/>
+              <!-- Rev82: "T" moved from (0,-36) to (0,-40), a bit
+                   further from the tip toward the V-hueco vertex
+                   (Carlos: "no tan pegadas a la punta"). Color
+                   changed from dark green to rose-gray #8b98a5
+                   (same tone as the compass numeric labels).
+                   Two-orientation flip logic applied in JS: if the
+                   piece is in the rear half (91°-270°), the label
+                   is rotated 180° so it doesn't end up completely
+                   upside-down. -->
+              <text id="rose-piece-twa-label" x="0" y="-41" text-anchor="middle" dominant-baseline="middle"
+                    fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">T</text>
+            </g>
+            <!-- AWA (middle, amber): revierte a V-hembra Rev74.
+                 Cuadrilátero cóncavo: hombros (±21.15,-91.59) en el
+                 aro, punta afilada (0,-44), V-hembra vertex (0,-68)
+                 que recibe la punta de DIA cuando alinean. Cuando
+                 DIA se separa, la V queda hueca. -->
+            <g id="rose-piece-awa" style="display:none">
+              <path d="M -21.15,-91.59 L 0,-48 L 21.15,-91.59 L 0,-68 Z"
+                    fill="#ffd54a" stroke="#cba822" stroke-width="0.75"
+                    stroke-linejoin="round"/>
+              <!-- Rev82: "A" moved from (0,-58) to (0,-60), a bit
+                   further from the tip. Color rose-gray #8b98a5
+                   (same as compass numeric labels). Two-orientation
+                   flip logic in JS. Font-size 9 + weight 900. -->
+              <text id="rose-piece-awa-label" x="0" y="-60" text-anchor="middle" dominant-baseline="middle"
+                    fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
+            </g>
+            <!-- DIA (outermost, cyan target diamond): arco base r=94 +
+                 lados rectos + punta afilada (0,-68). Rotado a
+                 (target - heading) en modos compass/gps/nav, y
+                 directamente a target en modos wind/true wind
+                 (target ya es un ángulo de viento boat-frame). ID
+                 rose-target-arrow retenido para compatibilidad con
+                 renderTargetArrow(). -->
+            <g id="rose-target-arrow" style="display:none">
+              <!-- Rev82: linejoin cambiado de round a miter con
+                   miterlimit alto para que las esquinas del arco↔leg
+                   sean afiladas (sin curvatura extra que crea bump
+                   asimétrico al renderizar en algunos ángulos de
+                   rotación). Path desde la punta (Rev80) mantenido. -->
+              <path d="M 0,-68 L -21.15,-91.59 A 94 94 0 0 1 21.15,-91.59 Z"
+                    fill="#4dd4ff" stroke="#2ea6c9" stroke-width="0.75"
+                    stroke-linejoin="miter" stroke-miterlimit="10"/>
+            </g>
+            <!-- Raya: marca radial negra dibujada DESPUÉS de las 3
+                 piezas para que quede visible ENCIMA del diamante,
+                 con un fino halo blanco 35% para no perderse sobre
+                 el cian. Se rota al mismo ángulo que DIA. Longitud
+                 desde r=93 (justo dentro del aro) a r=79 (14
+                 unidades hacia el barco); esto la hace asomar
+                 debajo del chip HDG cuando target ≈ heading, y
+                 asoma sobre el chip AWS cuando target ≈ heading+180. -->
+            <g id="rose-raya" style="display:none">
+              <!-- Rev82: linecap cambiado de round a butt para que la
+                   raya NO extienda más allá de sus endpoints (round
+                   cap añadía una semi-esfera de radio 1.5 que hacía
+                   la raya asomar 1.5 units por encima de la punta
+                   del diamante — sospechoso del "bump" que Carlos
+                   ve en DIA). Ahora la raya queda estrictamente
+                   entre y=-93 e y=-79, dentro del arco de DIA. -->
+              <line x1="0" y1="-93" x2="0" y2="-79"
+                    stroke="#000" stroke-width="3" stroke-linecap="butt"/>
+              <line x1="0" y1="-93" x2="0" y2="-79"
+                    stroke="#ffffff" stroke-width="1" stroke-linecap="butt"
+                    opacity="0.35"/>
+            </g>
+            <!-- Rev84: rayas AWA y TWA tocan el aro (r=94), no en
+                 el aire. AWA en contacto por FUERA (r=94 → r=99,
+                 5 units hacia afuera). TWA en contacto por DENTRO
+                 (r=94 → r=89, 5 units hacia adentro). Carlos
+                 Rev83: "no hacen contacto con la Rosa, la de AWA
+                 en contacto por fuera, y la de TWA por dentro". -->
+            <g id="rose-raya-awa" style="display:none">
+              <line x1="0" y1="-94" x2="0" y2="-99"
+                    stroke="#ffd54a" stroke-width="2" stroke-linecap="butt"/>
+            </g>
+            <g id="rose-raya-twa" style="display:none">
+              <line x1="0" y1="-89" x2="0" y2="-94"
+                    stroke="#5ce8c0" stroke-width="2" stroke-linecap="butt"/>
+            </g>
+            <!-- Rev85: COG line — cadena de chevrones amarillos desde
+                 proa hacia el rumbo real. Solo visible con SOG > 0.15
+                 kn (barco moviéndose) y con toggle activo en selector.
+                 Rota a (COG - HDG) para posicionarse en el ángulo del
+                 rumbo real relativo al barco. Los chevrones apuntan
+                 hacia AFUERA (dirección del movimiento). -->
+            <g id="rose-cog-line" style="display:none">
+              <g stroke="#ffcf47" stroke-width="1.6" fill="none"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="-3.5,-30 0,-35 3.5,-30"/>
+                <polyline points="-3.5,-45 0,-50 3.5,-45"/>
+                <polyline points="-3.5,-60 0,-65 3.5,-60"/>
+                <polyline points="-3.5,-75 0,-80 3.5,-75"/>
+              </g>
+            </g>
+            <!-- Rev85: Vector corriente — dos líneas onduladas azules
+                 en fase paralelas + 3 triángulos apuntando al barco.
+                 Requiere SOG, COG y SOW (navigation.speedThroughWater).
+                 Solo visible cuando |current| > 0.1 m/s y con toggle
+                 activo en selector. Rota al ángulo desde el que viene
+                 la corriente (opuesto al flujo) relativo al barco,
+                 así la punta apunta AL barco. -->
+            <g id="rose-current-arrow" style="display:none">
+              <g stroke="#6faaff" stroke-width="1.4" fill="none" stroke-linecap="round">
+                <path d="M -3,-52 Q  1,-46 -3,-40 T -3,-28 T -3,-18"/>
+                <path d="M  3,-52 Q  7,-46  3,-40 T  3,-28 T  3,-18"/>
+              </g>
+              <g fill="#6faaff" stroke="#001a3d" stroke-width="0.4" stroke-linejoin="round">
+                <polygon points="0,-42 -3.2,-48 3.2,-48"/>
+                <polygon points="0,-30 -3.2,-36 3.2,-36"/>
+                <polygon points="0,-18 -3.2,-24 3.2,-24"/>
+              </g>
+            </g>
+            <!-- Rev73 QA #4: rotating compass card moved here (drawn
+                 AFTER the gota) so the N/S/E/W labels + numeric
+                 headings sit on TOP of the pieces — never covered
+                 by DIA / AWA / TWA. Rotated by -heading in JS.
+                 Colors updated per Carlos: N amarillo (accent),
+                 S azul, E rojo, W verde (estribor-boat). -->
             <g id="rose-card">
               <g stroke="#3a4553" stroke-width="1">
                 <line x1="0" y1="-94" x2="0" y2="-84"/>
@@ -105,14 +267,14 @@
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(300)"/>
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(330)"/>
               </g>
-              <!-- 4 cardinals: N accent yellow, ESW dim white. -->
-              <text x="0"  y="-70" text-anchor="middle" dominant-baseline="middle" fill="#ffd54a" font-size="14" font-weight="900">N</text>
-              <text x="70" y="0"   text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">E</text>
-              <!-- Rev65: S moved inward from y=70 to y=58 so the AWS/TWS
-                   bottom-of-rose label at y=70 does not overlap it when the
-                   card sits at heading 0. -->
-              <text x="0"  y="58"  text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">S</text>
-              <text x="-70" y="0"  text-anchor="middle" dominant-baseline="middle" fill="#e5eaf3" font-size="13" font-weight="800">W</text>
+              <!-- 4 cardinals with distinct colors per Carlos QA + Rev76
+                   thin black outline (stroke) for legibility over any
+                   background (piece color, sector, or dark bg). All
+                   at r=70 from the rose center. -->
+              <text x="0"  y="-70" text-anchor="middle" dominant-baseline="middle" fill="#ff8c1a" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="14" font-weight="900">N</text>
+              <text x="70" y="0"   text-anchor="middle" dominant-baseline="middle" fill="#2ecc71" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="13" font-weight="800">E</text>
+              <text x="0"  y="70"  text-anchor="middle" dominant-baseline="middle" fill="#6faaff" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="13" font-weight="800">S</text>
+              <text x="-70" y="0"  text-anchor="middle" dominant-baseline="middle" fill="#e74c3c" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="13" font-weight="800">W</text>
               <!-- 8 numeric labels at 30 deg increments (skip cardinals). -->
               <g fill="#8b98a5" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
                 <text transform="rotate(30)  translate(0,-72)">030</text>
@@ -125,80 +287,31 @@
                 <text transform="rotate(330) translate(0,-72)">330</text>
               </g>
             </g>
-            <!-- Rev65 / 2.0.2: HDG in a small chip that straddles the top
-                 rim. The chip's top edge sits above the ring by ~4 units
-                 (visually "asomando" per Carlos), the bottom edge sits
-                 just below the ring so the chip clearly reads as an
-                 overlay on top of the compass, not as a floating badge.
-                 The chip does NOT push the SVG viewBox up - only the
-                 painted rect crosses the ring line. Number CENTERED on
-                 the digits only; degree glyph placed by JS after the
-                 digits so "9" and "298" both anchor at x=0. -->
-            <!-- Rev66 / 2.0.4: chip narrowed from 48 to 40 wide + font
-                 shrunk from 14 to 12, so the enlarged target diamond
-                 below can peek out on the LEFT and RIGHT of the chip
-                 even when the target is dead ahead (rotation 0). -->
+            <!-- Rev73 QA #4: HDG chip drawn LAST inside the SVG so it
+                 sits on TOP of everything (pieces, raya, card). It
+                 straddles the top of the compass ring (y=-100 to -84);
+                 the raya's short 14-unit length is enough to peek
+                 out just below the chip when target ≈ heading. -->
             <g id="rose-hdg-chip">
               <rect x="-20" y="-100" width="40" height="16" rx="4" ry="4"
                     fill="rgba(0,0,0,0.72)" stroke="#4a5867" stroke-width="1"/>
               <text id="rose-hdg-value" x="0" y="-91" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
               <text id="rose-hdg-deg"   x="0" y="-91" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
             </g>
-            <!-- Rev50: boat overhead SVG (mareas-ihm), scaled 0.22 so
-                 the hull spans ~100 units = 50 % of the 200-unit rose
-                 diameter. Rotated -90 so bow points up. -->
-            <g id="rose-boat" transform="rotate(-90) scale(0.22)">
-              <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
-            </g>
-            <!-- Rev65/66 / 2.0.4: two independent wind arrows, both solid,
-                 each labelled AWA / TWA in text that rotates with the arrow
-                 so it always reads from the head. AWA = amber (big head,
-                 the wind the crew feels). TWA = sea-green (small head).
-                 Rev66: labels are placed at very different radii along
-                 the shaft (AWA near the ring at y=-72, TWA near the boat
-                 at y=-52) so they never overlap even when both arrows
-                 point in exactly the same direction. -->
-            <g id="rose-wind-arrow" style="display:none">
-              <line x1="0" y1="-86" x2="0" y2="-32" stroke="#ffd54a" stroke-width="3" stroke-linecap="round"/>
-              <polygon points="0,-24 -9,-40 9,-40" fill="#ffd54a" stroke="#8a6a00" stroke-width="0.6"/>
-              <text x="0" y="-72" text-anchor="middle" dominant-baseline="middle"
-                    fill="#ffd54a" stroke="#3a2600" stroke-width="0.4" paint-order="stroke fill"
-                    font-size="8" font-weight="900" letter-spacing="1">AWA</text>
-            </g>
-            <g id="rose-wind-arrow-twa" style="display:none">
-              <line x1="0" y1="-86" x2="0" y2="-38" stroke="#5ce8c0" stroke-width="2.5" stroke-linecap="round"/>
-              <polygon points="0,-32 -6,-42 6,-42" fill="#5ce8c0" stroke="#1a4438" stroke-width="0.6"/>
-              <text x="0" y="-52" text-anchor="middle" dominant-baseline="middle"
-                    fill="#5ce8c0" stroke="#0f2620" stroke-width="0.4" paint-order="stroke fill"
-                    font-size="7" font-weight="900" letter-spacing="1">TWA</text>
-            </g>
-            <!-- Rev66 / 2.0.4: cyan diamond enlarged (28 wide, 30 tall).
-                 With the narrowed HDG chip above (40 wide) the diamond
-                 asoma por los lados AND por arriba AND por debajo del
-                 chip even when target is dead ahead. Rotated to
-                 (target - heading) so it always points where pypilot is
-                 steering (compass/gps/nav modes) or to target directly
-                 (wind modes, target already in boat frame). -->
-            <g id="rose-target-arrow" style="display:none">
-              <polygon points="0,-108 -14,-93 0,-78 14,-93" fill="#4dd4ff" stroke="#003b52" stroke-width="1.5"/>
-            </g>
-            <!-- Rev66 / 2.0.4: wind speed now inside a small dark chip
-                 that straddles the bottom of the compass ring, same
-                 look as the HDG chip on top. Top of the chip sits a
-                 couple of units INSIDE the ring, bottom asoma below.
-                 Contains a small dim AWS/TWS label above the number.
-                 The whole group carries `id=rose-speed-chip` so the
-                 short-tap toggle (fix #5) can attach a listener to
-                 the chip itself, not just the corner cells. -->
-            <g id="rose-speed-chip">
-              <rect x="-32" y="90" width="64" height="22" rx="4" ry="4"
-                    fill="rgba(0,0,0,0.72)" stroke="#4a5867" stroke-width="1"/>
-              <text id="rose-speed-label" x="0" y="96" text-anchor="middle" dominant-baseline="middle"
-                    fill="#8b98a5" font-size="7" font-weight="700" letter-spacing="1.2"></text>
-              <text id="rose-speed"       x="0" y="106" text-anchor="middle" dominant-baseline="middle"
-                    fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">--- kn</text>
-            </g>
           </svg>
+          <!-- Rev71: wind-speed chip promoted from SVG group to an HTML div
+               overlaid on the rose bottom-center. Text baseline aligned
+               with the two bottom corner cells (BL / BR). Rev72: NO
+               longer carries data-corner OR the generic dash-cell class
+               so the corner-selector forEach loop ignores it and its
+               tap handling stays fully custom (short-tap only, no
+               long-press menu, no swipe hijack). Uses `wind-chip` +
+               shares its typography with .dash-cell via .wind-chip
+               style rules. -->
+          <div class="wind-chip" id="rose-speed-chip">
+            <div class="label" id="rose-speed-label"></div>
+            <div class="value" id="rose-speed">--- kn</div>
+          </div>
         </div>
       </div>
 
@@ -217,16 +330,66 @@
             <label><span data-i18n="dash.corner.br">Bottom right</span> <select id="dash-corner-br" data-corner="br"></select></label>
           </div>
           <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
-          <div class="dash-corner-cfg" style="gap:6px">
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.wind.arrows">WIND ARROWS</div>
-            <label style="display:flex;align-items:center;gap:8px">
-              <input type="checkbox" id="dash-wind-arrow-awa" />
-              <span><span style="color:#ffd54a;font-weight:900">&#9650;</span> <span data-i18n="dash.wind.awa">AWA (apparent, amber)</span></span>
-            </label>
-            <label style="display:flex;align-items:center;gap:8px">
-              <input type="checkbox" id="dash-wind-arrow-twa" />
-              <span><span style="color:#c780f5;font-weight:900">&#9650;</span> <span data-i18n="dash.wind.twa">TWA (true, magenta)</span></span>
-            </label>
+          <div class="dash-corner-cfg" style="gap:8px">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.overlays.title">ROSE OVERLAYS</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.overlays.hint">Toggle what floats on the compass rose. Each card lists what data it needs to render.</div>
+            <!-- Rev85 revamp: 4 uniform cards (AWA, TWA, COG, Current)
+                 replace the old checkbox rows. Each card shows a big
+                 sample of the actual visual, a human title, a data
+                 requirement line, and the enable checkbox. Grid so
+                 they lay out 2×2 on wide, 1× on narrow. -->
+            <div class="overlay-cards">
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-wind-arrow-awa" />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <path d="M -18.13,-58.53 L 0,-30 L 18.13,-58.53 L 0,-44 Z"
+                        fill="#ffd54a" stroke="#cba822" stroke-width="0.75" stroke-linejoin="round"/>
+                  <text x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
+                        fill="#8b98a5" font-size="9" font-weight="900" font-family="ui-monospace, monospace">A</text>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.awa.title">Apparent wind</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.awa.needs">Needs a wind sensor (AWA).</div>
+              </label>
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-wind-arrow-twa" />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <path d="M -20.85,-58.53 L 0,-16 L 20.85,-58.53 L 0,-40 Z"
+                        fill="#5ce8c0" stroke="#38b596" stroke-width="0.75" stroke-linejoin="round"/>
+                  <text x="0" y="-33" text-anchor="middle" dominant-baseline="middle"
+                        fill="#8b98a5" font-size="9" font-weight="900" font-family="ui-monospace, monospace">T</text>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.twa.title">True wind</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.twa.needs">Needs a wind sensor + SOG (TWA).</div>
+              </label>
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-show-cog" />
+                <svg class="overlay-preview" viewBox="-15 -60 30 60" preserveAspectRatio="xMidYMid meet">
+                  <g stroke="#ffcf47" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="-5,-16 0,-22 5,-16"/>
+                    <polyline points="-5,-30 0,-36 5,-30"/>
+                    <polyline points="-5,-44 0,-50 5,-44"/>
+                  </g>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.cog.title">Course over ground</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.cog.needs">Only shows when SOG > 0.15 kn (boat moving).</div>
+              </label>
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-show-current" />
+                <svg class="overlay-preview" viewBox="-15 -60 30 60" preserveAspectRatio="xMidYMid meet">
+                  <g stroke="#6faaff" stroke-width="1.6" fill="none" stroke-linecap="round">
+                    <path d="M -3,-52 Q  1,-46 -3,-40 T -3,-28 T -3,-14"/>
+                    <path d="M  3,-52 Q  7,-46  3,-40 T  3,-28 T  3,-14"/>
+                  </g>
+                  <g fill="#6faaff" stroke="#001a3d" stroke-width="0.4" stroke-linejoin="round">
+                    <polygon points="0,-40 -3.2,-46 3.2,-46"/>
+                    <polygon points="0,-26 -3.2,-32 3.2,-32"/>
+                    <polygon points="0,-12 -3.2,-18 3.2,-18"/>
+                  </g>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.current.title">Current vector</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.current.needs">Only shows when the log (SOW) is publishing and current > 0.2 kn.</div>
+              </label>
+            </div>
           </div>
           <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
           <div class="dash-corner-cfg" style="gap:6px">
@@ -675,8 +838,10 @@
               <li><b>Setup &rarr; Manual host</b>: enter the IP and port of your <code>pypilot_web</code> (port 80 on TinyPilot by default). Apply &amp; reconnect.</li>
               <li><b>Setup &rarr; Emergency</b>: save the TinyPilot SSH user + password. The <b>RESTART pypilot</b> button then reboots the remote process without leaving the browser.</li>
               <li><b>Control</b>: tap <b>AP</b> to engage the pilot on the current heading. <b>&plusmn;1 / &plusmn;10</b> nudges the target. <b>TACK &lang; / &rang;</b> tacks to port or starboard. The centre dropdown switches the mode (compass / gps / wind / true wind / nav).</li>
-              <li><b>Rose</b>: N/E/S/W plus degree ticks every 30&deg;. Green / red wedges are hull-fixed and mark the sailing zones. Amber arrow = AWA, magenta = TWA (toggle from long-press on any corner). Cyan diamond = AP target.</li>
-              <li><b>Corners</b>: long-press any corner of the rose to pick which datum to show (HDG, wind, SOG, COG, target, depth, mode, polars&hellip;).</li>
+              <li><b>Rose</b>: N (orange) / E (green) / S (blue) / W (red) plus degree ticks every 30&deg;. Green / red wedges are hull-fixed and mark the sailing zones.</li>
+              <li><b>Gota Chain</b>: three concentric arrow pieces on the rose &mdash; cyan diamond (AP target), amber (AWA, marked <b>A</b>), sea-green (TWA, marked <b>T</b>). When target &equiv; AWA &equiv; TWA they interlock into one clean "gota" (droplet); the moment any of the three drifts, its V-notch opens and its color ring-tick reveals the exact angle.</li>
+              <li><b>Overlays</b>: long-press any corner OR the boat sprite to open the 4-card selector for AWA / TWA / COG line / current vector (SOG&minus;SOW). Each card lists what data it needs.</li>
+              <li><b>Corners</b>: same long-press menu picks which datum shows in each corner (HDG, wind, SOG, COG, target, depth, mode, polars&hellip;).</li>
               <li><b>Tune</b>: tick <b>Unlock settings</b> before touching. Each slider has &minus;10 / &minus;1 / slider / +1 / +10. When unlocked, the previous value is shown in orange as a reference.</li>
               <li><b>Race</b>: T1/T2 countdown timer with audible beeps + screen flash + spoken seconds. Runs in the background across tabs.</li>
               <li><b>Paths &amp; API</b>: Signal K paths this plugin publishes. Wire the <i>Simple Switch</i> rows (blue) to KIP.</li>
@@ -690,8 +855,10 @@
               <li><b>Setup &rarr; Manual host</b>: escribe la IP y puerto de tu <code>pypilot_web</code> (por defecto 80 de la TinyPilot). Apply &amp; reconnect.</li>
               <li><b>Setup &rarr; Emergency</b>: guarda el usuario+password SSH de la TinyPilot. Con eso el bot&oacute;n <b>REINICIAR pypilot</b> reinicia el proceso remoto sin salir del navegador.</li>
               <li><b>Control</b>: pulsa <b>AP</b> para enganchar el piloto en el rumbo actual. <b>&plusmn;1 / &plusmn;10</b> mueve el rumbo objetivo. <b>VIRAR &lang; / &rang;</b> vira por babor o estribor. El desplegable central cambia el modo (compass / gps / wind / true wind / nav).</li>
-              <li><b>Rosa</b>: N/E/S/W y grados cada 30&deg;. Sectores verde/rojo fijos a la cruj&iacute;a marcan las zonas de amura. Flecha amber = AWA, magenta = TWA (activadas con long-press en cualquier esquina). Diamante cyan = target del AP.</li>
-              <li><b>Esquinas</b>: long-press en cualquier esquina de la rosa para elegir qu&eacute; dato mostrar (HDG, viento, SOG, COG, target, sonda, modo, polares&hellip;).</li>
+              <li><b>Rosa</b>: N (naranja) / E (verde) / S (azul) / W (rojo) y grados cada 30&deg;. Sectores verde/rojo fijos a la cruj&iacute;a marcan las zonas de amura.</li>
+              <li><b>Gota Chain</b>: tres piezas conc&eacute;ntricas en la rosa &mdash; diamante cyan (target del AP), amber (AWA, letra <b>A</b>), verde-mar (TWA, letra <b>T</b>). Cuando target &equiv; AWA &equiv; TWA se ensamblan en una "gota" limpia; en cuanto una se desalinea, su V-hembra queda hueca y su rayita de color en el aro marca el &aacute;ngulo exacto.</li>
+              <li><b>Capas</b>: long-press en cualquier esquina O sobre el barco abre el selector de 4 tarjetas: AWA / TWA / l&iacute;nea COG / vector corriente (SOG&minus;SOW). Cada tarjeta indica qu&eacute; datos necesita.</li>
+              <li><b>Esquinas</b>: el mismo men&uacute; long-press elige qu&eacute; dato ver en cada esquina (HDG, viento, SOG, COG, target, sonda, modo, polares&hellip;).</li>
               <li><b>Ajustes</b>: marca <b>Desbloquear ajustes</b> antes de tocar. Cada slider tiene &minus;10 / &minus;1 / slider / +1 / +10. Al desbloquear ves el valor original en naranja para saber contra qu&eacute; comparas.</li>
               <li><b>Regata</b>: timer T1/T2 con beeps + flash de pantalla + voz. Corre de fondo en cualquier pesta&ntilde;a.</li>
               <li><b>Paths &amp; API</b>: paths SK que este plugin publica. Usa los <i>Simple Switch</i> (fila azul) para conectar con KIP.</li>
@@ -940,6 +1107,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev67"></script>
+  <script src="app.js?v=Rev87"></script>
 </body>
 </html>

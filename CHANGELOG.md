@@ -1,5 +1,115 @@
 # Changelog
 
+## 2.1.0 — 2026-08-25 — Rev68..Rev87
+
+Twenty in-session Revs of iterative visual + reliability work rolled up
+into a proper minor release. Themes: a full redesign of the compass-rose
+autopilot overlays ("Gota Chain"), a hard-earned fix for AP mutations
+racing each other across the SignalK bus, and a permanent seamless-auth
+story so a Signal K restart never again silently disables the visor's
+mutation buttons.
+
+### Added
+
+- **Gota Chain overlay** — the target diamond and the AWA/TWA wind
+  arrows are now three concentric SVG pieces that interlock into one
+  clean droplet when `target ≡ AWA ≡ TWA`. Each piece carries its own
+  letter (A / T) and its own color ring-tick that marks the exact
+  angle on the compass. When any of the three drifts, its V-hembra
+  opens as a visible hollow. Iterated over 12 Revs (Rev68..Rev82)
+  with Carlos on Tunatunes.
+- **COG line** — chain of yellow chevrons from the bow toward the
+  course-over-ground direction. Visible only when `SOG > 0.15 kn`.
+- **Current vector** — two parallel wavy blue lines with three
+  triangles pointing at the boat. Computed as `SOG − SOW` (added
+  new `navigation.speedThroughWater` subscription). Visible when
+  `|current| > 0.2 kn`.
+- **4-card overlay selector** — long-press any rose corner OR the
+  boat sprite to open the popup with the four toggle cards (AWA,
+  TWA, COG, Current), each with a large preview and a data-
+  requirement line ("Needs a wind sensor", "Only shows when SOG >
+  0.15 kn", etc). Toggles persist in `localStorage`.
+- **Rose cardinals colour-coded**: N orange, E green, S blue, W red.
+  All at the same radius `r = 70`. Thin black stroke around each
+  letter for legibility on any background.
+- **Seamless auth via SK Access Request** — the visor now uses a
+  device-scoped, permanent SK token instead of a short-lived JWT.
+  On first install the user approves once from `SK admin → Security
+  → Access Requests`; from then on the token survives every SK
+  server restart, every plugin redeploy, and every browser reload,
+  so mutations (engage / mode / target) NEVER silently 401 again.
+- **`.\deploy.ps1 -FrontOnly`** — new script flag that syncs
+  `public/` only (no build, no npm install, no `systemctl restart
+  signalk`). Use it when the diff is HTML / CSS / JS only —
+  `Ctrl+F5` in the browser picks it up. Avoids the plugin-socket
+  reconnect to `pypilot_web` on the Pi Zero W that pushed the
+  TinyPilot to hang after a big batch of deploys.
+
+### Fixed
+
+- **AP mutation race (`DIA jumps to a stale target for a beat`).**
+  Frontend used to `Promise.all([engage, target])` and the backend's
+  `pushAutopilotUpdate` published ALL SK autopilot fields on every
+  notify — so whichever POST landed first emitted a delta that
+  carried the OTHER field's STALE value (typically an old target
+  from the previous session, e.g. `115°` when the intent was `75°`).
+  Fixed by refactoring `AutopilotProvider.notifyChanged(fields)` to
+  accept `"engaged" | "target" | "all"` and `pushAutopilotUpdate` to
+  only emit the paths that actually changed. Parallel POSTs no
+  longer clobber each other with stale copies.
+- **Wind-mode target capture on engage.** `doEngage` always sent
+  `state.heading` as the target regardless of mode; pypilot in wind
+  mode interpreted that compass value as a wind angle and steered
+  the boat toward nonsense. Now captures `state.windAngle` (apparent)
+  or `state.windAngleTrue` (true wind) when the active mode contains
+  "wind"; falls back to heading only for compass / gps / nav.
+- **AP button "click missed" and engage / disengage bounce**
+  hardened: switched from `click` to `pointerdown` (fires once per
+  press on both touch and mouse without waiting for the
+  browser-synthesised `click`), swallow the trailing `click` with
+  `preventDefault + stopPropagation`, `touch-action: manipulation`
+  on the button, plus an 800 ms cooldown gate that survives the
+  ~200 ms POST round-trip. Ghost taps from `touchend` no longer
+  produce a phantom second engage.
+- **Wind speed chip tap regressions.** Chip was picked up by the
+  corner-selector `forEach` (auto-attached its 500 ms long-press
+  timer → opened the wrong popup) AND the `<main>` tab-swipe
+  handler treated any tap-with-drift on it as a horizontal swipe
+  → the chip appeared to slide right. Renamed the chip class to
+  `.wind-chip` so the forEach ignores it and replaced the shared
+  handler with a bespoke `pointerdown/up` short-tap detector that
+  stops touch propagation.
+- **HDG chip / compass labels covered by DIA** on engage: reordered
+  the SVG stack so the compass card and HDG chip render AFTER the
+  gota pieces, never behind them.
+- **DIA arc rendering asymmetry** ("bump on one side") when
+  rotated: `stroke-linejoin` switched from `round` to `miter`,
+  raya `stroke-linecap` switched from `round` to `butt` to remove
+  the semi-circle that overshot the ring line.
+
+### Changed
+
+- **Wind speed chip moved from an SVG group to a positioned HTML
+  `.wind-chip` div** overlaid on the rose bottom-center. Text
+  baseline now aligns with the two bottom corner cells so all
+  three values (BL / BC / BR) read as one row.
+- **SVG stacking order** finalised (bottom → top): ring · wind
+  sectors · boat sprite · TWA · AWA · DIA · raya · AWA / TWA
+  colour ring-ticks · COG line · current vector · compass card ·
+  HDG chip. Wind chip is a separate HTML overlay above the SVG.
+- **Restart engine** already switched to `sv restart` (piCore
+  runit) in 2.0.4; the docs, i18n text and Info-tab quick-start
+  now match — the earlier "three escalated restarts" wording was
+  outdated (Emergency section has been 2 buttons since Rev66:
+  `RESTART pypilot` + `reboot Pi`; the safe `restart pypilot_web`
+  lives in the Debug console).
+- **Info-tab quick-start** rewritten in EN + ES to describe the
+  Gota Chain, the 4-card overlay selector, the new cardinal
+  colors, and boat-long-press as an alternative selector opener.
+- **README** overview and "Remote restart / reboot" section
+  rewritten to match the current 2-button + Debug-console layout,
+  and to describe the Gota Chain + optional overlays.
+
 ## 2.0.4 — 2026-08-21 — Rev67
 
 Reintroduces (with proper QA) the UI polish + reliability work that was

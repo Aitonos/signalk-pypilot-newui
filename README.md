@@ -22,18 +22,28 @@ dashboards wired to 1.0.0 paths, see the full migration table in
 - `.calibration.rudderRange` (rad) -> `.rudder.range` (deg)
 - `.gains.<pilot>.<gain>` -> `.ap.pilot.<pilot>.<gain>`
 
-Also new in 2.0.0: three escalated **restart / reboot levels** in
-Setup -> Emergency, all guarded by a helm-manned confirmation modal, and
-a **Debug console** with an SSH-based whitelist of preset diagnostic
-commands (logs, dmesg, top, uptime, df, pypilot version).
+Setup -> Emergency ships **two remote restart buttons** (`RESTART pypilot`
+and `reboot Pi`), both guarded by a helm-manned confirmation modal.
+`restart pypilot_web` (the safe web-only restart that does not interrupt
+steering) lives as a preset in the **Debug console** — an SSH-based
+whitelist of preset diagnostic commands (logs, dmesg, top, uptime, df,
+pypilot version, restart pypilot_web).
 
 ## What it does
 
 **Touch webapp** (mobile / tablet / chart-plotter, dark theme):
 
-- Compass rose with heading readout, cardinals + degree ticks, hull-fixed
-  green/red sailing wedges, AWA + TWA arrows (independent, toggleable), cyan
-  target diamond, and 4 configurable corner tiles (long-press to reconfigure).
+- Compass rose with HDG readout, colour-coded cardinals (N orange, E green,
+  S blue, W red) + degree ticks, hull-fixed green/red sailing wedges, and 4
+  configurable corner tiles (long-press to reconfigure).
+- **Gota Chain** overlay: three concentric arrow pieces on the rose — cyan
+  target diamond, amber `A` (AWA), sea-green `T` (TWA). Interlock into one
+  clean droplet when all three angles coincide; the V-hembra of any piece
+  that drifts opens up as a visible hollow, and a colour ring-tick marks
+  the exact angle on the compass. Optional **COG line** from the bow
+  (yellow chevrons) and **current vector** (SOG − SOW, blue wavy arrow)
+  can be toggled from a 4-card selector opened by long-press on any
+  corner or on the boat sprite.
 - Big-touch AP engage / disengage with optimistic UI + auto-retry over
   flaky links (Tailscale-safe).
 - Tack port / starboard, mode selector (compass / GPS / wind / true wind / nav),
@@ -116,28 +126,29 @@ register the same ID and behaviour is undefined). Valid setups:
 
 Absorb mode lives in **Setup → Autopilot Provider (one-socket mode)**.
 
-## Remote restart / reboot triad + Debug console
+## Remote restart / reboot + Debug console
 
-When the autopilot process on the TinyPilot gets wedged you don't need to open
-an SSH session by hand. In **Setup → Emergency**, save the TinyPilot's SSH user
-+ password once. From then on you get three escalated actions, colour-coded
-from safest to loudest, each guarded by a helm-manned confirmation modal that
-asks whether someone is at the helm before executing:
+When the autopilot process on the TinyPilot gets wedged you don't need to
+open an SSH session by hand. In **Setup → Emergency**, save the TinyPilot's
+SSH user + password once. From then on you get **two big restart buttons**,
+each guarded by a helm-manned confirmation modal that asks whether someone
+is at the helm before executing:
 
-1. **restart pypilot_web** (~3-5 s) - only the web server restarts. The AP
-   core keeps steering. Use when the visor gets stuck but the pilot is fine.
-2. **RESTART pypilot** (~10-15 s) - restarts pypilot core + web. The AP drops
-   the heading briefly and re-engages when it comes back up.
-3. **reboot Pi** (~35-60 s) - full `sudo reboot` of the Raspberry Pi. No
-   autopilot for almost a minute. Last-resort when the box is in a bad state.
+1. **RESTART pypilot** (~10-15 s) — `sv restart` of the pypilot core + web
+   (runit under piCore). The AP drops the heading briefly and re-engages
+   when it comes back up.
+2. **reboot Pi** (~35-60 s) — full `sudo reboot` of the Raspberry Pi. No
+   autopilot for almost a minute. Last-resort when the box is in a bad
+   state.
 
-Underneath the triad there is a **Debug console** that runs a closed
-whitelist of preset diagnostic commands over the same SSH session:
-`logs pypilot`, `logs pypilot_web`, `dmesg`, `top`, `uptime`, `df`,
-`pypilot --version`. Output goes into a scrollable textarea, a "Follow
-logs" toggle polls `journalctl --since '30 s ago'` every 3 seconds, and
-Copy / Share buttons let you paste the dump straight into a GitHub
-issue or a WhatsApp / email conversation with your friendly rigger.
+The safe **restart pypilot_web** (web server only, does not interrupt
+steering) lives as a preset button in the **Debug console** below,
+alongside a closed whitelist of preset diagnostic commands over the same
+SSH session: `logs pypilot`, `logs pypilot_web`, `dmesg`, `top`, `uptime`,
+`df`, `pypilot --version`. Output goes into a scrollable textarea, a
+"Follow logs" toggle polls `journalctl --since '30 s ago'` every 3
+seconds, and Copy / Share buttons let you paste the dump straight into a
+GitHub issue or a WhatsApp / email conversation with your friendly rigger.
 
 The endpoint (`POST /plugins/*/debug-cmd`) refuses any command that is
 not in the whitelist, so a leaked JWT cannot be used to run arbitrary
@@ -156,8 +167,8 @@ that isolated TinyPilot.
 | `GET`  | `/plugins/signalk-pypilot-newui/paths`         | Live list of published SK paths with GET / PUT URLs and units |
 | `GET`  | `/plugins/signalk-pypilot-newui/catalog`       | Raw pypilot catalog (all values + metadata) |
 | `PUT`  | `/plugins/signalk-pypilot-newui/raw`           | Send raw `name=value` to pypilot (protected by `allowWrites`) |
-| `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH remote restart (level 2 of the triad), uses `sshUser` + `sshPassword` from plugin config |
-| `POST` | `/plugins/signalk-pypilot-newui/debug-cmd`     | Run one of a closed whitelist of preset diagnostic / restart commands over SSH (levels 1 and 3 of the triad + logs / dmesg / top / etc). Body: `{ "preset": "<name>" }` |
+| `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH `sv restart` of pypilot core+web on the TinyPilot, uses `sshUser` + `sshPassword` from plugin config |
+| `POST` | `/plugins/signalk-pypilot-newui/debug-cmd`     | Run one of a closed whitelist of preset diagnostic / restart commands over SSH (`restart.web`, `reboot.pi`, `logs.pypilot`, `logs.web`, `dmesg`, `top`, `uptime`, `df`, `pypilot.version`). Body: `{ "preset": "<name>" }` |
 | `POST` | `/plugins/signalk-pypilot-newui/pause`         | Disconnect local socket (for scripts) |
 | `POST` | `/plugins/signalk-pypilot-newui/resume`        | Reconnect local socket (for scripts) |
 

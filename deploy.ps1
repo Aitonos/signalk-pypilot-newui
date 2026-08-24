@@ -8,13 +8,36 @@
 #
 # Usage:
 #   .\deploy.ps1                # build + rsync (no SK restart)
-#   .\deploy.ps1 -SkipBuild     # sync only (public/* edits)
+#   .\deploy.ps1 -SkipBuild     # sync only (public/* edits, dist stays)
 #   .\deploy.ps1 -Restart       # build + rsync + systemctl restart signalk
+#   .\deploy.ps1 -FrontOnly     # ONLY sync public/ (no build, no dist, no
+#                                 npm install, no SK restart). Use when the
+#                                 change is HTML/CSS/JS-only so Ctrl+F5 in
+#                                 the browser picks it up. Avoids the SK
+#                                 restart that reconnects the plugin socket
+#                                 to pypilot_web on the Pi Zero W — stops
+#                                 the cumulative socket-churn that helped
+#                                 push the TinyPilot to hang after 8+
+#                                 deploys on 2026-08-24.
 
 param(
     [switch]$SkipBuild,
-    [switch]$Restart
+    [switch]$Restart,
+    [switch]$FrontOnly
 )
+
+# -FrontOnly implies -SkipBuild and forbids -Restart. Enforce here so the
+# operator gets a clear error instead of confusing behaviour.
+if ($FrontOnly) {
+    $SkipBuild = $true
+    if ($Restart) {
+        Write-Host "FAILED: -FrontOnly is incompatible with -Restart." -ForegroundColor Red
+        Write-Host "  -FrontOnly is for HTML/CSS/JS-only edits that Ctrl+F5 picks up." -ForegroundColor Yellow
+        Write-Host "  If you truly need a SK restart, drop -FrontOnly and run:" -ForegroundColor Yellow
+        Write-Host "    .\deploy.ps1 -Restart" -ForegroundColor Yellow
+        exit 1
+    }
+}
 
 $ErrorActionPreference = "Stop"
 
@@ -157,33 +180,41 @@ if ($pkgJson -notmatch '"name"\s*:\s*"signalk-pypilot-newui"') {
 }
 
 if ($useRsync) {
-    Write-Host ">> rsync dist/..." -ForegroundColor Cyan
-    Invoke-Native "rsync dist" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "$hereMsys/dist/" "${piHost}:${piPath}/dist/" }
+    if (-not $FrontOnly) {
+        Write-Host ">> rsync dist/..." -ForegroundColor Cyan
+        Invoke-Native "rsync dist" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "$hereMsys/dist/" "${piHost}:${piPath}/dist/" }
+    }
 
     Write-Host ">> rsync public/..." -ForegroundColor Cyan
     Invoke-Native "rsync public" { & $rsyncPath -az --delete --timeout=30 "--rsh=$sshFlat" "$hereMsys/public/" "${piHost}:${piPath}/public/" }
 
-    Write-Host ">> rsync package.json + package-lock.json + README + CHANGELOG + NOTICE..." -ForegroundColor Cyan
-    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md", "NOTICE")
-    $existing = @()
-    foreach ($e in $extras) {
-        $abs = Join-Path $here $e
-        if (Test-Path $abs) { $existing += (ConvertTo-MsysPath $abs) }
+    if (-not $FrontOnly) {
+        Write-Host ">> rsync package.json + package-lock.json + README + CHANGELOG + NOTICE..." -ForegroundColor Cyan
+        $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md", "NOTICE")
+        $existing = @()
+        foreach ($e in $extras) {
+            $abs = Join-Path $here $e
+            if (Test-Path $abs) { $existing += (ConvertTo-MsysPath $abs) }
+        }
+        Invoke-Native "rsync extras" { & $rsyncPath -az --timeout=30 "--rsh=$sshFlat" @existing "${piHost}:${piPath}/" }
     }
-    Invoke-Native "rsync extras" { & $rsyncPath -az --timeout=30 "--rsh=$sshFlat" @existing "${piHost}:${piPath}/" }
 } else {
-    Write-Host ">> scp -r dist/..." -ForegroundColor Cyan
-    Invoke-Native "scp -r dist" { scp @sshOpts -r (Join-Path $here "dist") "${piHost}:${piPath}/" }
+    if (-not $FrontOnly) {
+        Write-Host ">> scp -r dist/..." -ForegroundColor Cyan
+        Invoke-Native "scp -r dist" { scp @sshOpts -r (Join-Path $here "dist") "${piHost}:${piPath}/" }
+    }
 
     Write-Host ">> scp -r public/..." -ForegroundColor Cyan
     Invoke-Native "scp -r public" { scp @sshOpts -r (Join-Path $here "public") "${piHost}:${piPath}/" }
 
-    Write-Host ">> scp extras..." -ForegroundColor Cyan
-    $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md", "NOTICE")
-    foreach ($e in $extras) {
-        $abs = Join-Path $here $e
-        if (Test-Path $abs) {
-            Invoke-Native "scp $e" { scp @sshOpts $abs "${piHost}:${piPath}/" }
+    if (-not $FrontOnly) {
+        Write-Host ">> scp extras..." -ForegroundColor Cyan
+        $extras = @("package.json", "package-lock.json", "README.md", "CHANGELOG.md", "NOTICE")
+        foreach ($e in $extras) {
+            $abs = Join-Path $here $e
+            if (Test-Path $abs) {
+                Invoke-Native "scp $e" { scp @sshOpts $abs "${piHost}:${piPath}/" }
+            }
         }
     }
 }
@@ -192,9 +223,13 @@ Write-Host ""
 Write-Host "OK -- Synced to ${piHost}:${piPath}" -ForegroundColor Green
 
 # --- Install prod deps on the Pi (idempotent) ---
-Write-Host ">> Installing prod deps on Pi..." -ForegroundColor Cyan
-Invoke-Native "remote npm install --omit=dev" {
-    ssh @sshOpts $piHost "cd '$piPath' && npm install --omit=dev --no-audit --no-fund 2>&1 | tail -5"
+# Skipped on -FrontOnly since package.json wasn't synced and there is
+# nothing new to install for HTML/CSS/JS-only changes.
+if (-not $FrontOnly) {
+    Write-Host ">> Installing prod deps on Pi..." -ForegroundColor Cyan
+    Invoke-Native "remote npm install --omit=dev" {
+        ssh @sshOpts $piHost "cd '$piPath' && npm install --omit=dev --no-audit --no-fund 2>&1 | tail -5"
+    }
 }
 
 # --- Restart or remind ---
@@ -205,6 +240,10 @@ if ($Restart) {
     Write-Host ""
     Write-Host ">> Tailing signalk logs for pypilot-newui hits..." -ForegroundColor Cyan
     ssh @sshOpts $piHost "sleep 5 && journalctl -u signalk -n 40 --no-pager | grep -Ei 'pypilot-newui|error' | grep -v pushover | tail -20"
+} elseif ($FrontOnly) {
+    Write-Host ""
+    Write-Host "OK -- Frontend-only deploy: NO SK restart, NO plugin reconnect." -ForegroundColor Green
+    Write-Host "Ctrl+F5 in the browser to pick up the new HTML/CSS/JS." -ForegroundColor Yellow
 } else {
     Write-Host ""
     Write-Host "Next: .\deploy.ps1 -Restart" -ForegroundColor Yellow
