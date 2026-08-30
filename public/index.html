@@ -17,6 +17,12 @@
     <span class="regata-hud-state" id="regata-hud-state">IDLE</span>
   </div>
 
+  <!-- Rev101: Alarm banner. Sticky at the top of the page, only visible
+       when there is at least one active alarm. Colour + icon reflect the
+       highest severity. Tap ACK to silence the sound (banner stays visible
+       until the underlying condition clears). -->
+  <div id="alarm-banner" class="alarm-banner" hidden></div>
+
   <!-- Login modal: opens when SK returns 401 on a write. Gets a JWT from
        /signalk/v1/auth/login and caches it in localStorage - no more cookie
        dependency, no more red banner. -->
@@ -42,8 +48,8 @@
   <nav id="tabbar">
     <button class="tab-btn active" data-tab="control" data-i18n="tab.control">Control</button>
     <button class="tab-btn"        data-tab="tune"    data-i18n="tab.tune">Tune</button>
+    <button class="tab-btn"        data-tab="chart"   data-i18n="tab.chart">Chart</button>
     <button class="tab-btn"        data-tab="regata"  data-i18n="tab.regata">Race</button>
-    <button class="tab-btn"        data-tab="paths"   data-i18n="tab.paths">Paths &amp; API</button>
     <button class="tab-btn"        data-tab="setup"   data-i18n="tab.setup">Setup</button>
     <button class="tab-btn"        data-tab="info"    data-i18n="tab.info">Info</button>
   </nav>
@@ -120,16 +126,12 @@
                  borde EXTERNO de AWA... como antes era pero un
                  poco mas gruesa en la lleguada". -->
             <g id="rose-piece-twa" style="display:none">
-              <!-- Rev81: TWA vuelve a 4 vértices con hombro en ±13°
-                   (21.15,-91.59) — el MISMO punto que AWA. Las dos
-                   líneas (V-hueco walls + body sides externas) se
-                   tocan en un solo punto en el aro (punta afilada,
-                   sin wings). V-hueco walls quedan collinear exactas
-                   con las paredes externas de AWA. Carlos Rev80 QA
-                   #2: "haz que las puntas de linea interna Vhueco y
-                   externa se toquen en el contacto con la rosa, no
-                   quiero eso ancho, que acabe en punta". -->
-              <path d="M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z"
+              <!-- Rev126 (Carlos): PATH SWAPPED. La pieza teal (TWA,
+                   viento real) es ahora la PEQUEÑA externa (path que
+                   antes tenía AWA). La pieza amber (AWA) se queda con
+                   el path grande. Colores + letras + sources se
+                   mantienen. -->
+              <path d="M -21.15,-91.59 L 0,-48 L 21.15,-91.59 L 0,-68 Z"
                     fill="#5ce8c0" stroke="#38b596" stroke-width="0.75"
                     stroke-linejoin="round"/>
               <!-- Rev82: "T" moved from (0,-36) to (0,-40), a bit
@@ -141,7 +143,9 @@
                    piece is in the rear half (91°-270°), the label
                    is rotated 180° so it doesn't end up completely
                    upside-down. -->
-              <text id="rose-piece-twa-label" x="0" y="-41" text-anchor="middle" dominant-baseline="middle"
+              <!-- Rev126: label "T" reposicionado a y=-56 para caer
+                   dentro del nuevo path pequeño (punta -48 → V-hueco -68). -->
+              <text id="rose-piece-twa-label" x="0" y="-56" text-anchor="middle" dominant-baseline="middle"
                     fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">T</text>
             </g>
             <!-- AWA (middle, amber): revierte a V-hembra Rev74.
@@ -150,14 +154,18 @@
                  que recibe la punta de DIA cuando alinean. Cuando
                  DIA se separa, la V queda hueca. -->
             <g id="rose-piece-awa" style="display:none">
-              <path d="M -21.15,-91.59 L 0,-48 L 21.15,-91.59 L 0,-68 Z"
+              <!-- Rev126: path grande (era el de TWA). Punta al centro
+                   (0,-24), V-hueco en (0,-48). Amarillo, letra "A". -->
+              <path d="M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z"
                     fill="#ffd54a" stroke="#cba822" stroke-width="0.75"
                     stroke-linejoin="round"/>
               <!-- Rev82: "A" moved from (0,-58) to (0,-60), a bit
                    further from the tip. Color rose-gray #8b98a5
                    (same as compass numeric labels). Two-orientation
                    flip logic in JS. Font-size 9 + weight 900. -->
-              <text id="rose-piece-awa-label" x="0" y="-60" text-anchor="middle" dominant-baseline="middle"
+              <!-- Rev126: label "A" reposicionado a y=-38 para caer
+                   dentro del nuevo path grande (punta -24 → V-hueco -48). -->
+              <text id="rose-piece-awa-label" x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
                     fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
             </g>
             <!-- DIA (outermost, cyan target diamond): arco base r=94 +
@@ -312,6 +320,70 @@
             <div class="label" id="rose-speed-label"></div>
             <div class="value" id="rose-speed">--- kn</div>
           </div>
+
+          <!-- Rev89: "Aproado" overlay - one semi-transparent panel over
+               the boat sprite that morphs through 4 phases (choosing /
+               countdown / active / summary). Positioned absolute inside
+               .dash-rose so it tracks the SVG regardless of orientation.
+               All phase-specific children are hidden by default; the JS
+               state machine reveals the right block per phase. -->
+          <div class="aproado-hud" id="aproado-hud" hidden>
+            <!-- Phase: choosing (5 s modal to pick bow / stern) -->
+            <div class="aproado-choose" data-aproado-phase="choosing">
+              <div class="aproado-hud-title" data-i18n="aproado.modal.title">Aproado - subir velas</div>
+              <div class="aproado-hud-sub" data-i18n="aproado.modal.sub">Elige por que lado</div>
+              <div class="aproado-tws" id="aproado-choose-tws"></div>
+              <div class="aproado-choice-row">
+                <button type="button" class="aproado-choice" data-dir="bow">
+                  <div class="aproado-choice-lbl" data-i18n="aproado.choice.bow">POR PROA</div>
+                  <div class="aproado-choice-tag" data-i18n="aproado.choice.recommended">Recomendado</div>
+                </button>
+                <button type="button" class="aproado-choice" data-dir="stern">
+                  <div class="aproado-choice-lbl" data-i18n="aproado.choice.stern">POR POPA</div>
+                  <div class="aproado-choice-tag" data-i18n="aproado.choice.recommended">Recomendado</div>
+                </button>
+              </div>
+              <button type="button" class="aproado-cancel" id="aproado-cancel-btn"
+                      data-i18n="aproado.cancel">Cancelar</button>
+            </div>
+            <!-- Phase: countdown (5 s grace after picking; user can cancel) -->
+            <div class="aproado-countdown-box" data-aproado-phase="countdown">
+              <div class="aproado-hud-title" id="aproado-cd-title">APROADO POR PROA</div>
+              <div class="aproado-hud-sub" data-i18n="aproado.cd.exec">Ejecutando en</div>
+              <div class="aproado-countdown" id="aproado-cd-num">5</div>
+              <button type="button" class="aproado-cancel" id="aproado-cd-cancel"
+                      data-i18n="aproado.cancel">Cancelar</button>
+            </div>
+            <!-- Rev90: Phase transit (rotating to head-to-wind) - shown
+                 while |AWA| is still large after countdown fires. -->
+            <div class="aproado-transit-box" data-aproado-phase="transit">
+              <div class="aproado-hud-title" id="aproado-transit-title">APROANDOSE POR PROA</div>
+              <div class="aproado-hud-sub" data-i18n="aproado.transit.sub">Girando al viento...</div>
+              <div class="aproado-hud-time" id="aproado-transit-deg">--&deg;</div>
+              <div class="aproado-hud-sub" data-i18n="aproado.transit.remaining">para aproado</div>
+              <div class="aproado-hud-row">
+                <span class="aproado-hud-lbl" data-i18n="aproado.hud.hdg">Rumbo</span>
+                <span class="aproado-hud-val" id="aproado-transit-hdg">---&deg;</span>
+              </div>
+              <button type="button" class="aproado-hud-end" id="aproado-transit-cancel"
+                      data-i18n="aproado.hud.exit">SALIR</button>
+            </div>
+            <!-- Phase: active / summary (elapsed timer, dist, hdg + SALIR) -->
+            <div class="aproado-active-box" data-aproado-phase="active">
+              <div class="aproado-hud-title" id="aproado-active-title" data-i18n="aproado.hud.title">APROADO</div>
+              <div class="aproado-hud-time" id="aproado-hud-elapsed">0:00</div>
+              <div class="aproado-hud-row">
+                <span class="aproado-hud-lbl" data-i18n="aproado.hud.dist">Dist</span>
+                <span class="aproado-hud-val" id="aproado-hud-dist">0.00 nm</span>
+              </div>
+              <div class="aproado-hud-row">
+                <span class="aproado-hud-lbl" data-i18n="aproado.hud.hdg">Rumbo</span>
+                <span class="aproado-hud-val" id="aproado-hud-hdg">---&deg;</span>
+              </div>
+              <button type="button" class="aproado-hud-end" id="aproado-hud-end"
+                      data-i18n="aproado.hud.exit">SALIR</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -339,27 +411,37 @@
                  requirement line, and the enable checkbox. Grid so
                  they lay out 2×2 on wide, 1× on narrow. -->
             <div class="overlay-cards">
+              <!-- Rev123 (Carlos): tras el swap, la pieza AMARILLA
+                   externa (letra "A") apunta al viento REAL, y la pieza
+                   VERDE interna (letra "T") apunta al viento APARENTE.
+                   Los checkbox y titulos i18n de los cards actualizados
+                   para reflejarlo. Letras del icono subidas a 14 para
+                   que se lean tan visibles como en el visor real. -->
+              <!-- Rev126 (Carlos): swap de PATHS. Card A (aparente,
+                   amarillo) usa el path GRANDE; card T (real, verde)
+                   el path pequeño. Coincide con la nueva forma de la
+                   rosa: la amarilla es la grande. -->
               <label class="overlay-card">
                 <input type="checkbox" id="dash-wind-arrow-awa" />
                 <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
-                  <path d="M -18.13,-58.53 L 0,-30 L 18.13,-58.53 L 0,-44 Z"
+                  <path d="M -20.85,-58.53 L 0,-16 L 20.85,-58.53 L 0,-40 Z"
                         fill="#ffd54a" stroke="#cba822" stroke-width="0.75" stroke-linejoin="round"/>
-                  <text x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
-                        fill="#8b98a5" font-size="9" font-weight="900" font-family="ui-monospace, monospace">A</text>
+                  <text x="0" y="-28" text-anchor="middle" dominant-baseline="middle"
+                        fill="#8b98a5" font-size="14" font-weight="900" font-family="ui-monospace, monospace">A</text>
                 </svg>
-                <div class="overlay-title" data-i18n="dash.overlay.awa.title">Apparent wind</div>
-                <div class="overlay-needs" data-i18n="dash.overlay.awa.needs">Needs a wind sensor (AWA).</div>
+                <div class="overlay-title" data-i18n="dash.overlay.awa.title">A · Apparent wind</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.awa.needs">Amber arrow · needs a wind sensor.</div>
               </label>
               <label class="overlay-card">
                 <input type="checkbox" id="dash-wind-arrow-twa" />
                 <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
-                  <path d="M -20.85,-58.53 L 0,-16 L 20.85,-58.53 L 0,-40 Z"
+                  <path d="M -18.13,-58.53 L 0,-30 L 18.13,-58.53 L 0,-44 Z"
                         fill="#5ce8c0" stroke="#38b596" stroke-width="0.75" stroke-linejoin="round"/>
-                  <text x="0" y="-33" text-anchor="middle" dominant-baseline="middle"
-                        fill="#8b98a5" font-size="9" font-weight="900" font-family="ui-monospace, monospace">T</text>
+                  <text x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
+                        fill="#8b98a5" font-size="14" font-weight="900" font-family="ui-monospace, monospace">T</text>
                 </svg>
-                <div class="overlay-title" data-i18n="dash.overlay.twa.title">True wind</div>
-                <div class="overlay-needs" data-i18n="dash.overlay.twa.needs">Needs a wind sensor + SOG (TWA).</div>
+                <div class="overlay-title" data-i18n="dash.overlay.twa.title">T · True wind</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.twa.needs">Teal arrow · needs a wind sensor + SOG.</div>
               </label>
               <label class="overlay-card">
                 <input type="checkbox" id="dash-show-cog" />
@@ -541,6 +623,121 @@
     </section>
 
     <!-- PATHS & API TAB -->
+    <!-- Rev96: CHART TAB (Trip Stats + telemetry canvas). Trip Stats
+         cards read straight from the SK bus (steering.autopilot.pypilot.
+         stats.*) so the numbers stay coherent across multiple visor
+         instances. The canvas pulls slices from /plugins/.../history on
+         window change or refresh - no continuous polling to keep Pi 4
+         friendly. -->
+    <section id="tab-chart" class="tab-panel">
+      <div class="chart-header">
+        <div class="chart-title" data-i18n="chart.stats.title">TRIP STATS</div>
+        <div class="chart-session-row">
+          <span class="chart-session-line" id="chart-session-line" data-i18n="chart.session.empty">Session started: ---</span>
+          <button id="chart-reset-btn" class="ghost" data-i18n="chart.session.reset">Reset</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.engaged">AP engaged</div>
+          <div class="stat-value" id="stat-engaged">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.distance">Distance</div>
+          <div class="stat-value" id="stat-distance">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.energy">Energy</div>
+          <div class="stat-value" id="stat-energy">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.meanErr">Mean err</div>
+          <div class="stat-value" id="stat-meanErr">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.rmsErr">RMS err</div>
+          <div class="stat-value" id="stat-rmsErr">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.p95Err">p95 err</div>
+          <div class="stat-value" id="stat-p95Err">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.servoRuntime">Servo runtime</div>
+          <div class="stat-value" id="stat-servoRuntime">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.tacksGybes">Tacks / Gybes</div>
+          <div class="stat-value" id="stat-tacksGybes">-- / --</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="chart.stat.maxServoA">Max servo A</div>
+          <div class="stat-value" id="stat-maxServoA">--</div>
+        </div>
+      </div>
+
+      <!-- Rev99: Servo Health card. Values fed live from SK paths
+           steering.autopilot.pypilot.servo.health.*. Baseline is
+           learned from the first ~5-10 min of engaged navigation. -->
+      <div class="servo-health-card">
+        <div class="sh-header">
+          <span class="sh-title" data-i18n="chart.servoHealth.title">SERVO HEALTH</span>
+          <span class="sh-status" id="sh-status">--</span>
+        </div>
+        <div class="sh-progress-wrap" id="sh-progress-wrap" hidden>
+          <span class="sh-progress-label" id="sh-progress-label" data-i18n="chart.servoHealth.learning">Learning...</span>
+          <div class="sh-progress-bar"><div class="sh-progress-fill" id="sh-progress-fill"></div></div>
+        </div>
+        <div class="sh-grid">
+          <div class="sh-cell"><div class="sh-cell-lbl" data-i18n="chart.servoHealth.baseline">Baseline</div><div class="sh-cell-val" id="sh-baseline">--</div></div>
+          <div class="sh-cell"><div class="sh-cell-lbl" data-i18n="chart.servoHealth.recent">Recent avg</div><div class="sh-cell-val" id="sh-recent">--</div></div>
+          <div class="sh-cell"><div class="sh-cell-lbl" data-i18n="chart.servoHealth.deviation">Deviation</div><div class="sh-cell-val" id="sh-deviation">--</div></div>
+          <div class="sh-cell"><div class="sh-cell-lbl" data-i18n="chart.servoHealth.peak">Peak 30 s</div><div class="sh-cell-val" id="sh-peak">--</div></div>
+          <div class="sh-cell"><div class="sh-cell-lbl" data-i18n="chart.servoHealth.temp">Temp</div><div class="sh-cell-val" id="sh-temp">--</div></div>
+          <div class="sh-cell"><div class="sh-cell-lbl" data-i18n="chart.servoHealth.voltage">Voltage</div><div class="sh-cell-val" id="sh-voltage">--</div></div>
+        </div>
+      </div>
+
+      <div class="chart-history-header">
+        <span data-i18n="chart.history.title">HISTORY</span>
+        <button id="chart-refresh-btn" class="ghost" data-i18n="chart.history.refresh">Refresh</button>
+      </div>
+
+      <div class="chart-window-row">
+        <button class="chart-window-btn active" data-window="30s">30 s</button>
+        <button class="chart-window-btn" data-window="2m">2 min</button>
+        <button class="chart-window-btn" data-window="10m">10 min</button>
+      </div>
+
+      <div class="chart-paths-row">
+        <label class="chart-path-chip"><input type="checkbox" data-path="headingCmd" checked><span>HDG cmd</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="headingActual" checked><span>HDG act</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="rudder"><span>Rudder</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="servoCurrent"><span>Servo A</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="awa" checked><span>AWA</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="tws"><span>TWS</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="heel"><span>Heel</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="sog"><span>SOG</span></label>
+      </div>
+
+      <div class="chart-canvas-wrap">
+        <canvas id="chart-canvas" width="800" height="360"></canvas>
+        <div class="chart-empty-hint" id="chart-empty-hint" data-i18n="chart.empty">Loading history...</div>
+      </div>
+
+      <div class="chart-footer" id="chart-footer">
+        <span id="chart-footer-count">0 samples</span>
+      </div>
+    </section>
+
+    <!-- Rev96: Paths & API was dropped from the top nav bar. The section
+         below still owns its DOM (all IDs preserved so existing JS keeps
+         working) but no tab-btn activates it, so .tab-panel's default
+         display:none hides it here. On boot app.js physically moves this
+         subtree into a mount point inside the Setup tab (#paths-mount)
+         so the user still reaches it - one canonical block, no HTML
+         duplication. -->
     <section id="tab-paths" class="tab-panel">
       <div class="paths-header">
         <div data-i18n="paths.header">Live catalog of Signal K paths this plugin publishes and PUT-handles. Use the Copy buttons to paste into KIP widget configs.</div>
@@ -559,56 +756,62 @@
         <div class="hint" style="margin-bottom:8px;" data-i18n="paths.kip.hint">Wire these to KIP "Simple Switch" widgets (blue rows) or "Put" widgets (green rows).</div>
         <div class="paths-scroll">
           <table class="paths-table">
-            <thead><tr><th>Widget</th><th>Path</th><th>Type</th><th>Value(s)</th><th>Copy</th></tr></thead>
+            <thead><tr>
+              <th data-i18n="paths.kip.col.widget">Widget</th>
+              <th data-i18n="paths.kip.col.path">Path</th>
+              <th data-i18n="paths.kip.col.type">Type</th>
+              <th data-i18n="paths.kip.col.values">Value(s)</th>
+              <th data-i18n="paths.kip.col.copy">Copy</th>
+            </tr></thead>
             <tbody>
               <tr style="background: rgba(55,182,255,0.08);">
-                <td><b>AP engage</b></td>
+                <td data-i18n-html="paths.kip.widget.apEngage"><b>AP engage</b></td>
                 <td class="path">electrical.switches.pypilot.ap.state</td>
-                <td>Simple Switch</td>
-                <td>1 = engage, 0 = disengage</td>
-                <td><button class="copy" data-copy="electrical.switches.pypilot.ap.state">Copy</button></td>
+                <td data-i18n="paths.kip.type.simple">Simple Switch</td>
+                <td data-i18n="paths.kip.val.engage">1 = engage, 0 = disengage</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.ap.state" data-i18n="paths.kip.copy">Copy</button></td>
               </tr>
               <tr style="background: rgba(55,182,255,0.08);">
-                <td>Nudge <code>-10 / -1 / +1 / +10</code></td>
+                <td data-i18n-html="paths.kip.widget.nudge">Nudge <code>-10 / -1 / +1 / +10</code></td>
                 <td class="path">electrical.switches.pypilot.nudge.{bigPort,smallPort,smallStar,bigStar}</td>
-                <td>Simple Switch (momentary)</td>
-                <td>1 = fire, auto-resets</td>
-                <td><button class="copy" data-copy="electrical.switches.pypilot.nudge.smallStar">Copy +1</button></td>
+                <td data-i18n="paths.kip.type.momentary">Simple Switch (momentary)</td>
+                <td data-i18n="paths.kip.val.fireReset">1 = fire, auto-resets</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.nudge.smallStar" data-i18n="paths.kip.copy.plus1">Copy +1</button></td>
               </tr>
               <tr style="background: rgba(55,182,255,0.08);">
-                <td>Tack <code>port / starboard / cancel</code></td>
+                <td data-i18n-html="paths.kip.widget.tack">Tack <code>port / starboard / cancel</code></td>
                 <td class="path">electrical.switches.pypilot.tack.{port,starboard,cancel}</td>
-                <td>Simple Switch (momentary)</td>
-                <td>1 = fire</td>
-                <td><button class="copy" data-copy="electrical.switches.pypilot.tack.port">Copy port</button></td>
+                <td data-i18n="paths.kip.type.momentary">Simple Switch (momentary)</td>
+                <td data-i18n="paths.kip.val.fire">1 = fire</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.tack.port" data-i18n="paths.kip.copy.port">Copy port</button></td>
               </tr>
               <tr style="background: rgba(55,182,255,0.08);">
-                <td>Mode <code>compass / gps / wind / true / nav</code></td>
+                <td data-i18n-html="paths.kip.widget.mode">Mode <code>compass / gps / wind / true / nav</code></td>
                 <td class="path">electrical.switches.pypilot.mode.{compass,gps,wind,trueWind,nav}</td>
-                <td>Simple Switch (radio)</td>
-                <td>1 = select</td>
-                <td><button class="copy" data-copy="electrical.switches.pypilot.mode.compass">Copy compass</button></td>
+                <td data-i18n="paths.kip.type.radio">Simple Switch (radio)</td>
+                <td data-i18n="paths.kip.val.select">1 = select</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.mode.compass" data-i18n="paths.kip.copy.compass">Copy compass</button></td>
               </tr>
               <tr style="background: rgba(55,182,255,0.08);">
-                <td>Profile <code>&lt;name&gt;</code></td>
+                <td data-i18n-html="paths.kip.widget.profile">Profile <code>&lt;name&gt;</code></td>
                 <td class="path">electrical.switches.pypilot.profile.&lt;name&gt;</td>
-                <td>Simple Switch (radio, dynamic)</td>
-                <td>1 = select</td>
-                <td><button class="copy" data-copy="electrical.switches.pypilot.profile.">Copy prefix</button></td>
+                <td data-i18n="paths.kip.type.radioDyn">Simple Switch (radio, dynamic)</td>
+                <td data-i18n="paths.kip.val.select">1 = select</td>
+                <td><button class="copy" data-copy="electrical.switches.pypilot.profile." data-i18n="paths.kip.copy.prefix">Copy prefix</button></td>
               </tr>
               <tr style="background: rgba(46,204,113,0.10);">
-                <td><b>Mode</b> (Put)</td>
+                <td data-i18n-html="paths.kip.widget.modePut"><b>Mode</b> (Put)</td>
                 <td class="path">steering.autopilot.mode</td>
-                <td>string</td>
-                <td>"compass" / "gps" / "wind" / "true wind" / "nav"</td>
-                <td><button class="copy" data-copy="steering.autopilot.mode">Copy</button></td>
+                <td data-i18n="paths.kip.type.string">string</td>
+                <td data-i18n="paths.kip.val.modeStrings">"compass" / "gps" / "wind" / "true wind" / "nav"</td>
+                <td><button class="copy" data-copy="steering.autopilot.mode" data-i18n="paths.kip.copy">Copy</button></td>
               </tr>
               <tr style="background: rgba(46,204,113,0.10);">
-                <td>Target (Put)</td>
+                <td data-i18n="paths.kip.widget.targetPut">Target (Put)</td>
                 <td class="path">steering.autopilot.target</td>
-                <td>number (rad)</td>
-                <td>e.g. 1.57 for 90 deg</td>
-                <td><button class="copy" data-copy="steering.autopilot.target">Copy</button></td>
+                <td data-i18n="paths.kip.type.numberRad">number (rad)</td>
+                <td data-i18n="paths.kip.val.targetExample">e.g. 1.57 for 90 deg</td>
+                <td><button class="copy" data-copy="steering.autopilot.target" data-i18n="paths.kip.copy">Copy</button></td>
               </tr>
             </tbody>
           </table>
@@ -645,44 +848,116 @@
 
     <!-- SETUP TAB -->
     <section id="tab-setup" class="tab-panel">
-      <div class="setup-block">
-        <div class="section-title" data-i18n="setup.connection">Connection</div>
-        <div id="setup-status" class="status-block" data-i18n="loading">loading...</div>
+      <!-- Rev102: Autopilot Check card. Placed FIRST so a user opening
+           Setup before leaving the dock sees the verdict up front. -->
+      <div class="setup-block precheck-block" data-setup-order="10" data-block-key="precheck">
+        <div class="pc-header">
+          <div class="section-title" data-i18n="setup.precheck.title">Autopilot check</div>
+          <button id="pc-refresh-btn" class="ghost" data-i18n="setup.precheck.refresh">Refresh</button>
+        </div>
+        <div class="hint" data-i18n="setup.precheck.hint">Pre-departure sanity check. Aggregates every sensor / servo / voltage / connectivity signal into a single verdict. Recomputes every 3 s while this tab is open.</div>
+        <div id="pc-verdict" class="pc-verdict pc-unknown">
+          <span class="pc-verdict-label" data-i18n="setup.precheck.unknown">Checking...</span>
+          <span class="pc-counts" id="pc-counts"></span>
+        </div>
+        <div id="pc-items" class="pc-items"></div>
       </div>
 
-      <div class="setup-block">
-        <div class="section-title" data-i18n="setup.scan.title">Scan LAN for pypilot_web</div>
-        <div class="row">
-          <input type="text" id="scan-subnet" data-i18n-placeholder="setup.scan.subnet.ph" placeholder="auto-detect (e.g. 192.168.1.0/24)" />
-          <button id="scan-btn" class="primary" data-i18n="setup.scan.btn">Scan</button>
+      <!-- Rev104: Pypilot Doctor card. Records a fixed-duration session
+           with the AP engaged then proposes P/I/D gain adjustments the
+           user reviews and applies one at a time. Nothing is written to
+           pypilot until the user hits APPLY. -->
+      <div class="setup-block doctor-block" data-setup-order="20" data-block-key="doctor">
+        <div class="pc-header">
+          <div class="section-title" data-i18n="setup.doctor.title">Pypilot Doctor</div>
+          <div class="doctor-controls">
+            <select id="doctor-duration" class="doctor-duration" aria-label="Duration">
+              <option value="60">1 min</option>
+              <option value="120">2 min</option>
+              <option value="180" selected>3 min</option>
+              <option value="300">5 min</option>
+            </select>
+            <button id="doctor-start-btn" class="primary" data-i18n="setup.doctor.start">DIAGNOSE</button>
+            <button id="doctor-cancel-btn" class="ghost" data-i18n="setup.doctor.cancel" hidden>Cancel</button>
+          </div>
         </div>
-        <div id="scan-results" class="scan-results"></div>
+        <div class="hint" data-i18n="setup.doctor.hint">Engage the AP first, then press DIAGNOSE. The plugin records the heading error + servo response and proposes P/I/D adjustments. Nothing is applied automatically - review each suggestion and press APPLY to send it to pypilot.</div>
+        <div id="doctor-progress-wrap" class="doctor-progress-wrap" hidden>
+          <div class="doctor-progress-label" id="doctor-progress-label">Recording...</div>
+          <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="doctor-progress-fill"></div></div>
+          <div class="doctor-progress-time" id="doctor-progress-time">0/0s</div>
+        </div>
+        <div id="doctor-result" class="doctor-result" hidden></div>
       </div>
 
-      <div class="setup-block">
-        <div class="section-title" data-i18n="setup.manual.title">Manual host</div>
-        <div class="row">
-          <input type="text"   id="cfg-host" data-i18n-placeholder="setup.host.ph" placeholder="192.168.1.115" />
-          <input type="number" id="cfg-port" placeholder="80" style="max-width:6em" />
-          <button id="cfg-apply" class="primary" data-i18n="setup.apply.btn">Apply &amp; reconnect</button>
+      <!-- Rev107 (Carlos): Connection + Scan LAN + Manual host + Autopilot
+           Provider consolidated into a single card with 4 inner subsections. -->
+      <div class="setup-block" data-setup-order="100" data-block-key="connection">
+        <div class="section-title" data-i18n="setup.conn.title">Conexion pypilot</div>
+        <!-- Subsection 1: Estado -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.conn.status">Estado</div>
+          <div id="setup-status" class="status-block" data-i18n="loading">loading...</div>
         </div>
-        <div class="hint" data-i18n="setup.manual.hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
+        <!-- Subsection 2: Escanear LAN -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.scan.title">Scan LAN for pypilot_web</div>
+          <div class="row">
+            <input type="text" id="scan-subnet" data-i18n-placeholder="setup.scan.subnet.ph" placeholder="auto-detect (e.g. 192.168.1.0/24)" />
+            <button id="scan-btn" class="primary" data-i18n="setup.scan.btn">Scan</button>
+          </div>
+          <div id="scan-results" class="scan-results"></div>
+        </div>
+        <!-- Subsection 3: Host manual -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.manual.title">Manual host</div>
+          <div class="row">
+            <input type="text"   id="cfg-host" data-i18n-placeholder="setup.host.ph" placeholder="192.168.1.115" />
+            <input type="number" id="cfg-port" placeholder="80" style="max-width:6em" />
+            <button id="cfg-apply" class="primary" data-i18n="setup.apply.btn">Apply &amp; reconnect</button>
+          </div>
+          <div class="hint" data-i18n="setup.manual.hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
+        </div>
+        <!-- Subsection 4: Autopilot Provider -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.absorb.title">Autopilot Provider (one-socket mode)</div>
+          <div class="row">
+            <label style="min-width:140px" data-i18n="setup.absorb.label">Absorb official provider</label>
+            <input type="checkbox" id="cfg-absorb" style="transform:scale(1.5); margin-right:12px;" />
+            <button id="cfg-absorb-apply" class="primary" data-i18n="setup.absorb.btn">Save &amp; restart</button>
+          </div>
+          <div class="hint" style="color: var(--warn);" data-i18n="setup.absorb.hint">
+            When ON, this plugin registers itself as the Signal K Autopilot Provider (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.
+          </div>
+        </div>
       </div>
 
-      <div class="setup-block">
-        <div class="section-title" data-i18n="setup.absorb.title">Autopilot Provider (one-socket mode)</div>
-        <div class="row">
-          <label style="min-width:140px" data-i18n="setup.absorb.label">Absorb official provider</label>
-          <input type="checkbox" id="cfg-absorb" style="transform:scale(1.5); margin-right:12px;" />
-          <button id="cfg-absorb-apply" class="primary" data-i18n="setup.absorb.btn">Save &amp; restart</button>
-        </div>
-        <div class="hint" style="color: var(--warn);" data-i18n="setup.absorb.hint">
-          When ON, this plugin registers itself as the Signal K Autopilot Provider (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.
+      <!-- Rev97: Sensor Quality panel. Polled every 3 s while the Setup
+           tab is visible; each watched path shows freshness / observed
+           Hz / jitter / source with a green/amber/red status pill. -->
+      <div class="setup-block" data-setup-order="30" data-block-key="quality">
+        <div class="section-title" data-i18n="setup.quality.title">Sensor Quality</div>
+        <div class="hint" data-i18n="setup.quality.hint">Freshness and update rate of the SK paths the autopilot depends on. Green = good, amber = degraded, red = lost.</div>
+        <div class="sq-scroll">
+          <table id="sq-table" class="sq-table">
+            <thead>
+              <tr>
+                <th data-i18n="sq.col.sensor">Sensor</th>
+                <th data-i18n="sq.col.value">Value</th>
+                <th data-i18n="sq.col.age">Age</th>
+                <th data-i18n="sq.col.hz">Hz</th>
+                <th data-i18n="sq.col.jitter">Jitter</th>
+                <th data-i18n="sq.col.source">Source</th>
+                <th data-i18n="sq.col.status">Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </div>
 
-      <div class="setup-block" style="border: 2px solid var(--err);">
-        <div class="section-title" style="color: var(--err);" data-i18n="setup.emergency">Emergency</div>
+      <div class="setup-block" style="border: 2px solid var(--err);" data-setup-order="900" data-block-key="emergency">
+        <div class="section-title" style="color: var(--err);" data-i18n="setup.remoteConsole">Remote Control Console</div>
         <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center">
           <label style="min-width:100px" data-i18n="setup.ssh.user">SSH user</label>
           <input type="text"     id="cfg-ssh-user"     placeholder="tc" style="max-width:9em" autocomplete="off" />
@@ -721,19 +996,40 @@
              into a scrollable textarea. -->
         <div class="debug-block" style="margin-top:16px">
           <div class="restart-title" data-i18n="setup.debug.title">Debug console</div>
-          <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">
-            <button class="ghost debug-preset" data-preset="logs.pypilot">logs pypilot</button>
-            <button class="ghost debug-preset" data-preset="logs.pypilot_web">logs pypilot_web</button>
-            <button class="ghost debug-preset" data-preset="dmesg.tail">dmesg</button>
-            <button class="ghost debug-preset" data-preset="top.snapshot">top</button>
-            <button class="ghost debug-preset" data-preset="uptime">uptime</button>
-            <button class="ghost debug-preset" data-preset="df">df</button>
-            <button class="ghost debug-preset" data-preset="pypilot.version">pypilot --version</button>
-            <!-- Rev66 / 2.0.4: moved from the Emergency triad. Rarely
-                 needed on a healthy Pi; when the box is saturated a full
-                 reboot is what actually helps. Kept here for edge cases. -->
-            <button class="ghost debug-preset" data-preset="restart.web">restart pypilot_web</button>
+          <!-- Rev115 (Carlos): plain human labels only. The underlying
+               shell command lives in the `title` attribute so hovering
+               (or long-pressing on mobile) still reveals it for the
+               curious, but the button face stays uncluttered. -->
+          <div class="ssh-preset-grid">
+            <button class="ssh-preset debug-preset" data-preset="logs.pypilot"    title="journalctl -u pypilot"       data-i18n="ssh.p.logsPypilot">Registro pypilot</button>
+            <button class="ssh-preset debug-preset" data-preset="logs.pypilot_web" title="journalctl -u pypilot_web"  data-i18n="ssh.p.logsWeb">Registro pypilot_web</button>
+            <button class="ssh-preset debug-preset" data-preset="dmesg.tail"      title="dmesg | tail"                data-i18n="ssh.p.dmesg">Errores sistema</button>
+            <button class="ssh-preset debug-preset" data-preset="top.snapshot"    title="top -bn1"                    data-i18n="ssh.p.top">Que consume CPU</button>
+            <button class="ssh-preset debug-preset" data-preset="uptime"          title="uptime"                       data-i18n="ssh.p.uptime">Tiempo encendido</button>
+            <button class="ssh-preset debug-preset" data-preset="df"              title="df -h"                        data-i18n="ssh.p.df">Espacio disco</button>
+            <button class="ssh-preset debug-preset" data-preset="free"            title="free"                         data-i18n="ssh.p.free">Memoria RAM</button>
+            <button class="ssh-preset debug-preset" data-preset="ps.pypilot"      title="ps -ef | grep pypilot"        data-i18n="ssh.p.ps">Procesos pypilot</button>
+            <button class="ssh-preset debug-preset" data-preset="ip"              title="ip a / ifconfig"              data-i18n="ssh.p.ip">Tabla IP</button>
+            <button class="ssh-preset debug-preset" data-preset="iwconfig"        title="iwconfig / iw dev"            data-i18n="ssh.p.iw">WiFi</button>
+            <button class="ssh-preset debug-preset" data-preset="temp"            title="/sys/.../thermal"             data-i18n="ssh.p.temp">Temperatura</button>
+            <button class="ssh-preset debug-preset" data-preset="who"             title="who / last"                   data-i18n="ssh.p.who">Quien esta conectado</button>
+            <button class="ssh-preset debug-preset" data-preset="pypilot.version" title="python3 -c import pypilot"   data-i18n="ssh.p.ver">Version pypilot</button>
+            <button class="ssh-preset debug-preset" data-preset="restart.web"     title="sv restart pypilot_web"       data-i18n="ssh.p.restartWeb">Reiniciar web pypilot</button>
           </div>
+
+          <!-- Rev113 / Rev114 (Carlos): interactive SSH input. Free-form
+               command runs on the TinyPilot as the saved SSH user. Two
+               on-screen arrows for mobile (no physical keyboard). -->
+          <div class="ssh-cmd-row">
+            <button id="ssh-hist-prev" class="ghost ssh-hist-btn" title="Anterior" aria-label="Previous history">▲</button>
+            <button id="ssh-hist-next" class="ghost ssh-hist-btn" title="Siguiente" aria-label="Next history">▼</button>
+            <input type="text" id="ssh-cmd-input"
+                   data-i18n-placeholder="setup.ssh.exec.ph"
+                   placeholder="Enter shell command (e.g. cat /proc/loadavg)"
+                   autocomplete="off" spellcheck="false" />
+            <button id="ssh-cmd-run" class="primary" data-i18n="setup.ssh.exec.run">Run</button>
+          </div>
+          <div class="hint" style="margin-bottom:8px;font-size:11px" data-i18n="setup.ssh.exec.hint">Free-form SSH: any command runs as the saved user on the TinyPilot. Arrow up/down navigates history.</div>
           <textarea id="debug-output" readonly rows="12"
             style="width:100%;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px;font-family:ui-monospace,monospace;font-size:12px;resize:vertical;"
             data-i18n-placeholder="setup.debug.output.ph"
@@ -751,19 +1047,7 @@
         </div>
       </div>
 
-      <div class="setup-block">
-        <div class="section-title" data-i18n="nudge.title">Nudge steps</div>
-        <div class="row">
-          <label style="min-width:120px" data-i18n="nudge.small">Small (-1/+1)</label>
-          <input type="number" id="cfg-nudge-small" min="0.1" max="45" step="0.5" value="1" />
-          <label style="min-width:120px" data-i18n="nudge.big">Big (-10/+10)</label>
-          <input type="number" id="cfg-nudge-big" min="1" max="90" step="1" value="10" />
-          <button id="cfg-nudge-apply" class="primary" data-i18n="save">Save</button>
-        </div>
-        <div class="hint" data-i18n="nudge.hint">Degrees added to the target each time you press a nudge button. Also configurable in Signal K Admin -> Plugin Config -> PyPilot New-UI.</div>
-      </div>
-
-      <div class="setup-block">
+      <div class="setup-block" data-setup-order="140" data-block-key="language">
         <div class="section-title" data-i18n="language.title">Language</div>
         <div class="row">
           <select id="lang-select" style="min-width:180px">
@@ -776,7 +1060,7 @@
         <div class="hint" data-i18n="language.hint">Persists in this browser only. No server round-trip.</div>
       </div>
 
-      <div class="setup-block">
+      <div class="setup-block" data-setup-order="160" data-block-key="calibration">
         <div class="section-title" data-i18n="calibration.title">Calibration</div>
         <div class="calib-row">
           <button id="cal-level" class="ghost" data-i18n="cal.level">Level (boat is flat)</button>
@@ -796,6 +1080,56 @@
           <label data-i18n="cal.rudRange">Rudder range (deg)</label>
           <input type="number" id="cal-rud-range" min="10" max="100" step="1" />
         </div>
+
+        <!-- Rev124 (Carlos): Nudge/heading-trim moved here from its own
+             card. It fits conceptually under Calibration - it defines
+             how much the ±1 / ±10 buttons on the Control tab move the
+             target heading. -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="nudge.title">Heading trim buttons</div>
+          <div class="row">
+            <label style="min-width:120px" data-i18n="nudge.small">Small (-1/+1)</label>
+            <input type="number" id="cfg-nudge-small" min="0.1" max="45" step="0.5" value="1" />
+            <label style="min-width:120px" data-i18n="nudge.big">Big (-10/+10)</label>
+            <input type="number" id="cfg-nudge-big" min="1" max="90" step="1" value="10" />
+            <button id="cfg-nudge-apply" class="primary" data-i18n="save">Save</button>
+          </div>
+          <div class="hint" data-i18n="nudge.hint">Degrees added to the target each time you press a nudge button. Also configurable in Signal K Admin -> Plugin Config -> PyPilot New-UI.</div>
+        </div>
+
+        <!-- Rev116 (Carlos): full pypilot RangeSetting sliders grouped
+             by category (rudder / servo / imu / ap / other). Populated
+             from state.catalog + state.pypilotValues via
+             renderCalibrationSliders() on catalog refresh. -->
+        <div class="calib-advanced">
+          <div class="calib-advanced-title" data-i18n="cal.advanced.title">Advanced sliders</div>
+          <div class="hint" style="margin-bottom:8px" data-i18n="cal.advanced.hint">All the pypilot RangeSettings, grouped. Long-press or hover a name to see the raw pypilot key.</div>
+          <div class="calib-unlock-row">
+            <label class="calib-unlock">
+              <input type="checkbox" id="calib-unlock" />
+              <span data-i18n="cal.unlock">Unlock sliders</span>
+            </label>
+          </div>
+          <div id="calib-sliders-mount" class="calib-sliders-mount"></div>
+        </div>
+      </div>
+
+      <!-- Rev101: Alarms configuration panel. Lists every rule with an
+           enable toggle + mute button + live status pill. Fed from the
+           same /alarms/state poll that drives the banner. -->
+      <div class="setup-block" data-setup-order="40" data-block-key="alarms">
+        <div class="section-title" data-i18n="setup.alarms.title">Alarms</div>
+        <div class="hint" data-i18n="setup.alarms.hint">Turn each rule on or off and mute it temporarily. Active alarms appear in the banner at the top and publish canonical SK notifications for KIP / WilhelmSK.</div>
+        <div id="alarms-config" class="alarms-config"></div>
+      </div>
+
+      <!-- Rev96: mount point for the Paths & API block. The block's own
+           DOM (id="tab-paths") lives further up in the document; on boot
+           app.js relocates it into this mount so the user still sees it,
+           without duplicating the markup. -->
+      <div class="setup-block" data-setup-order="170" data-block-key="paths">
+        <div class="section-title" data-i18n="setup.paths.title">Paths &amp; API</div>
+        <div id="paths-mount"></div>
       </div>
     </section>
 
@@ -1107,6 +1441,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev87"></script>
+  <script src="app.js?v=Rev127"></script>
 </body>
 </html>

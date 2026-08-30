@@ -799,7 +799,8 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.engage-toggle::-moz-focus-inner { border: 0; padding: 0; }
+/* Rev95: dropped .engage-toggle::-moz-focus-inner - Firefox 85+ no
+   longer exposes that pseudo-element and just logs a warning. */
 .engage-toggle.engaged {
   background: var(--engaged);
   border-color: var(--engaged);
@@ -1823,5 +1824,1272 @@ main { touch-action: pan-y; overflow-x: hidden; }
 .swipe-hint-arrow + .swipe-hint-arrow { padding-left: 0; opacity: 0.35; }
 .swipe-hint-spacer { flex: 1; }
 
-/* Rev41: slide animations for tab transitions moved to CSS transitions on
-   the tab-panel itself (see .tab-panel + .entering-*/.leaving-* above). */
+/* Rev41: slide animations for tab transitions live on .tab-panel plus
+   the entering-<phase> and leaving-<phase> classes above. */
+
+/* -------- Rev116: full RangeSetting sliders in Calibration -------- */
+.calib-advanced {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.calib-advanced-title {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.calib-sliders-mount { display: flex; flex-direction: column; gap: 10px; }
+/* Rev119 (Carlos): match Tune-unlock styling exactly - accent-blue
+   glow when unlocked, padlock emoji before the label, big checkbox. */
+.calib-unlock-row {
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+}
+.calib-unlock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--fg-dim);
+  font-size: 14px;
+  user-select: none;
+}
+.calib-unlock input[type=checkbox] {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+}
+.calib-unlock input[type=checkbox]:checked + span { color: var(--accent); font-weight: 700; }
+.calib-unlock input[type=checkbox]:checked + span::before { content: "🔓 "; }
+.calib-unlock input[type=checkbox]:not(:checked) + span::before { content: "🔒 "; }
+/* Lift the unlock-row to accent glow when active, mirroring what the
+   locked/unlocked classes do on the sliders below. */
+.calib-unlock-row:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+}
+.cal-reset-btn {
+  font-size: 15px !important;
+  min-width: 32px;
+  color: var(--accent) !important;
+}
+.cal-reset-btn:not([disabled]):hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent) !important;
+}
+.calib-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg-3);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.calib-slider-group-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+/* -------- Rev114: SSH preset buttons + interactive command row -------- */
+.ssh-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+/* Rev115: single-line human label per preset. Hover / long-press
+   shows the real shell command via the button's title attribute. */
+.ssh-preset {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transition: background 100ms ease, border-color 100ms ease;
+  min-height: 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-preset:hover { background: color-mix(in srgb, var(--accent) 12%, var(--bg-3)); border-color: var(--accent); }
+.ssh-preset:active { transform: scale(0.98); }
+
+.ssh-cmd-row {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+  margin-bottom: 6px;
+}
+.ssh-hist-btn {
+  flex: 0 0 auto;
+  padding: 8px 10px !important;
+  font-size: 14px !important;
+  font-weight: 900;
+  min-width: 36px;
+}
+#ssh-cmd-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg-3);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+#ssh-cmd-run { flex: 0 0 auto; }
+
+/* -------- Rev107: consolidated Connection card (4 subsections) -------- */
+.conn-sub {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.conn-sub:first-of-type {
+  margin-top: 8px;
+  border-top: 0;
+  padding-top: 0;
+}
+.conn-sub-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin-bottom: 6px;
+}
+
+/* -------- Rev108/109: Setup as a launcher grid + fullscreen tiles ---- */
+/* Setup is a fixed-row-height grid (Rev109: dropped aspect-ratio which
+   collided with min-height in landscape and let tiles overlap). Each
+   tile shows the card title + a live summary pill. Click opens
+   fullscreen; a small X in the header or ESC returns to the launcher. */
+#tab-setup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 130px;
+  gap: 10px;
+  padding: 10px;
+  align-content: start;
+  overflow-y: auto;
+}
+@media (min-width: 720px) {
+  #tab-setup { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1080px) {
+  #tab-setup { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Tile default. Fixed height set by grid-auto-rows above. */
+#tab-setup .setup-block {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+#tab-setup .setup-block:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+#tab-setup .setup-block:active { transform: translateY(0); }
+/* Title in tile mode: bigger, wraps to two lines. */
+#tab-setup .setup-block .section-title {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  line-height: 1.25;
+  padding: 0;
+  margin: 0;
+}
+/* Hint / pc-header controls / body content are HIDDEN in tile mode.
+   Only the title, summary pill and (in the two structured blocks) the
+   pc-header title survive. Everything else appears when fullscreen. */
+#tab-setup .setup-block:not([data-fullscreen="1"]) > *:not(.section-title):not(.pc-header):not(.setup-block-summary):not(.setup-block-close) {
+  display: none;
+}
+#tab-setup .setup-block:not([data-fullscreen="1"]) .pc-header > *:not(.section-title) {
+  display: none;
+}
+/* Summary pill in tile mode: big, centred, occupies the bottom half. */
+.setup-block-summary {
+  font-size: 12px;
+  color: var(--fg);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  text-align: center;
+  align-self: stretch;
+  white-space: normal;
+  word-wrap: break-word;
+}
+.setup-block-summary:empty::before {
+  content: "···";
+  color: var(--fg-dim);
+  font-weight: 500;
+}
+.setup-block-summary.good {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 18%, var(--bg-3));
+  border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
+}
+.setup-block-summary.warn {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 20%, var(--bg-3));
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--border));
+}
+.setup-block-summary.fail {
+  color: #fff;
+  background: color-mix(in srgb, var(--err) 60%, var(--bg-3));
+  border-color: var(--err);
+}
+
+/* Close button - hidden in tile mode. In fullscreen it becomes a
+   compact inline pill in the top-left of the card's own header row
+   (Rev109: was position:fixed 46×46 stealing vertical space at the
+   top; now flows inline next to the title, ~30×30). */
+.setup-block-close {
+  display: none;
+  background: var(--engaged);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.setup-block-close:active { transform: scale(0.94); }
+.setup-block[data-fullscreen="1"] .setup-block-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fullscreen: cover the viewport, scroll internally, block page scroll.
+   Rev111: force width:100vw / height:100dvh so a small-content card
+   still fills the visor. The fs-header is position:sticky so the X
+   button and title stay pinned at the top while the body scrolls. */
+.setup-block[data-fullscreen="1"] {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  width: 100vw;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  min-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 14px 20px 14px;
+  cursor: default;
+  border-radius: 0;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: flex-start;
+  box-shadow: none;
+  background: var(--bg-2);
+}
+.setup-block[data-fullscreen="1"]:hover { transform: none; box-shadow: none; }
+/* In fullscreen: header row = close-button + title inline. The ORIGINAL
+   .section-title is hidden (the mirror inside .setup-block-fs-header
+   is the visible one) but the .pc-header controls (Refresh, DIAGNOSE)
+   stay visible on the row below.
+   Rev111: sticky at the top of the scrolling card so the X stays
+   reachable while the body scrolls; extends to full width via negative
+   horizontal margin over the card's own padding. */
+.setup-block[data-fullscreen="1"] .setup-block-fs-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-2);
+  padding: 12px 14px;
+  margin: 0 -14px 4px -14px;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.setup-block[data-fullscreen="1"] .setup-block-fs-header .section-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin: 0;
+  flex: 1 1 auto;
+}
+/* Hide the ORIGINAL title (both direct child and inside pc-header). */
+.setup-block[data-fullscreen="1"] > .section-title,
+.setup-block[data-fullscreen="1"] > .pc-header > .section-title {
+  display: none;
+}
+.setup-block[data-fullscreen="1"] .setup-block-summary {
+  display: none;
+}
+.setup-block[data-fullscreen="1"] .pc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 0;
+}
+
+/* Rev109: block page scroll while a tile is fullscreen so the launcher
+   grid behind cannot rubber-band under the finger. Applied by JS via
+   body.setup-fullscreen-active. */
+body.setup-fullscreen-active {
+  overflow: hidden;
+  touch-action: none;
+}
+body.setup-fullscreen-active #tabbar {
+  visibility: hidden;
+}
+
+/* -------- Rev104: Pypilot Doctor card -------- */
+.doctor-block .pc-header { margin-bottom: 6px; }
+.doctor-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.doctor-duration {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+#doctor-start-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+#doctor-cancel-btn { padding: 8px 14px; font-size: 12px; }
+.doctor-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.doctor-progress-wrap[hidden] { display: none; }
+.doctor-progress-label { min-width: 88px; font-weight: 700; color: var(--fg); }
+.doctor-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-3);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.doctor-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 400ms linear;
+}
+.doctor-progress-time {
+  min-width: 68px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+}
+.doctor-result[hidden] { display: none; }
+.doctor-result { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.doctor-summary {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-2));
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.doctor-summary.pc-fail    { background: color-mix(in srgb, var(--err)  32%, var(--bg-2)); border-color: var(--err);  color: #ffd7d0; }
+.doctor-profile-banner {
+  background: color-mix(in srgb, var(--ok) 15%, var(--bg-2));
+  border: 1px solid var(--ok);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--fg);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.doctor-profile-banner b {
+  color: var(--ok);
+  font-family: ui-monospace, monospace;
+}
+.doctor-summary.pc-caveats { background: color-mix(in srgb, var(--warn) 24%, var(--bg-2)); border-color: var(--warn); color: #221000; }
+.doctor-summary.pc-ready   { background: color-mix(in srgb, var(--ok)   24%, var(--bg-2)); border-color: var(--ok);   color: var(--ok); }
+.doctor-section-title {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+.doctor-findings, .doctor-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.doctor-finding {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  background: var(--bg-3);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.doctor-finding .pc-item-icon { font-weight: 900; font-size: 14px; }
+.doctor-finding.f-info     .pc-item-icon { color: var(--accent); }
+.doctor-finding.f-warn     .pc-item-icon { color: var(--warn); }
+.doctor-finding.f-critical .pc-item-icon { color: var(--err); }
+.doctor-finding-body { min-width: 0; }
+.doctor-finding-msg {
+  font-size: 13px;
+  color: var(--fg);
+  font-weight: 700;
+}
+.doctor-finding-metric {
+  font-size: 10px;
+  color: var(--fg-dim);
+  font-family: ui-monospace, monospace;
+}
+.doctor-suggestion {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.doctor-suggestion.applied { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--bg-3)); }
+.doctor-suggestion.dismissed { opacity: 0.5; border-color: var(--fg-dim); }
+.doctor-sug-discard {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-right: 6px;
+}
+.doctor-sug-discard:hover { color: var(--warn); border-color: var(--warn); }
+.doctor-sug-discard:active { transform: scale(0.97); }
+.doctor-sug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.doctor-sug-title {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: var(--fg);
+}
+.doctor-sug-confidence {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--fg-dim);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.doctor-sug-confidence.high   { color: var(--ok);   border-color: var(--ok); }
+.doctor-sug-confidence.medium { color: var(--warn); border-color: var(--warn); }
+.doctor-sug-values {
+  font-size: 15px;
+  font-weight: 900;
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.doctor-sug-values .arrow { color: var(--fg-dim); margin: 0 6px; }
+.doctor-sug-delta {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+  margin-left: 8px;
+}
+.doctor-sug-reason { font-size: 12px; color: var(--fg-dim); line-height: 1.4; }
+.doctor-sug-effect { font-size: 12px; color: var(--fg-dim); line-height: 1.4; }
+.doctor-sug-effect::before { content: "→ "; color: var(--accent); }
+.doctor-sug-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.doctor-sug-apply {
+  background: var(--accent);
+  color: #001622;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+}
+.doctor-sug-apply:disabled {
+  background: var(--fg-dim);
+  cursor: default;
+}
+.doctor-sug-apply:active:not(:disabled) { transform: scale(0.97); }
+.doctor-apply-all {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--accent) 40%, var(--bg-2));
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* -------- Rev102: Autopilot pre-departure check card -------- */
+.pc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+#pc-refresh-btn { padding: 6px 12px; font-size: 12px; }
+.pc-verdict {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin: 10px 0 8px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 15px;
+  border: 2px solid transparent;
+}
+.pc-verdict.pc-ready    { background: color-mix(in srgb, var(--ok)   28%, var(--bg-2)); color: var(--ok);       border-color: var(--ok); }
+.pc-verdict.pc-caveats  { background: color-mix(in srgb, var(--warn) 28%, var(--bg-2)); color: var(--warn);     border-color: var(--warn); }
+.pc-verdict.pc-fail     { background: color-mix(in srgb, var(--err)  32%, var(--bg-2)); color: #ffd7d0;         border-color: var(--err); }
+.pc-verdict.pc-unknown  { background: var(--bg-3);                                       color: var(--fg-dim);   border-color: var(--border); }
+.pc-verdict-label { flex: 1; }
+.pc-counts {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: none;
+  color: var(--fg-dim);
+  font-weight: 700;
+}
+.pc-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pc-item {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  background: var(--bg-3);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.pc-item-icon {
+  font-weight: 900;
+  font-size: 14px;
+  text-align: center;
+}
+.pc-item.pc-pass    .pc-item-icon { color: var(--ok); }
+.pc-item.pc-warn    .pc-item-icon { color: var(--warn); }
+.pc-item.pc-fail    .pc-item-icon { color: var(--err); }
+.pc-item.pc-unknown .pc-item-icon { color: var(--fg-dim); }
+.pc-item-body { min-width: 0; }
+.pc-item-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.pc-item-detail {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+}
+.pc-item-hint {
+  font-size: 11px;
+  color: var(--warn);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+.pc-item.pc-fail .pc-item-hint { color: var(--err); }
+.pc-item-status {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.pc-item.pc-pass    .pc-item-status { background: var(--ok);       color: #001622; }
+.pc-item.pc-warn    .pc-item-status { background: var(--warn);     color: #221000; }
+.pc-item.pc-fail    .pc-item-status { background: var(--err);      color: #fff; }
+.pc-item.pc-unknown .pc-item-status { background: var(--fg-dim);   color: #001622; }
+
+/* -------- Rev101: Alarm banner + Alarms config panel -------- */
+.alarm-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  pointer-events: none;   /* clicks pass through the wrapper; each row is interactive */
+}
+.alarm-banner[hidden] { display: none; }
+.alarm-row {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+  border: 2px solid transparent;
+  animation: alarmPulse 1.2s ease-in-out infinite;
+}
+.alarm-row.warn  { background: color-mix(in srgb, var(--warn) 85%, #000); color: #221000; border-color: var(--warn); }
+.alarm-row.alarm { background: color-mix(in srgb, var(--err)  90%, #000); color: #fff;     border-color: var(--err); }
+.alarm-row.acked { animation: none; opacity: 0.85; }
+@keyframes alarmPulse {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.01); }
+}
+.alarm-icon {
+  font-size: 18px;
+  line-height: 1;
+  min-width: 22px;
+  text-align: center;
+}
+.alarm-txt { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.alarm-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.alarm-msg {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.alarm-ack {
+  border: 1.5px solid currentColor;
+  background: rgba(0,0,0,0.15);
+  color: inherit;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+}
+.alarm-ack:active { transform: scale(0.96); }
+/* Rev121: X to dismiss the banner locally. */
+.alarm-close {
+  border: 1.5px solid currentColor;
+  background: rgba(0,0,0,0.15);
+  color: inherit;
+  border-radius: 8px;
+  padding: 4px 10px 6px 10px;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+.alarm-close:active { transform: scale(0.94); }
+
+/* Alarms config in Setup */
+.alarms-config {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ac-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.ac-toggle {
+  width: 34px;
+  height: 20px;
+  position: relative;
+  display: inline-block;
+  background: var(--bg-3);
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.ac-toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.ac-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 3px;
+  width: 14px; height: 14px;
+  background: var(--fg-dim);
+  border-radius: 50%;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.ac-toggle:has(input:checked) { background: color-mix(in srgb, var(--accent) 40%, var(--bg-3)); border-color: var(--accent); }
+.ac-toggle:has(input:checked)::after { transform: translateX(13px); background: var(--accent); }
+.ac-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ac-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.ac-desc {
+  font-size: 11px;
+  color: var(--fg-dim);
+  line-height: 1.35;
+}
+.ac-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.ac-status.idle   { background: var(--fg-dim); color: #001622; }
+.ac-status.active { background: var(--err);   color: #fff; }
+.ac-status.muted  { background: var(--bg-3);  color: var(--fg-dim); border: 1px solid var(--border); }
+.ac-status.off    { background: transparent;  color: var(--fg-dim); border: 1px dashed var(--border); }
+.ac-mute-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ac-mute-btn:active { transform: scale(0.96); }
+
+/* -------- Rev97: Sensor Quality panel in Setup -------- */
+.sq-scroll { overflow-x: auto; }
+.sq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sq-table th, .sq-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.sq-table th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.sq-table td.sq-value {
+  font-family: ui-monospace, monospace;
+  color: var(--fg);
+}
+.sq-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #001622;
+}
+.sq-status.good     { background: var(--ok); }
+.sq-status.degraded { background: var(--warn); color: #221000; }
+.sq-status.lost     { background: var(--err); color: #fff; }
+.sq-status.missing  { background: var(--fg-dim); color: #001622; }
+
+/* -------- Rev96: Chart tab (Trip Stats + telemetry canvas) -------- */
+#tab-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+}
+.chart-header { display: flex; flex-direction: column; gap: 6px; }
+.chart-title {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  color: var(--accent);
+}
+.chart-session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chart-session-line {
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+#chart-reset-btn { padding: 6px 12px; font-size: 12px; }
+
+/* Trip Stats: responsive grid. 3 cols on wide screens, 2 on tablet
+   portrait, 1 col only if we drop below ~260 px. */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.stat-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 62px;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.stat-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  line-height: 1.1;
+}
+
+/* Rev99: Servo Health card (Chart tab, between Trip Stats and HISTORY) */
+.servo-health-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.sh-title {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  color: var(--accent);
+}
+.sh-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #001622;
+  background: var(--fg-dim);
+}
+.sh-status.good     { background: var(--ok); }
+.sh-status.learning { background: var(--accent); }
+.sh-status.elevated { background: var(--warn); color: #221000; }
+.sh-status.high     { background: var(--err); color: #fff; }
+.sh-status.idle     { background: var(--fg-dim); }
+.sh-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.sh-progress-wrap[hidden] { display: none; }
+.sh-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.sh-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 400ms ease;
+}
+.sh-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+}
+.sh-cell {
+  background: var(--bg-3);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sh-cell-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.sh-cell-val {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  color: var(--fg);
+}
+
+/* HISTORY header + refresh */
+.chart-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  color: var(--accent);
+}
+#chart-refresh-btn { padding: 6px 12px; font-size: 12px; }
+
+/* Window selector: 30s / 2m / 10m */
+.chart-window-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chart-window-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 56px;
+}
+.chart-window-btn.active {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-3));
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.chart-window-btn:active { transform: scale(0.97); }
+
+/* Path chips (one per Sample field) */
+.chart-paths-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chart-path-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 10px 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.chart-path-chip input[type=checkbox] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  margin: 0;
+}
+.chart-path-chip:has(input:checked) {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-3));
+  border-color: var(--accent);
+}
+
+/* Canvas wrap. Height fixed so a page reflow does not stretch it. */
+.chart-canvas-wrap {
+  position: relative;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  min-height: 240px;
+}
+#chart-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+}
+.chart-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-dim);
+  font-size: 13px;
+  pointer-events: none;
+}
+.chart-empty-hint[hidden] { display: none; }
+.chart-footer {
+  font-size: 11px;
+  color: var(--fg-dim);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------- Rev88 / Rev89: "Aproado" pseudo-mode overlay -------- */
+/* One semi-transparent panel over the boat sprite that morphs through
+   4 phases (choosing / countdown / active / summary). Positioned
+   absolute inside .dash-rose so it tracks the SVG. Sized to occupy the
+   central area of the rose - big enough to read at helm distance while
+   the ring + cardinals + gota chain still peek around the edges. */
+.dash-rose { position: relative; }
+.aproado-hud {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 82%;
+  max-width: 340px;
+  min-width: 220px;
+  background: rgba(11,15,20,0.78);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 14px 16px 12px;
+  color: var(--fg);
+  text-align: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.55), 0 0 0 4px rgba(11,15,20,0.35);
+  pointer-events: auto;
+  z-index: 5;
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.aproado-hud[hidden] { display: none; }
+.aproado-hud.summary { border-color: var(--ok); }
+.aproado-hud.hot { border-color: var(--warn); }
+
+/* Phase visibility - JS sets data-phase on the container. */
+.aproado-hud > [data-aproado-phase] { display: none; flex-direction: column; gap: 10px; }
+.aproado-hud[data-phase="choosing"]  > [data-aproado-phase="choosing"]  { display: flex; }
+.aproado-hud[data-phase="countdown"] > [data-aproado-phase="countdown"] { display: flex; }
+.aproado-hud[data-phase="transit"]   > [data-aproado-phase="transit"]   { display: flex; }
+.aproado-hud[data-phase="active"]    > [data-aproado-phase="active"]    { display: flex; }
+.aproado-hud[data-phase="summary"]   > [data-aproado-phase="active"]    { display: flex; }
+.aproado-hud.transit { border-color: var(--warn); }
+.aproado-hud.transit .aproado-hud-title { color: var(--warn); }
+.aproado-hud.transit .aproado-hud-time { color: var(--warn); }
+
+/* Shared text styles. Tabular nums so digits don't jump. */
+.aproado-hud-title {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1.6px;
+  color: var(--accent);
+}
+.aproado-hud.summary .aproado-hud-title { color: var(--ok); }
+.aproado-hud-sub {
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 1.35;
+  margin: -4px 0 0;
+}
+.aproado-tws {
+  font-size: 12px;
+  color: var(--fg-dim);
+  min-height: 14px;
+  font-weight: 600;
+}
+.aproado-tws.hot { color: var(--warn); font-weight: 800; }
+
+/* Choose phase - two big touch-friendly buttons + cancel. */
+.aproado-choice-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.aproado-choice {
+  background: rgba(28,38,50,0.85);
+  border: 2px solid var(--border);
+  color: var(--fg);
+  border-radius: 12px;
+  padding: 12px 6px;
+  font-weight: 800;
+  cursor: pointer;
+  min-height: 68px;
+  transition: transform 90ms ease, background 120ms ease, border-color 120ms ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.aproado-choice:active { transform: scale(0.97); }
+.aproado-choice-lbl { font-size: 15px; letter-spacing: 0.6px; }
+.aproado-choice-tag { display: none; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+.aproado-choice.recommended {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, rgba(28,38,50,0.85));
+}
+.aproado-choice.recommended .aproado-choice-tag {
+  display: block;
+  color: var(--accent);
+  margin-top: 1px;
+}
+.aproado-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+.aproado-cancel:active { color: var(--fg); }
+
+/* Countdown phase - big number center-stage, subtitle above, cancel below. */
+.aproado-countdown {
+  font-family: ui-monospace, monospace;
+  font-size: 58px;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Active + summary phase - elapsed clock + dist + hdg + exit. */
+.aproado-hud-time {
+  font-size: 32px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  line-height: 1;
+  font-family: ui-monospace, monospace;
+}
+.aproado-hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.aproado-hud-lbl { color: var(--fg-dim); font-weight: 600; letter-spacing: 0.4px; }
+.aproado-hud-val { color: var(--fg); font-weight: 800; }
+.aproado-hud-end {
+  margin-top: 4px;
+  background: var(--engaged);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  cursor: pointer;
+  width: 100%;
+}
+.aproado-hud.summary .aproado-hud-end { background: var(--fg-dim); }
+.aproado-hud-end:active { transform: scale(0.96); }

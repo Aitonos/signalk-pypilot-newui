@@ -9,10 +9,17 @@ import {
 } from "./publisher";
 import { scanLan } from "./scanner";
 import { AutopilotProvider } from "./autopilot-provider";
+import { Historian, Sample, SamplePath } from "./historian";
+import { KPIComputer, KPISnapshot } from "./kpis";
+import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
+import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
+import { AlarmEngine } from "./alarms";
+import { runPrechecks } from "./prechecks";
+import { DoctorEngine } from "./doctor";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev87";
+const PLUGIN_REVISION = "Rev127";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -72,6 +79,25 @@ module.exports = function (app: any) {
   let lastConnectAt: number | null = null;
   let lastDisconnectReason: string | null = null;
   let deltaSentCount = 0;
+  // Rev93: telemetry historian for the Chart tab + Rev95 KPIs.
+  let historian: Historian | null = null;
+  // Rev95: KPI computer + its SK-paths publisher interval.
+  let kpis: KPIComputer | null = null;
+  let kpiPublishTimer: NodeJS.Timeout | null = null;
+  let kpiMetaSent = false;
+  // Rev97: Sensor Quality monitor. Reads freshness / Hz / jitter per
+  // watched SK path from the same sampler tick as the historian.
+  let sensorQuality: SensorQualityMonitor | null = null;
+  // Rev99: Servo Health monitor. Learns a baseline current from the
+  // first ~5-10 min of engaged navigation and grades subsequent draws.
+  let servoHealth: ServoHealthMonitor | null = null;
+  let servoHealthMetaSent = false;
+  // Rev100: Alarm engine + pypilot disconnect timestamp used by the
+  // pypilot-disconnected rule.
+  let alarms: AlarmEngine | null = null;
+  let disconnectedSinceMs: number | null = null;
+  // Rev103: Doctor engine (holds one active diagnostic session at a time).
+  let doctor: DoctorEngine | null = null;
 
   const plugin = {
     id: PLUGIN_ID,
@@ -202,6 +228,7 @@ module.exports = function (app: any) {
       client.on("connect", () => {
         lastConnectAt = Date.now();
         lastDisconnectReason = null;
+        disconnectedSinceMs = null;   // Rev100: clear alarm timer.
         app.setPluginStatus(
           `${PLUGIN_REVISION} - connected to ${props.host}:${props.port}${apProvider ? " (AutopilotProvider active)" : ""}`
         );
@@ -209,6 +236,7 @@ module.exports = function (app: any) {
 
       client.on("disconnect", (reason: string) => {
         lastDisconnectReason = reason;
+        if (disconnectedSinceMs == null) disconnectedSinceMs = Date.now();  // Rev100
         if (apProvider) apProvider.markOffline();
         pushAutopilotUpdate();
         app.setPluginStatus(
@@ -311,6 +339,51 @@ module.exports = function (app: any) {
       }
 
       client.start();
+
+      // Rev93: telemetry historian. RAM-only ring buffer at 1 Hz - the
+      // Chart tab pulls slices via /history, the KPI computer reads from
+      // it too. Kept modest on purpose so Pi 4 hosts have headroom;
+      // disk persistence is opt-in in a later batch.
+      historian = new Historian({ capacitySamples: 1800, samplePeriodMs: 1000 });
+      // Rev95: KPI computer feeds off every sample and publishes a
+      // compact digest every second as SK paths (see publishKpiPaths).
+      kpis = new KPIComputer(historian, { sampleTickMs: 1000 });
+      // Rev97: Sensor Quality monitor rides the same 1 Hz tick. On each
+      // tick we hand it the FULL SK entry (with timestamp + source) for
+      // each watched path so it can grade freshness / Hz / jitter.
+      sensorQuality = new SensorQualityMonitor(DEFAULT_QUALITY_WATCH, { windowMs: 30_000 });
+      // Rev99: Servo Health monitor learns baseline + grades deviation
+      // from each servo-on engaged sample. Also O(1).
+      servoHealth = new ServoHealthMonitor();
+      // Rev100: Alarm engine. Evaluates 7 built-in rules against every
+      // tick + snapshot from the KPI computer + Sensor Quality + Servo
+      // Health. Rules that fire publish canonical SK notifications and
+      // land in /alarms/state for the visor banner.
+      alarms = new AlarmEngine();
+      // Rev103: Pypilot Doctor engine. Starts an idle instance;
+      // sessions are triggered on demand via /doctor/start.
+      doctor = new DoctorEngine(historian, client);
+      historian.start(() => {
+        const s = collectSample();
+        // Update session counters BEFORE the sample lands in the buffer -
+        // KPIComputer.onSample is O(1) so this stays cheap on Pi 4.
+        if (kpis) { try { kpis.onSample(s); } catch { /* silent */ } }
+        if (servoHealth) { try { servoHealth.onSample(s); } catch { /* silent */ } }
+        // Rev97: also feed the quality monitor. Reading each watched
+        // path costs one getSelfPath() call, cheap on Pi 4.
+        if (sensorQuality) { try { feedSensorQuality(); } catch { /* silent */ } }
+        // Rev100: run the alarm engine last so it has every input up to
+        // date. Changed rules trigger SK notification deltas.
+        try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
+        return s;
+      });
+      kpiPublishTimer = setInterval(() => {
+        try { publishKpiPaths(); } catch { /* silent */ }
+        try { publishServoHealthPaths(); } catch { /* silent */ }
+      }, 1000);
+      if (typeof (kpiPublishTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
+        (kpiPublishTimer as NodeJS.Timeout & { unref: () => void }).unref();
+      }
     },
 
     stop: () => {
@@ -318,6 +391,33 @@ module.exports = function (app: any) {
         try { client.stop(); } catch { /* defensive */ }
         client = null;
       }
+      // Rev93: stop the historian sampler so its setInterval does not
+      // outlive the plugin (Disable+Enable in the SK admin would leak
+      // it just like the watchdog timer used to).
+      if (historian) {
+        try { historian.stop(); } catch { /* defensive */ }
+        historian = null;
+      }
+      // Rev95: stop the KPI publisher and drop the computer.
+      if (kpiPublishTimer) {
+        try { clearInterval(kpiPublishTimer); } catch { /* defensive */ }
+        kpiPublishTimer = null;
+      }
+      kpis = null;
+      kpiMetaSent = false;
+      // Rev97: drop the sensor quality monitor (its ring buffers go with it).
+      sensorQuality = null;
+      // Rev99: drop the servo health monitor (its EWMA baseline resets
+      // on plugin restart - persistence lands with the disk snapshots).
+      servoHealth = null;
+      servoHealthMetaSent = false;
+      // Rev100: drop the alarm engine. Active alarms will be re-fired
+      // when the plugin restarts if the underlying condition persists.
+      alarms = null;
+      disconnectedSinceMs = null;
+      // Rev103: cancel any in-flight diagnostic session and drop the doctor.
+      if (doctor) { try { doctor.cancel(); } catch { /* silent */ } }
+      doctor = null;
       // Clear the action-paths keep-alive interval registered on the app.
       const ka = (app as any)._pypilotNewuiKeepAlive;
       if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
@@ -372,6 +472,14 @@ module.exports = function (app: any) {
           publishOnlyEssentials: !!props.publishOnlyEssentials,
           sshUser: props.sshUser || "tc",
           sshPasswordSet: !!(props.sshPassword && props.sshPassword.length),
+          // Rev93: historian buffer state (count / capacity / oldest+newest ts).
+          // Cheap: no sample data returned, just the header. See /history for
+          // the actual samples.
+          historian: historian ? historian.status() : null,
+          // Rev95: KPI snapshot header (computedTs + session start). Full
+          // snapshot lives under /stats to avoid bloating /status calls
+          // that KIP/WilhelmSK poll frequently.
+          kpisComputedTs: kpis ? kpis.snapshot().computedTs : null,
         });
       });
 
@@ -404,6 +512,170 @@ module.exports = function (app: any) {
 
       router.get("/catalog", (_req: any, res: any) => {
         res.json(lastCatalog);
+      });
+
+      // Rev93: telemetry history slice for the Chart tab. Query params:
+      //   window=30s | 2m | 10m | 90000    (default 30s, capped at 60m)
+      //   paths=headingCmd,rudder,...      (default: all)
+      // Response: { count, windowMs, historian:{...status}, samples:[...] }.
+      // The samples array is oldest-first and each row includes `ts` plus
+      // the requested fields (or all Sample fields if paths is omitted).
+      router.get("/history", (req: any, res: any) => {
+        if (!historian) {
+          res.status(503).json({ error: "historian not initialised" });
+          return;
+        }
+        const windowMs = parseWindowMs(req.query?.window);
+        const paths = parseSamplePaths(req.query?.paths);
+        const samples = historian.slice(windowMs, paths);
+        res.json({
+          windowMs,
+          count: samples.length,
+          paths: paths ?? null,
+          historian: historian.status(),
+          samples,
+        });
+      });
+
+      // Rev95: KPI snapshot for the Trip Stats card. Cheap - O(window) at
+      // ~60 samples so it can be called on every visor refresh without
+      // load. Session numbers accumulate since plugin start / last reset.
+      router.get("/stats", (_req: any, res: any) => {
+        if (!kpis) {
+          res.status(503).json({ error: "kpis not initialised" });
+          return;
+        }
+        res.json(kpis.snapshot());
+      });
+
+      // Rev97: Sensor Quality snapshot for the panel in Setup. Cheap -
+      // O(watched paths) with ring buffers of at most 60 entries each,
+      // so a poll every 3 s from the visor is fine on Pi 4.
+      router.get("/quality", (_req: any, res: any) => {
+        if (!sensorQuality) {
+          res.status(503).json({ error: "sensor quality not initialised" });
+          return;
+        }
+        res.json(sensorQuality.snapshot());
+      });
+
+      // Rev99: Servo Health snapshot. Same idea - O(1) read of the
+      // monitor's precomputed state.
+      router.get("/servo-health", (_req: any, res: any) => {
+        if (!servoHealth) {
+          res.status(503).json({ error: "servo health not initialised" });
+          return;
+        }
+        res.json(servoHealth.snapshot());
+      });
+
+      // Rev100: alarm engine endpoints.
+      //   GET  /alarms/state    - active alarms + short resolved history
+      //   GET  /alarms/rules    - metadata of every rule for the config UI
+      //   POST /alarms/ack/:id  - acknowledge one active alarm (silences sound)
+      //   POST /alarms/mute/:id - mute the RULE for N minutes (query ?min=15)
+      //   POST /alarms/enable/:id  ?on=1|0
+      router.get("/alarms/state", (_req: any, res: any) => {
+        if (!alarms) { res.status(503).json({ error: "alarms not initialised" }); return; }
+        res.json(alarms.snapshot());
+      });
+      router.get("/alarms/rules", (_req: any, res: any) => {
+        if (!alarms) { res.status(503).json({ error: "alarms not initialised" }); return; }
+        res.json({ rules: alarms.describe() });
+      });
+      router.post("/alarms/ack/:id", (req: any, res: any) => {
+        if (!alarms) { res.status(503).json({ error: "alarms not initialised" }); return; }
+        const ok = alarms.ack(String(req.params?.id || ""));
+        res.json({ ok, snapshot: alarms.snapshot() });
+      });
+      router.post("/alarms/mute/:id", (req: any, res: any) => {
+        if (!alarms) { res.status(503).json({ error: "alarms not initialised" }); return; }
+        const mins = Number(req.query?.min);
+        const durMs = isFinite(mins) && mins > 0 ? mins * 60_000 : 15 * 60_000;
+        const ok = alarms.mute(String(req.params?.id || ""), durMs);
+        res.json({ ok, durationMs: durMs });
+      });
+      router.post("/alarms/enable/:id", (req: any, res: any) => {
+        if (!alarms) { res.status(503).json({ error: "alarms not initialised" }); return; }
+        const on = String(req.query?.on ?? "1") !== "0";
+        const ok = alarms.setEnabled(String(req.params?.id || ""), on);
+        res.json({ ok, enabled: on });
+      });
+
+      // Rev103: Pypilot Doctor endpoints.
+      //   POST /doctor/start ?duration=180  - start a diagnostic session
+      //   POST /doctor/cancel               - cancel the current session
+      //   GET  /doctor/status               - state + progress + result
+      //   POST /doctor/apply/:id            - apply one suggestion
+      //   POST /doctor/apply-all            - apply every suggestion
+      //   POST /doctor/reset                - clear result, back to idle
+      router.post("/doctor/start", (req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        const q = Number(req.query?.duration);
+        const dur = isFinite(q) && q > 0 ? q : 180;
+        const r = doctor.start(dur);
+        res.json({ ...r, status: doctor.status() });
+      });
+      router.post("/doctor/cancel", (_req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        const r = doctor.cancel();
+        res.json({ ...r, status: doctor.status() });
+      });
+      router.get("/doctor/status", (_req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        res.json(doctor.status());
+      });
+      router.post("/doctor/apply/:id", (req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        const r = doctor.applySuggestion(String(req.params?.id || ""));
+        res.json({ ...r, status: doctor.status() });
+      });
+      router.post("/doctor/apply-all", (_req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        const r = doctor.applyAll();
+        res.json({ ...r, status: doctor.status() });
+      });
+      // Rev121: dismiss one suggestion (user explicitly ignores it).
+      router.post("/doctor/dismiss/:id", (req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        const r = doctor.dismissSuggestion(String(req.params?.id || ""));
+        res.json({ ...r, status: doctor.status() });
+      });
+      router.post("/doctor/reset", (_req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        doctor.reset();
+        res.json({ ok: true, status: doctor.status() });
+      });
+
+      // Rev102: Pre-departure autopilot check. Pure aggregation over
+      // data already collected by the historian / sensor quality /
+      // servo health modules, so no separate sampling budget.
+      router.get("/prechecks", (_req: any, res: any) => {
+        const snap = runPrechecks({
+          connected: !!(client && client.connected),
+          disconnectedSinceMs,
+          hasAutopilotProvider: !!apProvider,
+          autopilotId: apProvider ? "pypilot-newui" : null,
+          sample: null,   // prechecks only need aggregate signals
+          quality: sensorQuality ? sensorQuality.snapshot() : null,
+          servoHealth: servoHealth ? servoHealth.snapshot() : null,
+        });
+        res.json(snap);
+      });
+
+      // Rev95: reset the session counters. Buffer is untouched so the
+      // Chart keeps showing the last 30 min - only the aggregate cards
+      // zero out. Idempotent, no body required.
+      router.post("/session/reset", (_req: any, res: any) => {
+        if (!kpis) {
+          res.status(503).json({ error: "kpis not initialised" });
+          return;
+        }
+        kpis.reset();
+        // Force one publish so subscribers see the zeroed counters
+        // immediately instead of waiting up to 1 s for the next tick.
+        try { publishKpiPaths(); } catch { /* silent */ }
+        res.json({ ok: true, resetAt: Date.now(), snapshot: kpis.snapshot() });
       });
 
       // Rev21: expose the current pypilot value cache so the webapp can
@@ -694,7 +966,7 @@ module.exports = function (app: any) {
       const DEBUG_PRESETS: Record<string, string> = {
         "logs.pypilot":      "journalctl -u pypilot -n 200 --no-pager 2>&1 || (test -f /var/log/pypilot.log && tail -n 200 /var/log/pypilot.log) || echo 'no journal / no logfile'",
         "logs.pypilot_web":  "journalctl -u pypilot_web -n 200 --no-pager 2>&1 || echo 'no pypilot_web unit'",
-        "logs.follow":       "journalctl -u pypilot --since '30 seconds ago' --no-pager 2>&1",
+        "logs.follow":       "(journalctl -u pypilot --since '30 seconds ago' --no-pager 2>/dev/null || (test -f /var/log/pypilot.log && tail -n 30 /var/log/pypilot.log) || echo 'no journal / no logfile - follow disabled')",
         "dmesg.tail":        "dmesg 2>&1 | tail -100",
         "top.snapshot":      "top -bn1 2>&1 | head -20",
         "uptime":            "uptime && cat /proc/loadavg",
@@ -706,7 +978,7 @@ module.exports = function (app: any) {
         // after 3 s, then fall back to reading the packaged version
         // file. Also `python3 -c 'import pypilot; print(pypilot.__version__)'`
         // as belt-and-braces.
-        "pypilot.version":   "timeout 3 python3 -c 'import pypilot; print(pypilot.__version__)' 2>&1 || (test -f /home/tc/pypilot/version && cat /home/tc/pypilot/version) || (ls -1 /usr/local/lib/python3.8/site-packages/pypilot-*.dist-info 2>&1 | head -1) || echo 'unknown'",
+        "pypilot.version":   "timeout 3 python3 -c 'import pypilot; print(getattr(pypilot, \"__version__\", \"n/a\"))' 2>/dev/null || (test -d /tmp/tcloop/pypilot && ls -1 /tmp/tcloop/pypilot/usr/local/lib/python3.8/site-packages/pypilot*/version* 2>/dev/null | head -1 | xargs -I{} cat {} 2>/dev/null) || (test -f /tmp/tcloop/pypilot/usr/local/lib/python3.8/site-packages/pypilot/dist_data/version.py && cat /tmp/tcloop/pypilot/usr/local/lib/python3.8/site-packages/pypilot/dist_data/version.py) || (find /usr/local/lib/python3.8/site-packages -maxdepth 2 -name 'pypilot*.dist-info' 2>/dev/null | head -1) || echo 'unknown'",
         // Rev66 / 2.0.4: piCore uses runit, not systemd. `sudo sv
         // restart /etc/sv/pypilot_web` is the correct clean-restart
         // primitive - it TERMs the child, waits, then supervise brings
@@ -716,7 +988,94 @@ module.exports = function (app: any) {
         // + reboot Pi).
         "restart.web":       "sudo sv restart /etc/sv/pypilot_web 2>&1 && echo OK",
         "reboot.pi":         "sudo reboot",
+        // Rev113 / Rev114 (Carlos feedback on piCore + BusyBox): all
+        // extras now have BusyBox-safe fallbacks. TinyCore ships busybox
+        // free/ifconfig/iw and lacks ip/iwconfig/vcgencmd/journalctl.
+        "free":              "free 2>&1",
+        "ps.pypilot":        "ps -ef 2>&1 | grep -E 'pypilot|python' | grep -v grep",
+        "ip":                "(ip -brief a 2>/dev/null || ifconfig 2>&1) && echo && (ip route 2>/dev/null || route -n 2>&1)",
+        "iwconfig":          "(iwconfig 2>/dev/null || iw dev 2>/dev/null || echo 'no wireless tools on this host')",
+        "temp":              "(vcgencmd measure_temp 2>/dev/null || (test -r /sys/class/thermal/thermal_zone0/temp && awk '{printf \"CPU %.1f C\\n\", $1/1000}' /sys/class/thermal/thermal_zone0/temp) || echo 'no thermal sensor')",
+        "who":               "who 2>&1 && echo && (last -H 2>/dev/null | head -6 || echo 'last not available')",
       };
+      // Rev113: extracted SSH helper - runs one shell command via the
+      // saved SSH credentials, with a 30 s hard timeout, and returns
+      // { ok, stdout, code, elapsedMs }. Used by both /debug-cmd (with
+      // whitelisted presets) and /ssh-exec (with the user's own
+      // command from the interactive console).
+      async function _runSsh(cmd: string, timeoutMs: number = 30000):
+        Promise<{ ok: boolean; stdout: string; code?: number; elapsedMs: number; error?: string }>
+      {
+        const sshUser = props.sshUser || "tc";
+        const sshPassword = props.sshPassword || "";
+        if (!sshPassword) {
+          return { ok: false, stdout: "", elapsedMs: 0, error: "SSH password not set" };
+        }
+        const t0 = Date.now();
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { Client } = require("ssh2");
+          const conn = new Client();
+          const result = await new Promise<{ ok: boolean; stdout: string; code?: number }>((resolve) => {
+            let settled = false;
+            const finish = (r: { ok: boolean; stdout: string; code?: number }) => {
+              if (settled) return;
+              settled = true;
+              try { conn.end(); } catch {}
+              resolve(r);
+            };
+            const killTimer = setTimeout(() => finish({ ok: false, stdout: `timeout ${timeoutMs}ms` }), timeoutMs);
+            conn.on("ready", () => {
+              conn.exec(cmd, { pty: true }, (err: any, stream: any) => {
+                if (err) { clearTimeout(killTimer); finish({ ok: false, stdout: err.message }); return; }
+                let out = "";
+                stream.on("close", (code: number) => { clearTimeout(killTimer); finish({ ok: code === 0, stdout: out, code }); });
+                stream.on("data", (data: Buffer) => { out += data.toString(); });
+                stream.stderr.on("data", (data: Buffer) => { out += data.toString(); });
+                setTimeout(() => { try { stream.write(sshPassword + "\n"); } catch {} }, 300);
+              });
+            });
+            conn.on("error", (err: any) => { clearTimeout(killTimer); finish({ ok: false, stdout: `ssh: ${err?.message || err}` }); });
+            conn.on("timeout", () => { clearTimeout(killTimer); finish({ ok: false, stdout: "ssh timeout" }); });
+            try {
+              conn.connect({
+                host: props.host, port: 22,
+                username: sshUser, password: sshPassword,
+                readyTimeout: 8000, tryKeyboard: true,
+              });
+              conn.on("keyboard-interactive", (_n: any, _i: any, _l: any, _p: any, finish2: any) => {
+                finish2([sshPassword]);
+              });
+            } catch (e: any) { clearTimeout(killTimer); finish({ ok: false, stdout: e?.message || String(e) }); }
+          });
+          return { ...result, elapsedMs: Date.now() - t0 };
+        } catch (e: any) {
+          return { ok: false, stdout: e?.message || String(e), elapsedMs: Date.now() - t0, error: "ssh_setup_failed" };
+        }
+      }
+
+      // Rev113: free-form SSH exec. Runs any shell command as the saved
+      // SSH user on the TinyPilot. Requires allowWrites (same guard as
+      // /debug-cmd) plus SK admin auth (SK server enforces). No
+      // whitelist: the user chose to enable writes and stored SSH creds,
+      // this is the deliberate escape hatch for the Remote Control
+      // Console when a preset does not cover the diagnostic they need.
+      router.post("/ssh-exec", async (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const cmd = String(req.body?.cmd || "").trim();
+        if (!cmd) return res.status(400).json({ error: "cmd required in body" });
+        if (cmd.length > 2000) return res.status(400).json({ error: "cmd too long (max 2000 chars)" });
+        const r = await _runSsh(cmd, 30000);
+        return res.json({
+          ok: r.ok,
+          cmd,
+          elapsedMs: r.elapsedMs,
+          code: r.code,
+          stdout: r.stdout.slice(0, 32000),
+          error: r.error,
+        });
+      });
+
       router.post("/debug-cmd", async (req: any, res: any) => {
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const preset = (req.body && req.body.preset) || "";
@@ -947,6 +1306,278 @@ module.exports = function (app: any) {
         if (emit) emit(apProvider.data.mode);
       } catch { /* silent */ }
     }
+  }
+
+  // Rev93: sampler invoked once per second by the historian. Pulls the
+  // latest known value for each telemetry path from three sources:
+  //   - client.getValues()      -> live pypilot telemetry (servo, imu,
+  //                                ap.heading_command, ap.mode/enabled)
+  //   - apProvider.data         -> canonical engaged/mode/target when
+  //                                the plugin absorbs the SK provider
+  //   - app.getSelfPath(...)    -> external SK paths (wind, sog, heel)
+  //                                published by other plugins.
+  // Missing values are `null` - the historian tolerates them.
+  function collectSample(): Sample {
+    const pv = (client && client.connected) ? client.getValues() : {};
+    const skNum = (path: string): number | null => {
+      try {
+        const v = app.getSelfPath(path + ".value");
+        return typeof v === "number" && !isNaN(v) ? v : null;
+      } catch { return null; }
+    };
+    // Rev94: navigation.attitude arrives as a composite object
+    // { pitch, roll, yaw } under a single .value, not as three separate
+    // scalar paths. Read the object and pluck the subfield we want.
+    const skAttitudeField = (field: "pitch" | "roll" | "yaw"): number | null => {
+      try {
+        const att = app.getSelfPath("navigation.attitude.value");
+        if (att && typeof att === "object" && typeof att[field] === "number" && !isNaN(att[field])) {
+          return att[field];
+        }
+      } catch { /* silent */ }
+      return null;
+    };
+    // pypilot serves ap.heading_command in DEGREES (see line 551 setter
+    // dividing by 180/PI on the way out). Convert to rad to match the
+    // rest of the Sample fields.
+    const cmdDeg = pv["ap.heading_command"];
+    const headingCmdRad = typeof cmdDeg === "number" ? cmdDeg * Math.PI / 180 : null;
+    // Servo current + temp arrive as plain numbers from pypilot.
+    const servoA = typeof pv["servo.current"] === "number" ? (pv["servo.current"] as number) : null;
+    const servoT = typeof pv["servo.controller_temp"] === "number" ? (pv["servo.controller_temp"] as number) : null;
+    // Rev99: pypilot exposes battery voltage as servo.voltage (V).
+    const servoV = typeof pv["servo.voltage"] === "number" ? (pv["servo.voltage"] as number) : null;
+    // Engaged / mode: prefer the AP provider when active, fall back to
+    // raw pypilot values so the historian keeps working with
+    // absorbProvider = false.
+    const engaged = apProvider
+      ? !!apProvider.data.engaged
+      : (pv["ap.enabled"] === true || pv["ap.enabled"] === 1);
+    const mode = apProvider
+      ? (apProvider.data.mode || null)
+      : (typeof pv["ap.mode"] === "string" ? pv["ap.mode"] as string : null);
+    return {
+      ts: Date.now(),
+      headingCmd:    headingCmdRad,
+      headingActual: skNum("navigation.headingMagnetic"),
+      rudder:        skNum("steering.rudderAngle"),
+      servoCurrent:  servoA,
+      servoTemp:     servoT,
+      servoVoltage:  servoV,
+      awa:           skNum("environment.wind.angleApparent"),
+      aws:           skNum("environment.wind.speedApparent"),
+      tws:           skNum("environment.wind.speedTrue"),
+      sog:           skNum("navigation.speedOverGround"),
+      heel:          skAttitudeField("roll"),
+      engaged,
+      mode,
+    };
+  }
+
+  // Rev100: evaluate the alarm engine on this tick and publish SK
+  // notifications for any rule whose state changed. Notifications
+  // follow the canonical SK format under notifications.autopilot.<id>
+  // with state / method / message so WilhelmSK, KIP, and any other
+  // client honour them out of the box.
+  function evaluateAndPublishAlarms(sample: Sample): void {
+    if (!alarms) return;
+    const ctx = {
+      sample,
+      kpis: kpis ? kpis.snapshot() : null,
+      quality: sensorQuality ? sensorQuality.snapshot() : null,
+      servoHealth: servoHealth ? servoHealth.snapshot() : null,
+      connected: !!(client && client.connected),
+      disconnectedSinceMs,
+      nowMs: Date.now(),
+    };
+    const changed = alarms.tick(ctx);
+    if (changed.length === 0) return;
+    const nowIso = new Date().toISOString();
+    const values: { path: string; value: unknown }[] = [];
+    for (const id of changed) {
+      const s = alarms.ruleState(id);
+      if (!s) continue;
+      const path = `notifications.autopilot.${id}`;
+      if (s.active) {
+        const skState = AlarmEngine.skState(s.severity);
+        // Ack silences the sound method but keeps the visual banner.
+        const method = s.ackedAtMs != null ? ["visual"] : ["visual", "sound"];
+        values.push({
+          path,
+          value: { state: skState, method, message: s.message },
+        });
+      } else {
+        values.push({
+          path,
+          value: { state: "normal", method: [], message: s.message || "" },
+        });
+      }
+    }
+    if (values.length === 0) return;
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
+      });
+    } catch (e: any) {
+      app.debug(`[alarms] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  // Rev99: publish the servo health snapshot as SK paths under
+  // steering.autopilot.pypilot.servo.health.*. Meta emitted once on
+  // first publish. Emitted on the same 1 Hz cadence as the KPI paths so
+  // downstream WilhelmSK / KIP widgets update in sync.
+  const SERVO_HEALTH_META: Record<string, { units?: string; description: string }> = {
+    "steering.autopilot.pypilot.servo.health.status":         {              description: "Servo health verdict: idle / learning / good / elevated / high." },
+    "steering.autopilot.pypilot.servo.health.baselineA":      { units: "A",  description: "Learned baseline servo current (mean of the first ~5-10 min of active navigation)." },
+    "steering.autopilot.pypilot.servo.health.recentAvgA":     { units: "A",  description: "Rolling 30 s average of servo current while active." },
+    "steering.autopilot.pypilot.servo.health.deviationRatio": { units: "ratio", description: "recentAvgA / baselineA. >=1.20 elevated, >=1.65 high (possible hard rudder, drag, clutch)." },
+    "steering.autopilot.pypilot.servo.health.peakA":          { units: "A",  description: "Peak servo current in the last 30 s." },
+    "steering.autopilot.pypilot.servo.health.learnedFrac":    { units: "ratio", description: "Baseline learn progress 0..1 (samples so far / target)." },
+  };
+  function publishServoHealthPaths(): void {
+    if (!servoHealth) return;
+    const snap: ServoHealthSnapshot = servoHealth.snapshot();
+    const values = [
+      { path: "steering.autopilot.pypilot.servo.health.status",         value: snap.status },
+      { path: "steering.autopilot.pypilot.servo.health.baselineA",      value: snap.baselineA },
+      { path: "steering.autopilot.pypilot.servo.health.recentAvgA",     value: snap.recentAvgA },
+      { path: "steering.autopilot.pypilot.servo.health.deviationRatio", value: snap.deviationRatio },
+      { path: "steering.autopilot.pypilot.servo.health.peakA",          value: snap.peakA },
+      { path: "steering.autopilot.pypilot.servo.health.learnedFrac",    value: snap.samplesTargetForLearn > 0 ? snap.samplesLearned / snap.samplesTargetForLearn : null },
+    ];
+    const nowIso = new Date().toISOString();
+    try {
+      if (!servoHealthMetaSent) {
+        const metaList = Object.entries(SERVO_HEALTH_META).map(([path, m]) => ({ path, value: m }));
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, meta: metaList }],
+        });
+        servoHealthMetaSent = true;
+      }
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
+      });
+    } catch (e: any) {
+      app.debug(`[servo-health] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  // Rev97: feed every watched path into the SensorQualityMonitor. Uses
+  // app.getSelfPath(path) WITHOUT the ".value" suffix so we get the
+  // full SK entry (value + timestamp + source) - the monitor needs the
+  // timestamp to dedupe repeated observations of the same underlying
+  // sample and to grade jitter honestly.
+  function feedSensorQuality(): void {
+    if (!sensorQuality) return;
+    const now = Date.now();
+    for (const path of Object.keys(DEFAULT_QUALITY_WATCH)) {
+      try {
+        const entry = app.getSelfPath(path);
+        if (entry) sensorQuality.observe(path, entry, now);
+      } catch { /* silent - a missing path stays "missing" naturally */ }
+    }
+  }
+
+  // Rev95: publish the current KPI snapshot as Signal K paths under
+  // steering.autopilot.pypilot.stats.*. Called once per second by the
+  // kpiPublishTimer while the plugin is running - a KIP or WilhelmSK
+  // client can bind a widget to any of these paths and see the same
+  // aggregates the Trip Stats card in the webapp will render.
+  //
+  // Meta is sent once on the FIRST publish (units + description) so the
+  // SK bus never sees duplicates on subsequent ticks.
+  const KPI_META: Record<string, { units?: string; description: string }> = {
+    "steering.autopilot.pypilot.stats.session.startedTs":       { units: "ms",  description: "Session start timestamp (Unix ms)." },
+    "steering.autopilot.pypilot.stats.session.engagedSec":      { units: "s",   description: "Seconds the AP has been engaged this session." },
+    "steering.autopilot.pypilot.stats.session.distanceNm":      { units: "nm",  description: "Distance travelled while engaged (nautical miles)." },
+    "steering.autopilot.pypilot.stats.session.tacks":           {               description: "Tacks detected this session (AWA sign flip through the bow)." },
+    "steering.autopilot.pypilot.stats.session.gybes":           {               description: "Gybes detected this session (AWA sign flip through the stern)." },
+    "steering.autopilot.pypilot.stats.session.servoRuntimeSec": { units: "s",   description: "Seconds the servo drew more than the 'on' current threshold." },
+    "steering.autopilot.pypilot.stats.session.energyAh":        { units: "Ah",  description: "Amp-hours consumed by the servo this session." },
+    "steering.autopilot.pypilot.stats.session.maxServoA":       { units: "A",   description: "Peak servo current seen this session." },
+    "steering.autopilot.pypilot.stats.error.meanRad":           { units: "rad", description: "Signed mean heading error over the last 60 s (engaged samples only)." },
+    "steering.autopilot.pypilot.stats.error.rmsRad":            { units: "rad", description: "RMS heading error over the last 60 s (engaged samples only)." },
+    "steering.autopilot.pypilot.stats.error.p95Rad":            { units: "rad", description: "95th percentile of |error| over the last 60 s (engaged samples only)." },
+    "steering.autopilot.pypilot.stats.servo.dutyPct":           { units: "ratio", description: "Fraction of last-60-s samples with servo drawing above threshold (0..1)." },
+  };
+  function publishKpiPaths(): void {
+    if (!kpis) return;
+    const snap: KPISnapshot = kpis.snapshot();
+    const values: { path: string; value: unknown }[] = [
+      { path: "steering.autopilot.pypilot.stats.session.startedTs",       value: snap.session.startedTs },
+      { path: "steering.autopilot.pypilot.stats.session.engagedSec",      value: snap.session.engagedSec },
+      { path: "steering.autopilot.pypilot.stats.session.distanceNm",      value: snap.session.distanceNm },
+      { path: "steering.autopilot.pypilot.stats.session.tacks",           value: snap.session.tacks },
+      { path: "steering.autopilot.pypilot.stats.session.gybes",           value: snap.session.gybes },
+      { path: "steering.autopilot.pypilot.stats.session.servoRuntimeSec", value: snap.session.servoRuntimeSec },
+      { path: "steering.autopilot.pypilot.stats.session.energyAh",        value: snap.session.energyAh },
+      { path: "steering.autopilot.pypilot.stats.session.maxServoA",       value: snap.session.maxServoA },
+      { path: "steering.autopilot.pypilot.stats.error.meanRad",           value: snap.window1m.meanErrorRad },
+      { path: "steering.autopilot.pypilot.stats.error.rmsRad",            value: snap.window1m.rmsErrorRad },
+      { path: "steering.autopilot.pypilot.stats.error.p95Rad",            value: snap.window1m.p95ErrorRad },
+      { path: "steering.autopilot.pypilot.stats.servo.dutyPct",           value: snap.window1m.servoDutyPct },
+    ];
+    const nowIso = new Date().toISOString();
+    try {
+      if (!kpiMetaSent) {
+        const metaList = Object.entries(KPI_META).map(([path, m]) => ({ path, value: m }));
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{
+            $source: SOURCE_LABEL,
+            timestamp: nowIso,
+            meta: metaList,
+          }],
+        });
+        kpiMetaSent = true;
+      }
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
+      });
+    } catch (e: any) {
+      app.debug(`[kpis] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  // Rev93: parse `?window=30s` / `?window=2m` / `?window=10m` (or plain
+  // `?window=90000` ms) into a millisecond value. Anything unparseable
+  // falls back to 30 s so a malformed query never returns everything.
+  function parseWindowMs(raw: unknown): number {
+    if (typeof raw === "number" && isFinite(raw) && raw > 0) return raw;
+    if (typeof raw !== "string") return 30_000;
+    const trimmed = raw.trim().toLowerCase();
+    if (!trimmed) return 30_000;
+    const m = /^(\d+(?:\.\d+)?)\s*(ms|s|m|min)?$/.exec(trimmed);
+    if (!m) return 30_000;
+    const n = parseFloat(m[1]);
+    if (!isFinite(n) || n <= 0) return 30_000;
+    const unit = (m[2] || "s").toLowerCase();
+    const mul = unit === "ms" ? 1 : (unit === "m" || unit === "min") ? 60_000 : 1000;
+    // Cap to the historian capacity so a huge window does not blow up
+    // the JSON payload; historian.slice will trim naturally too.
+    return Math.min(n * mul, 60 * 60_000);
+  }
+
+  // Rev93: parse `?paths=headingCmd,rudder,servoCurrent` into a typed
+  // list. Unknown names are silently dropped so a client asking for a
+  // path that does not exist just gets an empty column, no 400.
+  const VALID_SAMPLE_PATHS: ReadonlySet<SamplePath> = new Set<SamplePath>([
+    "headingCmd", "headingActual", "rudder", "servoCurrent", "servoTemp",
+    "servoVoltage", "awa", "aws", "tws", "sog", "heel", "engaged", "mode",
+  ]);
+  function parseSamplePaths(raw: unknown): SamplePath[] | undefined {
+    if (typeof raw !== "string" || !raw.trim()) return undefined;
+    const wanted = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const out: SamplePath[] = [];
+    for (const w of wanted) {
+      if (VALID_SAMPLE_PATHS.has(w as SamplePath)) out.push(w as SamplePath);
+    }
+    return out.length > 0 ? out : undefined;
   }
 
   function setupWatches(c: PypilotClient, catalog: PypilotCatalog): void {

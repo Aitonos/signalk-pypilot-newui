@@ -35,6 +35,16 @@
       "cal.rudReset": "Rudder reset",
       "cal.headingOffset": "IMU heading offset (deg)",
       "cal.rudRange": "Rudder range (deg)",
+      "cal.advanced.title": "Advanced sliders",
+      "cal.advanced.hint":  "All the pypilot RangeSettings, grouped. Long-press or hover a name to see the raw pypilot key.",
+      "cal.grp.rudder":     "Rudder",
+      "cal.grp.servo":      "Servo",
+      "cal.grp.imu":        "IMU",
+      "cal.grp.ap":         "Autopilot",
+      "cal.grp.other":      "Other",
+      "cal.slider.was":     "before:",
+      "cal.slider.restore": "Restore previous value",
+      "cal.unlock":         "Unlock sliders",
       "configuration": "Configuration",
       "calibration.title": "Calibration",
       "save": "Save",
@@ -51,10 +61,39 @@
       "paths.refresh": "Refresh",
       "paths.kip.title": "KIP action paths",
       "paths.kip.hint": "Wire these to KIP \"Simple Switch\" widgets (blue rows) or \"Put\" widgets (green rows).",
+      "paths.kip.col.widget":  "Widget",
+      "paths.kip.col.path":    "Path",
+      "paths.kip.col.type":    "Type",
+      "paths.kip.col.values":  "Value(s)",
+      "paths.kip.col.copy":    "Copy",
+      "paths.kip.widget.apEngage":  "AP engage",
+      "paths.kip.widget.nudge":     "Nudge <code>-10 / -1 / +1 / +10</code>",
+      "paths.kip.widget.tack":      "Tack <code>port / starboard / cancel</code>",
+      "paths.kip.widget.mode":      "Mode <code>compass / gps / wind / true / nav</code>",
+      "paths.kip.widget.profile":   "Profile <code>&lt;name&gt;</code>",
+      "paths.kip.widget.modePut":   "<b>Mode</b> (Put)",
+      "paths.kip.widget.targetPut": "Target (Put)",
+      "paths.kip.type.simple":    "Simple Switch",
+      "paths.kip.type.momentary": "Simple Switch (momentary)",
+      "paths.kip.type.radio":     "Simple Switch (radio)",
+      "paths.kip.type.radioDyn":  "Simple Switch (radio, dynamic)",
+      "paths.kip.type.string":    "string",
+      "paths.kip.type.numberRad": "number (rad)",
+      "paths.kip.val.engage":       "1 = engage, 0 = disengage",
+      "paths.kip.val.fireReset":    "1 = fire, auto-resets",
+      "paths.kip.val.fire":         "1 = fire",
+      "paths.kip.val.select":       "1 = select",
+      "paths.kip.val.modeStrings":  "\"compass\" / \"gps\" / \"wind\" / \"true wind\" / \"nav\"",
+      "paths.kip.val.targetExample":"e.g. 1.57 for 90 deg",
+      "paths.kip.copy":          "Copy",
+      "paths.kip.copy.plus1":    "Copy +1",
+      "paths.kip.copy.port":     "Copy port",
+      "paths.kip.copy.compass":  "Copy compass",
+      "paths.kip.copy.prefix":   "Copy prefix",
       "paths.all.title": "All published paths",
       "paths.search.ph": "filter paths...",
       "paths.essentials.label": "Publish only essentials + explicitly enabled (recommended)",
-      "nudge.title": "Nudge steps",
+      "nudge.title": "Heading trim buttons",
       "nudge.small": "Small (-1/+1)",
       "nudge.big": "Big (-10/+10)",
       "nudge.hint": "Degrees added to the target each time you press a nudge button. Also configurable in Signal K Admin -> Plugin Config -> PyPilot New-UI.",
@@ -63,10 +102,117 @@
       // Tabs
       "tab.control": "Control",
       "tab.tune":    "Tune",
+      "tab.chart":   "Chart",
       "tab.regata":  "Race",
       "tab.paths":   "Paths & API",
       "tab.setup":   "Setup",
       "tab.info":    "Info",
+      // Chart tab (Rev96)
+      "chart.stats.title":         "TRIP STATS",
+      "chart.session.empty":       "Session not started",
+      "chart.session.started":     "Session started at",
+      "chart.session.ago":         "ago",
+      "chart.session.reset":       "Reset",
+      "chart.session.confirm":     "Reset the trip stats to zero? The chart history is kept.",
+      "chart.stat.engaged":        "AP engaged",
+      "chart.stat.distance":       "Distance",
+      "chart.stat.energy":         "Energy",
+      "chart.stat.meanErr":        "Mean err",
+      "chart.stat.rmsErr":         "RMS err",
+      "chart.stat.p95Err":         "p95 err",
+      "chart.stat.servoRuntime":   "Servo runtime",
+      "chart.stat.tacksGybes":     "Tacks / Gybes",
+      "chart.stat.maxServoA":      "Max servo A",
+      "chart.history.title":       "HISTORY",
+      "chart.history.refresh":     "Refresh",
+      "chart.empty":               "No data yet - waiting for the first sample...",
+      "chart.servoHealth.title":   "SERVO HEALTH",
+      "chart.servoHealth.learning":"Learning baseline...",
+      "chart.servoHealth.baseline":"Baseline",
+      "chart.servoHealth.recent":  "Recent avg",
+      "chart.servoHealth.deviation":"Deviation",
+      "chart.servoHealth.peak":    "Peak 30 s",
+      "chart.servoHealth.temp":    "Temp",
+      "chart.servoHealth.voltage": "Voltage",
+      "setup.paths.title":         "Signal K Sentences",
+      "setup.conn.title":          "pypilot connection",
+      "setup.conn.status":         "Status",
+      "setup.remoteConsole":       "Remote Control Console",
+      // Alarms (Rev101)
+      "setup.alarms.title":        "Alarms",
+      "setup.alarms.hint":         "Turn each rule on or off and mute it temporarily. Active alarms appear in the banner at the top and publish canonical SK notifications for KIP / WilhelmSK.",
+      "alarm.ack":                 "ACK",
+      "alarm.acked":               "Acked",
+      "alarm.mute15":              "Mute 15m",
+      "alarm.unmute":              "Unmute",
+      "alarm.idle":                "IDLE",
+      "alarm.active":              "ACTIVE",
+      "alarm.muted":               "MUTED",
+      "alarm.off":                 "OFF",
+      // Pre-departure check (Rev102)
+      "setup.precheck.title":      "Autopilot check",
+      "setup.precheck.hint":       "Pre-departure sanity check. Aggregates every sensor / servo / voltage / connectivity signal into a single verdict. Recomputes every 3 s while this tab is open.",
+      "setup.precheck.refresh":    "Refresh",
+      "setup.precheck.unknown":    "Checking...",
+      "setup.precheck.verdict.ready":   "Ready to engage",
+      "setup.precheck.verdict.caveats": "Ready with caveats",
+      "setup.precheck.verdict.fail":    "Do not engage",
+      // Doctor (Rev104)
+      "setup.doctor.title":        "Diagnostics & advice",
+      "setup.doctor.hint":         "Engage the AP first, then press DIAGNOSE. The plugin records the heading error + servo response and proposes P/I/D adjustments. Nothing is applied automatically - review each suggestion and press APPLY.",
+      "setup.doctor.start":        "DIAGNOSE",
+      "setup.doctor.cancel":       "Cancel",
+      "setup.doctor.recording":    "Recording",
+      "setup.doctor.analyzing":    "Analyzing",
+      "setup.doctor.findings":     "Findings",
+      "setup.doctor.suggestions":  "Suggested gain adjustments",
+      "setup.doctor.apply":        "APPLY",
+      "setup.doctor.applied":      "APPLIED",
+      "setup.doctor.applyAll":     "Apply all",
+      "setup.doctor.applyAllConfirm": "Apply every suggested gain change to pypilot?",
+      "setup.doctor.confidence":   "Confidence",
+      "setup.doctor.samplesSummary": "{engaged} engaged samples of {total}, pilot '{pilot}'.",
+      "setup.doctor.forkedProfile":  "Changes applied to a NEW profile {new}. Your original profile {orig} is untouched and one tap away in Tune → Profile.",
+      "setup.doctor.discard":   "Discard",
+      "setup.doctor.discarded": "DISCARDED",
+      "doctor.cat.bias":        "bias",
+      "doctor.cat.oscillation": "oscillation",
+      "doctor.cat.authority":   "authority",
+      "doctor.cat.noise":       "noise",
+      "doctor.conf.low":        "low",
+      "doctor.conf.medium":     "medium",
+      "doctor.conf.high":       "high",
+      "doctor.reason.bias":         "The boat has been off the target heading by {deg}° on average. That drift is what the integral gain (I) fights over time - a small I means the AP takes a long time (or never) to close a persistent offset.",
+      "doctor.effect.bias":         "Increasing I should erase that drift within seconds. Watch the wheel: a too-large I overshoots and starts hunting - if you see it, back off.",
+      "doctor.reason.oscillation":  "The heading is swinging periodically every {period} seconds. Without enough derivative gain (D) the AP cannot damp its own corrections and the boat wobbles side to side.",
+      "doctor.effect.oscillation":  "More D calms the swing and makes the AP feel less nervous. Steering response gets slightly slower - a fair trade for a straight track.",
+      "doctor.reason.authority":    "The servo is running hard but the boat still misses the heading. That is classic weak P: the AP is asking, the rudder is moving, but the correction is too small.",
+      "doctor.effect.authority":    "A larger P puts more rudder for the same error. Should tighten the track. If it starts to hunt at each swell, roll it back and reach for D instead.",
+      "setup.doctor.idle":         "idle",
+      "setup.doctor.analyzing.short": "analyzing...",
+      "setup.doctor.healthy":      "healthy",
+      "setup.doctor.suggested":    "{n} suggested",
+      "setup.doctor.noted":        "{n} noted",
+      "alarm.summary.active":      "{n} active",
+      "alarm.summary.muted":       "{n} muted",
+      "alarm.summary.off":         "{n} off",
+      "alarm.summary.ok":          "all clear",
+      "alarm.summary.actShort":    "act",
+      "alarm.summary.okShort":     "OK",
+      "alarm.summary.mutedShort":  "muted",
+      "alarm.summary.offShort":    "off",
+      "alarm.summary.firingShort":  "firing",
+      "alarm.summary.watchingShort":"watching",
+      // Sensor Quality panel (Rev97)
+      "setup.quality.title":       "Sensor Quality",
+      "setup.quality.hint":        "Freshness and update rate of the SK paths the autopilot depends on. Green = good, amber = degraded, red = lost.",
+      "sq.col.sensor":             "Sensor",
+      "sq.col.value":              "Value",
+      "sq.col.age":                "Age",
+      "sq.col.hz":                 "Hz",
+      "sq.col.jitter":             "Jitter",
+      "sq.col.source":             "Source",
+      "sq.col.status":             "Status",
       // Setup tab
       "setup.connection": "Connection",
       "setup.scan.title": "Scan LAN for pypilot_web",
@@ -116,10 +262,10 @@
       "dash.wind.twa": "TWA (true, magenta)",
       "dash.overlays.title": "ROSE OVERLAYS",
       "dash.overlays.hint": "Toggle what floats on the compass rose. Each card lists what data it needs to render.",
-      "dash.overlay.awa.title": "Apparent wind",
-      "dash.overlay.awa.needs": "Needs a wind sensor (AWA).",
-      "dash.overlay.twa.title": "True wind",
-      "dash.overlay.twa.needs": "Needs a wind sensor + SOG (TWA).",
+      "dash.overlay.awa.title": "A · Apparent wind",
+      "dash.overlay.awa.needs": "Amber arrow · needs a wind sensor.",
+      "dash.overlay.twa.title": "T · True wind",
+      "dash.overlay.twa.needs": "Teal arrow · needs a wind sensor + SOG.",
       "dash.overlay.cog.title": "Course over ground",
       "dash.overlay.cog.needs": "Only shows when SOG > 0.15 kn (boat moving).",
       "dash.overlay.current.title": "Current vector",
@@ -200,6 +346,46 @@
       "setup.debug.ok":         "OK",
       "setup.debug.failed":     "Failed",
       "setup.debug.noSsh":      "SSH not configured - save the SSH password above first.",
+      "setup.ssh.exec.ph":      "Enter shell command (e.g. cat /proc/loadavg)",
+      "setup.ssh.exec.run":     "Run",
+      "setup.ssh.exec.hint":    "Free-form SSH: any command runs as the saved user on the TinyPilot. Arrow up/down navigates history.",
+      // Rev115: SSH preset labels (plain human names). Actual shell
+      // command in the button's title attribute for the curious.
+      "ssh.p.logsPypilot":   "pypilot log",
+      "ssh.p.logsWeb":       "pypilot_web log",
+      "ssh.p.dmesg":         "System errors",
+      "ssh.p.top":           "What is using CPU",
+      "ssh.p.uptime":        "Uptime",
+      "ssh.p.df":            "Disk space",
+      "ssh.p.free":          "RAM memory",
+      "ssh.p.ps":            "pypilot processes",
+      "ssh.p.ip":            "IP table",
+      "ssh.p.iw":            "WiFi",
+      "ssh.p.temp":          "Temperature",
+      "ssh.p.who":           "Who is connected",
+      "ssh.p.ver":           "pypilot version",
+      "ssh.p.restartWeb":    "Restart pypilot web",
+      // Rev88 / Rev89 / Rev90: Aproado (sail-raising into-the-wind) pseudo-mode
+      "aproado.modal.title":       "Head to wind: hoist sail",
+      "aproado.modal.sub":         "Point the boat head-to-wind to hoist the sails. Pick which side to swing through.",
+      "aproado.choice.bow":        "BY BOW",
+      "aproado.choice.stern":      "BY STERN",
+      "aproado.choice.recommended":"Recommended",
+      "aproado.tws.mild":          "TWS {tws} kn",
+      "aproado.tws.hot":           "TWS {tws} kn - jibing is risky, prefer BOW",
+      "aproado.cancel":            "Cancel",
+      "aproado.cd.exec":           "Starting in",
+      "aproado.cd.title.bow":      "HEADING UP BY BOW",
+      "aproado.cd.title.stern":    "HEADING UP BY STERN",
+      "aproado.transit.title.bow": "TURNING BY BOW",
+      "aproado.transit.title.stern":"TURNING BY STERN",
+      "aproado.transit.sub":       "Rotating to wind...",
+      "aproado.transit.remaining": "still to head-to-wind",
+      "aproado.hud.title":         "APROADO",
+      "aproado.hud.summary":       "MANEUVER DONE",
+      "aproado.hud.dist":          "Dist",
+      "aproado.hud.hdg":           "Heading",
+      "aproado.hud.exit":          "EXIT",
     },
     es: {
       "tack": "VIRAR",
@@ -211,6 +397,16 @@
       "cal.rudReset": "Reset timon",
       "cal.headingOffset": "Offset rumbo IMU (grados)",
       "cal.rudRange": "Rango timon (grados)",
+      "cal.advanced.title": "Sliders avanzados",
+      "cal.advanced.hint":  "Todos los RangeSettings de pypilot, agrupados. Pulsa largo o pon el raton sobre el nombre para ver la clave pypilot cruda.",
+      "cal.grp.rudder":     "Timon",
+      "cal.grp.servo":      "Servo",
+      "cal.grp.imu":        "IMU",
+      "cal.grp.ap":         "Piloto",
+      "cal.grp.other":      "Otros",
+      "cal.slider.was":     "antes:",
+      "cal.slider.restore": "Restaurar valor anterior",
+      "cal.unlock":         "Desbloquear sliders",
       "configuration": "Configuracion",
       "calibration.title": "Calibracion",
       "save": "Guardar",
@@ -225,12 +421,41 @@
       "paths.hint": "Se aplica al instante, sin reinicio. Los paths esenciales (state / mode / target / tack / selectores) siempre publican. Con \"solo esenciales\" ON marca el check para activar un path; con OFF marca para mantener y desmarca para parar.",
       "paths.header": "Catalogo en vivo de paths Signal K que este plugin publica y responde a PUT. Copia con los botones para pegar en configuraciones de widgets KIP.",
       "paths.refresh": "Refrescar",
-      "paths.kip.title": "Paths de accion para KIP",
-      "paths.kip.hint": "Enlaza estos con widgets KIP \"Simple Switch\" (filas azules) o \"Put\" (filas verdes).",
+      "paths.kip.title": "Sentencias de accion para KIP",
+      "paths.kip.hint": "Enlaza estas sentencias con widgets KIP \"Simple Switch\" (filas azules) o \"Put\" (filas verdes).",
+      "paths.kip.col.widget":  "Widget",
+      "paths.kip.col.path":    "Sentencia",
+      "paths.kip.col.type":    "Tipo",
+      "paths.kip.col.values":  "Valor(es)",
+      "paths.kip.col.copy":    "Copiar",
+      "paths.kip.widget.apEngage":  "Activar AP",
+      "paths.kip.widget.nudge":     "Correccion rumbo <code>-10 / -1 / +1 / +10</code>",
+      "paths.kip.widget.tack":      "Virar <code>babor / estribor / cancelar</code>",
+      "paths.kip.widget.mode":      "Modo <code>compas / gps / viento / real / nav</code>",
+      "paths.kip.widget.profile":   "Perfil <code>&lt;nombre&gt;</code>",
+      "paths.kip.widget.modePut":   "<b>Modo</b> (Put)",
+      "paths.kip.widget.targetPut": "Objetivo (Put)",
+      "paths.kip.type.simple":    "Simple Switch",
+      "paths.kip.type.momentary": "Simple Switch (momentaneo)",
+      "paths.kip.type.radio":     "Simple Switch (radio)",
+      "paths.kip.type.radioDyn":  "Simple Switch (radio, dinamico)",
+      "paths.kip.type.string":    "texto",
+      "paths.kip.type.numberRad": "numero (rad)",
+      "paths.kip.val.engage":       "1 = activar, 0 = desactivar",
+      "paths.kip.val.fireReset":    "1 = disparar, auto-reset",
+      "paths.kip.val.fire":         "1 = disparar",
+      "paths.kip.val.select":       "1 = seleccionar",
+      "paths.kip.val.modeStrings":  "\"compass\" / \"gps\" / \"wind\" / \"true wind\" / \"nav\"",
+      "paths.kip.val.targetExample":"p.ej. 1.57 para 90 grados",
+      "paths.kip.copy":          "Copiar",
+      "paths.kip.copy.plus1":    "Copiar +1",
+      "paths.kip.copy.port":     "Copiar babor",
+      "paths.kip.copy.compass":  "Copiar compass",
+      "paths.kip.copy.prefix":   "Copiar prefijo",
       "paths.all.title": "Todos los paths publicados",
       "paths.search.ph": "filtrar paths...",
       "paths.essentials.label": "Publicar solo esenciales + los activados explicitamente (recomendado)",
-      "nudge.title": "Pasos de nudge",
+      "nudge.title": "Botones correccion rumbo",
       "nudge.small": "Pequeno (-1/+1)",
       "nudge.big": "Grande (-10/+10)",
       "nudge.hint": "Grados anadidos al rumbo objetivo cada vez que pulsas un boton de nudge. Tambien se configura en SK Admin -> Plugin Config -> PyPilot New-UI.",
@@ -239,10 +464,117 @@
       // Tabs
       "tab.control": "Control",
       "tab.tune":    "Ajustes",
+      "tab.chart":   "Grafica",
       "tab.regata":  "Regata",
       "tab.paths":   "Paths & API",
       "tab.setup":   "Setup",
       "tab.info":    "Info",
+      // Chart tab (Rev96)
+      "chart.stats.title":         "ESTADISTICAS SESION",
+      "chart.session.empty":       "Sesion no iniciada",
+      "chart.session.started":     "Sesion iniciada a las",
+      "chart.session.ago":         "hace",
+      "chart.session.reset":       "Reiniciar",
+      "chart.session.confirm":     "Poner las estadisticas a cero? El historico grafico se conserva.",
+      "chart.stat.engaged":        "AP activo",
+      "chart.stat.distance":       "Distancia",
+      "chart.stat.energy":         "Energia",
+      "chart.stat.meanErr":        "Error medio",
+      "chart.stat.rmsErr":         "RMS error",
+      "chart.stat.p95Err":         "p95 error",
+      "chart.stat.servoRuntime":   "Servo activo",
+      "chart.stat.tacksGybes":     "Viradas / Trasluchadas",
+      "chart.stat.maxServoA":      "Max servo A",
+      "chart.history.title":       "HISTORICO",
+      "chart.history.refresh":     "Actualizar",
+      "chart.empty":               "Aun sin datos - esperando primera muestra...",
+      "chart.servoHealth.title":   "SALUD DEL SERVO",
+      "chart.servoHealth.learning":"Aprendiendo baseline...",
+      "chart.servoHealth.baseline":"Baseline",
+      "chart.servoHealth.recent":  "Media reciente",
+      "chart.servoHealth.deviation":"Desviacion",
+      "chart.servoHealth.peak":    "Pico 30 s",
+      "chart.servoHealth.temp":    "Temp",
+      "chart.servoHealth.voltage": "Voltaje",
+      "setup.paths.title":         "Sentencias de Signal K",
+      "setup.conn.title":          "Conexion pypilot",
+      "setup.conn.status":         "Estado",
+      "setup.remoteConsole":       "Consola control remoto",
+      // Alarms (Rev101)
+      "setup.alarms.title":        "Alarmas",
+      "setup.alarms.hint":         "Activa o desactiva cada regla y silencia temporalmente. Las alarmas activas salen en el banner de arriba y publican notificaciones SK canonicas para KIP / WilhelmSK.",
+      "alarm.ack":                 "ACK",
+      "alarm.acked":               "Ack'd",
+      "alarm.mute15":              "Silenciar 15m",
+      "alarm.unmute":              "Reactivar",
+      "alarm.idle":                "OK",
+      "alarm.active":              "ACTIVA",
+      "alarm.muted":               "SILENCIADA",
+      "alarm.off":                 "OFF",
+      // Pre-departure check (Rev102)
+      "setup.precheck.title":      "Comprobacion del piloto",
+      "setup.precheck.hint":       "Chequeo antes de zarpar. Agrega sensores, servo, voltaje y conectividad en un veredicto unico. Se recalcula cada 3 s mientras esta pestana esta abierta.",
+      "setup.precheck.refresh":    "Actualizar",
+      "setup.precheck.unknown":    "Comprobando...",
+      "setup.precheck.verdict.ready":   "Listo para activar",
+      "setup.precheck.verdict.caveats": "Listo con reservas",
+      "setup.precheck.verdict.fail":    "NO activar",
+      // Doctor (Rev104)
+      "setup.doctor.title":        "Asesoramiento y diagnostico",
+      "setup.doctor.hint":         "Activa el AP primero y pulsa DIAGNOSTICAR. El plugin graba el error de rumbo y respuesta del servo, y propone ajustes P/I/D. Nada se aplica automaticamente - revisa cada sugerencia y pulsa APLICAR.",
+      "setup.doctor.start":        "DIAGNOSTICAR",
+      "setup.doctor.cancel":       "Cancelar",
+      "setup.doctor.recording":    "Grabando",
+      "setup.doctor.analyzing":    "Analizando",
+      "setup.doctor.findings":     "Hallazgos",
+      "setup.doctor.suggestions":  "Ajustes de gain sugeridos",
+      "setup.doctor.apply":        "APLICAR",
+      "setup.doctor.applied":      "APLICADO",
+      "setup.doctor.applyAll":     "Aplicar todo",
+      "setup.doctor.applyAllConfirm": "Aplicar todos los ajustes sugeridos a pypilot?",
+      "setup.doctor.confidence":   "Confianza",
+      "setup.doctor.samplesSummary": "{engaged} muestras activas de {total}, piloto '{pilot}'.",
+      "setup.doctor.forkedProfile":  "Cambios aplicados en un perfil NUEVO {new}. Tu perfil original {orig} queda intacto y a un toque en Ajustes → Perfil.",
+      "setup.doctor.discard":   "Descartar",
+      "setup.doctor.discarded": "DESCARTADA",
+      "doctor.cat.bias":        "sesgo",
+      "doctor.cat.oscillation": "oscilacion",
+      "doctor.cat.authority":   "autoridad",
+      "doctor.cat.noise":       "ruido",
+      "doctor.conf.low":        "baja",
+      "doctor.conf.medium":     "media",
+      "doctor.conf.high":       "alta",
+      "doctor.reason.bias":         "El barco se ha desviado del rumbo objetivo {deg}° de media. Esa deriva es lo que corrige la ganancia integral (I) con el tiempo — una I baja hace que el AP tarde mucho (o nunca) en cerrar un desvio persistente.",
+      "doctor.effect.bias":         "Subir I deberia borrar la deriva en segundos. Vigila la rueda: una I demasiado alta genera overshoot y empieza a bailar — si lo ves, reduce de nuevo.",
+      "doctor.reason.oscillation":  "El rumbo oscila con un periodo de unos {period} segundos. Sin suficiente ganancia derivativa (D) el AP no puede amortiguar sus propias correcciones y el barco culea de un lado a otro.",
+      "doctor.effect.oscillation":  "Mas D calma el vaiven y hace que el AP se sienta menos nervioso. La respuesta al timon se vuelve algo mas lenta — es un cambio razonable para conseguir un rumbo mas recto.",
+      "doctor.reason.authority":    "El servo esta trabajando mucho pero el barco sigue sin alcanzar el rumbo. Esto es P debil clasico: el AP pide, el timon se mueve, pero la correccion es demasiado pequena.",
+      "doctor.effect.authority":    "Una P mayor mete mas timon para el mismo error. Deberia apretar el seguimiento del rumbo. Si empieza a bailar con cada ola, reduce y prueba a subir D en su lugar.",
+      "setup.doctor.idle":         "inactivo",
+      "setup.doctor.analyzing.short": "analizando...",
+      "setup.doctor.healthy":      "sano",
+      "setup.doctor.suggested":    "{n} sugerencias",
+      "setup.doctor.noted":        "{n} notas",
+      "alarm.summary.active":      "{n} activas",
+      "alarm.summary.muted":       "{n} silenciadas",
+      "alarm.summary.off":         "{n} off",
+      "alarm.summary.ok":          "todo OK",
+      "alarm.summary.actShort":    "act",
+      "alarm.summary.okShort":     "OK",
+      "alarm.summary.mutedShort":  "silen",
+      "alarm.summary.offShort":    "off",
+      "alarm.summary.firingShort":  "sonando",
+      "alarm.summary.watchingShort":"vigilando",
+      // Sensor Quality panel (Rev97)
+      "setup.quality.title":       "Calidad de sensores",
+      "setup.quality.hint":        "Frescura y frecuencia de las rutas SK que usa el AP. Verde = OK, ambar = degradado, rojo = perdido.",
+      "sq.col.sensor":             "Sensor",
+      "sq.col.value":              "Valor",
+      "sq.col.age":                "Edad",
+      "sq.col.hz":                 "Hz",
+      "sq.col.jitter":             "Jitter",
+      "sq.col.source":             "Fuente",
+      "sq.col.status":             "Estado",
       // Setup tab
       "setup.connection": "Conexion",
       "setup.scan.title": "Escanear LAN buscando pypilot_web",
@@ -292,10 +624,10 @@
       "dash.wind.twa": "TWA (real, magenta)",
       "dash.overlays.title": "CAPAS SOBRE LA ROSA",
       "dash.overlays.hint": "Activa las que quieras ver sobre la rosa. Cada tarjeta indica qué datos necesita.",
-      "dash.overlay.awa.title": "Viento aparente",
-      "dash.overlay.awa.needs": "Necesita sensor de viento (AWA).",
-      "dash.overlay.twa.title": "Viento real",
-      "dash.overlay.twa.needs": "Necesita sensor de viento + SOG (TWA).",
+      "dash.overlay.awa.title": "A · Viento aparente",
+      "dash.overlay.awa.needs": "Flecha amarilla · necesita sensor de viento.",
+      "dash.overlay.twa.title": "T · Viento real",
+      "dash.overlay.twa.needs": "Flecha verde · necesita sensor de viento + SOG.",
       "dash.overlay.cog.title": "Rumbo real (COG)",
       "dash.overlay.cog.needs": "Solo se ve si SOG > 0,15 nudos (barco en movimiento).",
       "dash.overlay.current.title": "Vector corriente",
@@ -376,6 +708,45 @@
       "setup.debug.ok":         "OK",
       "setup.debug.failed":     "Fallo",
       "setup.debug.noSsh":      "SSH no configurado - guarda el password SSH arriba primero.",
+      "setup.ssh.exec.ph":      "Escribe un comando shell (ej: cat /proc/loadavg)",
+      "setup.ssh.exec.run":     "Ejecutar",
+      "setup.ssh.exec.hint":    "SSH libre: cualquier comando se ejecuta como el usuario guardado en el TinyPilot. Flechas arriba/abajo para navegar historial.",
+      // Rev115: Etiquetas humanas para presets SSH (comando real en title).
+      "ssh.p.logsPypilot":   "Registro pypilot",
+      "ssh.p.logsWeb":       "Registro pypilot_web",
+      "ssh.p.dmesg":         "Errores sistema",
+      "ssh.p.top":           "Que consume CPU",
+      "ssh.p.uptime":        "Tiempo encendido",
+      "ssh.p.df":            "Espacio disco",
+      "ssh.p.free":          "Memoria RAM",
+      "ssh.p.ps":            "Procesos pypilot",
+      "ssh.p.ip":            "Tabla IP",
+      "ssh.p.iw":            "WiFi",
+      "ssh.p.temp":          "Temperatura",
+      "ssh.p.who":           "Quien esta conectado",
+      "ssh.p.ver":           "Version pypilot",
+      "ssh.p.restartWeb":    "Reiniciar web pypilot",
+      // Rev88 / Rev89 / Rev90: Aproado (subir velas al viento) pseudo-modo
+      "aproado.modal.title":       "Aproarse: subir vela",
+      "aproado.modal.sub":         "Poner barco cara al viento para izar las velas. Elige por que lado hacer la maniobra.",
+      "aproado.choice.bow":        "POR PROA",
+      "aproado.choice.stern":      "POR POPA",
+      "aproado.choice.recommended":"Recomendado",
+      "aproado.tws.mild":          "Viento real {tws} kn",
+      "aproado.tws.hot":           "Viento real {tws} kn - trasluchar es delicado, mejor PROA",
+      "aproado.cancel":            "Cancelar",
+      "aproado.cd.exec":           "Ejecutando en",
+      "aproado.cd.title.bow":      "APROARSE POR PROA",
+      "aproado.cd.title.stern":    "APROARSE POR POPA",
+      "aproado.transit.title.bow": "APROANDOSE POR PROA",
+      "aproado.transit.title.stern":"APROANDOSE POR POPA",
+      "aproado.transit.sub":       "Girando al viento...",
+      "aproado.transit.remaining": "aun para estar aproado",
+      "aproado.hud.title":         "APROADO",
+      "aproado.hud.summary":       "MANIOBRA COMPLETADA",
+      "aproado.hud.dist":          "Dist",
+      "aproado.hud.hdg":           "Rumbo",
+      "aproado.hud.exit":          "SALIR",
     },
     de: {
       "tack": "WENDEN",
@@ -492,6 +863,12 @@
       const key = el.getAttribute("data-i18n");
       el.textContent = t(key);
     });
+    // Rev112: data-i18n-html for strings that legitimately carry inline
+    // markup (<code>, <b>...) - textContent would escape them.
+    document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-html");
+      el.innerHTML = t(key);
+    });
     // Rev61: placeholder / title / aria-label via data-i18n-attr="key1:attr1,key2:attr2".
     document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
       el.setAttribute("placeholder", t(el.getAttribute("data-i18n-placeholder")));
@@ -567,6 +944,20 @@
       try { return localStorage.getItem("pypilot-newui.windCornerPinned") === "1"; }
       catch { return false; }
     })(),
+    // Rev88: navigation.position { latitude, longitude } in decimal degrees.
+    // Needed to compute the straight-line distance travelled during an
+    // "Aproado" maneuver.
+    position: null,
+    // Rev88: "Aproado" pseudo-mode runtime state. Null when inactive.
+    // Non-null shape: { phase:"choosing"|"active"|"summary",
+    //                   direction:"bow"|"stern"|null,
+    //                   snapshot:{ mode, targetRad, headingRad, engaged, ts },
+    //                   startTs, endTs,
+    //                   startPos:{lat,lon}|null,
+    //                   startHeadingDeg,
+    //                   distanceNm,
+    //                   _modalTimer, _hudTimer, _summaryTimer }
+    aproado: null,
   };
 
   const RAD2DEG = 180 / Math.PI;
@@ -648,6 +1039,8 @@
       // Rev85: SOW (speedThroughWater) needed to compute the current
       // vector as (SOG − SOW).
       "navigation.speedThroughWater",
+      // Rev88: position for "Aproado" maneuver distance tracking.
+      "navigation.position",
       "steering.rudderAngle",
       "environment.wind.angleApparent",
       "environment.wind.speedApparent",
@@ -721,15 +1114,54 @@
   }
 
   function applyValue(path, value) {
+    // Rev96: stats KPIs live under steering.autopilot.pypilot.stats.*
+    // and land here via the existing wildcard subscription. Fan them
+    // out to the Trip Stats cards; return early - none of them need to
+    // go through the pypilot mapping / gain-row logic below.
+    if (path.indexOf("steering.autopilot.pypilot.stats.") === 0) {
+      _applyStatsPath(path, value);
+      return;
+    }
+    // Rev99: servo health paths feed a dedicated card in the Chart tab.
+    // Also intercept the raw voltage / controller_temp paths for the
+    // "battery + temperature" sub-cells - they come from the same
+    // wildcard subscription so no extra socket work.
+    if (_applyServoHealthPath(path, value)) return;
     switch (path) {
       case "steering.autopilot.state":            state.apState = value; break;
-      case "steering.autopilot.mode":             state.mode = value; setSelect("#mode-select", value); _syncWindCornerFromMode(value); break;
+      case "steering.autopilot.mode":
+        state.mode = value;
+        // Rev88 / Rev90: while the local "Aproado" pseudo-mode is active
+        // (transit or aproado achieved), pypilot reports "wind" (what we
+        // sent). Keep the dropdown pinned on "aproado" so the user sees
+        // the pseudo-mode they picked. Summary phase releases the pin so
+        // the restored mode shows through.
+        if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
+          setSelect("#mode-select", "aproado");
+        } else {
+          setSelect("#mode-select", value);
+        }
+        _syncWindCornerFromMode(value);
+        break;
       case "steering.autopilot.target":           state.target = numericOrNull(value); renderTargetArrow(); break;
       case "steering.autopilot.engaged":          state.engaged = !!value; renderEngage(); renderTargetArrow(); break;
       case "steering.autopilot.availableActions": state.availableActions = value || []; break;
       // Rev63 / 2.0.0: verbatim path is `ap.modes` (was `availableModes` alias).
+      // Rev88: append the local pseudo-mode "aproado" (into-the-wind) so it
+      // shows up in the dropdown alongside the pypilot-provided modes. It is
+      // never sent to pypilot as-is: the change handler intercepts it and
+      // runs the local aproado state machine (switches pypilot to `wind`
+      // under the hood + sets the target).
       case "steering.autopilot.pypilot.ap.modes":
-        if (Array.isArray(value)) { state.modeList = value; fillSelect("#mode-select", value); }
+        if (Array.isArray(value)) {
+          state.modeList = value.slice();
+          const withAproado = value.includes("aproado") ? value : [...value, "aproado"];
+          fillSelect("#mode-select", withAproado);
+          // If aproado is currently active or transitioning, keep the dropdown pinned on it.
+          if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
+            setSelect("#mode-select", "aproado");
+          }
+        }
         break;
       // Rev63 / 2.0.0: verbatim - was `.pilot`, now `.ap.pilot` (from pypilot key `ap.pilot`).
       case "steering.autopilot.pypilot.ap.pilot":
@@ -779,6 +1211,13 @@
         state.cog = numericOrNull(value); renderCogAndCurrent(); break;
       case "navigation.speedThroughWater":
         state.sow = numericOrNull(value); renderCogAndCurrent(); break;
+      case "navigation.position":
+        if (value && typeof value === "object" &&
+            typeof value.latitude === "number" &&
+            typeof value.longitude === "number") {
+          state.position = { lat: value.latitude, lon: value.longitude };
+        }
+        break;
       case "environment.wind.directionTrue":
         state.windDirTrue = numericOrNull(value); break;
       case "environment.depth.belowKeel":
@@ -1266,18 +1705,18 @@
     // (271°..90° through bow) → no local rotation. Rear-half angles
     // (91°..270° through stern) → local 180° flip so the glyph is
     // not fully upside-down when the piece points aft.
-    const awa = document.getElementById("rose-piece-awa");
+    // Rev125 (Carlos): REVERTED to original mapping - amber piece is
+    // AWA (apparent), teal piece is TWA (true). The Rev122 swap was
+    // undone: amber-big-"A" = apparent, teal-spiky-"T" = true.
+    const awa = document.getElementById("rose-piece-awa");           // amber piece = AWA
     const awaRaya = document.getElementById("rose-raya-awa");
     if (awa) {
       if (_windArrowShow.awa && state.windAngle != null) {
         const awaDeg = state.windAngle * RAD2DEG;
         awa.setAttribute("transform", `rotate(${awaDeg})`);
         const awaLbl = document.getElementById("rose-piece-awa-label");
-        if (awaLbl) awaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -60)`);
+        if (awaLbl) awaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -38)`);
         awa.style.display = "";
-        // Rev83: matching amber ring tick that marks the exact AWA
-        // angle on the rose, floating outside the ring, disconnected
-        // from the piece.
         if (awaRaya) {
           awaRaya.setAttribute("transform", `rotate(${awaDeg})`);
           awaRaya.style.display = "";
@@ -1287,16 +1726,15 @@
         if (awaRaya) awaRaya.style.display = "none";
       }
     }
-    const twa = document.getElementById("rose-piece-twa");
+    const twa = document.getElementById("rose-piece-twa");           // teal piece = TWA
     const twaRaya = document.getElementById("rose-raya-twa");
     if (twa) {
       if (_windArrowShow.twa && state.windAngleTrue != null) {
         const twaDeg = state.windAngleTrue * RAD2DEG;
         twa.setAttribute("transform", `rotate(${twaDeg})`);
         const twaLbl = document.getElementById("rose-piece-twa-label");
-        if (twaLbl) twaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(twaDeg)}, 0, -45)`);
+        if (twaLbl) twaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(twaDeg)}, 0, -56)`);
         twa.style.display = "";
-        // Rev83: matching sea-green ring tick for TWA.
         if (twaRaya) {
           twaRaya.setAttribute("transform", `rotate(${twaDeg})`);
           twaRaya.style.display = "";
@@ -1564,11 +2002,27 @@
       });
     });
     // Rev42: apply current lock state to the freshly-built controls.
+    // Rev117: opts.unlocked=true bypasses the tune-unlock guard (used by
+    // Calibration sliders in Setup which have no lock checkbox nearby).
     const unlockCb = document.getElementById("tune-unlock");
-    const locked = !(unlockCb && unlockCb.checked);
+    const forcedUnlocked = opts.unlocked === true;
+    const locked = !forcedUnlocked && !(unlockCb && unlockCb.checked);
     if (locked) {
       rng.setAttribute("disabled", "");
       row.querySelectorAll(".nudge-btn").forEach((b) => b.setAttribute("disabled", ""));
+    }
+    // Rev117: baseline "was" value for sliders that live outside the
+    // Tune tab (Calibration in Setup). We show it right away with the
+    // current pypilot value so the user always has a reference point
+    // to compare against while dragging.
+    if (opts.showBaseline && opts.cur != null) {
+      const baseEl = row.querySelector(".baseline");
+      if (baseEl) {
+        const label = t("cal.slider.was") || "was:";
+        baseEl.textContent = `${label} ${Number(opts.cur).toFixed(decimals)}`;
+        baseEl.setAttribute("data-baseline", String(opts.cur));
+        baseEl.hidden = false;
+      }
     }
     return { row, rng, val, commit };
   }
@@ -1598,6 +2052,166 @@
       row.dataset.pypilot = name;
       cont.appendChild(row);
     }
+    // Rev116: also refresh the Calibration mirror in Setup.
+    renderCalibrationSliders();
+  }
+
+  // Rev116-118 (Carlos): render every pypilot RangeSetting inside the
+  // Calibration card in Setup, grouped by category (rudder / servo /
+  // imu / ap / other). Skips gain rows (ap.pilot.*) since Tune owns those.
+  //
+  // Rev118 fixes:
+  //  - Baseline is captured ONCE per name (in _calBaselines Map) and
+  //    NEVER updated by subsequent renders. Carlos lost a slew_slow
+  //    tweak because a re-render moved the baseline to the just-edited
+  //    value, so a later reset lost the good number.
+  //  - DOM is now updated IN PLACE (input value + live label) on each
+  //    poll instead of recreated. Prevents the baseline from
+  //    "disappearing" every catalog refresh.
+  //  - Locked by default (checkbox "Desbloquear sliders" at the top of
+  //    the section), same safety net as Tune.
+  //  - Every slider has a per-row restore button that snaps back to the
+  //    captured baseline and PUTs it to pypilot.
+  const _CAL_GROUPS = [
+    { key: "rudder", i18n: "cal.grp.rudder",  match: (n) => n.startsWith("rudder.") },
+    { key: "servo",  i18n: "cal.grp.servo",   match: (n) => n.startsWith("servo.") },
+    { key: "imu",    i18n: "cal.grp.imu",     match: (n) => n.startsWith("imu.") },
+    { key: "ap",     i18n: "cal.grp.ap",      match: (n) => n.startsWith("ap.") && !n.startsWith("ap.pilot.") },
+    { key: "other",  i18n: "cal.grp.other",   match: () => true },
+  ];
+  const _calBaselines = new Map();   // name → first-seen value (frozen)
+  const _calRows = new Map();        // name → { row, rng, val, resetBtn, baselineEl }
+
+  function _calCurrentlyUnlocked() {
+    const cb = document.getElementById("calib-unlock");
+    return !!(cb && cb.checked);
+  }
+  function _applyCalibLockState() {
+    const unlocked = _calCurrentlyUnlocked();
+    for (const { row, rng, resetBtn } of _calRows.values()) {
+      if (!row) continue;
+      row.querySelectorAll(".nudge-btn").forEach((b) => {
+        if (unlocked) b.removeAttribute("disabled"); else b.setAttribute("disabled", "");
+      });
+      if (rng) {
+        if (unlocked) rng.removeAttribute("disabled"); else rng.setAttribute("disabled", "");
+      }
+      if (resetBtn) {
+        if (unlocked) resetBtn.removeAttribute("disabled"); else resetBtn.setAttribute("disabled", "");
+      }
+    }
+  }
+  function renderCalibrationSliders() {
+    const cont = document.getElementById("calib-sliders-mount");
+    if (!cont) return;
+    const cat = state.catalog;
+    if (!cat) return;
+    const values = state.pypilotValues || {};
+    const names = Object.keys(cat).filter((k) => {
+      const m = cat[k];
+      if (!m || m.type !== "RangeSetting") return false;
+      if (k.startsWith("ap.pilot.")) return false;   // gains live in Tune
+      return true;
+    });
+    if (names.length === 0) return;
+    names.sort();
+
+    // Capture baseline the FIRST time we see a non-null value for each name.
+    for (const n of names) {
+      if (!_calBaselines.has(n)) {
+        const v = values[n];
+        if (typeof v === "number" && isFinite(v)) _calBaselines.set(n, v);
+      }
+    }
+
+    // Rebuild sections only if the DOM layout changed (name set,
+    // group membership). If every row already exists we do NOT touch
+    // the DOM - just refresh the live value display in place.
+    const needFullRebuild = (() => {
+      if (cont.children.length === 0) return true;
+      for (const n of names) if (!_calRows.has(n)) return true;
+      return false;
+    })();
+
+    if (needFullRebuild) {
+      cont.textContent = "";
+      _calRows.clear();
+      const claimed = new Set();
+      for (const grp of _CAL_GROUPS) {
+        const groupNames = names.filter((n) => !claimed.has(n) && grp.match(n));
+        if (groupNames.length === 0) continue;
+        groupNames.forEach((n) => claimed.add(n));
+        const section = document.createElement("div");
+        section.className = "calib-slider-group";
+        const title = document.createElement("div");
+        title.className = "calib-slider-group-title";
+        title.setAttribute("data-i18n", grp.i18n);
+        title.textContent = t(grp.i18n);
+        section.appendChild(title);
+        for (const name of groupNames) {
+          const meta = cat[name];
+          const step = (meta.max - meta.min) / 200 || 0.001;
+          const cur = values[name];
+          const baseline = _calBaselines.get(name);
+          const { row, rng, val } = _buildSliderRow({
+            name,
+            min: meta.min, max: meta.max, step,
+            decimals: 3,
+            cur,
+            onChange: (v) => pluginRaw(name, v),
+            unlocked: _calCurrentlyUnlocked(),
+            // showBaseline is handled here (below) instead of inside
+            // _buildSliderRow so the value stays FROZEN across renders.
+            showBaseline: false,
+          });
+          row.dataset.pypilot = name;
+          row.setAttribute("title", name);
+          // Baseline label (frozen).
+          const baseEl = row.querySelector(".baseline");
+          if (baseEl && baseline != null) {
+            baseEl.textContent = `${t("cal.slider.was")} ${Number(baseline).toFixed(3)}`;
+            baseEl.hidden = false;
+          }
+          // Reset button: snap back to baseline and PUT to pypilot.
+          const resetBtn = document.createElement("button");
+          resetBtn.type = "button";
+          resetBtn.className = "cal-reset-btn nudge-btn";
+          resetBtn.setAttribute("aria-label", t("cal.slider.restore"));
+          resetBtn.setAttribute("title", t("cal.slider.restore"));
+          resetBtn.textContent = "↺";
+          if (!_calCurrentlyUnlocked()) resetBtn.setAttribute("disabled", "");
+          resetBtn.addEventListener("click", () => {
+            const b = _calBaselines.get(name);
+            if (b == null || rng == null) return;
+            rng.value = String(b);
+            if (val) val.textContent = Number(b).toFixed(3);
+            pluginRaw(name, b);
+          });
+          const bot = row.querySelector(".gain-bot");
+          if (bot) bot.appendChild(resetBtn);
+          _calRows.set(name, { row, rng, val, resetBtn, baselineEl: baseEl });
+          section.appendChild(row);
+        }
+        cont.appendChild(section);
+      }
+    } else {
+      // In-place refresh of the live value / slider position only.
+      for (const name of names) {
+        const rec = _calRows.get(name);
+        if (!rec) continue;
+        const cur = values[name];
+        if (typeof cur !== "number" || !isFinite(cur)) continue;
+        // Do NOT clobber while the user is dragging.
+        if (rec.row.classList.contains("active")) continue;
+        if (rec.rng) rec.rng.value = String(cur);
+        if (rec.val) rec.val.textContent = Number(cur).toFixed(3);
+      }
+    }
+  }
+  function wireCalibUnlock() {
+    const cb = document.getElementById("calib-unlock");
+    if (!cb) return;
+    cb.addEventListener("change", _applyCalibLockState);
   }
 
   // Rev36: /values requires SK auth. Was fetched as plain (no JWT) so the
@@ -2045,6 +2659,410 @@
     return handleAuth(await skFetch(url, { method: "POST" }));
   }
 
+  // ---- Rev88 / Rev89: "Aproado" pseudo-mode (sail-raising into-the-wind) ----
+  // Not part of pypilot. Single overlay panel over the boat that walks
+  // through four phases:
+  //   choosing  - modal-style buttons: POR PROA / POR POPA / Cancelar.
+  //   countdown - 5 s grace after picking (user can still cancel).
+  //   active    - live elapsed + straight-line distance from start +
+  //               compass heading captured at activation.
+  //   summary   - values frozen for 15 s after SALIR, then self-hides.
+  // On SALIR (or auto-hide) the pre-aproado mode + target + engaged
+  // state are restored (Carlos Rev88 feedback: if the AP was NOT engaged
+  // when we entered aproado, disengage on exit).
+  const APROADO_TWS_HOT_KN = 10;      // above this, PROA is highlighted
+  const APROADO_COUNTDOWN_S = 5;       // grace period AFTER user picks
+  const APROADO_HUD_TICK_MS = 500;
+  const APROADO_SUMMARY_MS = 15000;    // Carlos Rev89: 15 s dwell (was 8)
+  // Rev90: |AWA| below this threshold (degrees) → the boat is considered
+  // "aproada" and the transit phase flips to the aproado phase (elapsed
+  // timer starts). Once achieved the phase LATCHES - a subsequent wind
+  // gust that pushes AWA above the threshold does NOT flip back.
+  const APROADO_ACHIEVED_DEG = 10;
+
+  function _distanceNm(a, b) {
+    if (!a || !b) return 0;
+    const R = 6371000;
+    const dLat = (b.lat - a.lat) * DEG2RAD;
+    const dLon = (b.lon - a.lon) * DEG2RAD;
+    const mid = ((a.lat + b.lat) / 2) * DEG2RAD;
+    const x = dLon * Math.cos(mid);
+    const y = dLat;
+    return Math.sqrt(x * x + y * y) * R / 1852;
+  }
+  function _formatElapsed(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(s / 60);
+    return `${m}:${String(s % 60).padStart(2, "0")}`;
+  }
+  function _twsKn() {
+    return state.windSpeedTrue != null ? state.windSpeedTrue * 1.94384 : null;
+  }
+  function _aproadoHud() { return document.getElementById("aproado-hud"); }
+  function _setPhase(phase) {
+    const hud = _aproadoHud();
+    if (hud) hud.setAttribute("data-phase", phase);
+  }
+  function _paintTws(hud) {
+    const twsEl = hud.querySelector("#aproado-choose-tws");
+    if (!twsEl) return false;
+    const twsKn = _twsKn();
+    const hot = twsKn != null && twsKn > APROADO_TWS_HOT_KN;
+    if (twsKn != null) {
+      twsEl.textContent = hot
+        ? t("aproado.tws.hot").replace("{tws}", twsKn.toFixed(0))
+        : t("aproado.tws.mild").replace("{tws}", twsKn.toFixed(0));
+    } else {
+      twsEl.textContent = "";
+    }
+    twsEl.classList.toggle("hot", hot);
+    hud.classList.toggle("hot", hot);
+    return hot;
+  }
+
+  function aproadoStart() {
+    // Snapshot everything we may need to restore on SALIR / cancel.
+    const snapshot = {
+      mode: state.mode,
+      targetRad: state.target,
+      headingRad: state.heading,
+      engaged: state.engaged,
+      ts: Date.now(),
+    };
+    state.aproado = {
+      phase: "choosing",
+      direction: null,
+      snapshot,
+      startTs: null,
+      endTs: null,
+      startPos: null,
+      startHeadingDeg: null,
+      distanceNm: 0,
+    };
+    const hud = _aproadoHud();
+    if (!hud) return;
+    hud.classList.remove("summary");
+    _paintTws(hud);
+    // Default recommendation: PROA (Carlos Q-3: safer, especially > 10 kn).
+    const bowBtn = hud.querySelector('.aproado-choice[data-dir="bow"]');
+    const sternBtn = hud.querySelector('.aproado-choice[data-dir="stern"]');
+    if (bowBtn) bowBtn.classList.add("recommended");
+    if (sternBtn) sternBtn.classList.remove("recommended");
+    _setPhase("choosing");
+    hud.removeAttribute("hidden");
+  }
+
+  // User picked bow or stern. Enter the 5 s countdown; the actual
+  // pypilot switch happens when the countdown reaches 0.
+  function aproadoPick(direction) {
+    const apr = state.aproado;
+    if (!apr || apr.phase !== "choosing") return;
+    apr.direction = direction === "stern" ? "stern" : "bow";
+    _setPhase("countdown");
+    const hud = _aproadoHud();
+    if (!hud) return;
+    const titleEl = hud.querySelector("#aproado-cd-title");
+    const numEl = hud.querySelector("#aproado-cd-num");
+    if (titleEl) {
+      titleEl.textContent = apr.direction === "bow"
+        ? t("aproado.cd.title.bow")
+        : t("aproado.cd.title.stern");
+    }
+    let secs = APROADO_COUNTDOWN_S;
+    if (numEl) numEl.textContent = String(secs);
+    apr._cdTimer = setInterval(() => {
+      secs -= 1;
+      if (secs <= 0) {
+        clearInterval(apr._cdTimer);
+        apr._cdTimer = null;
+        if (numEl) numEl.textContent = "0";
+        aproadoExecute();
+        return;
+      }
+      if (numEl) numEl.textContent = String(secs);
+    }, 1000);
+  }
+
+  async function aproadoExecute() {
+    const apr = state.aproado;
+    if (!apr) return;
+    // Rev90: transit is a NEW phase between countdown and active. The
+    // boat starts rotating toward head-to-wind; only when |AWA| falls
+    // below APROADO_ACHIEVED_DEG do we consider it "aproada" and start
+    // the elapsed timer. Distance tracking, however, begins here so it
+    // covers the whole maneuver (transit + aproado).
+    apr.phase = "transit";
+    apr.executeTs = Date.now();
+    apr.startTs = null;                      // elapsed clock arms later
+    apr.startPos = state.position ? { ...state.position } : null;
+    apr.startHeadingDeg = state.heading != null
+      ? ((state.heading * RAD2DEG + 360) % 360)
+      : null;
+    setSelect("#mode-select", "aproado");
+    _setPhase("transit");
+    const hud = _aproadoHud();
+    if (hud) { hud.classList.add("transit"); hud.classList.remove("summary"); }
+    // Set the transit title now so it reflects the chosen direction.
+    const transitTitle = document.getElementById("aproado-transit-title");
+    if (transitTitle) {
+      transitTitle.textContent = apr.direction === "bow"
+        ? t("aproado.transit.title.bow")
+        : t("aproado.transit.title.stern");
+    }
+    try {
+      await apSetMode("wind");
+      if (apr.direction === "bow" || state.windAngle == null) {
+        // PROA: shortest path (pypilot's default) is bow-through when
+        // starting from close-hauled or reaching. Also fallback for POPA
+        // when we have no wind sensor - we cannot force the swing side
+        // without knowing which side the wind is on.
+        apr._targetIsFinal = true;
+        await apSetTargetRad(0);
+      } else {
+        // POR POPA (Rev92): pypilot has no jibe primitive - if we just
+        // command target = 0 it picks the SHORTEST arc, which for a
+        // close-hauled boat is the bow-through side. To force the swing
+        // to go through the stern we walk a chain of intermediate
+        // targets 60 deg apart around the LONG side of the circle. Each
+        // step waits for the boat to catch up before advancing, so
+        // pypilot never has an ambiguous or reversible shortest-path
+        // decision. When the chain wraps past the far side we release
+        // the final target = 0 and let _aproadoCheckAchieved latch into
+        // the active phase.
+        apr._targetIsFinal = false;
+        aproadoForceStern(state.windAngle);   // fire-and-forget async
+      }
+      if (!state.engaged) await apEngage();
+    } catch (e) {
+      console.warn("aproado: mode/target/engage failed", e);
+    }
+    updateAproadoHud();
+    apr._hudTimer = setInterval(updateAproadoHud, APROADO_HUD_TICK_MS);
+  }
+
+  // Rev92: force POR POPA path by walking the target around the long
+  // side of the circle in ~60 deg steps. Runs in the background from
+  // aproadoExecute; aborts cleanly if the user hits SALIR (phase leaves
+  // "transit") or if the wind sensor drops out mid-swing.
+  async function aproadoForceStern(startWindAngleRad) {
+    const apr = state.aproado;
+    if (!apr || apr.direction !== "stern") return;
+    const startDeg = startWindAngleRad * RAD2DEG;
+    // If we start already near head-to-wind, no long path to force.
+    if (Math.abs(startDeg) < 15) {
+      try { await apSetTargetRad(0); } catch {}
+      apr._targetIsFinal = true;
+      return;
+    }
+    // Sign of rotation for stern-through swing. Wind on starboard (+):
+    // rotate CW so AWA grows through +180 and wraps to -180 then up to 0.
+    // Wind on port (-): rotate CCW.
+    const dir = startDeg > 0 ? 1 : -1;
+    const STEP_DEG = 60;
+    const STEP_TOL_DEG = 25;         // "arrived" tolerance per step
+    const STEP_TIMEOUT_MS = 15000;   // give up on a step after 15 s
+    const totalRotation = 360 - Math.abs(startDeg);
+    let accumulated = 0;
+    console.info(`aproado stern: startAWA=${startDeg.toFixed(0)} dir=${dir} totalRot=${totalRotation.toFixed(0)}`);
+    while (accumulated + STEP_DEG < totalRotation &&
+           state.aproado === apr &&
+           apr.phase === "transit") {
+      // If wind swung around organically and we're already at head-to-wind,
+      // stop stepping and commit to the final target.
+      if (state.windAngle != null &&
+          Math.abs(state.windAngle * RAD2DEG) <= APROADO_ACHIEVED_DEG) {
+        console.info("aproado stern: achieved organically mid-chain");
+        break;
+      }
+      accumulated += STEP_DEG;
+      let nextDeg = startDeg + dir * accumulated;
+      while (nextDeg > 180) nextDeg -= 360;
+      while (nextDeg < -180) nextDeg += 360;
+      console.info(`aproado stern step: acc=${accumulated} target=${nextDeg.toFixed(0)}`);
+      try { await apSetTargetRad(nextDeg * DEG2RAD); }
+      catch (e) { console.warn("aproado stern: step PUT failed", e); }
+      const ok = await _waitForAWANear(nextDeg, STEP_TOL_DEG, STEP_TIMEOUT_MS, apr);
+      if (!ok && state.aproado === apr && apr.phase === "transit") {
+        console.warn(`aproado stern: step timeout at target=${nextDeg.toFixed(0)}`);
+      }
+    }
+    // Final: commit target = 0 and unlock the achieved check.
+    if (state.aproado === apr && apr.phase === "transit") {
+      try { await apSetTargetRad(0); console.info("aproado stern: final target = 0"); }
+      catch (e) { console.warn("aproado stern: final PUT failed", e); }
+      apr._targetIsFinal = true;
+    }
+  }
+
+  // Resolves true when |AWA - targetDeg| < tolDeg (or wind sensor missing
+  // longer than timeoutMs), false on timeout. Aborts if the aproado
+  // state is torn down (user pressed SALIR).
+  function _waitForAWANear(targetDeg, tolDeg, timeoutMs, apr) {
+    return new Promise((resolve) => {
+      const started = Date.now();
+      const tick = () => {
+        if (state.aproado !== apr || apr.phase !== "transit") { resolve(false); return; }
+        if (Date.now() - started > timeoutMs) { resolve(false); return; }
+        if (state.windAngle == null) { setTimeout(tick, 500); return; }
+        const currentDeg = state.windAngle * RAD2DEG;
+        let delta = targetDeg - currentDeg;
+        while (delta > 180) delta -= 360;
+        while (delta < -180) delta += 360;
+        if (Math.abs(delta) < tolDeg) { resolve(true); return; }
+        setTimeout(tick, 500);
+      };
+      tick();
+    });
+  }
+
+  // Called on every HUD tick. If we're still in transit and |AWA| has
+  // fallen below the achievement threshold, latch into the active phase.
+  // Rev92: for POR POPA we only allow the latch AFTER the forced-stern
+  // chain has committed the final target (apr._targetIsFinal). Otherwise
+  // an intermediate step that happens to cross near 0 could flip us
+  // into "active" prematurely mid-swing.
+  function _aproadoCheckAchieved() {
+    const apr = state.aproado;
+    if (!apr || apr.phase !== "transit") return;
+    if (!apr._targetIsFinal) return;
+    if (state.windAngle == null) return;
+    const awaDeg = Math.abs(state.windAngle * RAD2DEG);
+    if (awaDeg <= APROADO_ACHIEVED_DEG) {
+      apr.phase = "active";
+      apr.startTs = Date.now();
+      _setPhase("active");
+      const hud = _aproadoHud();
+      if (hud) hud.classList.remove("transit");
+    }
+  }
+
+  // Cancel from choosing OR countdown phase. Nothing was sent to pypilot
+  // yet in choosing; in countdown we clear the timer before firing.
+  function aproadoCancel() {
+    const apr = state.aproado;
+    if (!apr) return;
+    if (apr._cdTimer) { clearInterval(apr._cdTimer); apr._cdTimer = null; }
+    setSelect("#mode-select", apr.snapshot.mode || "");
+    hideAproadoHud();
+    state.aproado = null;
+  }
+
+  // Tear down live timers + hide HUD but DO NOT restore the previous mode
+  // (used when the user picks another mode from the dropdown while active).
+  function aproadoTearDown() {
+    const apr = state.aproado;
+    if (!apr) return;
+    if (apr._cdTimer) { clearInterval(apr._cdTimer); apr._cdTimer = null; }
+    if (apr._hudTimer) { clearInterval(apr._hudTimer); apr._hudTimer = null; }
+    if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
+    hideAproadoHud();
+    state.aproado = null;
+  }
+
+  // SALIR from the transit or active HUD: freeze counters, show the
+  // summary card for APROADO_SUMMARY_MS, and restore the pre-aproado
+  // mode + target + engaged state. Rev90: each restore step is guarded
+  // by its own try/catch so a failure in one does NOT skip the next
+  // (previously a single try/catch swallowed the rest of the chain -
+  // that was Carlos's "wind mode does not come back" bug). The dropdown
+  // is also updated optimistically so the UI reflects the restore even
+  // before pypilot's echo lands.
+  async function aproadoFinish() {
+    const apr = state.aproado;
+    if (!apr || (apr.phase !== "active" && apr.phase !== "transit")) return;
+    if (apr._hudTimer) { clearInterval(apr._hudTimer); apr._hudTimer = null; }
+    apr.endTs = Date.now();
+    if (apr.startPos && state.position) {
+      apr.distanceNm = _distanceNm(apr.startPos, state.position);
+    }
+    // If we never reached the achieved phase, stamp startTs so the
+    // summary shows a meaningful "0:00" instead of NaN.
+    if (apr.startTs == null) apr.startTs = apr.endTs;
+    apr.phase = "summary";
+    const hud = _aproadoHud();
+    if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
+    _setPhase("summary");
+    updateAproadoHud();
+    // Optimistic dropdown update so UI does not stay stuck on "aproado".
+    const snap = apr.snapshot;
+    if (snap.mode) setSelect("#mode-select", snap.mode);
+    // Rev90: guard each step separately so one failure does not skip
+    // the others. Log successes for QA visibility.
+    if (snap.mode) {
+      try { await apSetMode(snap.mode); console.info("aproado: mode restored ->", snap.mode); }
+      catch (e) { console.warn("aproado: mode restore failed", e); }
+    }
+    if (snap.targetRad != null) {
+      try { await apSetTargetRad(snap.targetRad); console.info("aproado: target restored ->", snap.targetRad.toFixed(3), "rad"); }
+      catch (e) { console.warn("aproado: target restore failed", e); }
+    }
+    // If the AP was NOT engaged before aproado, disengage now (Rev88 #10).
+    if (!snap.engaged) {
+      try { await apDisengage(); console.info("aproado: AP disengaged (was OFF before aproado)"); }
+      catch (e) { console.warn("aproado: disengage failed", e); }
+    }
+    apr._summaryTimer = setTimeout(() => {
+      if (state.aproado === apr) {
+        hideAproadoHud();
+        state.aproado = null;
+      }
+    }, APROADO_SUMMARY_MS);
+  }
+
+  function hideAproadoHud() {
+    const hud = _aproadoHud();
+    if (hud) {
+      hud.setAttribute("hidden", "");
+      hud.classList.remove("summary", "hot", "transit");
+      hud.removeAttribute("data-phase");
+    }
+  }
+  function updateAproadoHud() {
+    const apr = state.aproado;
+    const hud = _aproadoHud();
+    if (!apr || !hud) return;
+    // Rev90: check for phase transition transit -> active.
+    _aproadoCheckAchieved();
+    // Distance covers transit + active + summary. Elapsed clock only
+    // ticks once startTs has been armed (aproado achieved OR summary).
+    if ((apr.phase === "active" || apr.phase === "transit") &&
+        apr.startPos && state.position) {
+      apr.distanceNm = _distanceNm(apr.startPos, state.position);
+    }
+    const nowTs = apr.phase === "summary" ? (apr.endTs || Date.now()) : Date.now();
+    const elapsedMs = apr.startTs ? nowTs - apr.startTs : 0;
+    // Common: heading captured at maneuver start.
+    const hdgTxt = apr.startHeadingDeg != null
+      ? `${String(Math.round(apr.startHeadingDeg)).padStart(3, "0")}°`
+      : "---°";
+    if (apr.phase === "transit") {
+      const degEl = document.getElementById("aproado-transit-deg");
+      const hdgTrEl = document.getElementById("aproado-transit-hdg");
+      if (degEl) {
+        degEl.textContent = state.windAngle != null
+          ? `${Math.round(Math.abs(state.windAngle * RAD2DEG))}°`
+          : "---°";
+      }
+      if (hdgTrEl) hdgTrEl.textContent = hdgTxt;
+    } else {
+      const elapsedEl = document.getElementById("aproado-hud-elapsed");
+      const distEl = document.getElementById("aproado-hud-dist");
+      const hdgEl = document.getElementById("aproado-hud-hdg");
+      const titleEl = document.getElementById("aproado-active-title");
+      const endBtn = document.getElementById("aproado-hud-end");
+      if (elapsedEl) elapsedEl.textContent = _formatElapsed(elapsedMs);
+      if (distEl) distEl.textContent = `${apr.distanceNm.toFixed(2)} nm`;
+      if (hdgEl) hdgEl.textContent = hdgTxt;
+      if (apr.phase === "summary") {
+        if (titleEl) titleEl.textContent = t("aproado.hud.summary");
+        if (endBtn) endBtn.textContent = t("close");
+      } else {
+        if (titleEl) titleEl.textContent = t("aproado.hud.title");
+        if (endBtn) endBtn.textContent = t("aproado.hud.exit");
+      }
+    }
+  }
+
   // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
   // profiles, calibration, tack detail), route through our own /raw endpoint.
   async function pluginRaw(name, value) {
@@ -2235,8 +3253,50 @@
 
     // Mode change
     $("#mode-select").addEventListener("change", (e) => {
-      apSetMode(e.target.value);
+      const chosen = e.target.value;
+      // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
+      // choice modal (bow / stern) and starts the maneuver on confirmation.
+      if (chosen === "aproado") {
+        aproadoStart();
+        return;
+      }
+      // Picking another mode while aproado is active ends the maneuver
+      // WITHOUT restoring the pre-aproado mode - honor the user's new
+      // choice. (Use the SALIR button on the HUD to return to previous.)
+      if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
+        aproadoTearDown();
+      }
+      apSetMode(chosen);
     });
+
+    // Rev88 / Rev89: aproado overlay wiring. The overlay has 3 phases;
+    // each phase has its own set of buttons. SALIR on the active phase
+    // restores the pre-aproado mode + target + engaged state.
+    const aproadoHud = document.getElementById("aproado-hud");
+    if (aproadoHud) {
+      aproadoHud.querySelectorAll('.aproado-choice[data-dir]').forEach((btn) => {
+        btn.addEventListener("click", () => aproadoPick(btn.getAttribute("data-dir")));
+      });
+      const cancelChoose = document.getElementById("aproado-cancel-btn");
+      if (cancelChoose) cancelChoose.addEventListener("click", () => aproadoCancel());
+      const cancelCd = document.getElementById("aproado-cd-cancel");
+      if (cancelCd) cancelCd.addEventListener("click", () => aproadoCancel());
+      const exitHandler = () => {
+        const apr = state.aproado;
+        if (!apr) return;
+        if (apr.phase === "summary") {
+          if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
+          hideAproadoHud();
+          state.aproado = null;
+        } else if (apr.phase === "active" || apr.phase === "transit") {
+          aproadoFinish();
+        }
+      };
+      const exitBtn = document.getElementById("aproado-hud-end");
+      if (exitBtn) exitBtn.addEventListener("click", exitHandler);
+      const transitCancelBtn = document.getElementById("aproado-transit-cancel");
+      if (transitCancelBtn) transitCancelBtn.addEventListener("click", exitHandler);
+    }
 
     // Tack per side. If tack in progress, both act as Cancel.
     const tackHandler = (dir) => async () => {
@@ -2357,21 +3417,22 @@
     if (counter) counter.textContent = `${shown} / ${_lastPathsItems.length}`;
 
     tb.querySelectorAll("button.copy").forEach((b) => {
-      b.addEventListener("click", () => {
-        navigator.clipboard.writeText(b.dataset.copy);
+      b.addEventListener("click", async () => {
+        await _copyToClipboardCompat(b.dataset.copy);
         b.textContent = "OK";
         setTimeout(() => (b.textContent = t("paths.copy")), 800);
       });
     });
     // Rev24: also wire the static KIP-actions table copy buttons (they live
-    // in the DOM outside the injected tbody).
-    document.querySelectorAll("#tab-paths > .setup-block button.copy").forEach((b) => {
+    // in the DOM outside the injected tbody). Rev114: use compat helper.
+    document.querySelectorAll("#paths-mount button.copy, #tab-paths button.copy").forEach((b) => {
       if (b.__wired) return;
       b.__wired = true;
-      b.addEventListener("click", () => {
-        navigator.clipboard.writeText(b.dataset.copy);
+      b.addEventListener("click", async () => {
+        await _copyToClipboardCompat(b.dataset.copy);
+        const orig = b.textContent;
         b.textContent = "OK";
-        setTimeout(() => (b.textContent = "Copy"), 800);
+        setTimeout(() => (b.textContent = orig || t("paths.copy")), 800);
       });
     });
     // Rev21/22: hot-apply on change, feedback on failed persist.
@@ -2612,6 +3673,37 @@
     const dbgOut  = $("#debug-output");
     const dbgStat = $("#debug-status");
     let _dbgFollowTimer = null;
+    // Rev114 (Carlos): append every command output to the console
+    // instead of replacing the textarea, and auto-scroll to the newest
+    // line. The user can scroll up freely through past outputs. The
+    // follow-logs loop uses `_appendReplaceLastFollow` so it does not
+    // clutter the buffer with 30-per-minute duplicates.
+    let _dbgLastWasFollow = false;
+    function _dbgAppendOutput(header, body) {
+      if (!dbgOut) return;
+      const line = `$ ${header}\n${(body || "").trim()}\n\n`;
+      const prev = dbgOut.value || "";
+      dbgOut.value = prev + line;
+      // Cap at 200 KB so a bad grep does not eat all the memory.
+      if (dbgOut.value.length > 200_000) {
+        dbgOut.value = dbgOut.value.slice(-200_000);
+      }
+      dbgOut.scrollTop = dbgOut.scrollHeight;
+      _dbgLastWasFollow = false;
+    }
+    function _dbgReplaceFollow(header, body) {
+      if (!dbgOut) return;
+      if (_dbgLastWasFollow) {
+        // Peel back the previous follow output block and replace it.
+        const marker = `$ ${header}\n`;
+        const cut = dbgOut.value.lastIndexOf(marker);
+        if (cut >= 0) dbgOut.value = dbgOut.value.slice(0, cut);
+      }
+      const line = `$ ${header}\n${(body || "").trim()}\n\n`;
+      dbgOut.value = (dbgOut.value || "") + line;
+      dbgOut.scrollTop = dbgOut.scrollHeight;
+      _dbgLastWasFollow = true;
+    }
     const runDebugPreset = async (preset) => {
       if (dbgStat) dbgStat.textContent = t("setup.debug.running");
       try {
@@ -2622,20 +3714,91 @@
         });
         const j = await res.json().catch(() => ({}));
         if (res.status === 202 && j.hint) {
-          if (dbgOut) dbgOut.value = t("setup.debug.noSsh") + "\n\n" + (j.hint || "");
+          _dbgAppendOutput(`(${preset})`, t("setup.debug.noSsh") + "\n" + (j.hint || ""));
           if (dbgStat) dbgStat.textContent = t("setup.debug.failed");
           return;
         }
-        if (dbgOut) dbgOut.value = (j.stdout || "").trim();
+        if (preset === "logs.follow") {
+          _dbgReplaceFollow(preset, j.stdout || "");
+        } else {
+          _dbgAppendOutput(preset, j.stdout || "");
+        }
         if (dbgStat) dbgStat.textContent = `${t(j.ok ? "setup.debug.ok" : "setup.debug.failed")} (${j.elapsedMs || 0} ms, exit ${j.code ?? "?"})`;
       } catch (e) {
-        if (dbgOut) dbgOut.value = "" + e;
+        _dbgAppendOutput(preset, "" + e);
         if (dbgStat) dbgStat.textContent = t("setup.debug.failed");
       }
     };
     $$(".debug-preset").forEach((b) => {
       b.addEventListener("click", () => runDebugPreset(b.dataset.preset));
     });
+
+    // Rev113: interactive SSH command input. Free-form shell command
+    // sent to /ssh-exec, history in localStorage, arrow up/down to
+    // navigate. Output lands in the same #debug-output textarea.
+    const sshInput = $("#ssh-cmd-input");
+    const sshRun = $("#ssh-cmd-run");
+    const SSH_HIST_KEY = "pypilot-newui.sshCmdHistory";
+    let _sshHist = [];
+    try { _sshHist = JSON.parse(localStorage.getItem(SSH_HIST_KEY) || "[]"); }
+    catch { _sshHist = []; }
+    let _sshHistIdx = _sshHist.length;
+    async function runSshCmd(cmd) {
+      const c = String(cmd || "").trim();
+      if (!c) return;
+      if (dbgStat) dbgStat.textContent = t("setup.debug.running");
+      try {
+        const r = await fetch(`/plugins/${PLUGIN_ID}/ssh-exec`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cmd: c }),
+        });
+        const j = await r.json();
+        _dbgAppendOutput(c, j.stdout || "");
+        if (dbgStat) dbgStat.textContent = `${t(j.ok ? "setup.debug.ok" : "setup.debug.failed")} (${j.elapsedMs || 0} ms, exit ${j.code ?? "?"})`;
+        if (_sshHist[_sshHist.length - 1] !== c) {
+          _sshHist.push(c);
+          if (_sshHist.length > 30) _sshHist.shift();
+          try { localStorage.setItem(SSH_HIST_KEY, JSON.stringify(_sshHist)); } catch { /* silent */ }
+        }
+        _sshHistIdx = _sshHist.length;
+      } catch (e) {
+        _dbgAppendOutput(c, "" + e);
+        if (dbgStat) dbgStat.textContent = t("setup.debug.failed");
+      }
+    }
+    if (sshRun) sshRun.addEventListener("click", () => {
+      if (sshInput) runSshCmd(sshInput.value);
+    });
+    // Rev114: on-screen arrows for mobile (no physical keyboard).
+    function _sshHistPrev() {
+      if (!sshInput) return;
+      if (_sshHistIdx > 0) _sshHistIdx -= 1;
+      sshInput.value = _sshHist[_sshHistIdx] || "";
+      sshInput.focus();
+    }
+    function _sshHistNext() {
+      if (!sshInput) return;
+      if (_sshHistIdx < _sshHist.length - 1) {
+        _sshHistIdx += 1;
+        sshInput.value = _sshHist[_sshHistIdx] || "";
+      } else {
+        _sshHistIdx = _sshHist.length;
+        sshInput.value = "";
+      }
+      sshInput.focus();
+    }
+    const histPrevBtn = $("#ssh-hist-prev");
+    const histNextBtn = $("#ssh-hist-next");
+    if (histPrevBtn) histPrevBtn.addEventListener("click", (e) => { e.preventDefault(); _sshHistPrev(); });
+    if (histNextBtn) histNextBtn.addEventListener("click", (e) => { e.preventDefault(); _sshHistNext(); });
+    if (sshInput) {
+      sshInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); runSshCmd(sshInput.value); return; }
+        if (e.key === "ArrowUp")   { e.preventDefault(); _sshHistPrev(); }
+        else if (e.key === "ArrowDown") { e.preventDefault(); _sshHistNext(); }
+      });
+    }
     const dbgFollow = $("#debug-follow");
     if (dbgFollow) dbgFollow.addEventListener("change", () => {
       if (_dbgFollowTimer) { clearInterval(_dbgFollowTimer); _dbgFollowTimer = null; }
@@ -2646,8 +3809,8 @@
     });
     const dbgCopy = $("#debug-copy");
     if (dbgCopy) dbgCopy.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(dbgOut?.value || ""); if (dbgStat) dbgStat.textContent = t("info.cfg.copied"); }
-      catch (e) { if (dbgStat) dbgStat.textContent = t("info.cfg.copyFail"); }
+      const ok = await _copyToClipboardCompat(dbgOut?.value || "");
+      if (dbgStat) dbgStat.textContent = t(ok ? "info.cfg.copied" : "info.cfg.copyFail");
     });
     const dbgSend = $("#debug-send");
     if (dbgSend) dbgSend.addEventListener("click", async () => {
@@ -2835,12 +3998,8 @@
 
     if (copyBtn) copyBtn.addEventListener("click", async () => {
       const json = JSON.stringify(_buildCfgPayload(), null, 2);
-      try {
-        await navigator.clipboard.writeText(json);
-        _cfgStatus(t("info.cfg.copied"));
-      } catch (e) {
-        _cfgStatus(t("info.cfg.copyFail") + ": " + e, true);
-      }
+      const ok = await _copyToClipboardCompat(json);
+      _cfgStatus(ok ? t("info.cfg.copied") : t("info.cfg.copyFail"), !ok);
     });
 
     if (importFI) importFI.addEventListener("change", async () => {
@@ -2879,6 +4038,35 @@
       setTimeout(() => location.reload(), 700);
     });
   }
+  // Rev114 (Carlos on HTTP LAN): navigator.clipboard requires a secure
+  // context (HTTPS or localhost). On plain http://192.168.x.y the API
+  // throws or silently no-ops. Fall back to the legacy textarea +
+  // execCommand("copy") trick which still works on insecure origins.
+  async function _copyToClipboardCompat(text) {
+    if (!text) return false;
+    try {
+      if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch { /* fall through */ }
+    // Insecure-context fallback.
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "0";
+      ta.setAttribute("readonly", "");
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch { return false; }
+  }
+
   function _downloadFile(name, contents) {
     try {
       const blob = new Blob([contents], { type: "application/json" });
@@ -2941,13 +4129,23 @@
   }
   function _tabPostActivate(id) {
     if (id === "paths") refreshPaths();
-    if (id === "setup") loadStatus();
+    // Rev96: Paths now lives inside Setup - entering Setup should still
+    // refresh the paths table so counts stay live when the user opens it.
+    // Rev97: also start the Sensor Quality poll while Setup is open.
+    // Rev102: same for the pre-departure check card.
+    // Rev104: same for the Doctor.
+    if (id === "setup") { loadStatus(); refreshPaths(); sqOnTabEnter(); pcOnTabEnter(); doctorOnTabEnter(); }
+    else { sqOnTabLeave(); pcOnTabLeave(); doctorOnTabLeave(); }
     if (id === "tune") {
       refreshPypilotValues();
       // Rev42: auto-relock the Ajustes controls every time the user
       // re-enters the tab. Muscle memory should be "tick then touch".
       _setTuneLocked(true);
     }
+    // Rev96: Chart tab lifecycle - kick off a fetch on entry, stop the
+    // auto-refresh timer when the user navigates away.
+    if (id === "chart") chartOnTabEnter();
+    else chartOnTabLeave();
     document.body.classList.toggle("tab-regata-active", id === "regata");
     // Rev53/54: only Control can hide the nav. Any other tab restores
     // it. Entering Control (from any other tab) shows the nav briefly
@@ -3617,6 +4815,1284 @@
     });
   }
 
+  // ============================================================
+  // Rev104: Pypilot Doctor (Setup card)
+  // ============================================================
+  // Polls /doctor/status every 1 s while the Setup tab is visible. The
+  // start / cancel / apply / apply-all buttons are the only writers -
+  // everything else is a re-render from the status snapshot.
+  const _doc = { timer: null, last: null };
+  async function _docFetch() {
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/doctor/status`);
+      if (!r.ok) return;
+      _doc.last = await r.json();
+      _docRender();
+    } catch { /* silent */ }
+  }
+  function _docFmtDur(s) {
+    if (typeof s !== "number" || !isFinite(s) || s < 0) return "--";
+    const m = Math.floor(s / 60);
+    const ss = Math.floor(s % 60);
+    return m > 0 ? `${m}m ${String(ss).padStart(2,"0")}s` : `${ss}s`;
+  }
+  function _docStartBtn() { return document.getElementById("doctor-start-btn"); }
+  function _docCancelBtn() { return document.getElementById("doctor-cancel-btn"); }
+  function _docProgressWrap() { return document.getElementById("doctor-progress-wrap"); }
+  function _docResult() { return document.getElementById("doctor-result"); }
+  function _docRender() {
+    const st = _doc.last;
+    if (!st) return;
+    // Rev105: collapsed summary reflects the state at a glance.
+    let sumTxt = "", sumLvl = "";
+    if (st.state === "running") { sumTxt = `${st.elapsedSec}/${st.targetDurationSec}s`; sumLvl = "warn"; }
+    else if (st.state === "analyzing") { sumTxt = t("setup.doctor.analyzing.short"); sumLvl = "warn"; }
+    else if (st.state === "completed" && st.result) {
+      const nsug = (st.result.suggestions || []).length;
+      const nfind = (st.result.findings || []).length;
+      if (nsug > 0) sumTxt = t("setup.doctor.suggested").replace("{n}", nsug);
+      else if (nfind > 0) sumTxt = t("setup.doctor.noted").replace("{n}", nfind);
+      else sumTxt = t("setup.doctor.healthy");
+      sumLvl = nsug > 0 ? "warn" : "good";
+    } else {
+      sumTxt = t("setup.doctor.idle");
+    }
+    _updateSetupSummary("doctor", sumTxt, sumLvl);
+    const startBtn = _docStartBtn();
+    const cancelBtn = _docCancelBtn();
+    const progWrap = _docProgressWrap();
+    const progLabel = document.getElementById("doctor-progress-label");
+    const progFill = document.getElementById("doctor-progress-fill");
+    const progTime = document.getElementById("doctor-progress-time");
+    const resultBox = _docResult();
+    const running = st.state === "running" || st.state === "analyzing";
+    if (startBtn) { startBtn.hidden = running; startBtn.disabled = running; }
+    if (cancelBtn) cancelBtn.hidden = !running;
+    if (progWrap) progWrap.hidden = !running;
+    if (progLabel) progLabel.textContent = st.state === "analyzing"
+      ? t("setup.doctor.analyzing")
+      : t("setup.doctor.recording");
+    if (progFill) progFill.style.width = `${Math.round((st.progressPct || 0) * 100)}%`;
+    if (progTime) progTime.textContent = `${_docFmtDur(st.elapsedSec)} / ${_docFmtDur(st.targetDurationSec)}`;
+    if (resultBox) {
+      if (st.state === "completed" && st.result) {
+        resultBox.hidden = false;
+        _docRenderResult(resultBox, st.result);
+      } else if (st.state === "idle") {
+        resultBox.hidden = true;
+        resultBox.textContent = "";
+      }
+    }
+  }
+  function _docRenderResult(root, r) {
+    root.textContent = "";
+    // Summary bar
+    const sum = document.createElement("div");
+    sum.className = "doctor-summary";
+    if (r.suggestions.length === 0 && r.findings.length === 0) sum.classList.add("pc-ready");
+    else if (r.findings.some((f) => f.severity === "critical")) sum.classList.add("pc-fail");
+    else if (r.findings.length > 0) sum.classList.add("pc-caveats");
+    sum.textContent = `${r.summary}  ·  ${t("setup.doctor.samplesSummary").replace("{engaged}", r.engagedSamples).replace("{total}", r.samplesAnalyzed).replace("{pilot}", r.pilotId)}`;
+    root.appendChild(sum);
+    // Rev120 (Carlos): new-profile banner shown as soon as any suggestion
+    // has been applied. Tells the user the original profile is safe and
+    // where the changes actually landed.
+    if (r.newProfileName) {
+      const pn = document.createElement("div");
+      pn.className = "doctor-profile-banner";
+      const orig = r.originalProfile || "?";
+      pn.innerHTML = `${t("setup.doctor.forkedProfile")
+        .replace("{new}", `<b>${r.newProfileName}</b>`)
+        .replace("{orig}", `<b>${orig}</b>`)}`;
+      root.appendChild(pn);
+    }
+    // Findings
+    if (r.findings.length > 0) {
+      const t1 = document.createElement("div");
+      t1.className = "doctor-section-title";
+      t1.textContent = t("setup.doctor.findings");
+      root.appendChild(t1);
+      const list = document.createElement("div");
+      list.className = "doctor-findings";
+      for (const f of r.findings) {
+        const row = document.createElement("div");
+        row.className = "doctor-finding f-" + f.severity;
+        const icon = document.createElement("div");
+        icon.className = "pc-item-icon";
+        icon.textContent = f.severity === "critical" ? "!!" : f.severity === "warn" ? "!" : "i";
+        const body = document.createElement("div");
+        body.className = "doctor-finding-body";
+        const msg = document.createElement("div");
+        msg.className = "doctor-finding-msg";
+        msg.textContent = f.message;
+        const met = document.createElement("div");
+        met.className = "doctor-finding-metric";
+        met.textContent = f.metric;
+        body.appendChild(msg);
+        body.appendChild(met);
+        const cat = document.createElement("div");
+        cat.className = "pc-item-status";
+        cat.textContent = f.category.toUpperCase();
+        row.appendChild(icon);
+        row.appendChild(body);
+        row.appendChild(cat);
+        list.appendChild(row);
+      }
+      root.appendChild(list);
+    }
+    // Suggestions
+    if (r.suggestions.length > 0) {
+      const t2 = document.createElement("div");
+      t2.className = "doctor-section-title";
+      t2.textContent = t("setup.doctor.suggestions");
+      root.appendChild(t2);
+      const list = document.createElement("div");
+      list.className = "doctor-suggestions";
+      for (const s of r.suggestions) {
+        list.appendChild(_docRenderSuggestion(s));
+      }
+      root.appendChild(list);
+      // Apply all button (only if any unapplied)
+      if (r.suggestions.some((s) => !s.applied)) {
+        const all = document.createElement("button");
+        all.className = "doctor-apply-all";
+        all.type = "button";
+        all.textContent = t("setup.doctor.applyAll");
+        all.addEventListener("click", async () => {
+          if (!confirm(t("setup.doctor.applyAllConfirm"))) return;
+          try {
+            await fetch(`/plugins/${PLUGIN_ID}/doctor/apply-all`, { method: "POST" });
+            _docFetch();
+          } catch { /* silent */ }
+        });
+        root.appendChild(all);
+      }
+    }
+  }
+  // Rev121: template substitution for suggestion reason/effect that
+  // come from the backend as key + args (localized). Falls back to the
+  // English `reason` / `expectedEffect` strings if no key is provided
+  // (older backend, no i18n entry).
+  function _tSub(key, args) {
+    if (!key) return null;
+    let s = t(key);
+    if (!s || s === key) return null;   // no translation, use fallback
+    if (args && typeof args === "object") {
+      for (const [k, v] of Object.entries(args)) {
+        s = s.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+      }
+    }
+    return s;
+  }
+  function _docRenderSuggestion(s) {
+    const card = document.createElement("div");
+    let cls = "doctor-suggestion";
+    if (s.applied) cls += " applied";
+    if (s.dismissed) cls += " dismissed";
+    card.className = cls;
+    const header = document.createElement("div");
+    header.className = "doctor-sug-header";
+    const title = document.createElement("div");
+    title.className = "doctor-sug-title";
+    const catKey = "doctor.cat." + s.category;
+    const catLbl = t(catKey);
+    title.textContent = `${s.gainKey}  ·  ${(catLbl === catKey ? s.category : catLbl).toUpperCase()}`;
+    const conf = document.createElement("span");
+    conf.className = "doctor-sug-confidence " + s.confidence;
+    const confKey = "doctor.conf." + s.confidence;
+    const confLbl = t(confKey);
+    conf.textContent = `${t("setup.doctor.confidence")}: ${(confLbl === confKey ? s.confidence : confLbl).toUpperCase()}`;
+    header.appendChild(title);
+    header.appendChild(conf);
+    card.appendChild(header);
+    // Values row
+    const vals = document.createElement("div");
+    vals.className = "doctor-sug-values";
+    vals.innerHTML = `${Number(s.currentValue).toFixed(5)}<span class="arrow">→</span>${Number(s.suggestedValue).toFixed(5)}<span class="doctor-sug-delta">${s.deltaPct >= 0 ? "+" : ""}${s.deltaPct.toFixed(0)}%</span>`;
+    card.appendChild(vals);
+    // Reason + effect (i18n key preferred, English fallback)
+    const reasonText = _tSub(s.reasonKey, s.reasonArgs) || s.reason || "";
+    const effectText = _tSub(s.effectKey, s.effectArgs) || s.expectedEffect || "";
+    if (reasonText) {
+      const reason = document.createElement("div");
+      reason.className = "doctor-sug-reason";
+      reason.textContent = reasonText;
+      card.appendChild(reason);
+    }
+    if (effectText) {
+      const effect = document.createElement("div");
+      effect.className = "doctor-sug-effect";
+      effect.textContent = effectText;
+      card.appendChild(effect);
+    }
+    // Actions - Apply + Discard side by side
+    const actions = document.createElement("div");
+    actions.className = "doctor-sug-actions";
+    if (!s.applied && !s.dismissed) {
+      const discard = document.createElement("button");
+      discard.className = "doctor-sug-discard";
+      discard.type = "button";
+      discard.textContent = t("setup.doctor.discard");
+      discard.addEventListener("click", async () => {
+        discard.disabled = true;
+        try {
+          await fetch(`/plugins/${PLUGIN_ID}/doctor/dismiss/${s.id}`, { method: "POST" });
+          _docFetch();
+        } catch { /* silent */ }
+      });
+      actions.appendChild(discard);
+    }
+    const apply = document.createElement("button");
+    apply.className = "doctor-sug-apply";
+    apply.type = "button";
+    if (s.dismissed)      apply.textContent = t("setup.doctor.discarded");
+    else if (s.applied)   apply.textContent = t("setup.doctor.applied");
+    else                  apply.textContent = t("setup.doctor.apply");
+    apply.disabled = !!(s.applied || s.dismissed);
+    apply.addEventListener("click", async () => {
+      apply.disabled = true;
+      apply.textContent = "...";
+      try {
+        await fetch(`/plugins/${PLUGIN_ID}/doctor/apply/${s.id}`, { method: "POST" });
+        _docFetch();
+      } catch { /* silent */ }
+    });
+    actions.appendChild(apply);
+    card.appendChild(actions);
+    return card;
+  }
+  function wireDoctor() {
+    const startBtn = _docStartBtn();
+    if (startBtn) startBtn.addEventListener("click", async () => {
+      const sel = document.getElementById("doctor-duration");
+      const dur = sel && sel.value ? Number(sel.value) : 180;
+      try {
+        const r = await fetch(`/plugins/${PLUGIN_ID}/doctor/start?duration=${dur}`, { method: "POST" });
+        const j = await r.json();
+        if (!j.ok) alert(j.message || "Doctor start refused.");
+        _docFetch();
+      } catch { /* silent */ }
+    });
+    const cancelBtn = _docCancelBtn();
+    if (cancelBtn) cancelBtn.addEventListener("click", async () => {
+      try {
+        await fetch(`/plugins/${PLUGIN_ID}/doctor/cancel`, { method: "POST" });
+        _docFetch();
+      } catch { /* silent */ }
+    });
+  }
+  function doctorOnTabEnter() {
+    _docFetch();
+    if (_doc.timer) clearInterval(_doc.timer);
+    _doc.timer = setInterval(_docFetch, 1000);
+  }
+  function doctorOnTabLeave() {
+    if (_doc.timer) { clearInterval(_doc.timer); _doc.timer = null; }
+  }
+
+  // ============================================================
+  // Rev102: Autopilot pre-departure check (Setup card)
+  // ============================================================
+  const _pc = { timer: null, last: null };
+  async function _pcFetchAndRender() {
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/prechecks`);
+      if (!r.ok) return;
+      _pc.last = await r.json();
+      _pcRender();
+    } catch { /* silent */ }
+  }
+  function _pcVerdictKey(v) {
+    if (v === "ready") return "pc-ready";
+    if (v === "ready-with-caveats") return "pc-caveats";
+    if (v === "do-not-engage") return "pc-fail";
+    return "pc-unknown";
+  }
+  function _pcVerdictLabel(v) {
+    if (v === "ready") return t("setup.precheck.verdict.ready");
+    if (v === "ready-with-caveats") return t("setup.precheck.verdict.caveats");
+    if (v === "do-not-engage") return t("setup.precheck.verdict.fail");
+    return t("setup.precheck.unknown");
+  }
+  function _pcItemIcon(s) {
+    return s === "pass" ? "✓" : s === "warn" ? "!" : s === "fail" ? "✕" : "?";
+  }
+  function _pcRender() {
+    const verdict = document.getElementById("pc-verdict");
+    const counts = document.getElementById("pc-counts");
+    const items = document.getElementById("pc-items");
+    if (!verdict || !items || !_pc.last) return;
+    const snap = _pc.last;
+    verdict.className = "pc-verdict " + _pcVerdictKey(snap.overall);
+    const lab = verdict.querySelector(".pc-verdict-label");
+    if (lab) lab.textContent = _pcVerdictLabel(snap.overall);
+    if (counts) counts.textContent = `${snap.passCount} ✓ · ${snap.warnCount} ! · ${snap.failCount} ✕`;
+    // Rev105: sync the collapsed summary text so a user with the block
+    // closed still sees the verdict at a glance.
+    const lvl = snap.overall === "do-not-engage" ? "fail"
+              : snap.overall === "ready-with-caveats" ? "warn"
+              : snap.overall === "ready" ? "good" : "";
+    _updateSetupSummary("precheck", `${snap.passCount}✓ ${snap.warnCount}! ${snap.failCount}✕`, lvl);
+    items.textContent = "";
+    for (const it of snap.items) {
+      const row = document.createElement("div");
+      row.className = "pc-item pc-" + it.status;
+      const icon = document.createElement("div");
+      icon.className = "pc-item-icon";
+      icon.textContent = _pcItemIcon(it.status);
+      const body = document.createElement("div");
+      body.className = "pc-item-body";
+      const lab2 = document.createElement("div");
+      lab2.className = "pc-item-label";
+      lab2.textContent = it.label;
+      const det = document.createElement("div");
+      det.className = "pc-item-detail";
+      det.textContent = it.detail;
+      body.appendChild(lab2);
+      body.appendChild(det);
+      if (it.hint) {
+        const hint = document.createElement("div");
+        hint.className = "pc-item-hint";
+        hint.textContent = it.hint;
+        body.appendChild(hint);
+      }
+      const st = document.createElement("div");
+      st.className = "pc-item-status";
+      st.textContent = it.status.toUpperCase();
+      row.appendChild(icon);
+      row.appendChild(body);
+      row.appendChild(st);
+      items.appendChild(row);
+    }
+  }
+  function pcOnTabEnter() {
+    _pcFetchAndRender();
+    if (_pc.timer) clearInterval(_pc.timer);
+    _pc.timer = setInterval(_pcFetchAndRender, 3000);
+  }
+  function pcOnTabLeave() {
+    if (_pc.timer) { clearInterval(_pc.timer); _pc.timer = null; }
+  }
+  function wirePrecheck() {
+    const btn = document.getElementById("pc-refresh-btn");
+    if (btn) btn.addEventListener("click", _pcFetchAndRender);
+  }
+
+  // ============================================================
+  // Rev101: Alarm banner + config panel + browser audio
+  // ============================================================
+  // Single poll of /alarms/state every 2 s drives both the sticky
+  // banner at the top of the app AND the config panel in Setup.
+  // Audio uses WebAudio + speechSynthesis (no external assets, no Pi
+  // config needed). Audio in Pi speakers via espeak lands in Rev102.
+
+  const _al = {
+    timer: null,
+    state: { active: [], recent: [] },
+    rules: [],
+    audioCtx: null,
+    seenActiveIds: new Set(),      // ids we already tried to sound off for
+    lastReplayTs: 0,
+    // Rev121: ruleIds the user has explicitly dismissed from the banner
+    // in this session. Cleared automatically when the underlying alarm
+    // stops firing, so a fresh trigger of the same rule shows again.
+    dismissedIds: new Set(),
+  };
+  const AL_REPLAY_SEC = 25;         // repeat unacked alarm sound every N s
+
+  async function _alFetch() {
+    try {
+      const [stateRes, rulesRes] = await Promise.all([
+        fetch(`/plugins/${PLUGIN_ID}/alarms/state`),
+        fetch(`/plugins/${PLUGIN_ID}/alarms/rules`),
+      ]);
+      if (stateRes.ok) _al.state = await stateRes.json();
+      if (rulesRes.ok) _al.rules = (await rulesRes.json()).rules || [];
+      _alRenderBanner();
+      _alRenderConfig();
+      _alMaybePlaySound();
+    } catch { /* silent */ }
+  }
+  function _alSeverityIcon(sev) {
+    return sev === "alarm" ? "!" : sev === "warn" ? "⚠" : "ℹ";
+  }
+  function _alRenderBanner() {
+    const el = document.getElementById("alarm-banner");
+    if (!el) return;
+    const activeAll = _al.state.active || [];
+    // Rev121: prune dismissedIds whose rule is no longer firing so a
+    // future trigger shows again in the banner.
+    const stillActiveIds = new Set(activeAll.map((a) => a.ruleId));
+    for (const id of Array.from(_al.dismissedIds)) {
+      if (!stillActiveIds.has(id)) _al.dismissedIds.delete(id);
+    }
+    const active = activeAll.filter((a) => !_al.dismissedIds.has(a.ruleId));
+    if (active.length === 0) {
+      el.hidden = true;
+      el.textContent = "";
+      _al.seenActiveIds.clear();
+      return;
+    }
+    el.hidden = false;
+    el.textContent = "";
+    for (const a of active) {
+      const row = document.createElement("div");
+      row.className = "alarm-row " + (a.severity === "alarm" ? "alarm" : "warn");
+      if (a.ackedAtMs) row.classList.add("acked");
+      const icon = document.createElement("span");
+      icon.className = "alarm-icon";
+      icon.textContent = _alSeverityIcon(a.severity);
+      const txt = document.createElement("div");
+      txt.className = "alarm-txt";
+      const lab = document.createElement("div");
+      lab.className = "alarm-label";
+      lab.textContent = a.label;
+      const msg = document.createElement("div");
+      msg.className = "alarm-msg";
+      msg.textContent = a.message;
+      txt.appendChild(lab); txt.appendChild(msg);
+      const ackBtn = document.createElement("button");
+      ackBtn.className = "alarm-ack";
+      ackBtn.type = "button";
+      ackBtn.textContent = a.ackedAtMs ? t("alarm.acked") : t("alarm.ack");
+      ackBtn.disabled = !!a.ackedAtMs;
+      ackBtn.addEventListener("click", () => {
+        fetch(`/plugins/${PLUGIN_ID}/alarms/ack/${a.ruleId}`, { method: "POST" })
+          .then(() => _alFetch())
+          .catch(() => {});
+      });
+      // Rev121: X button - dismiss locally (hides until the underlying
+      // alarm stops firing and a fresh trigger arrives). Also ACKs the
+      // rule so the sound stops.
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "alarm-close";
+      closeBtn.type = "button";
+      closeBtn.setAttribute("aria-label", "Close");
+      closeBtn.textContent = "×";
+      closeBtn.addEventListener("click", () => {
+        _al.dismissedIds.add(a.ruleId);
+        if (!a.ackedAtMs) {
+          fetch(`/plugins/${PLUGIN_ID}/alarms/ack/${a.ruleId}`, { method: "POST" })
+            .then(() => _alFetch())
+            .catch(() => {});
+        } else {
+          _alRenderBanner();
+        }
+      });
+      row.appendChild(icon);
+      row.appendChild(txt);
+      row.appendChild(ackBtn);
+      row.appendChild(closeBtn);
+      el.appendChild(row);
+    }
+  }
+  function _alRenderConfig() {
+    const el = document.getElementById("alarms-config");
+    if (!el) return;
+    // Rev107 (Carlos feedback): summary shows BOTH counts always so the
+    // user reads active vs healthy at a glance without expanding.
+    // Format: "A act · O OK" (+ optional " · M silen" if any muted / " · X off" if any off).
+    const nowMs = Date.now();
+    let active = 0, muted = 0, off = 0, ok = 0;
+    for (const r of _al.rules) {
+      if (!r.enabled) off += 1;
+      else if (r.mutedUntilMs && r.mutedUntilMs > nowMs) muted += 1;
+      else if (r.active) active += 1;
+      else ok += 1;
+    }
+    // Rev108 (Carlos semantic fix): "activa" was ambiguous - Carlos
+    // distinguishes rule ENABLED ("activada") from alarm FIRING
+    // ("sonando/disparada"). New wording:
+    //   {n} sonando  = alarms currently firing
+    //   {n} vigilando = enabled + not firing + not muted
+    const parts = [
+      `${active} ${t("alarm.summary.firingShort")}`,
+      `${ok} ${t("alarm.summary.watchingShort")}`,
+    ];
+    if (muted > 0) parts.push(`${muted} ${t("alarm.summary.mutedShort")}`);
+    if (off > 0)   parts.push(`${off} ${t("alarm.summary.offShort")}`);
+    const sumTxt = parts.join(" · ");
+    const sumLvl = active > 0 ? "fail" : (muted > 0 ? "warn" : "good");
+    _updateSetupSummary("alarms", sumTxt, sumLvl);
+    el.textContent = "";
+    for (const r of _al.rules) {
+      const row = document.createElement("div");
+      row.className = "ac-row";
+      // Toggle
+      const toggle = document.createElement("label");
+      toggle.className = "ac-toggle";
+      toggle.setAttribute("aria-label", r.label);
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!r.enabled;
+      cb.addEventListener("change", () => {
+        fetch(`/plugins/${PLUGIN_ID}/alarms/enable/${r.id}?on=${cb.checked ? 1 : 0}`, { method: "POST" })
+          .then(() => _alFetch())
+          .catch(() => {});
+      });
+      toggle.appendChild(cb);
+      // Body (label + description)
+      const body = document.createElement("div");
+      body.className = "ac-body";
+      const lab = document.createElement("div");
+      lab.className = "ac-label";
+      lab.textContent = r.label;
+      const desc = document.createElement("div");
+      desc.className = "ac-desc";
+      desc.textContent = r.description;
+      body.appendChild(lab); body.appendChild(desc);
+      // Status pill
+      const status = document.createElement("span");
+      status.className = "ac-status ";
+      const nowMs = Date.now();
+      const muted = r.mutedUntilMs && r.mutedUntilMs > nowMs;
+      if (!r.enabled) { status.classList.add("off"); status.textContent = t("alarm.off"); }
+      else if (muted) { status.classList.add("muted"); status.textContent = `${t("alarm.muted")} ${Math.ceil((r.mutedUntilMs - nowMs) / 60000)}m`; }
+      else if (r.active) { status.classList.add("active"); status.textContent = t("alarm.active"); }
+      else { status.classList.add("idle"); status.textContent = t("alarm.idle"); }
+      // Mute button
+      const muteBtn = document.createElement("button");
+      muteBtn.className = "ac-mute-btn";
+      muteBtn.type = "button";
+      muteBtn.textContent = muted ? t("alarm.unmute") : t("alarm.mute15");
+      muteBtn.addEventListener("click", () => {
+        const url = muted
+          ? `/plugins/${PLUGIN_ID}/alarms/mute/${r.id}?min=0.01`   // ~0.6s = clear mute
+          : `/plugins/${PLUGIN_ID}/alarms/mute/${r.id}?min=15`;
+        fetch(url, { method: "POST" }).then(() => _alFetch()).catch(() => {});
+      });
+      row.appendChild(toggle);
+      row.appendChild(body);
+      row.appendChild(status);
+      row.appendChild(muteBtn);
+      el.appendChild(row);
+    }
+  }
+  function _alEnsureAudioCtx() {
+    if (_al.audioCtx) return _al.audioCtx;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      _al.audioCtx = new AC();
+    } catch { return null; }
+    return _al.audioCtx;
+  }
+  function _alBeep(freq, durationMs, gain) {
+    const ctx = _alEnsureAudioCtx();
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      g.gain.value = gain;
+      osc.connect(g).connect(ctx.destination);
+      const now = ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(gain, now + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+      osc.start(now);
+      osc.stop(now + durationMs / 1000 + 0.05);
+    } catch { /* silent */ }
+  }
+  function _alSpeak(text) {
+    try {
+      if (!("speechSynthesis" in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.0; u.pitch = 1.0; u.volume = 0.9;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch { /* silent */ }
+  }
+  function _alMaybePlaySound() {
+    const active = (_al.state.active || []).filter((a) => !a.ackedAtMs);
+    if (active.length === 0) return;
+    // Any brand-new (never sounded) alarm plays immediately. Otherwise
+    // replay the current worst-severity one every AL_REPLAY_SEC seconds.
+    const highest = active.reduce((acc, a) => (
+      !acc || (a.severity === "alarm" && acc.severity !== "alarm") ? a : acc
+    ), null);
+    const nowMs = Date.now();
+    const newIds = active.filter((a) => !_al.seenActiveIds.has(a.ruleId));
+    if (newIds.length > 0) {
+      for (const a of newIds) _al.seenActiveIds.add(a.ruleId);
+      _alPlayForSeverity(highest);
+      _al.lastReplayTs = nowMs;
+      return;
+    }
+    if (nowMs - _al.lastReplayTs > AL_REPLAY_SEC * 1000) {
+      _alPlayForSeverity(highest);
+      _al.lastReplayTs = nowMs;
+    }
+  }
+  function _alPlayForSeverity(a) {
+    if (!a) return;
+    if (a.severity === "alarm") {
+      // Triple high-pitch beep + spoken message.
+      _alBeep(1200, 180, 0.35);
+      setTimeout(() => _alBeep(1200, 180, 0.35), 250);
+      setTimeout(() => _alBeep(1200, 180, 0.35), 500);
+      setTimeout(() => _alSpeak(a.message), 850);
+    } else {
+      _alBeep(800, 250, 0.25);
+      setTimeout(() => _alSpeak(a.message), 350);
+    }
+  }
+  function alarmsStart() {
+    if (_al.timer) return;
+    _alFetch();
+    _al.timer = setInterval(_alFetch, 2000);
+  }
+
+  // ============================================================
+  // Rev97: Sensor Quality panel (Setup tab)
+  // ============================================================
+  // Polled from /plugins/.../quality every 3 s while the Setup tab is
+  // visible. Backend does the heavy lifting - the frontend just renders
+  // the rows with a colored pill per status.
+
+  const _sq = { timer: null, lastData: null };
+
+  function _sqFormatValue(v) {
+    if (v == null) return "--";
+    if (typeof v === "number") return v.toFixed(3);
+    if (typeof v === "object") {
+      // navigation.attitude and navigation.position arrive as objects.
+      const keys = Object.keys(v).slice(0, 3);
+      return keys.map((k) => `${k}:${typeof v[k] === "number" ? v[k].toFixed(2) : v[k]}`).join(" ");
+    }
+    return String(v);
+  }
+  function _sqFormatAge(ms) {
+    if (ms == null) return "--";
+    if (ms < 1000) return `${ms | 0} ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)} s`;
+    return `${(ms / 60000).toFixed(1)} m`;
+  }
+  function _sqFormatHz(hz) {
+    if (hz == null) return "--";
+    if (hz < 0.1) return hz.toFixed(3) + " Hz";
+    if (hz < 10) return hz.toFixed(2) + " Hz";
+    return hz.toFixed(1) + " Hz";
+  }
+  function _sqFormatJitter(ms) {
+    if (ms == null) return "--";
+    return `${ms | 0} ms`;
+  }
+  async function sqFetchAndRender() {
+    try {
+      const res = await fetch(`/plugins/${PLUGIN_ID}/quality`);
+      if (!res.ok) return;
+      const data = await res.json();
+      _sq.lastData = data;
+      sqRender();
+    } catch { /* silent - a failed poll is not worth spamming console */ }
+  }
+  function sqRender() {
+    const tbody = document.querySelector("#sq-table tbody");
+    if (!tbody || !_sq.lastData) return;
+    const rows = _sq.lastData.items || [];
+    // Rev105: collapsed summary "N good · M warn · K lost".
+    let g = 0, w = 0, l = 0;
+    for (const r of rows) {
+      if (r.level === "good") g += 1;
+      else if (r.level === "degraded") w += 1;
+      else if (r.level === "lost") l += 1;
+    }
+    const sumLvl = l > 0 ? "fail" : w > 0 ? "warn" : "good";
+    _updateSetupSummary("quality", `${g}✓ ${w}! ${l}✕`, sumLvl);
+    tbody.textContent = "";
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      const cells = [
+        r.label || r.path,
+        _sqFormatValue(r.lastValue),
+        _sqFormatAge(r.ageMs),
+        _sqFormatHz(r.hz),
+        _sqFormatJitter(r.jitterMs),
+        r.source || "--",
+        `<span class="sq-status ${r.level}">${(r.level || "").toUpperCase()}</span>`,
+      ];
+      for (let i = 0; i < cells.length; i += 1) {
+        const td = document.createElement("td");
+        if (i === 6) td.innerHTML = cells[i];
+        else td.textContent = cells[i];
+        if (i === 1) td.className = "sq-value";
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  }
+  function sqOnTabEnter() {
+    sqFetchAndRender();
+    if (_sq.timer) clearInterval(_sq.timer);
+    _sq.timer = setInterval(sqFetchAndRender, 3000);
+  }
+  function sqOnTabLeave() {
+    if (_sq.timer) { clearInterval(_sq.timer); _sq.timer = null; }
+  }
+
+  // ============================================================
+  // Rev96: Chart tab (Trip Stats cards + telemetry canvas)
+  // ============================================================
+  // Trip Stats read live from the SK bus (steering.autopilot.pypilot.
+  // stats.*) via the existing wildcard subscription. Canvas pulls
+  // history slices from /plugins/.../history on window change / refresh
+  // / tab entry - no continuous polling so Pi 4 hosts stay unloaded.
+
+  const _statsCache = {
+    startedTs: null, engagedSec: 0, distanceNm: 0, tacks: 0, gybes: 0,
+    servoRuntimeSec: 0, energyAh: 0, maxServoA: 0,
+    meanErrorRad: null, rmsErrorRad: null, p95ErrorRad: null, servoDutyPct: 0,
+  };
+
+  function _fmtDurSec(s) {
+    if (typeof s !== "number" || !isFinite(s) || s < 0) return "--";
+    const total = Math.floor(s);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const ss = total % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+    if (m > 0) return `${m}m ${String(ss).padStart(2, "0")}s`;
+    return `${ss}s`;
+  }
+  function _fmtDegFromRad(r) {
+    if (typeof r !== "number" || !isFinite(r)) return "--";
+    return `${(r * RAD2DEG).toFixed(1)}°`;
+  }
+  function _setStatText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+  function _renderStatSessionLine() {
+    const el = document.getElementById("chart-session-line");
+    if (!el) return;
+    if (!_statsCache.startedTs) { el.textContent = t("chart.session.empty"); return; }
+    const ago = Math.max(0, Date.now() - _statsCache.startedTs);
+    const startedDate = new Date(_statsCache.startedTs);
+    const hh = String(startedDate.getHours()).padStart(2, "0");
+    const mm = String(startedDate.getMinutes()).padStart(2, "0");
+    el.textContent = `${t("chart.session.started")} ${hh}:${mm} (${_fmtDurSec(ago / 1000)} ${t("chart.session.ago")})`;
+  }
+  function _renderStatTacksGybes() {
+    _setStatText("stat-tacksGybes", `${_statsCache.tacks} / ${_statsCache.gybes}`);
+  }
+  function _renderStatCard(key) {
+    switch (key) {
+      case "engagedSec":      _setStatText("stat-engaged",      _fmtDurSec(_statsCache.engagedSec)); break;
+      case "distanceNm":      _setStatText("stat-distance",     `${_statsCache.distanceNm.toFixed(2)} nm`); break;
+      case "energyAh":        _setStatText("stat-energy",       `${_statsCache.energyAh.toFixed(3)} Ah`); break;
+      case "meanErrorRad":    _setStatText("stat-meanErr",      _fmtDegFromRad(_statsCache.meanErrorRad)); break;
+      case "rmsErrorRad":     _setStatText("stat-rmsErr",       _fmtDegFromRad(_statsCache.rmsErrorRad)); break;
+      case "p95ErrorRad":     _setStatText("stat-p95Err",       _fmtDegFromRad(_statsCache.p95ErrorRad)); break;
+      case "servoRuntimeSec": _setStatText("stat-servoRuntime", _fmtDurSec(_statsCache.servoRuntimeSec)); break;
+      case "maxServoA":       _setStatText("stat-maxServoA",    `${_statsCache.maxServoA.toFixed(1)} A`); break;
+      case "tacks":
+      case "gybes":           _renderStatTacksGybes(); break;
+      case "startedTs":       _renderStatSessionLine(); break;
+    }
+  }
+  // Rev99: Servo Health card. Fed from steering.autopilot.pypilot.
+  // servo.health.* SK paths via the existing wildcard subscription.
+  const _shCache = {
+    status: null, baselineA: null, recentAvgA: null, deviationRatio: null,
+    peakA: null, learnedFrac: null, tempC: null, voltageV: null,
+  };
+  function _fmtA(v)  { return typeof v === "number" && isFinite(v) ? `${v.toFixed(2)} A` : "--"; }
+  function _fmtC(v)  { return typeof v === "number" && isFinite(v) ? `${v.toFixed(0)} °C` : "--"; }
+  function _fmtV(v)  { return typeof v === "number" && isFinite(v) ? `${v.toFixed(1)} V` : "--"; }
+  function _fmtDev(v) {
+    if (typeof v !== "number" || !isFinite(v)) return "--";
+    return `${v.toFixed(2)}×`;
+  }
+  function _renderServoHealth() {
+    const el = document.getElementById("sh-status");
+    const status = _shCache.status || "--";
+    if (el) {
+      el.textContent = status.toUpperCase();
+      el.className = "sh-status " + (["good","learning","elevated","high","idle"].includes(status) ? status : "");
+    }
+    _setStatText("sh-baseline",  _fmtA(_shCache.baselineA));
+    _setStatText("sh-recent",    _fmtA(_shCache.recentAvgA));
+    _setStatText("sh-deviation", _fmtDev(_shCache.deviationRatio));
+    _setStatText("sh-peak",      _fmtA(_shCache.peakA));
+    _setStatText("sh-temp",      _fmtC(_shCache.tempC));
+    _setStatText("sh-voltage",   _fmtV(_shCache.voltageV));
+    // Learning progress bar: visible only while status == "learning".
+    const wrap = document.getElementById("sh-progress-wrap");
+    const fill = document.getElementById("sh-progress-fill");
+    if (wrap && fill) {
+      if (status === "learning" && typeof _shCache.learnedFrac === "number") {
+        wrap.hidden = false;
+        fill.style.width = `${Math.min(100, Math.max(0, _shCache.learnedFrac * 100)).toFixed(1)}%`;
+      } else {
+        wrap.hidden = true;
+      }
+    }
+  }
+  // Map SH path suffix -> cache key.
+  const _SH_PATH_MAP = {
+    "steering.autopilot.pypilot.servo.health.status":         "status",
+    "steering.autopilot.pypilot.servo.health.baselineA":      "baselineA",
+    "steering.autopilot.pypilot.servo.health.recentAvgA":     "recentAvgA",
+    "steering.autopilot.pypilot.servo.health.deviationRatio": "deviationRatio",
+    "steering.autopilot.pypilot.servo.health.peakA":          "peakA",
+    "steering.autopilot.pypilot.servo.health.learnedFrac":    "learnedFrac",
+    // Reuse the raw pypilot voltage / temp paths for the last two cells
+    // - they are already published under steering.autopilot.pypilot.*
+    // and cover the whole "battery + temperature" story.
+    "steering.autopilot.pypilot.servo.voltage":               "voltageV",
+    "steering.autopilot.pypilot.servo.controller_temp":       "tempC",
+  };
+  function _applyServoHealthPath(path, value) {
+    const key = _SH_PATH_MAP[path];
+    if (!key) return false;
+    _shCache[key] = value;
+    _renderServoHealth();
+    return true;
+  }
+
+  // Map SK path suffix -> _statsCache key. Called from applyValue on any
+  // steering.autopilot.pypilot.stats.* delta.
+  const _STATS_PATH_MAP = {
+    "steering.autopilot.pypilot.stats.session.startedTs":        "startedTs",
+    "steering.autopilot.pypilot.stats.session.engagedSec":       "engagedSec",
+    "steering.autopilot.pypilot.stats.session.distanceNm":       "distanceNm",
+    "steering.autopilot.pypilot.stats.session.tacks":            "tacks",
+    "steering.autopilot.pypilot.stats.session.gybes":            "gybes",
+    "steering.autopilot.pypilot.stats.session.servoRuntimeSec":  "servoRuntimeSec",
+    "steering.autopilot.pypilot.stats.session.energyAh":         "energyAh",
+    "steering.autopilot.pypilot.stats.session.maxServoA":        "maxServoA",
+    "steering.autopilot.pypilot.stats.error.meanRad":            "meanErrorRad",
+    "steering.autopilot.pypilot.stats.error.rmsRad":             "rmsErrorRad",
+    "steering.autopilot.pypilot.stats.error.p95Rad":             "p95ErrorRad",
+    "steering.autopilot.pypilot.stats.servo.dutyPct":            "servoDutyPct",
+  };
+  function _applyStatsPath(path, value) {
+    const key = _STATS_PATH_MAP[path];
+    if (!key) return false;
+    _statsCache[key] = value;
+    _renderStatCard(key);
+    return true;
+  }
+
+  // Chart canvas: pulls /history slices on demand and paints stacked
+  // per-path bands. Each enabled path gets its own vertical band with
+  // its own local min/max so paths of very different ranges (rad vs A
+  // vs m/s) stay legible without mixing scales.
+  const CHART_COLORS = {
+    headingCmd:    "#4dd4ff",   // cyan
+    headingActual: "#2ecc71",   // green
+    rudder:        "#ffd54a",   // amber
+    servoCurrent:  "#ff6a3d",   // red-orange
+    awa:           "#e574d5",   // magenta
+    tws:           "#5ce8c0",   // teal
+    heel:          "#b58cff",   // purple
+    sog:           "#ff8c1a",   // orange
+  };
+  const CHART_LABELS = {
+    headingCmd:    "HDG cmd",
+    headingActual: "HDG act",
+    rudder:        "Rudder",
+    servoCurrent:  "Servo A",
+    awa:           "AWA",
+    tws:           "TWS",
+    heel:          "Heel",
+    sog:           "SOG",
+  };
+  // A short formatter per path for the value label at the end of each
+  // trace. Rad-valued angles go to degrees; speeds go to knots.
+  function _fmtSampleValue(key, v) {
+    if (v == null || typeof v !== "number") return "--";
+    if (key === "headingCmd" || key === "headingActual" || key === "awa" || key === "heel" || key === "rudder") {
+      return `${(v * RAD2DEG).toFixed(1)}°`;
+    }
+    if (key === "tws" || key === "sog") {
+      return `${(v * 1.94384).toFixed(1)} kn`;
+    }
+    if (key === "servoCurrent") return `${v.toFixed(2)} A`;
+    return v.toFixed(2);
+  }
+
+  const CHART_WINDOWS = { "30s": 30000, "2m": 120000, "10m": 600000 };
+  const _chart = {
+    window: "30s",
+    enabled: new Set(["headingCmd", "headingActual", "awa"]),
+    lastSamples: [],
+    lastFetchTs: 0,
+    autoTimer: null,
+    canvas: null,
+  };
+
+  async function chartFetchAndDraw() {
+    if (!_chart.canvas) _chart.canvas = document.getElementById("chart-canvas");
+    if (!_chart.canvas) return;
+    const wnd = _chart.window;
+    const enabledArr = [..._chart.enabled];
+    const pathsQ = enabledArr.length > 0 ? `&paths=${enabledArr.join(",")}` : "";
+    try {
+      const res = await fetch(`/plugins/${PLUGIN_ID}/history?window=${wnd}${pathsQ}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      _chart.lastSamples = json.samples || [];
+      _chart.lastFetchTs = Date.now();
+      const footer = document.getElementById("chart-footer-count");
+      if (footer) footer.textContent = `${_chart.lastSamples.length} samples (window ${wnd})`;
+      chartDraw();
+    } catch { /* silent - a failed poll should not spam the console */ }
+  }
+
+  function chartDraw() {
+    const canvas = _chart.canvas || document.getElementById("chart-canvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // Match backing store to CSS size for crisp lines on Retina / phones.
+    const cssW = canvas.clientWidth || 800;
+    const cssH = canvas.clientHeight || 360;
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== Math.floor(cssW * dpr) || canvas.height !== Math.floor(cssH * dpr)) {
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Clear.
+    ctx.fillStyle = "#0e141b";
+    ctx.fillRect(0, 0, cssW, cssH);
+    // Enabled paths with at least one non-null value in the window.
+    const enabled = [..._chart.enabled].filter((k) => {
+      return _chart.lastSamples.some((s) => typeof s[k] === "number" && isFinite(s[k]));
+    });
+    const hint = document.getElementById("chart-empty-hint");
+    if (enabled.length === 0 || _chart.lastSamples.length === 0) {
+      if (hint) { hint.textContent = t("chart.empty"); hint.hidden = false; }
+      return;
+    }
+    if (hint) hint.hidden = true;
+
+    const nowTs = _chart.lastFetchTs || Date.now();
+    const windowMs = CHART_WINDOWS[_chart.window] || 30000;
+    const tMin = nowTs - windowMs;
+    const tMax = nowTs;
+    const marginL = 8, marginR = 60, marginT = 4, marginB = 20;
+    const plotW = cssW - marginL - marginR;
+    const plotH = cssH - marginT - marginB;
+    const bandH = plotH / enabled.length;
+
+    // X-axis time ticks at 0%, 50%, 100% of window.
+    ctx.strokeStyle = "#2b3542";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "#8b98a5";
+    ctx.font = "10px ui-monospace, monospace";
+    const timeLabels = [
+      { frac: 0.0, txt: `-${_chart.window}` },
+      { frac: 0.5, txt: `-${_halfLabel(_chart.window)}` },
+      { frac: 1.0, txt: "NOW" },
+    ];
+    for (const tk of timeLabels) {
+      const x = marginL + tk.frac * plotW;
+      ctx.beginPath();
+      ctx.moveTo(x, marginT);
+      ctx.lineTo(x, marginT + plotH);
+      ctx.stroke();
+      ctx.textAlign = tk.frac === 0 ? "left" : tk.frac === 1 ? "right" : "center";
+      ctx.fillText(tk.txt, x, cssH - 6);
+    }
+
+    // Per-band trace.
+    for (let bi = 0; bi < enabled.length; bi += 1) {
+      const key = enabled[bi];
+      const bandTop = marginT + bi * bandH;
+      const bandBot = bandTop + bandH - 2;
+      // Compute local min/max for this trace's samples in the window.
+      let vmin = Infinity, vmax = -Infinity;
+      for (const s of _chart.lastSamples) {
+        const v = s[key];
+        if (typeof v === "number" && isFinite(v)) {
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
+        }
+      }
+      if (vmin === Infinity) continue;
+      if (vmax - vmin < 1e-9) { vmin -= 0.5; vmax += 0.5; }
+      // Band separator line.
+      if (bi > 0) {
+        ctx.strokeStyle = "#1c2632";
+        ctx.beginPath();
+        ctx.moveTo(marginL, bandTop);
+        ctx.lineTo(marginL + plotW, bandTop);
+        ctx.stroke();
+      }
+      // Trace.
+      ctx.strokeStyle = CHART_COLORS[key] || "#e6edf3";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      let started = false;
+      for (const s of _chart.lastSamples) {
+        const v = s[key];
+        if (typeof v !== "number" || !isFinite(v)) { started = false; continue; }
+        const x = marginL + ((s.ts - tMin) / (tMax - tMin)) * plotW;
+        const y = bandBot - ((v - vmin) / (vmax - vmin)) * (bandBot - bandTop);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      // Label on the right side: name + last value.
+      const last = [..._chart.lastSamples].reverse().find((s) => typeof s[key] === "number" && isFinite(s[key]));
+      const lastV = last ? last[key] : null;
+      ctx.fillStyle = CHART_COLORS[key] || "#e6edf3";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = "10px ui-monospace, monospace";
+      ctx.fillText(CHART_LABELS[key], marginL + plotW + 4, bandTop + 8);
+      ctx.fillStyle = "#e6edf3";
+      ctx.fillText(_fmtSampleValue(key, lastV), marginL + plotW + 4, bandTop + 20);
+    }
+  }
+  function _halfLabel(w) {
+    if (w === "30s") return "15s";
+    if (w === "2m") return "1m";
+    if (w === "10m") return "5m";
+    return "";
+  }
+
+  async function chartResetSession() {
+    if (!confirm(t("chart.session.confirm"))) return;
+    try {
+      await fetch(`/plugins/${PLUGIN_ID}/session/reset`, { method: "POST" });
+      // Optimistic zero-out so UI reflects the reset even before the
+      // next SK delta cycle lands.
+      Object.assign(_statsCache, {
+        engagedSec: 0, distanceNm: 0, tacks: 0, gybes: 0,
+        servoRuntimeSec: 0, energyAh: 0, maxServoA: 0,
+      });
+      Object.keys(_STATS_PATH_MAP).forEach((p) => {
+        const k = _STATS_PATH_MAP[p];
+        _renderStatCard(k);
+      });
+    } catch { /* silent */ }
+  }
+
+  function wireChart() {
+    // Window buttons (30s / 2m / 10m).
+    document.querySelectorAll(".chart-window-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".chart-window-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        _chart.window = btn.dataset.window || "30s";
+        chartFetchAndDraw();
+      });
+    });
+    // Path chips.
+    document.querySelectorAll(".chart-path-chip input[type=checkbox]").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const key = cb.dataset.path;
+        if (!key) return;
+        if (cb.checked) _chart.enabled.add(key);
+        else _chart.enabled.delete(key);
+        chartFetchAndDraw();
+      });
+    });
+    // Refresh + reset buttons.
+    const rb = document.getElementById("chart-refresh-btn");
+    if (rb) rb.addEventListener("click", chartFetchAndDraw);
+    const rs = document.getElementById("chart-reset-btn");
+    if (rs) rs.addEventListener("click", chartResetSession);
+    // Re-draw on window resize so the canvas hi-res backing store
+    // rescales without stretching (throttle to 250 ms).
+    let _resizeTimer = null;
+    window.addEventListener("resize", () => {
+      if (_resizeTimer) clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => chartDraw(), 250);
+    });
+  }
+
+  // Called from _tabPostActivate when the user enters/leaves the Chart
+  // tab. On entry we do a fresh fetch + start a 2 s auto-refresh timer;
+  // on leave we clear the timer so background traffic stays quiet.
+  function chartOnTabEnter() {
+    chartFetchAndDraw();
+    if (_chart.autoTimer) clearInterval(_chart.autoTimer);
+    _chart.autoTimer = setInterval(chartFetchAndDraw, 2000);
+  }
+  function chartOnTabLeave() {
+    if (_chart.autoTimer) { clearInterval(_chart.autoTimer); _chart.autoTimer = null; }
+  }
+
+  // ============================================================
+  // Rev105: Setup card reordering + collapsibles
+  // ============================================================
+  // Every .setup-block inside #tab-setup carries a data-setup-order
+  // integer that decides its position AT BOOT time (JS re-appends in
+  // sorted order). Blocks also become collapsibles: click the section
+  // title to hide the body, state persists in localStorage per block.
+  // Default collapse state: top-of-list navigation tools open, the
+  // rest closed. Reduces the wall-of-config the user complained about.
+
+  function reorderSetupBlocks() {
+    const setup = document.getElementById("tab-setup");
+    if (!setup) return;
+    const blocks = Array.from(setup.querySelectorAll(":scope > .setup-block"));
+    blocks.sort((a, b) => {
+      const oa = Number(a.dataset.setupOrder || 999);
+      const ob = Number(b.dataset.setupOrder || 999);
+      return oa - ob;
+    });
+    for (const b of blocks) setup.appendChild(b);
+  }
+
+  // Rev108/109: Setup as a launcher grid. Every .setup-block is a tile;
+  // tap opens fullscreen with a compact X in the header (Rev109: was a
+  // floating 46×46 button that stole vertical space). ESC also closes.
+  // Only one tile can be fullscreen at a time. While a tile is
+  // fullscreen the body is scroll-locked so the launcher grid behind
+  // does not rubber-band under the finger.
+  // Rev110: PORTAL. .tab-panel carries a translateX() during tab
+  // animation, which turns any descendant with position:fixed into a
+  // position:absolute relative to the panel - so a "fullscreen" card
+  // inherited the setup scroll offset and only covered part of the
+  // viewport in landscape. Fix: move the card node to <body> when
+  // opening fullscreen, and restore it to its original position when
+  // closing. Now position:fixed anchors to the true viewport.
+  function _setupFullscreenOn(block) {
+    // Close any other fullscreen tile first (they may be siblings of
+    // block in the grid, or already portaled onto body).
+    document.querySelectorAll('.setup-block[data-fullscreen="1"]').forEach((b) => {
+      if (b !== block) _setupFullscreenOff(b);
+    });
+    // Snapshot position for restore-on-close.
+    block._portalOrigParent = block.parentNode;
+    block._portalOrigNext = block.nextSibling;
+    document.body.appendChild(block);
+    block.dataset.fullscreen = "1";
+    block.scrollTop = 0;
+    document.body.classList.add("setup-fullscreen-active");
+  }
+  function _setupFullscreenOff(block) {
+    if (!block) {
+      document.querySelectorAll('.setup-block[data-fullscreen="1"]').forEach((b) => _setupFullscreenOff(b));
+      return;
+    }
+    block.removeAttribute("data-fullscreen");
+    // Portal back to the grid at the same position we took it from.
+    if (block._portalOrigParent && block._portalOrigParent.isConnected) {
+      if (block._portalOrigNext && block._portalOrigNext.isConnected && block._portalOrigNext.parentNode === block._portalOrigParent) {
+        block._portalOrigParent.insertBefore(block, block._portalOrigNext);
+      } else {
+        block._portalOrigParent.appendChild(block);
+      }
+    }
+    block._portalOrigParent = null;
+    block._portalOrigNext = null;
+    if (!document.querySelector('.setup-block[data-fullscreen="1"]')) {
+      document.body.classList.remove("setup-fullscreen-active");
+    }
+  }
+  function initSetupTiles() {
+    const setup = document.getElementById("tab-setup");
+    if (!setup) return;
+    const blocks = setup.querySelectorAll(":scope > .setup-block");
+    blocks.forEach((block) => {
+      if (block.querySelector(":scope > .setup-block-fs-header")) return;   // dedupe
+      // Live-summary pill for tile view.
+      const sum = document.createElement("span");
+      sum.className = "setup-block-summary";
+      sum.dataset.blockKey = block.dataset.blockKey || "";
+      // Header row that appears ONLY in fullscreen: [X] [Title]. In tile
+      // mode CSS hides this and shows the existing .section-title /
+      // .pc-header directly, so the tile layout stays clean.
+      const fsHeader = document.createElement("div");
+      fsHeader.className = "setup-block-fs-header";
+      const closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "setup-block-close";
+      closeBtn.setAttribute("aria-label", "Close");
+      closeBtn.textContent = "×";
+      closeBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        _setupFullscreenOff(block);
+      });
+      // Also mirror the title into the fs-header so both tile+fullscreen
+      // read consistently. In fullscreen the ORIGINAL .section-title is
+      // hidden (below in CSS via pc-header handling), and this mirror is
+      // the visible one.
+      const titleMirror = document.createElement("div");
+      titleMirror.className = "section-title";
+      const origTitle = block.querySelector(":scope > .section-title") || block.querySelector(":scope > .pc-header > .section-title");
+      if (origTitle) titleMirror.textContent = origTitle.textContent;
+      // If original title uses data-i18n, mirror that too so language
+      // switches reach the fullscreen header.
+      if (origTitle && origTitle.dataset.i18n) titleMirror.dataset.i18n = origTitle.dataset.i18n;
+      fsHeader.appendChild(closeBtn);
+      fsHeader.appendChild(titleMirror);
+      // Insert fsHeader as the FIRST child so it renders at the top.
+      block.insertBefore(fsHeader, block.firstChild);
+      // Insert the summary right after the original header for tile view.
+      const header = block.querySelector(":scope > .pc-header") || origTitle;
+      if (header) {
+        header.parentNode.insertBefore(sum, header.nextSibling);
+      } else {
+        block.appendChild(sum);
+      }
+      // Hide the fs-header when NOT fullscreen. Done in JS on top of CSS
+      // to guarantee layout regardless of load order.
+      fsHeader.style.display = "none";
+      // Click on the tile opens fullscreen. Skip if the tile is already
+      // fullscreen or the click came from a control.
+      block.addEventListener("click", (ev) => {
+        if (block.dataset.fullscreen === "1") return;
+        const tgt = ev.target;
+        if (tgt && tgt.closest && tgt.closest("button, input, select, textarea, label")) return;
+        _setupFullscreenOn(block);
+        fsHeader.style.display = "";
+      });
+      // Watch data-fullscreen attribute to sync fsHeader visibility.
+      const mo = new MutationObserver(() => {
+        fsHeader.style.display = block.dataset.fullscreen === "1" ? "" : "none";
+        // When we close a fullscreen tile, also clear the body class if
+        // no other tile is fullscreen.
+        if (block.dataset.fullscreen !== "1") {
+          if (!setup.querySelector('.setup-block[data-fullscreen="1"]')) {
+            document.body.classList.remove("setup-fullscreen-active");
+          }
+        }
+      });
+      mo.observe(block, { attributes: true, attributeFilter: ["data-fullscreen"] });
+    });
+    // ESC closes any open fullscreen tile.
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Escape") return;
+      _setupFullscreenOff(null);
+    });
+  }
+
+  // Update the small summary text next to each section title (only shown
+  // when the block is collapsed - CSS could hide when expanded but we
+  // keep it visible for context). Called from poll cycles.
+  function _updateSetupSummary(blockKey, text, level) {
+    const el = document.querySelector(`.setup-block-summary[data-block-key="${blockKey}"]`);
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.remove("good", "warn", "fail");
+    if (level === "good") el.classList.add("good");
+    else if (level === "warn") el.classList.add("warn");
+    else if (level === "fail") el.classList.add("fail");
+  }
+
+  // Rev96: one-shot boot helper - physically relocate the #tab-paths
+  // subtree into the #paths-mount slot inside Setup. Keeps IDs so the
+  // existing renderPathsTable / paths-search wiring keeps working.
+  function movePathsIntoSetup() {
+    const mount = document.getElementById("paths-mount");
+    const src = document.getElementById("tab-paths");
+    if (!mount || !src) return;
+    // Move each child (excluding the section wrapper itself).
+    while (src.firstChild) mount.appendChild(src.firstChild);
+    // The empty section still has display:none via .tab-panel and no
+    // nav-btn activates it - safe to drop entirely.
+    src.remove();
+  }
+
   // ---- Boot ----
   document.addEventListener("DOMContentLoaded", async () => {
     wireTabs();
@@ -3625,6 +6101,25 @@
     wireSetup();
     wireInfo();
     wireRegata();
+    // Rev96: relocate paths block BEFORE wireChart / setup wiring so the
+    // moved DOM is ready when the existing paths handlers touch it.
+    movePathsIntoSetup();
+    // Rev105/108: reorder Setup cards by data-setup-order AFTER paths
+    // mount, then turn every block into a launcher tile that opens
+    // fullscreen on click (Rev108 replaced the in-place collapsible).
+    reorderSetupBlocks();
+    initSetupTiles();
+    wireChart();
+    // Rev101: kick off the alarm poll (banner + config panel + audio).
+    alarmsStart();
+    // Rev102: wire the pre-departure check refresh button. Poll starts
+    // when the user enters Setup (pcOnTabEnter).
+    wirePrecheck();
+    // Rev104: wire the Doctor start / cancel buttons. Poll starts when
+    // the user enters Setup (doctorOnTabEnter).
+    wireDoctor();
+    // Rev118: wire the Calibration "Unlock sliders" checkbox.
+    wireCalibUnlock();
     wireInfoBar();
     applyI18n();
     renderEngage();

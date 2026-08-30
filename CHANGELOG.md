@@ -1,5 +1,346 @@
 # Changelog
 
+## 2.2.0 — 2026-08-31 — Rev88..Rev127
+
+Forty in-session Revs of navigation-oriented features on top of the
+2.1.0 visual foundation. Themes: turn the plugin into an intelligence
+layer over pypilot (historian → KPIs → alarms → Doctor → pre-departure
+check), give sail-raising its own AP mode ("Aproado"), and rebuild the
+Setup tab as an app-launcher grid of fullscreen tiles.
+
+### English
+
+**Added**
+
+- **Aproado pseudo-mode** (Rev87-92) — a new "raise the sails"
+  autopilot mode not in pypilot upstream. Pick BY BOW / BY STERN
+  via a 5 s modal, the plugin switches pypilot to wind mode with
+  target 0° (head to wind), and a floating HUD over the boat shows
+  elapsed time, straight-line distance from the start and the
+  compass heading captured at activation. SALIR restores the
+  previous mode + target + engaged state. The BY STERN branch
+  forces a stern-through swing by walking a chain of intermediate
+  targets 60° apart so pypilot cannot shortcut through the bow.
+- **Telemetry historian + Chart tab** (Rev93-96) — RAM ring buffer
+  at 1 Hz for the last 30 min (backend, Pi 5 friendly). New Chart
+  tab shows nine Trip Stats cards (AP engaged time, distance,
+  energy, mean/RMS/p95 heading error, servo runtime, tacks/gybes,
+  peak servo A) all fed live via SK paths, plus a canvas history
+  with 30 s / 2 min / 10 min windows and per-path chips.
+- **Sensor Quality panel** (Rev97-98) — age / observed Hz / jitter /
+  source for every critical SK path the AP depends on, with a
+  green / amber / red pill. Endpoint `/quality` and a poll while
+  Setup is visible.
+- **Servo Health card** (Rev99) — baseline current learned from
+  the first ~10 min of engaged navigation, then a live deviation
+  ratio flags "elevated" (>1.20×) or "high" (>1.65×) — early
+  warning for a hard rudder, fouling, or a stiffened linkage. Six
+  new SK paths under `steering.autopilot.pypilot.servo.health.*`.
+- **Alarm engine** (Rev100-101) — seven built-in rules (heading
+  deviation, unable to steer, servo overcurrent / temp, low
+  voltage, sensor lost, pypilot disconnected) publishing
+  canonical SK notifications `notifications.autopilot.*`. Sticky
+  banner in the visor with ACK + close, WebAudio beeps +
+  speech-synthesis of the message, and a full config panel in
+  Setup (enable / mute / status per rule).
+- **Pre-departure check** (Rev102) — a single verdict card
+  (READY / READY-WITH-CAVEATS / DO-NOT-ENGAGE) that aggregates
+  connectivity, sensor quality, servo health and voltage into one
+  answer before you leave the dock.
+- **Pypilot Doctor** (Rev103-104, Rev120-121) — press DIAGNOSE,
+  the plugin records 2-3 min with the AP engaged, runs heuristic
+  rules on the heading error stream (bias / oscillation / low
+  authority) and proposes P / I / D adjustments with a plain
+  explanation of why and what to expect. Nothing is applied
+  automatically — each suggestion has Apply and Discard buttons.
+  Rev120: the first Apply of a session forks the current pypilot
+  profile into a new `doctor-YYYYMMDD-HHMM` profile so the
+  previous gains stay one profile-select away.
+- **Setup as a launcher grid** (Rev105-119, 124) — every setup
+  block is now a square tile in a 2 / 3 / 4-column grid. Tap
+  opens fullscreen with a small X to close and ESC support.
+  Body scroll is locked while a tile is fullscreen. Live summary
+  pill on every tile so the state reads at a glance without
+  expanding. Connection consolidated (status + LAN scan + manual
+  host + Autopilot Provider in one card). "Emergency" renamed to
+  "Remote Control Console".
+- **Interactive SSH console** (Rev113-115) — free-form command
+  input with on-screen arrow buttons for mobile history
+  navigation, accumulative output textarea, clipboard fallback
+  for HTTP LAN, and 14 preset buttons with plain human labels
+  (Memory / IP table / WiFi / Temperature / Who is connected /
+  ...). BusyBox / piCore-safe fallbacks for every command.
+- **Full RangeSetting sliders in Calibration** (Rev116-119) —
+  every pypilot `RangeSetting` grouped by category (rudder /
+  servo / imu / ap / other) with the same look as the Tune tab,
+  a lock checkbox with the padlock emoji, a frozen "before:"
+  baseline that never moves as you drag, and a per-slider ↺
+  restore button that snaps back to the baseline.
+- **Nudge steps moved inside Calibration** (Rev124) — one card
+  less in the launcher grid; heading trim buttons live where
+  they belong conceptually.
+
+**Changed**
+
+- **Gota Chain shapes SWAP** (Rev122-126) — after several iterations
+  with Carlos on Tunatunes: the AMBER "A" arrow (apparent wind) is
+  now the LARGE piece (its tip reaches deep into the rose), and
+  the TEAL "T" arrow (true wind) is the SMALL outer one. Colors
+  and letters kept their canonical meaning; only the SVG paths
+  moved so the amber piece is visually the dominant one.
+- **Alarm summary semantics** (Rev107-108) — "activa" (fired) was
+  ambiguous with "activada" (enabled). New wording separates
+  `firing / sonando` (fired now) from `watching / vigilando`
+  (enabled and healthy). Summary always shows both counts.
+- **i18n audit** (Rev105, Rev112, Rev121) — every hard-coded
+  English string in the ES bundle purged ("engagear" → "activar",
+  KIP paths table fully translated, alarm messages), backend
+  suggestion reason / effect exposed as i18n keys + args so the
+  frontend renders in the user's language.
+- **Sensor Quality thresholds** (Rev98) — dropped `minHz` from the
+  defaults; the 1 Hz sampler capped observed Hz, so the threshold
+  produced spurious "degraded" flags. Freshness (`age`) is now
+  the only signal that penalises status.
+
+**Fixed**
+
+- **Fullscreen tile portal** (Rev110-111) — Setup fullscreen tiles
+  are now portaled to `<body>` so the `.tab-panel` transform
+  (used by the tab animation) cannot break `position: fixed`.
+  Fullscreen always covers the viewport now, no matter which
+  card was scrolled into.
+- **Copy button on HTTP** (Rev114) — `navigator.clipboard` is a
+  secure-context API; on plain http://192.168.x.y it silently
+  no-ops. Compat helper falls back to `document.execCommand("copy")`.
+- **Doctor `elapsedSec`** (Rev104) — was counting past the target
+  duration once the session completed. Now freezes at the target.
+- **Sliders baseline eaten by refresh** (Rev117-118) — the
+  Calibration "before:" value used to reset to the just-edited
+  number on every `/values` poll. Now captured once per name and
+  kept frozen across renders.
+- **Aproado restore** (Rev90) — mode / target / engaged restore on
+  SALIR was skipping steps after one failure. Now each step is
+  guarded independently and logged in the console.
+- **Sensor Quality parsing** (Rev94) — `navigation.attitude` is a
+  composite `{pitch, roll, yaw}` object, not a scalar path.
+  Custom subfield reader added for heel.
+- Cosmetic Firefox warnings (`::-moz-focus-inner`, comment-nested
+  `*/`) purged (Rev95-106).
+
+### Español
+
+**Nuevo**
+
+- **Modo Aproado** (Rev87-92): pseudo-modo AP para subir velas.
+  Elige POR PROA / POR POPA en un modal de 5 s, el plugin pasa
+  pypilot a modo viento con objetivo 0° (proa al viento), y un
+  HUD flotante sobre el barco muestra tiempo transcurrido,
+  distancia lineal desde el arranque y el rumbo compás capturado
+  al activar. SALIR restaura modo + objetivo + engaged previos.
+  POR POPA fuerza el swing por popa con una cadena de objetivos
+  intermedios cada 60° para que pypilot no atajaje por proa.
+- **Historian de telemetría + pestaña Gráfica** (Rev93-96):
+  buffer circular en RAM a 1 Hz durante 30 min (backend, Pi 5).
+  Nueva pestaña Gráfica con 9 tarjetas de estadísticas de sesión
+  (tiempo activo, distancia, energía, error medio / RMS / p95,
+  servo activo, viradas / trasluchadas, pico servo A) y canvas
+  con ventanas 30 s / 2 min / 10 min.
+- **Panel Calidad de sensores** (Rev97-98): edad / Hz / jitter /
+  fuente por cada ruta SK crítica con semáforo verde / ámbar /
+  rojo.
+- **Tarjeta Salud del servo** (Rev99): baseline aprendido de los
+  primeros ~10 min de navegación activa, luego ratio de
+  desviación marca "elevated" (>1.20×) o "high" (>1.65×) —
+  alerta temprana de timón duro, incrustaciones o rozamientos.
+- **Motor de alarmas** (Rev100-101): 7 reglas built-in
+  (desviación de rumbo, incapaz de gobernar, sobrecorriente
+  servo, temperatura servo, batería baja, sensor perdido,
+  pypilot desconectado) publicando notifications SK canónicas.
+  Banner sticky en el visor con ACK y cierre X, beeps WebAudio
+  + speechSynthesis del mensaje, panel de configuración en
+  Setup (enable / mute / estado por regla).
+- **Comprobación del piloto** (Rev102): tarjeta única con
+  veredicto (LISTO / LISTO CON RESERVAS / NO ACTIVAR) que
+  agrega conectividad, calidad de sensores, salud del servo y
+  voltaje.
+- **Asesoramiento y diagnóstico** (Rev103-104, Rev120-121):
+  botón DIAGNOSTICAR, el plugin graba 2-3 min con el AP activo,
+  aplica reglas heurísticas (sesgo / oscilación / autoridad) y
+  propone ajustes P / I / D con explicación clara del porqué y
+  del efecto esperado. Nada se aplica automáticamente — cada
+  sugerencia tiene botones Aplicar y Descartar. Rev120: el
+  primer Aplicar de la sesión duplica el perfil actual en uno
+  nuevo `doctor-AAAAMMDD-HHMM` para que el original quede
+  intacto a un toque en Ajustes → Perfil.
+- **Setup como launcher grid** (Rev105-119, 124): cada bloque
+  de Setup es un tile cuadrado en un grid 2 / 3 / 4 columnas.
+  Tap abre pantalla completa con X para cerrar, header sticky
+  y bloqueo de scroll de fondo. Etiqueta resumen en vivo en
+  cada tile. Conexión pypilot une 4 secciones. "Emergencia"
+  renombrada a "Consola control remoto".
+- **Consola SSH interactiva** (Rev113-115): input libre con
+  botones ↑▲ ↓▼ para navegar el historial en móvil, textarea
+  acumulativo, fallback de portapapeles para LAN HTTP y 14
+  presets con etiquetas humanas (Memoria RAM / Tabla IP / WiFi
+  / Temperatura / Quien está conectado / ...). Todos los
+  comandos con fallbacks BusyBox / piCore.
+- **Sliders completos de calibración** (Rev116-119): todos los
+  `RangeSetting` de pypilot agrupados por categoría (timón /
+  servo / imu / piloto / otros) con la misma apariencia que
+  Ajustes, candado azul con emoji, valor "antes:" congelado
+  que NUNCA se mueve al arrastrar, y un botón ↺ por slider
+  para restaurar el valor original.
+- **Botones corrección rumbo dentro de Calibración** (Rev124):
+  una tarjeta menos en el grid; los pasos ±1 / ±10 quedan
+  donde corresponde conceptualmente.
+
+**Cambiado**
+
+- **Swap de formas en la Gota Chain** (Rev122-126): tras varias
+  iteraciones con Carlos en Tunatunes, la flecha AMARILLA "A"
+  (viento aparente) es ahora la GRANDE (su punta llega hasta
+  el centro de la rosa) y la flecha VERDE "T" (viento real)
+  es la PEQUEÑA externa. Colores y letras mantienen su
+  significado canónico; solo se movieron los paths SVG para
+  que la amarilla domine visualmente.
+- **Semántica de alarmas** (Rev107-108): "activa" era ambiguo.
+  Nueva jerga separa `sonando` (disparada ahora) de `vigilando`
+  (habilitada y OK). El resumen muestra siempre ambos contadores.
+- **Auditoría i18n** (Rev105, Rev112, Rev121): purga de cadenas
+  inglesas hardcoded en el bundle ES ("engagear" → "activar",
+  tabla de KIP totalmente traducida, mensajes de alarma).
+  Reason / effect de las sugerencias del Doctor expuestos como
+  claves i18n para render en el idioma del visor.
+- **Umbrales Calidad de sensores** (Rev98): quitado `minHz` de
+  los defaults; el sampler a 1 Hz capaba la Hz observada y
+  generaba "degraded" falsos.
+
+**Corregido**
+
+- **Portal de tile fullscreen** (Rev110-111): tiles fullscreen
+  ahora se mueven al `<body>` para que el `transform` de
+  `.tab-panel` (animación entre pestañas) no rompa `position:
+  fixed`.
+- **Botón Copiar en HTTP** (Rev114): `navigator.clipboard`
+  requiere secure context. Fallback a `document.execCommand("copy")`.
+- **Doctor `elapsedSec`** (Rev104): contaba pasado el objetivo.
+  Ahora congela al final.
+- **Baseline de sliders comido por refresh** (Rev117-118): el
+  valor "antes" se reseteaba a lo recién editado en cada poll.
+  Ahora se captura una vez y no se toca.
+- **Restore de Aproado** (Rev90): SALIR saltaba pasos tras un
+  fallo. Ahora cada paso protegido por su try/catch.
+- **Parsing Calidad de sensores** (Rev94): `navigation.attitude`
+  es objeto compuesto, no path escalar. Fix del subfield heel.
+- Warnings cosméticos Firefox (`::-moz-focus-inner`, `*/` en
+  comentarios) purgados (Rev95-106).
+
+### Français
+
+**Ajouté**
+
+- **Mode Aproado** (Rev87-92) : pseudo-mode AP pour hisser les
+  voiles. PAR AVANT / PAR ARRIÈRE, l'AP passe en mode vent avec
+  cible 0° (nez au vent), HUD flottant avec temps, distance et
+  cap boussole capturé. SORTIR restaure mode / cible / engagé
+  précédents. PAR ARRIÈRE force le virage par l'arrière avec
+  une chaîne d'objectifs intermédiaires de 60°.
+- **Historian de télémétrie + onglet Graphique** (Rev93-96) :
+  buffer 30 min en RAM à 1 Hz, canvas d'historique et 9 cartes
+  Trip Stats.
+- **Panneau Qualité des capteurs** (Rev97-98) : âge / Hz /
+  jitter / source par chaque chemin SK critique.
+- **Carte Santé du servo** (Rev99) : baseline appris + ratio de
+  déviation avec alertes "elevated" et "high".
+- **Moteur d'alarmes** (Rev100-101) : 7 règles built-in,
+  notifications SK canoniques, banner avec ACK et fermeture,
+  audio WebAudio + parole synthétique, config par règle.
+- **Vérification pré-départ** (Rev102) : verdict READY / avec
+  caveats / NE PAS ENGAGER.
+- **Docteur pypilot** (Rev103-104, Rev120-121) : 2-3 min
+  d'enregistrement, règles heuristiques, propositions P / I / D
+  avec Appliquer et Rejeter. Le premier Appliquer crée un
+  nouveau profil `doctor-AAAAMMJJ-HHMM`.
+- **Setup en grille launcher** (Rev105-119, 124) : tiles carrés,
+  fullscreen par tap, résumé en direct, connexion consolidée,
+  "Consola contrôle remote" (renommé).
+- **Console SSH interactive** (Rev113-115) : entrée libre,
+  historique navigable au mobile, 14 presets aux noms humains,
+  fallbacks BusyBox / piCore.
+- **Sliders complets de calibration** (Rev116-119) : chaque
+  RangeSetting groupé, cadenas, baseline gelée, bouton restaurer.
+- **Boutons correction cap dans Calibration** (Rev124).
+
+**Modifié**
+
+- **Swap des formes Gota Chain** (Rev122-126) : la flèche AMBRE
+  "A" (vent apparent) est maintenant la GRANDE, la TEAL "T"
+  (vent réel) la petite. Couleurs et lettres conservent leur
+  sens canonique.
+- **Sémantique alarmes** (Rev107-108) : `sonando` vs
+  `vigilando`, résumé affiche les deux compteurs.
+- **Audit i18n** (Rev105, Rev112, Rev121) : purge de l'anglais
+  dans les bundles ES / FR / DE.
+- **Seuils Qualité capteurs** (Rev98) : `minHz` supprimé.
+
+**Corrigé**
+
+- Portal du tile fullscreen (Rev110-111).
+- Bouton Copier en HTTP (Rev114).
+- Doctor `elapsedSec` gelé au final (Rev104).
+- Baseline des sliders congelée (Rev117-118).
+- Restore Aproado protégé par try/catch (Rev90).
+- Lecture composite de `navigation.attitude` (Rev94).
+- Warnings cosmétiques Firefox purgés (Rev95-106).
+
+### Deutsch
+
+**Neu**
+
+- **Aproado-Pseudomodus** (Rev87-92) — AP-Modus zum Segelhissen.
+  ÜBER BUG / ÜBER HECK, AP schaltet in Wind-Modus mit Ziel 0°,
+  HUD über dem Boot mit Zeit / Distanz / Kompass-Kurs. AUS
+  stellt Modus / Ziel / Engaged wieder her. ÜBER HECK erzwingt
+  den langen Schwenk mit Zwischen-Zielen alle 60°.
+- **Telemetrie-Historian + Chart-Tab** (Rev93-96) — Ringpuffer
+  30 min RAM bei 1 Hz, 9 Trip-Stats-Karten, Canvas mit Fenstern
+  30 s / 2 min / 10 min.
+- **Sensor-Qualität-Panel** (Rev97-98).
+- **Servo-Health-Karte** (Rev99) — gelernter Baseline mit
+  Alarmen "elevated" / "high".
+- **Alarm-Engine** (Rev100-101) — 7 built-in Regeln, SK
+  Notifications, Banner mit ACK und X, WebAudio + Sprache,
+  Config-Panel.
+- **Pre-Departure-Check** (Rev102).
+- **Pypilot Doctor** (Rev103-104, Rev120-121) — Diagnose-
+  Sitzung, Heuristik-Regeln, P/I/D-Vorschläge mit Anwenden /
+  Verwerfen. Erstes Anwenden erzeugt neues Profil.
+- **Setup als Launcher-Grid** (Rev105-119, 124) — quadratische
+  Tiles, Vollbild-Tap, Live-Zusammenfassung.
+- **Interaktive SSH-Konsole** (Rev113-115) — freie Eingabe,
+  Pfeil-Buttons mobil, 14 Presets mit menschlichen Labels.
+- **Vollständige RangeSetting-Slider in Kalibrierung**
+  (Rev116-119) — Schloss, eingefrorene Baseline,
+  Wiederherstellen-Knopf pro Slider.
+- **Nudge-Buttons in Kalibrierung** (Rev124).
+
+**Geändert**
+
+- **Gota-Chain-Form-SWAP** (Rev122-126).
+- **Alarm-Semantik** (Rev107-108) — `sonando` / `vigilando`.
+- **i18n-Audit** (Rev105, Rev112, Rev121).
+- **Sensor-Qualität-Schwellen** (Rev98) — `minHz` entfernt.
+
+**Behoben**
+
+- Fullscreen-Tile-Portal (Rev110-111).
+- Copy-Button auf HTTP (Rev114).
+- Doctor `elapsedSec` (Rev104).
+- Slider-Baseline eingefroren (Rev117-118).
+- Aproado-Restore geschützt (Rev90).
+- `navigation.attitude`-Zusammensetzung (Rev94).
+- Kosmetische Firefox-Warnungen (Rev95-106).
+
 ## 2.1.0 — 2026-08-25 — Rev68..Rev87
 
 Twenty in-session Revs of iterative visual + reliability work rolled up
