@@ -3093,3 +3093,80 @@ body.setup-fullscreen-active #tabbar {
 }
 .aproado-hud.summary .aproado-hud-end { background: var(--fg-dim); }
 .aproado-hud-end:active { transform: scale(0.96); }
+
+/* Rev129: Tune "save current profile or fork?" modal (same chrome as
+   the access-request modal, but the two action buttons stack on
+   narrow screens and sit side-by-side on wide ones). */
+.tune-fork-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+.tune-fork-backdrop[hidden] { display: none; }
+.tune-fork-backdrop .modal-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  width: min(420px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tune-fork-backdrop h3 { margin: 0; font-size: 18px; }
+.tune-fork-backdrop p  { margin: 0; font-size: 13px; color: var(--fg-dim); line-height: 1.4; }
+.tune-fork-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.tune-fork-actions button {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--fg);
+  background: var(--bg-1);
+}
+.tune-fork-actions .primary {
+  background: var(--accent, #4dd4ff);
+  color: #001622;
+  border-color: transparent;
+}
+.tune-fork-actions button:active { transform: scale(0.98); }
+
+/* Rev129: Tune ↺ per-slider restore button, same visual weight as
+   the calibration one so the row still fits on the phone. */
+.tune-reset-btn {
+  font-size: 15px;
+  padding: 4px 8px;
+  min-width: 30px;
+}
+
+/* Rev130 (Carlos): every Setup card now shows the currently-selected
+   value under its title so you can see at a glance which host is
+   configured, which language is active, etc., without opening the
+   card. Empty status stays hidden so cards without a value still
+   look tidy. */
+.setup-block-status {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin: -6px 0 8px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--accent, #4dd4ff);
+  border-radius: 2px;
+  line-height: 1.35;
+}
+.setup-block-status:empty { display: none; }
+.setup-block-status b { color: var(--fg); font-weight: 700; }

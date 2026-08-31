@@ -45,6 +45,22 @@
       "cal.slider.was":     "before:",
       "cal.slider.restore": "Restore previous value",
       "cal.unlock":         "Unlock sliders",
+      "tune.fork.title":    "Save gain changes",
+      "tune.fork.body":     "You just tweaked a gain. Where should the change live?",
+      "tune.fork.keep":     "Keep in '{pilot}'",
+      "tune.fork.new":      "Save in new '{name}'",
+      "tune.fork.cancel":   "Cancel",
+      "tune.fork.hint":     "'New' clones the active profile and switches to it, so the original stays untouched. Cancel keeps the modal from popping again until you re-lock.",
+      "setup.status.language":  "Active:",
+      "setup.status.host":      "TinyPilot:",
+      "setup.status.hostMissing": "not configured",
+      "setup.status.ssh":       "SSH user configured:",
+      "setup.status.sshSummary": "SSH: {user}",
+      "setup.status.sshMissing": "SSH not configured",
+      "setup.status.sentences": "Active sentences:",
+      "setup.status.calLast":   "Last adjustment:",
+      "setup.status.calNever":  "No adjustments recorded yet.",
+      "setup.status.calNeverShort": "not adjusted yet",
       "configuration": "Configuration",
       "calibration.title": "Calibration",
       "save": "Save",
@@ -308,6 +324,8 @@
       "setup.restart.error": "Error",
       "setup.restart.network": "Network error",
       // Info tab config export/import
+      "info.classic.link":             "Classic pypilot UI ({host}:{port})",
+      "info.classic.link.placeholder": "Classic pypilot UI",
       "info.cfg.shared": "Shared.",
       "info.cfg.sharedText": "Shared as text.",
       "info.cfg.cancelled": "Cancelled.",
@@ -406,6 +424,22 @@
       "cal.grp.other":      "Otros",
       "cal.slider.was":     "antes:",
       "cal.slider.restore": "Restaurar valor anterior",
+      "tune.fork.title":    "Guardar cambios de ganancia",
+      "tune.fork.body":     "Has movido una ganancia. Donde quieres que se guarde?",
+      "tune.fork.keep":     "Guardar en '{pilot}'",
+      "tune.fork.new":      "Crear nuevo '{name}'",
+      "tune.fork.cancel":   "Cancelar",
+      "tune.fork.hint":     "'Crear nuevo' clona el perfil activo y cambia a el, dejando el original intacto. Cancelar cierra el aviso hasta que vuelvas a bloquear.",
+      "setup.status.language":  "Activo:",
+      "setup.status.host":      "TinyPilot:",
+      "setup.status.hostMissing": "sin configurar",
+      "setup.status.ssh":       "Usuario SSH configurado:",
+      "setup.status.sshSummary": "SSH: {user}",
+      "setup.status.sshMissing": "SSH sin configurar",
+      "setup.status.sentences": "Sentencias activas:",
+      "setup.status.calLast":   "Ultimo ajuste:",
+      "setup.status.calNever":  "Todavia no se ha ajustado nada.",
+      "setup.status.calNeverShort": "sin ajustar",
       "cal.unlock":         "Desbloquear sliders",
       "configuration": "Configuracion",
       "calibration.title": "Calibracion",
@@ -670,6 +704,8 @@
       "setup.restart.error": "Error",
       "setup.restart.network": "Error de red",
       // Info tab config export/import
+      "info.classic.link":             "Interfaz clasica pypilot ({host}:{port})",
+      "info.classic.link.placeholder": "Interfaz clasica pypilot",
       "info.cfg.shared": "Compartido.",
       "info.cfg.sharedText": "Compartido como texto.",
       "info.cfg.cancelled": "Cancelado.",
@@ -786,6 +822,34 @@
       "setup.restart.btn": "pypilot NEU STARTEN",
       "setup.ssh.user":     "SSH-Benutzer",
       "setup.ssh.password": "SSH-Passwort",
+      // Rev134: setup-tile summary chips + tune fork modal + info bar.
+      "setup.status.language":     "Aktiv:",
+      "setup.status.host":         "TinyPilot:",
+      "setup.status.hostMissing":  "nicht konfiguriert",
+      "setup.status.ssh":          "SSH-Benutzer konfiguriert:",
+      "setup.status.sshSummary":   "SSH: {user}",
+      "setup.status.sshMissing":   "SSH nicht konfiguriert",
+      "setup.status.sentences":    "Aktive Saetze:",
+      "setup.status.calLast":      "Letzte Anpassung:",
+      "setup.status.calNever":     "Noch keine Anpassung.",
+      "setup.status.calNeverShort":"noch nicht angepasst",
+      "tune.fork.title":  "Aenderungen speichern",
+      "tune.fork.body":   "Du hast eine Verstaerkung geaendert. Wohin damit?",
+      "tune.fork.keep":   "In '{pilot}' behalten",
+      "tune.fork.new":    "Neu speichern als '{name}'",
+      "tune.fork.cancel": "Abbrechen",
+      "tune.fork.hint":   "'Neu' klont das aktive Profil und wechselt dorthin. Das Original bleibt unveraendert.",
+      "info.classic.link":             "Klassische pypilot-UI ({host}:{port})",
+      "info.classic.link.placeholder": "Klassische pypilot-UI",
+      "cal.slider.was":     "vorher:",
+      "cal.slider.restore": "Frueheren Wert wiederherstellen",
+      "setup.conn.title":     "pypilot-Verbindung",
+      "setup.remoteConsole":  "Fernsteuerungskonsole",
+      "setup.alarms.title":   "Alarme",
+      "setup.quality.title":  "Sensor-Qualitaet",
+      "setup.paths.title":    "Pfade & API",
+      "setup.precheck.title": "Autopilot-Check",
+      "setup.doctor.title":   "Diagnose & Empfehlungen",
       // Restart triad + helm
       "setup.restart.title":         "Notfall-Neustart / Reboot",
       "helm.warn":    "STELL SICHER, DASS JEMAND AM RUDER STEHT, bevor du fortfahrst. Nicht der Moment, unter Deck zu sein.",
@@ -830,6 +894,34 @@
       "setup.restart.btn": "REDEMARRER pypilot",
       "setup.ssh.user":     "Utilisateur SSH",
       "setup.ssh.password": "Mot de passe SSH",
+      // Rev134: setup-tile summary chips + tune fork modal + info bar.
+      "setup.status.language":     "Actif:",
+      "setup.status.host":         "TinyPilot:",
+      "setup.status.hostMissing":  "non configure",
+      "setup.status.ssh":          "Utilisateur SSH configure:",
+      "setup.status.sshSummary":   "SSH: {user}",
+      "setup.status.sshMissing":   "SSH non configure",
+      "setup.status.sentences":    "Phrases actives:",
+      "setup.status.calLast":      "Dernier ajustement:",
+      "setup.status.calNever":     "Aucun ajustement enregistre.",
+      "setup.status.calNeverShort":"non ajuste",
+      "tune.fork.title":  "Enregistrer les changements de gain",
+      "tune.fork.body":   "Tu as modifie un gain. Ou l'enregistrer?",
+      "tune.fork.keep":   "Garder dans '{pilot}'",
+      "tune.fork.new":    "Enregistrer dans '{name}'",
+      "tune.fork.cancel": "Annuler",
+      "tune.fork.hint":   "'Nouveau' clone le profil actif et bascule dessus, l'original reste intact.",
+      "info.classic.link":             "UI pypilot classique ({host}:{port})",
+      "info.classic.link.placeholder": "UI pypilot classique",
+      "cal.slider.was":     "avant:",
+      "cal.slider.restore": "Restaurer la valeur precedente",
+      "setup.conn.title":     "Connexion pypilot",
+      "setup.remoteConsole":  "Console de controle distant",
+      "setup.alarms.title":   "Alarmes",
+      "setup.quality.title":  "Qualite capteurs",
+      "setup.paths.title":    "Paths & API",
+      "setup.precheck.title": "Verification autopilote",
+      "setup.doctor.title":   "Diagnostic & Conseils",
       // Restart triad + helm
       "setup.restart.title":         "Urgence : redemarrage / reboot",
       "helm.warn":    "ASSURE-TOI QU'UNE PERSONNE EST A LA BARRE avant de continuer. Ce n'est pas le moment d'etre en bas.",
@@ -852,6 +944,8 @@
     if (!I18N[l]) l = "en";
     try { localStorage.setItem(LANG_KEY, l); } catch {}
     applyI18n();
+    // Rev130: language card badge changes with the language.
+    if (typeof _refreshSetupBadges === "function") _refreshSetupBadges();
   }
   function t(key) {
     const d = I18N[currentLang()] || I18N.en;
@@ -2081,6 +2175,15 @@
   ];
   const _calBaselines = new Map();   // name → first-seen value (frozen)
   const _calRows = new Map();        // name → { row, rng, val, resetBtn, baselineEl }
+  // Rev129 (Carlos): same pattern for the Tune tab gain sliders.
+  // Baseline is captured ONCE (first non-null value seen) and never
+  // overwritten so the ↺ restore button always returns to the profile's
+  // last-known-good value. `_tuneForkAsked` is a session-scoped guard:
+  // the "save in current profile or fork?" modal fires ONLY on the
+  // first gain change per unlock; further tweaks assume the choice.
+  const _tuneBaselines = new Map();  // shortName → first-seen value
+  const _tuneForkAsked = { v: false };
+  let _tuneLastChange = null;        // { pypilotKey, baselineKey, rng, val }
 
   function _calCurrentlyUnlocked() {
     const cb = document.getElementById("calib-unlock");
@@ -2158,7 +2261,7 @@
             min: meta.min, max: meta.max, step,
             decimals: 3,
             cur,
-            onChange: (v) => pluginRaw(name, v),
+            onChange: (v) => { pluginRaw(name, v); _stampCalAdjust(); },
             unlocked: _calCurrentlyUnlocked(),
             // showBaseline is handled here (below) instead of inside
             // _buildSliderRow so the value stays FROZEN across renders.
@@ -2186,6 +2289,7 @@
             rng.value = String(b);
             if (val) val.textContent = Number(b).toFixed(3);
             pluginRaw(name, b);
+            _stampCalAdjust();
           });
           const bot = row.querySelector(".gain-bot");
           if (bot) bot.appendChild(resetBtn);
@@ -2256,6 +2360,20 @@
               if (rng) rng.value = String(v);
               if (lbl) lbl.textContent = v.toFixed(4);
             }
+            // Rev133 (Carlos): freeze the Tune baseline the FIRST time
+            // pypilot answers with a value. renderGains() only captured
+            // it in the synchronous path (state.values[skPath]) and
+            // that map is empty until deltas start flowing - which is
+            // why the ↺ reset button had nothing to restore to.
+            if (Number.isFinite(v)) {
+              const parts = g.split(".");
+              const pilotName = parts[2];
+              const shortName = parts.slice(3).join(".");
+              const baselineKey = `${pilotName}::${shortName}`;
+              if (!_tuneBaselines.has(baselineKey)) {
+                _tuneBaselines.set(baselineKey, v);
+              }
+            }
           }
         }
       }
@@ -2283,16 +2401,54 @@
       // Rev63 / 2.0.0: verbatim path (`steering.autopilot.pypilot.ap.pilot.<pilot>.<gain>`).
       const skPath = `steering.autopilot.pypilot.${g}`;
       const cur = state.values[skPath];
+      // Rev129 (Carlos): freeze the baseline the first time we see a
+      // valid value for this shortName. Never overwrite it, so the ↺
+      // button always restores the profile's last-known-good value
+      // even after several tweaks.
+      const baselineKey = `${pilot}::${shortName}`;
+      if (typeof cur === "number" && isFinite(cur) && !_tuneBaselines.has(baselineKey)) {
+        _tuneBaselines.set(baselineKey, cur);
+      }
       // Rev36: use shared _buildSliderRow (2-row layout + nudge buttons).
       const { row, rng, val } = _buildSliderRow({
         name: shortName,
         min: meta.min, max: meta.max, step: 0.0001,
         decimals: 4,
         cur,
-        onChange: (v) => pluginRaw(g, v),
+        onChange: (v) => {
+          pluginRaw(g, v);
+          // Rev129: first change per unlock triggers the fork-or-save
+          // prompt. Rev132: pass the row context so Cancel can revert
+          // the slider back to the frozen baseline instead of leaving
+          // the (uncommitted) new value on-screen.
+          _maybePromptTuneFork({ pypilotKey: g, baselineKey, rng, val });
+          // Rev130: gain writes count as calibration adjustments too.
+          _stampCalAdjust();
+        },
       });
       row.dataset.pypilot = g;
       row.dataset.sk = skPath;
+      // Rev129: per-slider ↺ restore button (Carlos: mismo patron que
+      // Calibracion). Snaps back to the frozen baseline and pushes it
+      // to pypilot so the SK path also reverts.
+      const resetBtn = document.createElement("button");
+      resetBtn.type = "button";
+      resetBtn.className = "tune-reset-btn nudge-btn";
+      resetBtn.setAttribute("aria-label", t("cal.slider.restore") || "Restore");
+      resetBtn.setAttribute("title", t("cal.slider.restore") || "Restore");
+      resetBtn.textContent = "↺";
+      const unlockCb2 = document.getElementById("tune-unlock");
+      if (!(unlockCb2 && unlockCb2.checked)) resetBtn.setAttribute("disabled", "");
+      resetBtn.addEventListener("click", () => {
+        const b = _tuneBaselines.get(baselineKey);
+        if (b == null) return;
+        rng.value = String(b);
+        val.textContent = Number(b).toFixed(4);
+        pluginRaw(g, b);
+        _stampCalAdjust();
+      });
+      const bot = row.querySelector(".gain-bot");
+      if (bot) bot.appendChild(resetBtn);
       cont.appendChild(row);
       // If cache is empty (stream started after gain deltas were emitted),
       // fetch the current value via REST so the slider position reflects
@@ -2307,6 +2463,14 @@
               state.values[skPath] = v;
               if (!row.classList.contains("active")) rng.value = String(v);
               val.textContent = v.toFixed(4);
+              // Rev132: also capture the baseline once the async fetch
+              // arrives. The synchronous branch above only fires when
+              // the SK stream cached the gain BEFORE render; on first
+              // paint (Tune reset broken bug) that map was empty and
+              // the ↺ button had nothing to restore to.
+              if (!_tuneBaselines.has(baselineKey)) {
+                _tuneBaselines.set(baselineKey, v);
+              }
             }
           })
           .catch(() => {});
@@ -3462,12 +3626,23 @@
           console.warn("publish hot-apply failed", e);
           cb.checked = !cb.checked;
         }
+        // Rev130: refresh active-sentences badge on the Paths card.
+        _refreshSetupBadges();
       });
     });
+    // Rev130: initial badge refresh on every render so the count shown
+    // on the Paths card matches what the table displays.
+    _refreshSetupBadges();
   }
 
   // ---- Setup tab ----
   async function loadStatus() {
+    // Rev132: paint the setup-block-status badges immediately from
+    // whatever we know (localStorage lang, existing input values,
+    // last-calibration stamp) so the user sees them at once, even
+    // before /status resolves. The fetch below will refresh them
+    // again with the authoritative host/ssh from the plugin config.
+    _refreshSetupBadges();
     try {
       const res = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
       handleAuthRead(res);
@@ -3510,8 +3685,15 @@
       const io = document.getElementById("info-oldui-link");
       if (io && j.host) {
         io.href = `http://${j.host}:${j.port}/`;
-        io.textContent = `Interfaz clásica pypilot (${j.host}:${j.port})`;
+        // Rev129 (Carlos): i18n key with {host}/{port} sub. The bundle
+        // was hard-coded in ES and leaked into every language.
+        io.textContent = t("info.classic.link")
+          .replace("{host}", j.host)
+          .replace("{port}", String(j.port));
       }
+      // Rev130: /status just told us the host, port, SSH user - update
+      // the Setup card status badges so they show the fresh values.
+      _refreshSetupBadges();
     } catch (e) {
       $("#setup-status").textContent = "status endpoint unreachable";
     }
@@ -3605,6 +3787,13 @@
       langSel.value = currentLang();
       langSel.addEventListener("change", (e) => setLang(e.target.value));
     }
+    // Rev130: live-update the "TinyPilot:" / "SSH user configured:"
+    // badges as the user types so they can confirm what will be saved
+    // before hitting Apply.
+    ["cfg-host", "cfg-port", "cfg-ssh-user"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", _refreshSetupBadges);
+    });
     // Rev63 / 2.0.0 - three escalated restart levels sharing a common
     // helm-manned confirmation modal + a shared status line. Level 2 is
     // the classic RESTART pypilot (existing /restart-pypilot endpoint);
@@ -4163,9 +4352,190 @@
   // a data attribute and render it in orange next to the live value so
   // the user always knows where the value started. On lock, clear the
   // baseline so the next unlock captures a fresh snapshot.
+  // Rev130 (Carlos): each Setup card shows what is currently
+  // configured. The tab feels less like a wall of forms and more like
+  // a status dashboard. Called at boot (after /status resolves), on
+  // language change, after paths render, and whenever the user tweaks
+  // a slider (so the calibration date badge stays live).
+  const CAL_STAMP_KEY = "pypilot-newui.calLastAdjust";
+  function _stampCalAdjust() {
+    try { localStorage.setItem(CAL_STAMP_KEY, String(Date.now())); } catch { /* silent */ }
+    _refreshSetupBadges();
+  }
+  function _fmtStampShort(ms) {
+    if (!ms || !isFinite(ms)) return "";
+    const d = new Date(ms);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function _langLabel(code) {
+    const map = { en: "English", es: "Español", de: "Deutsch", fr: "Français" };
+    return map[code] || code || "?";
+  }
+  function _countActiveSentences() {
+    if (!Array.isArray(_lastPathsItems) || _lastPathsItems.length === 0) return null;
+    let n = 0;
+    for (const it of _lastPathsItems) {
+      if (it.essential) { n++; continue; }
+      if (_publishOnlyEssentials) {
+        if (_lastEnabledMap[it.pypilotName] === true) n++;
+      } else {
+        if (_lastEnabledMap[it.pypilotName] !== false) n++;
+      }
+    }
+    return { active: n, total: _lastPathsItems.length };
+  }
+  function _refreshSetupBadges() {
+    // Language
+    try {
+      const code = localStorage.getItem(LANG_KEY) || (state.lang || "en");
+      const label = _langLabel(code);
+      const el = document.getElementById("setup-status-language");
+      if (el) el.innerHTML = `${t("setup.status.language") || "Active:"} <b>${label}</b>`;
+      _updateSetupSummary("language", label, "good");
+    } catch { /* silent */ }
+    // Pypilot host
+    {
+      const h = document.getElementById("cfg-host");
+      const p = document.getElementById("cfg-port");
+      const host = h && h.value ? h.value.trim() : "";
+      const port = p && p.value ? p.value.trim() : "";
+      const el = document.getElementById("setup-status-conn");
+      if (host) {
+        const hp = `${host}${port ? ":" + port : ""}`;
+        if (el) el.innerHTML = `${t("setup.status.host") || "TinyPilot:"} <b>${hp}</b>`;
+        _updateSetupSummary("connection", hp, "good");
+      } else {
+        if (el) el.textContent = "";
+        _updateSetupSummary("connection", t("setup.status.hostMissing") || "not configured", "warn");
+      }
+    }
+    // Remote / SSH. Rev134 (Carlos): no more red/amber when the SSH
+    // creds are not saved - the console is optional, not a warning.
+    {
+      const su = document.getElementById("cfg-ssh-user");
+      const user = su && su.value ? su.value.trim() : "";
+      const el = document.getElementById("setup-status-remote");
+      if (user) {
+        if (el) el.innerHTML = `${t("setup.status.ssh") || "SSH user configured:"} <b>${user}</b>`;
+        _updateSetupSummary("emergency", (t("setup.status.sshSummary") || "SSH: {user}").replace("{user}", user), "good");
+      } else {
+        if (el) el.textContent = "";
+        // Neutral chip (no level): matches the "..." look of other
+        // tiles that carry no status yet.
+        _updateSetupSummary("emergency", t("setup.status.sshMissing") || "SSH not configured", "");
+      }
+    }
+    // Paths / sentences. Rev134 (Carlos): show only the active count.
+    // The "/ total" was reporting the whole pypilot catalog (~181),
+    // which is confusing - almost none of those are meant to be
+    // published, so the ratio was meaningless.
+    {
+      const c = _countActiveSentences();
+      const el = document.getElementById("setup-status-paths");
+      if (c) {
+        if (el) el.innerHTML = `${t("setup.status.sentences") || "Active sentences:"} <b>${c.active}</b>`;
+        _updateSetupSummary("paths", `${c.active}`, c.active > 0 ? "good" : "warn");
+      } else {
+        if (el) el.textContent = "";
+      }
+    }
+    // Calibration last-adjust
+    {
+      let ms = 0;
+      try { ms = parseInt(localStorage.getItem(CAL_STAMP_KEY) || "0", 10); } catch { ms = 0; }
+      const el = document.getElementById("setup-status-cal");
+      if (ms) {
+        const stamp = _fmtStampShort(ms);
+        if (el) el.innerHTML = `${t("setup.status.calLast") || "Last adjustment:"} <b>${stamp}</b>`;
+        _updateSetupSummary("calibration", stamp, "good");
+      } else {
+        if (el) el.innerHTML = `<span style="opacity:0.7">${t("setup.status.calNever") || "No adjustments recorded yet."}</span>`;
+        _updateSetupSummary("calibration", t("setup.status.calNeverShort") || "not adjusted yet", "warn");
+      }
+    }
+  }
+
+  // Rev129 (Carlos): on the first gain change of an unlock session,
+  // ask whether to keep tweaking the current profile or fork a copy
+  // (`tune-YYYYMMDD-HHMM`) — same pattern as Doctor. Non-modal blocking
+  // is intentional: the write already went through; the modal decides
+  // where it landed. If the user chooses "new", we tell pypilot
+  // `profile=<newname>` which clones the current profile (writing an
+  // unknown name creates it from the active profile), so the last
+  // change is preserved in the fork.
+  function _maybePromptTuneFork(ctx) {
+    if (_tuneForkAsked.v) return;
+    _tuneForkAsked.v = true;
+    // Rev132: remember the change context so Cancel can undo it.
+    // Every subsequent tweak within the same unlock session updates
+    // this to point at the LATEST change, so Cancel always undoes
+    // "the last thing I did" even after the modal was dismissed once
+    // (a nice property, though today the modal only fires once).
+    _tuneLastChange = ctx || null;
+    const pilot = state.pilot || "";
+    if (!pilot) return;
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+    const forkName = `tune-${stamp}`;
+    let m = document.getElementById("tune-fork-modal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "tune-fork-modal";
+      m.className = "tune-fork-backdrop";
+      m.innerHTML =
+        `<div class="modal-card">` +
+        `  <h3 data-i18n="tune.fork.title">Save gain changes</h3>` +
+        `  <p data-i18n="tune.fork.body">You just tweaked a gain. Where should the change live?</p>` +
+        `  <div class="tune-fork-actions">` +
+        `    <button type="button" id="tune-fork-new" class="primary"></button>` +
+        `    <button type="button" id="tune-fork-keep" class="secondary"></button>` +
+        `    <button type="button" id="tune-fork-cancel" class="ghost"></button>` +
+        `  </div>` +
+        `  <div id="tune-fork-note" style="font-size:12px;color:var(--fg-dim);margin-top:8px"></div>` +
+        `</div>`;
+      document.body.appendChild(m);
+    }
+    const keepBtn = m.querySelector("#tune-fork-keep");
+    const newBtn = m.querySelector("#tune-fork-new");
+    const cancelBtn = m.querySelector("#tune-fork-cancel");
+    const note = m.querySelector("#tune-fork-note");
+    keepBtn.textContent = (t("tune.fork.keep") || "Keep in '{pilot}'").replace("{pilot}", pilot);
+    newBtn.textContent = (t("tune.fork.new") || "Save in new '{name}'").replace("{name}", forkName);
+    if (cancelBtn) cancelBtn.textContent = t("tune.fork.cancel") || "Cancel";
+    if (note) note.textContent = t("tune.fork.hint") || "";
+    m.hidden = false;
+    m.classList.add("open");
+    const close = () => { m.hidden = true; m.classList.remove("open"); };
+    keepBtn.onclick = () => { close(); };
+    newBtn.onclick = () => {
+      try { pluginRaw("profile", forkName); } catch { /* silent */ }
+      close();
+    };
+    if (cancelBtn) cancelBtn.onclick = () => {
+      // Rev132 (Carlos): Cancel must REVERT the change, not just
+      // close. Snap the slider back to the frozen baseline and push
+      // it to pypilot so the SK path reverts too.
+      const c = _tuneLastChange;
+      if (c && c.baselineKey && _tuneBaselines.has(c.baselineKey)) {
+        const b = _tuneBaselines.get(c.baselineKey);
+        try {
+          if (c.rng) c.rng.value = String(b);
+          if (c.val) c.val.textContent = Number(b).toFixed(4);
+          if (c.pypilotKey) pluginRaw(c.pypilotKey, b);
+        } catch { /* silent */ }
+      }
+      close();
+    };
+  }
+
   function _setTuneLocked(locked) {
     const unlockCb = $("#tune-unlock");
     if (unlockCb) unlockCb.checked = !locked;
+    // Rev129: every lock/unlock cycle re-arms the fork prompt so the
+    // question is asked once per editing session.
+    _tuneForkAsked.v = false;
     const containers = [$("#gains-container"), $("#config-sliders")];
     for (const cont of containers) {
       if (!cont) continue;
@@ -4174,7 +4544,7 @@
         const rng = row.querySelector("input[type=range]");
         const baselineEl = row.querySelector(".baseline");
         const decimals = parseInt(row.dataset.decimals || "3", 10);
-        row.querySelectorAll("input[type=range], .nudge-btn").forEach((el) => {
+        row.querySelectorAll("input[type=range], .nudge-btn, .tune-reset-btn").forEach((el) => {
           if (locked) el.setAttribute("disabled", "");
           else el.removeAttribute("disabled");
         });
@@ -4185,6 +4555,21 @@
             baselineEl.dataset.baseline = String(now);
             baselineEl.textContent = "was: " + now.toFixed(decimals);
             baselineEl.hidden = false;
+          }
+          // Rev134 (Carlos): also seed the Tune baseline map with the
+          // value the user actually sees at unlock time. Without this
+          // ↺ and Cancel had nothing to snap back to when the initial
+          // render happened before pypilot values arrived (the Map
+          // was populated only via the async refreshPypilotValues, which
+          // could race with the first slider tweak).
+          const gKey = row.dataset.pypilot;
+          if (Number.isFinite(now) && gKey && gKey.startsWith("ap.pilot.")) {
+            const parts = gKey.split(".");
+            if (parts.length >= 4) {
+              const pilotName = parts[2];
+              const shortName = parts.slice(3).join(".");
+              _tuneBaselines.set(`${pilotName}::${shortName}`, now);
+            }
           }
         } else {
           // Locked again: clear baseline.
@@ -4813,6 +5198,37 @@
       // User interacted -> cancel any pending auto-hide.
       if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
     });
+    // Rev129 (Carlos): swipe DOWN from the top of the viewport (when
+    // nav is hidden in Control mode) reveals the tab bar. Keeps the
+    // dashboard full-screen 99% of the time but avoids hunting for the
+    // toggle button when you actually want to change tabs.
+    let _swipeY0 = null;
+    document.addEventListener("touchstart", (ev) => {
+      if (!document.body.classList.contains("nav-hidden")) return;
+      const t = ev.touches && ev.touches[0];
+      if (!t) return;
+      // Only track swipes that started near the top of the viewport
+      // (top 60 px) so we do not fight scroll gestures elsewhere.
+      if (t.clientY > 60) return;
+      _swipeY0 = t.clientY;
+    }, { passive: true });
+    document.addEventListener("touchmove", (ev) => {
+      if (_swipeY0 == null) return;
+      const t = ev.touches && ev.touches[0];
+      if (!t) return;
+      const dy = t.clientY - _swipeY0;
+      // > 50 px down = show nav.
+      if (dy > 50) {
+        _navShow();
+        _swipeY0 = null;
+        if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
+        // Re-arm auto-hide so it fades again after a few seconds if
+        // the user does not tap a tab.
+        _navScheduleAutoHide();
+      }
+    }, { passive: true });
+    document.addEventListener("touchend", () => { _swipeY0 = null; }, { passive: true });
+    document.addEventListener("touchcancel", () => { _swipeY0 = null; }, { passive: true });
   }
 
   // ============================================================
@@ -5493,14 +5909,21 @@
     if (!tbody || !_sq.lastData) return;
     const rows = _sq.lastData.items || [];
     // Rev105: collapsed summary "N good · M warn · K lost".
-    let g = 0, w = 0, l = 0;
+    // Rev134 (Carlos): also count "missing" sensors (a watched path
+    // that has never emitted a delta - e.g. rudder without a rudder
+    // sensor wired). The ✕ tally now bundles missing + lost so the
+    // chip flags the situation instead of silently reporting 8✓ 0!
+    // 0✕ while one sensor is nowhere to be seen.
+    let g = 0, w = 0, l = 0, m = 0;
     for (const r of rows) {
       if (r.level === "good") g += 1;
       else if (r.level === "degraded") w += 1;
       else if (r.level === "lost") l += 1;
+      else if (r.level === "missing") m += 1;
     }
-    const sumLvl = l > 0 ? "fail" : w > 0 ? "warn" : "good";
-    _updateSetupSummary("quality", `${g}✓ ${w}! ${l}✕`, sumLvl);
+    const fail = l + m;
+    const sumLvl = fail > 0 ? "fail" : w > 0 ? "warn" : "good";
+    _updateSetupSummary("quality", `${g}✓ ${w}! ${fail}✕`, sumLvl);
     tbody.textContent = "";
     for (const r of rows) {
       const tr = document.createElement("tr");
@@ -5727,6 +6150,10 @@
   async function chartFetchAndDraw() {
     if (!_chart.canvas) _chart.canvas = document.getElementById("chart-canvas");
     if (!_chart.canvas) return;
+    // Rev129 (Carlos): freeze auto-refresh while the user is hovering
+    // a point. They are inspecting a specific instant and a redraw
+    // would move the tooltip out from under the cursor.
+    if (_chart.hoverActive) return;
     const wnd = _chart.window;
     const enabledArr = [..._chart.enabled];
     const pathsQ = enabledArr.length > 0 ? `&paths=${enabledArr.join(",")}` : "";
@@ -5799,12 +6226,14 @@
       ctx.fillText(tk.txt, x, cssH - 6);
     }
 
-    // Per-band trace.
+    // Per-band trace + Y scale ticks (Rev129).
+    // Snapshot the band geometry so the hover handler can hit-test
+    // without re-computing.
+    _chart.bands = [];
     for (let bi = 0; bi < enabled.length; bi += 1) {
       const key = enabled[bi];
       const bandTop = marginT + bi * bandH;
       const bandBot = bandTop + bandH - 2;
-      // Compute local min/max for this trace's samples in the window.
       let vmin = Infinity, vmax = -Infinity;
       for (const s of _chart.lastSamples) {
         const v = s[key];
@@ -5815,6 +6244,7 @@
       }
       if (vmin === Infinity) continue;
       if (vmax - vmin < 1e-9) { vmin -= 0.5; vmax += 0.5; }
+      _chart.bands.push({ key, bandTop, bandBot, vmin, vmax });
       // Band separator line.
       if (bi > 0) {
         ctx.strokeStyle = "#1c2632";
@@ -5837,16 +6267,92 @@
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
+      // Rev129 (Carlos): Y-scale ticks (min / mid / max) inside the
+      // right-side gutter so the user reads absolute values, not
+      // just a shape.
+      ctx.fillStyle = "#8b98a5";
+      ctx.textAlign = "left";
+      ctx.font = "9px ui-monospace, monospace";
+      const mid = (vmin + vmax) / 2;
+      ctx.textBaseline = "top";
+      ctx.fillText(_fmtSampleValue(key, vmax), marginL + plotW + 4, bandTop + 22);
+      ctx.textBaseline = "middle";
+      ctx.fillText(_fmtSampleValue(key, mid), marginL + plotW + 4, (bandTop + bandBot) / 2 + 2);
+      ctx.textBaseline = "bottom";
+      ctx.fillText(_fmtSampleValue(key, vmin), marginL + plotW + 4, bandBot - 2);
       // Label on the right side: name + last value.
       const last = [..._chart.lastSamples].reverse().find((s) => typeof s[key] === "number" && isFinite(s[key]));
       const lastV = last ? last[key] : null;
       ctx.fillStyle = CHART_COLORS[key] || "#e6edf3";
       ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
+      ctx.textBaseline = "top";
       ctx.font = "10px ui-monospace, monospace";
       ctx.fillText(CHART_LABELS[key], marginL + plotW + 4, bandTop + 8);
-      ctx.fillStyle = "#e6edf3";
-      ctx.fillText(_fmtSampleValue(key, lastV), marginL + plotW + 4, bandTop + 20);
+    }
+    // Cache geometry for hover.
+    _chart.geom = { marginL, marginR, marginT, marginB, plotW, plotH, tMin, tMax, cssW, cssH };
+
+    // Rev129: if hover is active, draw crosshair + tooltip on top.
+    if (_chart.hoverActive && _chart.hoverTs != null) {
+      _chartDrawHover(ctx, cssW, cssH);
+    }
+  }
+
+  // Rev129 (Carlos): hover crosshair + tooltip. Snaps the vertical
+  // line to the closest sample timestamp so the user reads exact
+  // recorded values, not interpolated ones.
+  function _chartDrawHover(ctx, cssW, cssH) {
+    const g = _chart.geom;
+    if (!g || _chart.hoverTs == null) return;
+    // Find nearest sample to _chart.hoverTs.
+    let nearestIdx = -1;
+    let nearestDt = Infinity;
+    for (let i = 0; i < _chart.lastSamples.length; i += 1) {
+      const dt = Math.abs(_chart.lastSamples[i].ts - _chart.hoverTs);
+      if (dt < nearestDt) { nearestDt = dt; nearestIdx = i; }
+    }
+    if (nearestIdx < 0) return;
+    const sample = _chart.lastSamples[nearestIdx];
+    const x = g.marginL + ((sample.ts - g.tMin) / (g.tMax - g.tMin)) * g.plotW;
+    // Vertical crosshair.
+    ctx.strokeStyle = "#4dd4ff";
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, g.marginT);
+    ctx.lineTo(x, g.marginT + g.plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Tooltip box.
+    const lines = [];
+    const ageS = Math.max(0, (Date.now() - sample.ts) / 1000);
+    lines.push(`-${ageS.toFixed(1)} s`);
+    for (const b of (_chart.bands || [])) {
+      const v = sample[b.key];
+      if (typeof v === "number" && isFinite(v)) {
+        lines.push(`${CHART_LABELS[b.key] || b.key}: ${_fmtSampleValue(b.key, v)}`);
+      }
+    }
+    ctx.font = "11px ui-monospace, monospace";
+    let w = 0;
+    for (const ln of lines) w = Math.max(w, ctx.measureText(ln).width);
+    const boxW = w + 12;
+    const boxH = lines.length * 14 + 8;
+    let boxX = x + 8;
+    if (boxX + boxW > cssW - 4) boxX = x - boxW - 8;
+    const boxY = g.marginT + 4;
+    ctx.fillStyle = "rgba(11,15,20,0.92)";
+    ctx.strokeStyle = "#4dd4ff";
+    ctx.lineWidth = 1;
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    let ly = boxY + 4;
+    for (let i = 0; i < lines.length; i += 1) {
+      ctx.fillStyle = i === 0 ? "#8b98a5" : "#e6edf3";
+      ctx.fillText(lines[i], boxX + 6, ly);
+      ly += 14;
     }
   }
   function _halfLabel(w) {
@@ -5905,6 +6411,51 @@
       if (_resizeTimer) clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(() => chartDraw(), 250);
     });
+    // Rev129 (Carlos): hover / touch on the canvas snaps a vertical
+    // crosshair to the closest sample and shows all values in a
+    // tooltip. Auto-refresh freezes while hovering so the user can
+    // read the exact value.
+    const canvas = document.getElementById("chart-canvas");
+    if (canvas) {
+      const _hover = (clientX) => {
+        if (!_chart.geom || _chart.lastSamples.length === 0) return;
+        const rect = canvas.getBoundingClientRect();
+        const relX = clientX - rect.left;
+        const cssW = canvas.clientWidth || rect.width;
+        const g = _chart.geom;
+        // Map pixel X to timestamp inside the plot area.
+        const scale = cssW / (g.cssW || cssW);
+        const x = relX / scale;   // in canvas CSS pixels
+        if (x < g.marginL || x > g.marginL + g.plotW) return;
+        const frac = (x - g.marginL) / g.plotW;
+        _chart.hoverTs = g.tMin + frac * (g.tMax - g.tMin);
+        _chart.hoverActive = true;
+        chartDraw();
+      };
+      canvas.addEventListener("mousemove", (ev) => _hover(ev.clientX));
+      canvas.addEventListener("mouseleave", () => {
+        _chart.hoverActive = false;
+        _chart.hoverTs = null;
+        chartDraw();
+      });
+      canvas.addEventListener("touchstart", (ev) => {
+        const t = ev.touches && ev.touches[0];
+        if (t) _hover(t.clientX);
+      }, { passive: true });
+      canvas.addEventListener("touchmove", (ev) => {
+        const t = ev.touches && ev.touches[0];
+        if (t) _hover(t.clientX);
+      }, { passive: true });
+      canvas.addEventListener("touchend", () => {
+        // Keep the freeze visible for 3 s after touch ends so the
+        // user can read it, then release.
+        setTimeout(() => {
+          _chart.hoverActive = false;
+          _chart.hoverTs = null;
+          chartDraw();
+        }, 3000);
+      }, { passive: true });
+    }
   }
 
   // Called from _tabPostActivate when the user enters/leaves the Chart
@@ -6064,6 +6615,11 @@
       if (ev.key !== "Escape") return;
       _setupFullscreenOff(null);
     });
+    // Rev133 (Carlos): once the summary pills exist, paint the tiles
+    // that carry static status (language, host, ssh, calibration
+    // stamp) so the launcher grid is populated on first paint - not
+    // only after /status resolves.
+    if (typeof _refreshSetupBadges === "function") _refreshSetupBadges();
   }
 
   // Update the small summary text next to each section title (only shown

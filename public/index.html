@@ -894,6 +894,7 @@
            Provider consolidated into a single card with 4 inner subsections. -->
       <div class="setup-block" data-setup-order="100" data-block-key="connection">
         <div class="section-title" data-i18n="setup.conn.title">Conexion pypilot</div>
+        <div class="setup-block-status" id="setup-status-conn"></div>
         <!-- Subsection 1: Estado -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="setup.conn.status">Estado</div>
@@ -958,6 +959,7 @@
 
       <div class="setup-block" style="border: 2px solid var(--err);" data-setup-order="900" data-block-key="emergency">
         <div class="section-title" style="color: var(--err);" data-i18n="setup.remoteConsole">Remote Control Console</div>
+        <div class="setup-block-status" id="setup-status-remote"></div>
         <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center">
           <label style="min-width:100px" data-i18n="setup.ssh.user">SSH user</label>
           <input type="text"     id="cfg-ssh-user"     placeholder="tc" style="max-width:9em" autocomplete="off" />
@@ -1049,6 +1051,7 @@
 
       <div class="setup-block" data-setup-order="140" data-block-key="language">
         <div class="section-title" data-i18n="language.title">Language</div>
+        <div class="setup-block-status" id="setup-status-language"></div>
         <div class="row">
           <select id="lang-select" style="min-width:180px">
             <option value="en">English</option>
@@ -1062,6 +1065,7 @@
 
       <div class="setup-block" data-setup-order="160" data-block-key="calibration">
         <div class="section-title" data-i18n="calibration.title">Calibration</div>
+        <div class="setup-block-status" id="setup-status-cal"></div>
         <div class="calib-row">
           <button id="cal-level" class="ghost" data-i18n="cal.level">Level (boat is flat)</button>
           <div id="cal-level-progress" class="progress"><div class="bar"></div></div>
@@ -1129,6 +1133,7 @@
            without duplicating the markup. -->
       <div class="setup-block" data-setup-order="170" data-block-key="paths">
         <div class="section-title" data-i18n="setup.paths.title">Paths &amp; API</div>
+        <div class="setup-block-status" id="setup-status-paths"></div>
         <div id="paths-mount"></div>
       </div>
     </section>
@@ -1141,7 +1146,7 @@
           <div class="info-sub">
             <span id="info-version">v? &middot; Rev?</span>
             <span class="info-sep">&middot;</span>
-            <a id="info-oldui-link" href="#" target="_blank" rel="noopener">Interfaz cl&aacute;sica de pypilot</a>
+            <a id="info-oldui-link" href="#" target="_blank" rel="noopener" data-i18n="info.classic.link.placeholder">Classic pypilot UI</a>
           </div>
         </div>
 
@@ -1441,6 +1446,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev128"></script>
+  <script src="app.js?v=Rev134"></script>
 </body>
 </html>

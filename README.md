@@ -11,13 +11,17 @@ by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongs
 
 ## Screenshots
 
-| Control | Tune |
+| Control | Chart |
 |---|---|
-| ![Control tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg) | ![Tune tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-tune-gains.jpg) |
+| ![Control tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg) | ![Chart tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chart-trip-stats.jpg) |
 
-| Info | Setup |
+| Tune | Setup |
 |---|---|
-| ![Info tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-info.jpg) | ![Setup tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-setup.jpg) |
+| ![Tune tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-tune-gains.jpg) | ![Setup tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-setup-launcher.jpg) |
+
+| Race | Info |
+|---|---|
+| ![Race tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) | ![Info tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-info.jpg) |
 
 ## What's new in 2.2.0
 
