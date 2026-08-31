@@ -23,6 +23,56 @@ by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongs
 |---|---|
 | ![Race tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) | ![Info tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-info.jpg) |
 
+## What's new in 2.3.0
+
+Feature batch on top of 2.2.x:
+
+- **Chart tab — interactive hover** — freeze the auto-refresh and
+  read the exact value of every band at any point in the history
+  window by hovering the graph. Y-axis ticks (min / mid / max) now
+  sit inside the right gutter for each band.
+- **Tune tab — per-slider restore + profile fork prompt** — every
+  gain slider gets a ↺ button that snaps back to the frozen
+  baseline captured when you unlocked the panel. On the first
+  change of an unlock session a modal asks whether to keep the
+  tweaks in the current profile, save them in a new
+  `tune-YYYYMMDD-HHMM` fork (mirroring the Doctor pattern), or
+  Cancel and revert.
+- **Setup launcher — live status chips on every tile** — Pypilot
+  Connection shows `host:port`, Language shows the active locale,
+  Calibration shows the timestamp of the last slider adjustment
+  (with a `Reset historial` button on the card), Signal K Sentences
+  shows the count of published SK paths, and Remote Control Console
+  says whether SSH creds are stored. Sensor Quality now counts
+  missing sensors into the failure tally and each row gains an
+  Ignore / Restore button so a sensor you don't have on this boat
+  (rudder without a rudder feedback, temp probe absent, ...) stops
+  turning the chip red.
+- **Nav bar slide-down gesture** — the counterpart to the existing
+  slide-up hide; drag from the top of the visor to bring the tab
+  bar back.
+- **Doctor tab — Hide / Discard on every suggestion** — the
+  Descartar / Ocultar button stays visible even after a suggestion
+  has been applied so you can clear stale advice from the list.
+  Hidden suggestions also drop off the tile chip's counter so the
+  card goes back to `sano` once you've cleared everything. Backend
+  now emits i18n keys + args for findings and summary so the whole
+  Doctor panel reads in the active language.
+- **Alarm engine i18n** — the seven built-in alarm rules
+  (heading-deviation, unable-to-steer, servo-overcurrent, etc.) now
+  render banners and speak the message in the active language
+  (EN / ES / DE / FR). The backend still publishes the English
+  notification message on `notifications.autopilot.*` for
+  KIP / WilhelmSK compatibility.
+- **Better DE / FR coverage** — Setup tile titles, calibration
+  strings, Tune fork modal and Info tab now translate in Deutsch
+  and Français instead of falling back to English.
+- **Remote Control Console defaults** — the tile no longer wears
+  its emergency red frame; the SSH user field is pre-filled with
+  the TinyPilot default (`tc`) and a hint spells out that the
+  default password is `tc` too, so the setup is a two-click job on
+  a stock TinyPilot.
+
 ## What's new in 2.2.0
 
 2.2.0 turns the plugin into an **intelligence layer over pypilot**. Forty

@@ -3153,6 +3153,26 @@ body.setup-fullscreen-active #tabbar {
   min-width: 30px;
 }
 
+/* Rev135: Sensor Quality per-row Ignore / Restore button. */
+.sq-status.ignored {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg-dim);
+}
+td.sq-action {
+  text-align: right;
+  padding-left: 6px;
+}
+.sq-ignore-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--fg-dim);
+  cursor: pointer;
+}
+.sq-ignore-btn:hover { color: var(--fg); }
+
 /* Rev130 (Carlos): every Setup card now shows the currently-selected
    value under its title so you can see at a glance which host is
    configured, which language is active, etc., without opening the

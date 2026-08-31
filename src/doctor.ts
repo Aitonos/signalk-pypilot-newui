@@ -50,6 +50,11 @@ export interface DiagnosticFinding {
   severity: "info" | "warn" | "critical";
   message: string;
   metric: string;      // machine-readable snippet e.g. "meanErr=8.2°"
+  // Rev136 (Carlos): i18n handles for the frontend. `message` stays as
+  // an English fallback for legacy consumers (KIP/WilhelmSK) and for
+  // languages that don't ship a translation for this key.
+  messageKey?: string;
+  messageArgs?: Record<string, string | number>;
 }
 
 export interface DoctorResult {
@@ -70,6 +75,9 @@ export interface DoctorResult {
   findings: DiagnosticFinding[];
   suggestions: Suggestion[];
   summary: string;
+  // Rev136: i18n handles for the summary line, same pattern as findings.
+  summaryKey?: string;
+  summaryArgs?: Record<string, string | number>;
 }
 
 export interface DoctorStatus {
@@ -255,6 +263,8 @@ export class DoctorEngine {
         severity: "warn",
         message: `Only ${n} engaged samples collected. Analysis skipped - keep the AP engaged during the whole session.`,
         metric: `n=${n}`,
+        messageKey: "doctor.finding.insufficientData",
+        messageArgs: { n: String(n) },
       });
       return this.buildResult(session, now, samples, engaged, findings, suggestions);
     }
@@ -266,6 +276,8 @@ export class DoctorEngine {
         severity: Math.abs(meanDeg) > 6 ? "critical" : "warn",
         message: `Persistent heading offset of ${meanDeg.toFixed(1)}° (mean error).`,
         metric: `meanErr=${meanDeg.toFixed(2)}°`,
+        messageKey: "doctor.finding.bias",
+        messageArgs: { deg: meanDeg.toFixed(1) },
       });
       const I = session.initialGains["I"];
       if (typeof I === "number" && I > 0) {
@@ -297,6 +309,8 @@ export class DoctorEngine {
         severity: "warn",
         message: `Heading oscillating with period ~${oscPeriodS.toFixed(1)}s, RMS ${rmsDeg.toFixed(1)}°.`,
         metric: `oscPeriod=${oscPeriodS.toFixed(1)}s rms=${rmsDeg.toFixed(2)}°`,
+        messageKey: "doctor.finding.oscillation",
+        messageArgs: { period: oscPeriodS.toFixed(1), rms: rmsDeg.toFixed(1) },
       });
       const D = session.initialGains["D"];
       if (typeof D === "number" && D > 0) {
@@ -329,6 +343,8 @@ export class DoctorEngine {
         severity: "critical",
         message: `Servo running at ${(servoDuty * 100).toFixed(0)}% duty but heading error still ${rmsDeg.toFixed(1)}°. AP is losing authority.`,
         metric: `rms=${rmsDeg.toFixed(2)}° duty=${(servoDuty * 100).toFixed(0)}%`,
+        messageKey: "doctor.finding.authority",
+        messageArgs: { duty: (servoDuty * 100).toFixed(0), rms: rmsDeg.toFixed(1) },
       });
       const P = session.initialGains["P"];
       if (typeof P === "number" && P > 0) {
@@ -359,6 +375,8 @@ export class DoctorEngine {
         severity: "info",
         message: `Heading is tight (${rmsDeg.toFixed(2)}°) but servo running ${(servoDuty * 100).toFixed(0)}% duty - possible chatter on a noisy heading signal.`,
         metric: `rms=${rmsDeg.toFixed(2)}° duty=${(servoDuty * 100).toFixed(0)}%`,
+        messageKey: "doctor.finding.noise",
+        messageArgs: { rms: rmsDeg.toFixed(2), duty: (servoDuty * 100).toFixed(0) },
       });
       // No P/I/D suggestion - chatter is usually a deadband issue.
     }
@@ -372,9 +390,21 @@ export class DoctorEngine {
     findings: DiagnosticFinding[], suggestions: Suggestion[],
   ): DoctorResult {
     let summary: string;
-    if (findings.length === 0) summary = "No significant issues detected. Current gains look healthy.";
-    else if (suggestions.length === 0) summary = `${findings.length} issue(s) noted (no gain change suggested).`;
-    else summary = `${findings.length} issue(s) detected. ${suggestions.length} gain change(s) suggested.`;
+    let summaryKey: string;
+    let summaryArgs: Record<string, string | number>;
+    if (findings.length === 0) {
+      summary = "No significant issues detected. Current gains look healthy.";
+      summaryKey = "doctor.summary.clean";
+      summaryArgs = {};
+    } else if (suggestions.length === 0) {
+      summary = `${findings.length} issue(s) noted (no gain change suggested).`;
+      summaryKey = "doctor.summary.notedOnly";
+      summaryArgs = { issues: findings.length };
+    } else {
+      summary = `${findings.length} issue(s) detected. ${suggestions.length} gain change(s) suggested.`;
+      summaryKey = "doctor.summary.detected";
+      summaryArgs = { issues: findings.length, suggestions: suggestions.length };
+    }
     return {
       sessionId: session.id,
       startedTs: session.startedTs,
@@ -388,6 +418,8 @@ export class DoctorEngine {
       findings,
       suggestions,
       summary,
+      summaryKey,
+      summaryArgs,
     };
   }
 

@@ -950,6 +950,7 @@
                 <th data-i18n="sq.col.jitter">Jitter</th>
                 <th data-i18n="sq.col.source">Source</th>
                 <th data-i18n="sq.col.status">Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -957,14 +958,15 @@
         </div>
       </div>
 
-      <div class="setup-block" style="border: 2px solid var(--err);" data-setup-order="900" data-block-key="emergency">
-        <div class="section-title" style="color: var(--err);" data-i18n="setup.remoteConsole">Remote Control Console</div>
+      <div class="setup-block" data-setup-order="900" data-block-key="emergency">
+        <div class="section-title" data-i18n="setup.remoteConsole">Remote Control Console</div>
         <div class="setup-block-status" id="setup-status-remote"></div>
+        <div class="hint" style="margin-bottom:8px" data-i18n-html="setup.ssh.defaultHint">TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.</div>
         <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center">
           <label style="min-width:100px" data-i18n="setup.ssh.user">SSH user</label>
-          <input type="text"     id="cfg-ssh-user"     placeholder="tc" style="max-width:9em" autocomplete="off" />
+          <input type="text"     id="cfg-ssh-user"     placeholder="tc" value="tc" style="max-width:9em" autocomplete="off" />
           <label style="min-width:120px" data-i18n="setup.ssh.password">SSH password</label>
-          <input type="password" id="cfg-ssh-password" data-i18n-placeholder="setup.ssh.password.ph.notset" placeholder="(not set)" style="max-width:14em" autocomplete="new-password" />
+          <input type="password" id="cfg-ssh-password" data-i18n-placeholder="setup.ssh.password.ph.default" placeholder="tc" style="max-width:14em" autocomplete="new-password" />
           <button id="cfg-ssh-save" class="ghost" data-i18n="setup.ssh.save.btn">Save</button>
         </div>
         <div id="cfg-ssh-status" class="hint" style="margin-top:6px"></div>
@@ -1113,6 +1115,7 @@
               <input type="checkbox" id="calib-unlock" />
               <span data-i18n="cal.unlock">Unlock sliders</span>
             </label>
+            <button type="button" id="cal-stamp-reset" class="ghost" data-i18n="cal.stampReset" title="Clear the last-adjustment timestamp used by the Setup card chip.">Reset history</button>
           </div>
           <div id="calib-sliders-mount" class="calib-sliders-mount"></div>
         </div>
@@ -1446,6 +1449,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev134"></script>
+  <script src="app.js?v=Rev137"></script>
 </body>
 </html>

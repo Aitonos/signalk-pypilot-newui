@@ -1,5 +1,162 @@
 # Changelog
 
+## 2.3.0 — 2026-08-31 — Rev130..Rev137
+
+Feature batch on top of 2.2.x. Themes: make the visor speak the user's
+language end-to-end (Doctor findings, alarm banners and TTS voice
+included), turn the Setup launcher into an at-a-glance dashboard,
+give Tune the same profile-fork discipline the Doctor already had,
+and make Sensor Quality something the skipper can silence for
+sensors that aren't on this boat.
+
+### English
+
+**Added**
+
+- **Chart tab — interactive hover** (Rev129) — freeze the auto-refresh
+  and read the exact value of every band at any point in the history
+  window by hovering the graph. Y-axis ticks (min / mid / max) now
+  sit inside the right gutter for each band.
+- **Tune tab — per-slider restore + profile fork prompt** (Rev129,
+  Rev132..Rev134) — every gain slider gets a ↺ button that snaps
+  back to the frozen baseline captured when you unlocked the panel.
+  On the first change of an unlock session a modal asks whether to
+  keep the tweaks in the current profile, save them in a new
+  `tune-YYYYMMDD-HHMM` fork (mirroring the Doctor pattern), or
+  Cancel and revert the change entirely.
+- **Setup launcher — live status chips on every tile** (Rev130..Rev135)
+  — Pypilot Connection shows `host:port`, Language shows the active
+  locale, Calibration shows the timestamp of the last slider
+  adjustment (with a `Reset historial` button on the card), Signal K
+  Sentences shows the count of published SK paths out of the plugin
+  catalog total, and Remote Control Console reports whether SSH
+  creds are stored.
+- **Sensor Quality — per-row Ignore / Restore** (Rev134..Rev135) —
+  the chip now also counts "missing" sensors (a watched path that
+  has never emitted a delta) into the failure tally, and each row
+  gains an Ignore / Restore button so a sensor you don't have on
+  this boat (rudder without a rudder feedback, temp probe absent,
+  ...) stops turning the chip red. Persisted per-browser.
+- **Nav bar slide-down gesture** (Rev129) — the counterpart to the
+  existing slide-up hide; drag from the top of the visor to bring
+  the tab bar back.
+- **Doctor — Hide button always visible + i18n findings**
+  (Rev135..Rev136) — the Descartar / Ocultar button stays visible
+  even after a suggestion has been applied so you can clear stale
+  advice from the list. Hidden suggestions also drop off the tile
+  chip's counter so the card goes back to `sano` once you've cleared
+  everything. Backend now emits i18n keys + args for findings and
+  summary so the whole Doctor panel reads in the active language.
+- **Alarm engine i18n** (Rev135..Rev136) — the seven built-in alarm
+  rules (heading-deviation, unable-to-steer, servo-overcurrent,
+  servo-temp-high, low-voltage, sensor-lost, pypilot-disconnected)
+  now render banners and speak the message in the active language
+  (EN / ES / DE / FR). The backend still publishes the English
+  notification message on `notifications.autopilot.*` for
+  KIP / WilhelmSK compatibility.
+- **Info tab — English classic-UI link fix** (Rev129) — the
+  hardcoded Spanish string "Interfaz clasica pypilot" that leaked
+  into every language moved to a proper i18n key with `{host}` /
+  `{port}` interpolation.
+- **Remote Control Console — TinyPilot defaults** (Rev136) — the
+  tile no longer wears its emergency red frame; the SSH user field
+  is pre-filled with the TinyPilot default (`tc`) and a hint spells
+  out that the default password is `tc` too, so the setup is a
+  two-click job on a stock TinyPilot.
+- **Better DE / FR coverage** (Rev134..Rev136) — Setup tile titles,
+  calibration strings, Tune fork modal, chip labels, Doctor summary
+  / findings and alarm messages now translate in Deutsch and
+  Français instead of falling back to English.
+
+**Changed**
+
+- **All six screenshots refreshed** to match the current UI
+  (Control rose with the Gota Chain arrow layout, Chart Trip Stats,
+  Tune with per-slider reset, Setup launcher chips, Race timer,
+  Info panel).
+
+### Español
+
+**Añadido**
+
+- **Chart — cursor sobre gráficas** — al pasar el dedo o el ratón
+  sobre una gráfica se congela el refresh y aparece una línea
+  vertical + tooltip con `-X.Xs` y el valor de cada banda en ese
+  punto. Escala Y (min / mid / max) por banda en el margen derecho.
+- **Tune — botón ↺ por slider + prompt de perfil** — cada gain trae
+  un ↺ que vuelve al valor previo (el que había al desbloquear). El
+  primer cambio tras unlock lanza un modal preguntando si guardar
+  en el perfil actual, crear un nuevo `tune-YYYYMMDD-HHMM` (mismo
+  patrón que Doctor) o cancelar y revertir.
+- **Setup — chips vivos en cada tile** — TinyPilot con host:port,
+  idioma actual, fecha del último ajuste de calibración (con botón
+  Reset historial), contador de sentencias SK publicadas frente al
+  total del catálogo del plugin, y aviso de SSH configurado en
+  Remote Control Console.
+- **Sensor Quality — Ignorar / Restaurar por fila** — los sensores
+  que nunca han reportado también cuentan en el ✕, y cada fila con
+  problema tiene ahora un botón Ignorar (persistente en el
+  navegador) para no volver a teñir el chip por un sensor que no
+  hay en el barco.
+- **Slide desde arriba para mostrar la barra de pestañas** — vuelta
+  atrás del slide hacia arriba que ya escondía la nav.
+- **Doctor — botón Ocultar siempre + findings traducidos** — se
+  puede vaciar la lista de sugerencias aunque ya las hubieras
+  aplicado, y el chip del tile vuelve a "sano" cuando no queda
+  ninguna. Backend emite ahora claves i18n para findings y summary.
+- **Alarmas en tu idioma** — las siete reglas (desvío de rumbo,
+  autoridad, servo, temperatura, tensión, sensor perdido,
+  desconexión pypilot) se muestran y se hablan en el idioma activo.
+  Al SK sigue viajando el mensaje en inglés para compatibilidad con
+  KIP / WilhelmSK.
+- **Info EN sin fugas al ES** — el "Interfaz clásica pypilot" que
+  se colaba en cualquier idioma pasó a clave i18n.
+- **Remote Console con defaults TinyPilot** — sin borde rojo,
+  usuario `tc` pre-cargado y aviso de que la contraseña por defecto
+  también es `tc`.
+- **Mejor cobertura DE / FR** en todos los strings visibles del
+  Setup, Tune, Doctor y alarmas.
+
+**Cambiado**
+
+- **6 screenshots** actualizados a la UI actual.
+
+### Deutsch
+
+**Neu**
+
+- Chart mit Hover-Freeze und Y-Achse pro Band.
+- Tune-Slider mit ↺ und Profil-Fork-Dialog (Cancel setzt zurueck).
+- Setup-Kacheln zeigen Live-Status (Host, Sprache,
+  Kalibrierdatum, aktive SK-Saetze, SSH konfiguriert).
+- Sensor Quality mit "missing" im Chip-Zaehler und einer
+  Ignore / Restore-Taste pro Zeile.
+- Slide von oben zeigt die Tab-Leiste wieder.
+- Doctor: Ausblenden-Taste bleibt sichtbar, Findings und Summary
+  jetzt uebersetzt.
+- Alarm-Meldungen und Sprachausgabe in der aktiven Sprache.
+- Remote-Konsole ohne roten Rahmen; `tc` als Standard-Login.
+- Erweiterte DE-Uebersetzungen.
+
+### Français
+
+**Nouveautés**
+
+- Onglet Chart avec figeage au survol et graduation Y par bande.
+- Onglet Tune avec bouton ↺ par slider et modal de fork de profil
+  (Annuler revient a la valeur d'origine).
+- Grille Setup avec puces d'etat vivantes (hote, langue, dernier
+  ajustement de calibration, phrases SK actives, SSH configure).
+- Sensor Quality avec "missing" dans le compteur et un bouton
+  Ignorer / Restaurer par ligne.
+- Glissement du haut vers le bas pour reafficher la barre
+  d'onglets.
+- Doctor: bouton Masquer toujours visible, findings et resume
+  traduits.
+- Alarmes et voix TTS dans la langue active.
+- Console distante sans cadre rouge; `tc` par defaut.
+- Traductions FR etendues.
+
 ## 2.2.1 — 2026-08-31 — Rev128
 
 Docs-only patch release.

@@ -45,6 +45,7 @@
       "cal.slider.was":     "before:",
       "cal.slider.restore": "Restore previous value",
       "cal.unlock":         "Unlock sliders",
+      "cal.stampReset":     "Reset history",
       "tune.fork.title":    "Save gain changes",
       "tune.fork.body":     "You just tweaked a gain. Where should the change live?",
       "tune.fork.keep":     "Keep in '{pilot}'",
@@ -55,6 +56,7 @@
       "setup.status.host":      "TinyPilot:",
       "setup.status.hostMissing": "not configured",
       "setup.status.ssh":       "SSH user configured:",
+      "setup.status.sshConfigured": "SSH configured",
       "setup.status.sshSummary": "SSH: {user}",
       "setup.status.sshMissing": "SSH not configured",
       "setup.status.sentences": "Active sentences:",
@@ -191,6 +193,7 @@
       "setup.doctor.forkedProfile":  "Changes applied to a NEW profile {new}. Your original profile {orig} is untouched and one tap away in Tune → Profile.",
       "setup.doctor.discard":   "Discard",
       "setup.doctor.discarded": "DISCARDED",
+      "setup.doctor.hide":      "Hide",
       "doctor.cat.bias":        "bias",
       "doctor.cat.oscillation": "oscillation",
       "doctor.cat.authority":   "authority",
@@ -209,6 +212,16 @@
       "setup.doctor.healthy":      "healthy",
       "setup.doctor.suggested":    "{n} suggested",
       "setup.doctor.noted":        "{n} noted",
+      // Rev136: summary + findings i18n so the whole doctor panel
+      // reads in the active language, not half English half Spanish.
+      "doctor.summary.clean":      "No significant issues detected. Current gains look healthy.",
+      "doctor.summary.notedOnly":  "{issues} issue(s) noted (no gain change suggested).",
+      "doctor.summary.detected":   "{issues} issue(s) detected. {suggestions} gain change(s) suggested.",
+      "doctor.finding.insufficientData": "Only {n} engaged samples collected. Analysis skipped - keep the AP engaged during the whole session.",
+      "doctor.finding.bias":        "Persistent heading offset of {deg}° (mean error).",
+      "doctor.finding.oscillation": "Heading oscillating with period ~{period}s, RMS {rms}°.",
+      "doctor.finding.authority":   "Servo running at {duty}% duty but heading error still {rms}°. AP is losing authority.",
+      "doctor.finding.noise":       "Heading is tight ({rms}°) but servo running {duty}% duty - possible chatter on a noisy heading signal.",
       "alarm.summary.active":      "{n} active",
       "alarm.summary.muted":       "{n} muted",
       "alarm.summary.off":         "{n} off",
@@ -229,6 +242,25 @@
       "sq.col.jitter":             "Jitter",
       "sq.col.source":             "Source",
       "sq.col.status":             "Status",
+      "sq.action.ignore":          "Ignore",
+      "sq.action.restore":         "Restore",
+      // Rev135: alarm engine i18n. Backend still emits English via
+      // the AP Notifications channel; the visor renders these when
+      // present, and everyone else keeps the backend fallback.
+      "alarm.rule.heading-deviation.label":    "Heading deviation",
+      "alarm.rule.heading-deviation.msg":      "Sustained AP heading error of {deg}°",
+      "alarm.rule.unable-to-steer.label":      "Unable to steer",
+      "alarm.rule.unable-to-steer.msg":        "AP losing authority: {deg}° error, servo at {duty}% duty",
+      "alarm.rule.servo-overcurrent.label":    "Servo overcurrent",
+      "alarm.rule.servo-overcurrent.msg":      "Servo overcurrent {amp} A",
+      "alarm.rule.servo-temp-high.label":      "Servo temperature high",
+      "alarm.rule.servo-temp-high.msg":        "Servo temperature {temp} °C",
+      "alarm.rule.low-voltage.label":          "Low voltage",
+      "alarm.rule.low-voltage.msg":            "Low voltage {volt} V",
+      "alarm.rule.sensor-lost.label":          "Sensor lost",
+      "alarm.rule.sensor-lost.msg":            "Sensor lost: {list}",
+      "alarm.rule.pypilot-disconnected.label": "pypilot disconnected",
+      "alarm.rule.pypilot-disconnected.msg":   "pypilot_web disconnected for {sec}s",
       // Setup tab
       "setup.connection": "Connection",
       "setup.scan.title": "Scan LAN for pypilot_web",
@@ -249,7 +281,9 @@
       "setup.ssh.user": "SSH user",
       "setup.ssh.password": "SSH password",
       "setup.ssh.password.ph.notset": "(not set)",
+      "setup.ssh.password.ph.default": "tc (TinyPilot default)",
       "setup.ssh.password.ph.set": "(set - retype to change)",
+      "setup.ssh.defaultHint": "TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.",
       "setup.ssh.save.btn": "Save",
       "setup.restart.btn": "RESTART pypilot",
       "setup.security.hint": "Signal K stores plugin config in plain text at ~/.signalk/plugin-config-data/. Use a password that is only valid for this isolated TinyPilot.",
@@ -424,6 +458,7 @@
       "cal.grp.other":      "Otros",
       "cal.slider.was":     "antes:",
       "cal.slider.restore": "Restaurar valor anterior",
+      "cal.stampReset":     "Reset historial",
       "tune.fork.title":    "Guardar cambios de ganancia",
       "tune.fork.body":     "Has movido una ganancia. Donde quieres que se guarde?",
       "tune.fork.keep":     "Guardar en '{pilot}'",
@@ -434,6 +469,7 @@
       "setup.status.host":      "TinyPilot:",
       "setup.status.hostMissing": "sin configurar",
       "setup.status.ssh":       "Usuario SSH configurado:",
+      "setup.status.sshConfigured": "SSH Configurado",
       "setup.status.sshSummary": "SSH: {user}",
       "setup.status.sshMissing": "SSH sin configurar",
       "setup.status.sentences": "Sentencias activas:",
@@ -571,6 +607,7 @@
       "setup.doctor.forkedProfile":  "Cambios aplicados en un perfil NUEVO {new}. Tu perfil original {orig} queda intacto y a un toque en Ajustes → Perfil.",
       "setup.doctor.discard":   "Descartar",
       "setup.doctor.discarded": "DESCARTADA",
+      "setup.doctor.hide":      "Ocultar",
       "doctor.cat.bias":        "sesgo",
       "doctor.cat.oscillation": "oscilacion",
       "doctor.cat.authority":   "autoridad",
@@ -589,6 +626,14 @@
       "setup.doctor.healthy":      "sano",
       "setup.doctor.suggested":    "{n} sugerencias",
       "setup.doctor.noted":        "{n} notas",
+      "doctor.summary.clean":      "Sin incidencias significativas. Las ganancias parecen sanas.",
+      "doctor.summary.notedOnly":  "{issues} incidencia(s) anotada(s) (sin cambio de ganancia sugerido).",
+      "doctor.summary.detected":   "{issues} incidencia(s) detectada(s). {suggestions} cambio(s) de ganancia sugerido(s).",
+      "doctor.finding.insufficientData": "Solo {n} muestras activas. Analisis omitido - deja el piloto enganchado toda la sesion.",
+      "doctor.finding.bias":        "Desvio de rumbo persistente de {deg}° (error medio).",
+      "doctor.finding.oscillation": "Rumbo oscilando con periodo ~{period}s, RMS {rms}°.",
+      "doctor.finding.authority":   "Servo al {duty}% de trabajo pero el error de rumbo sigue en {rms}°. El piloto pierde autoridad.",
+      "doctor.finding.noise":       "Rumbo muy ajustado ({rms}°) pero servo al {duty}% de trabajo - posible ruido en la señal de rumbo.",
       "alarm.summary.active":      "{n} activas",
       "alarm.summary.muted":       "{n} silenciadas",
       "alarm.summary.off":         "{n} off",
@@ -609,6 +654,22 @@
       "sq.col.jitter":             "Jitter",
       "sq.col.source":             "Fuente",
       "sq.col.status":             "Estado",
+      "sq.action.ignore":          "Ignorar",
+      "sq.action.restore":         "Restaurar",
+      "alarm.rule.heading-deviation.label":    "Desvio de rumbo",
+      "alarm.rule.heading-deviation.msg":      "Error de rumbo del piloto: {deg}° sostenido",
+      "alarm.rule.unable-to-steer.label":      "Piloto sin autoridad",
+      "alarm.rule.unable-to-steer.msg":        "El piloto pierde autoridad: {deg}° de error, servo al {duty}%",
+      "alarm.rule.servo-overcurrent.label":    "Sobrecorriente servo",
+      "alarm.rule.servo-overcurrent.msg":      "Sobrecorriente en el servo: {amp} A",
+      "alarm.rule.servo-temp-high.label":      "Temperatura servo alta",
+      "alarm.rule.servo-temp-high.msg":        "Temperatura del servo: {temp} °C",
+      "alarm.rule.low-voltage.label":          "Tension baja",
+      "alarm.rule.low-voltage.msg":            "Tension baja: {volt} V",
+      "alarm.rule.sensor-lost.label":          "Sensor perdido",
+      "alarm.rule.sensor-lost.msg":            "Sensor perdido: {list}",
+      "alarm.rule.pypilot-disconnected.label": "pypilot desconectado",
+      "alarm.rule.pypilot-disconnected.msg":   "pypilot_web desconectado desde hace {sec}s",
       // Setup tab
       "setup.connection": "Conexion",
       "setup.scan.title": "Escanear LAN buscando pypilot_web",
@@ -629,6 +690,8 @@
       "setup.ssh.user": "Usuario SSH",
       "setup.ssh.password": "Password SSH",
       "setup.ssh.password.ph.notset": "(sin configurar)",
+      "setup.ssh.password.ph.default": "tc (por defecto en TinyPilot)",
+      "setup.ssh.defaultHint": "TinyPilot viene con credenciales por defecto: usuario <b>tc</b> / contrasena <b>tc</b>. Cambialas en el Pi si quieres mayor seguridad.",
       "setup.ssh.password.ph.set": "(configurado - reescribe para cambiarlo)",
       "setup.ssh.save.btn": "Guardar",
       "setup.restart.btn": "REINICIAR pypilot",
@@ -827,6 +890,7 @@
       "setup.status.host":         "TinyPilot:",
       "setup.status.hostMissing":  "nicht konfiguriert",
       "setup.status.ssh":          "SSH-Benutzer konfiguriert:",
+      "setup.status.sshConfigured": "SSH konfiguriert",
       "setup.status.sshSummary":   "SSH: {user}",
       "setup.status.sshMissing":   "SSH nicht konfiguriert",
       "setup.status.sentences":    "Aktive Saetze:",
@@ -850,6 +914,27 @@
       "setup.paths.title":    "Pfade & API",
       "setup.precheck.title": "Autopilot-Check",
       "setup.doctor.title":   "Diagnose & Empfehlungen",
+      "alarm.rule.heading-deviation.label":    "Kursabweichung",
+      "alarm.rule.heading-deviation.msg":      "AP-Kursfehler {deg}° anhaltend",
+      "alarm.rule.unable-to-steer.label":      "AP verliert Steuerung",
+      "alarm.rule.unable-to-steer.msg":        "AP verliert Autoritaet: {deg}° Fehler, Servo {duty}%",
+      "alarm.rule.servo-overcurrent.label":    "Servo-Ueberstrom",
+      "alarm.rule.servo-overcurrent.msg":      "Servo-Ueberstrom {amp} A",
+      "alarm.rule.servo-temp-high.label":      "Servo-Temperatur hoch",
+      "alarm.rule.servo-temp-high.msg":        "Servo-Temperatur {temp} °C",
+      "alarm.rule.low-voltage.label":          "Unterspannung",
+      "alarm.rule.low-voltage.msg":            "Unterspannung {volt} V",
+      "alarm.rule.sensor-lost.label":          "Sensor verloren",
+      "alarm.rule.sensor-lost.msg":            "Sensor verloren: {list}",
+      "alarm.rule.pypilot-disconnected.label": "pypilot getrennt",
+      "alarm.rule.pypilot-disconnected.msg":   "pypilot_web {sec}s getrennt",
+      "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
+      "doctor.summary.notedOnly":  "{issues} Punkt(e) notiert (keine Gain-Aenderung vorgeschlagen).",
+      "doctor.summary.detected":   "{issues} Problem(e) erkannt. {suggestions} Gain-Aenderung(en) vorgeschlagen.",
+      "doctor.finding.bias":        "Anhaltender Kursversatz von {deg}° (mittlerer Fehler).",
+      "doctor.finding.oscillation": "Kurs schwingt mit Periode ~{period}s, RMS {rms}°.",
+      "doctor.finding.authority":   "Servo bei {duty}% aber Kursfehler {rms}°. AP verliert Autoritaet.",
+      "doctor.finding.noise":       "Kurs sehr eng ({rms}°) aber Servo bei {duty}% - moegliches Rauschen im Kurssignal.",
       // Restart triad + helm
       "setup.restart.title":         "Notfall-Neustart / Reboot",
       "helm.warn":    "STELL SICHER, DASS JEMAND AM RUDER STEHT, bevor du fortfahrst. Nicht der Moment, unter Deck zu sein.",
@@ -899,6 +984,7 @@
       "setup.status.host":         "TinyPilot:",
       "setup.status.hostMissing":  "non configure",
       "setup.status.ssh":          "Utilisateur SSH configure:",
+      "setup.status.sshConfigured": "SSH configure",
       "setup.status.sshSummary":   "SSH: {user}",
       "setup.status.sshMissing":   "SSH non configure",
       "setup.status.sentences":    "Phrases actives:",
@@ -922,6 +1008,27 @@
       "setup.paths.title":    "Paths & API",
       "setup.precheck.title": "Verification autopilote",
       "setup.doctor.title":   "Diagnostic & Conseils",
+      "alarm.rule.heading-deviation.label":    "Deviation de cap",
+      "alarm.rule.heading-deviation.msg":      "Erreur de cap AP {deg}° soutenue",
+      "alarm.rule.unable-to-steer.label":      "AP en perte d'autorite",
+      "alarm.rule.unable-to-steer.msg":        "AP en perte d'autorite: {deg}° d'erreur, servo a {duty}%",
+      "alarm.rule.servo-overcurrent.label":    "Surintensite servo",
+      "alarm.rule.servo-overcurrent.msg":      "Surintensite servo {amp} A",
+      "alarm.rule.servo-temp-high.label":      "Temperature servo elevee",
+      "alarm.rule.servo-temp-high.msg":        "Temperature servo {temp} °C",
+      "alarm.rule.low-voltage.label":          "Tension basse",
+      "alarm.rule.low-voltage.msg":            "Tension basse {volt} V",
+      "alarm.rule.sensor-lost.label":          "Capteur perdu",
+      "alarm.rule.sensor-lost.msg":            "Capteur perdu: {list}",
+      "alarm.rule.pypilot-disconnected.label": "pypilot deconnecte",
+      "alarm.rule.pypilot-disconnected.msg":   "pypilot_web deconnecte depuis {sec}s",
+      "doctor.summary.clean":      "Aucun probleme majeur. Les gains ont l'air sains.",
+      "doctor.summary.notedOnly":  "{issues} point(s) note(s) (aucun changement de gain suggere).",
+      "doctor.summary.detected":   "{issues} probleme(s) detecte(s). {suggestions} changement(s) de gain suggere(s).",
+      "doctor.finding.bias":        "Decalage de cap persistant de {deg}° (erreur moyenne).",
+      "doctor.finding.oscillation": "Cap oscillant avec periode ~{period}s, RMS {rms}°.",
+      "doctor.finding.authority":   "Servo a {duty}% mais erreur de cap {rms}°. AP en perte d'autorite.",
+      "doctor.finding.noise":       "Cap tres serre ({rms}°) mais servo a {duty}% - bruit possible dans le signal de cap.",
       // Restart triad + helm
       "setup.restart.title":         "Urgence : redemarrage / reboot",
       "helm.warn":    "ASSURE-TOI QU'UNE PERSONNE EST A LA BARRE avant de continuer. Ce n'est pas le moment d'etre en bas.",
@@ -2314,8 +2421,15 @@
   }
   function wireCalibUnlock() {
     const cb = document.getElementById("calib-unlock");
-    if (!cb) return;
-    cb.addEventListener("change", _applyCalibLockState);
+    if (cb) cb.addEventListener("change", _applyCalibLockState);
+    // Rev135 (Carlos): "Reset historial" button clears the stored
+    // last-adjustment timestamp so the Setup Calibration chip goes
+    // back to "sin ajustar" until the next real slider change.
+    const rst = document.getElementById("cal-stamp-reset");
+    if (rst) rst.addEventListener("click", () => {
+      try { localStorage.removeItem(CAL_STAMP_KEY); } catch { /* silent */ }
+      _refreshSetupBadges();
+    });
   }
 
   // Rev36: /values requires SK auth. Was fetched as plain (no JWT) so the
@@ -3526,6 +3640,7 @@
   // ---- Paths tab ----
   let _lastPathsItems = [];
   let _lastEnabledMap = {};
+  let _lastEssentialCount = 0;   // Rev135: how many essentials the backend advertises.
 
   let _publishOnlyEssentials = true;
 
@@ -3536,6 +3651,7 @@
       _lastPathsItems = j.items || [];
       _lastEnabledMap = j.enabledPaths || {};
       _publishOnlyEssentials = !!j.publishOnlyEssentials;
+      _lastEssentialCount = Array.isArray(j.essentials) ? j.essentials.length : 0;
       const cb = $("#cfg-only-essentials");
       if (cb) cb.checked = _publishOnlyEssentials;
       renderPathsTable();
@@ -4373,17 +4489,23 @@
     return map[code] || code || "?";
   }
   function _countActiveSentences() {
+    // Rev136 (Carlos): report "N active / M available", where M is
+    // the full plugin-mapped catalog (every non-reserved pypilot key
+    // is mappable to an SK path). The user's intuition is that the
+    // chip should tell them what fraction of the plugin's optional
+    // sentences they've turned on - so we show M as the total.
     if (!Array.isArray(_lastPathsItems) || _lastPathsItems.length === 0) return null;
-    let n = 0;
+    let active = 0;
     for (const it of _lastPathsItems) {
-      if (it.essential) { n++; continue; }
+      if (it.essential) { active++; continue; }
+      const explicit = _lastEnabledMap[it.pypilotName];
       if (_publishOnlyEssentials) {
-        if (_lastEnabledMap[it.pypilotName] === true) n++;
+        if (explicit === true) active++;
       } else {
-        if (_lastEnabledMap[it.pypilotName] !== false) n++;
+        if (explicit !== false) active++;
       }
     }
-    return { active: n, total: _lastPathsItems.length };
+    return { active, total: _lastPathsItems.length };
   }
   function _refreshSetupBadges() {
     // Language
@@ -4417,8 +4539,11 @@
       const user = su && su.value ? su.value.trim() : "";
       const el = document.getElementById("setup-status-remote");
       if (user) {
-        if (el) el.innerHTML = `${t("setup.status.ssh") || "SSH user configured:"} <b>${user}</b>`;
-        _updateSetupSummary("emergency", (t("setup.status.sshSummary") || "SSH: {user}").replace("{user}", user), "good");
+        // Rev135 (Carlos): don't expose the SSH username in the chip,
+        // just say it's configured. The user is still visible inside
+        // the card for editing.
+        if (el) el.innerHTML = `${t("setup.status.sshConfigured") || "SSH configured"}`;
+        _updateSetupSummary("emergency", t("setup.status.sshConfigured") || "SSH configured", "good");
       } else {
         if (el) el.textContent = "";
         // Neutral chip (no level): matches the "..." look of other
@@ -4434,8 +4559,8 @@
       const c = _countActiveSentences();
       const el = document.getElementById("setup-status-paths");
       if (c) {
-        if (el) el.innerHTML = `${t("setup.status.sentences") || "Active sentences:"} <b>${c.active}</b>`;
-        _updateSetupSummary("paths", `${c.active}`, c.active > 0 ? "good" : "warn");
+        if (el) el.innerHTML = `${t("setup.status.sentences") || "Active sentences:"} <b>${c.active}</b> / ${c.total}`;
+        _updateSetupSummary("paths", `${c.active} / ${c.total}`, c.active > 0 ? "good" : "warn");
       } else {
         if (el) el.textContent = "";
       }
@@ -5238,6 +5363,13 @@
   // start / cancel / apply / apply-all buttons are the only writers -
   // everything else is a re-render from the status snapshot.
   const _doc = { timer: null, last: null };
+  // Rev135 (Carlos): frontend-side "hide" set. The backend keeps its
+  // own dismissed state, but this is what removes an already-applied
+  // (or already-dismissed) card from the UI so the list stays clean.
+  const DOC_HIDDEN_KEY = "pypilot-newui.doctorHidden";
+  const _docHiddenIds = new Set(
+    (() => { try { return JSON.parse(localStorage.getItem(DOC_HIDDEN_KEY) || "[]"); } catch { return []; } })()
+  );
   async function _docFetch() {
     try {
       const r = await fetch(`/plugins/${PLUGIN_ID}/doctor/status`);
@@ -5264,7 +5396,11 @@
     if (st.state === "running") { sumTxt = `${st.elapsedSec}/${st.targetDurationSec}s`; sumLvl = "warn"; }
     else if (st.state === "analyzing") { sumTxt = t("setup.doctor.analyzing.short"); sumLvl = "warn"; }
     else if (st.state === "completed" && st.result) {
-      const nsug = (st.result.suggestions || []).length;
+      // Rev136 (Carlos): hidden-locally suggestions/findings also
+      // vanish from the chip counter, so once the user has cleared
+      // them all the tile goes back to "healthy" instead of stubborn
+      // ly saying "1 suggested" forever.
+      const nsug = (st.result.suggestions || []).filter((s) => !_docHiddenIds.has(s.id)).length;
       const nfind = (st.result.findings || []).length;
       if (nsug > 0) sumTxt = t("setup.doctor.suggested").replace("{n}", nsug);
       else if (nfind > 0) sumTxt = t("setup.doctor.noted").replace("{n}", nfind);
@@ -5308,7 +5444,11 @@
     if (r.suggestions.length === 0 && r.findings.length === 0) sum.classList.add("pc-ready");
     else if (r.findings.some((f) => f.severity === "critical")) sum.classList.add("pc-fail");
     else if (r.findings.length > 0) sum.classList.add("pc-caveats");
-    sum.textContent = `${r.summary}  ·  ${t("setup.doctor.samplesSummary").replace("{engaged}", r.engagedSamples).replace("{total}", r.samplesAnalyzed).replace("{pilot}", r.pilotId)}`;
+    // Rev136 (Carlos): translate the "N issue(s) detected..." summary
+    // using the summaryKey the backend now emits (fallbacks to the
+    // English string it also sends for legacy consumers).
+    const summaryText = _tSub(r.summaryKey, r.summaryArgs) || r.summary;
+    sum.textContent = `${summaryText}  ·  ${t("setup.doctor.samplesSummary").replace("{engaged}", r.engagedSamples).replace("{total}", r.samplesAnalyzed).replace("{pilot}", r.pilotId)}`;
     root.appendChild(sum);
     // Rev120 (Carlos): new-profile banner shown as soon as any suggestion
     // has been applied. Tells the user the original profile is safe and
@@ -5340,7 +5480,9 @@
         body.className = "doctor-finding-body";
         const msg = document.createElement("div");
         msg.className = "doctor-finding-msg";
-        msg.textContent = f.message;
+        // Rev136: same pattern as suggestions - use the i18n key when
+        // the backend sends one, fall back to English text otherwise.
+        msg.textContent = _tSub(f.messageKey, f.messageArgs) || f.message;
         const met = document.createElement("div");
         met.className = "doctor-finding-metric";
         met.textContent = f.metric;
@@ -5365,6 +5507,10 @@
       const list = document.createElement("div");
       list.className = "doctor-suggestions";
       for (const s of r.suggestions) {
+        // Rev135: locally-hidden suggestions stay collapsed. The user
+        // asked to be able to clear stale advice from the list even
+        // after applying it.
+        if (_docHiddenIds.has(s.id)) continue;
         list.appendChild(_docRenderSuggestion(s));
       }
       root.appendChild(list);
@@ -5444,15 +5590,29 @@
     // Actions - Apply + Discard side by side
     const actions = document.createElement("div");
     actions.className = "doctor-sug-actions";
-    if (!s.applied && !s.dismissed) {
+    // Rev135 (Carlos): the Discard/Hide button used to disappear as
+    // soon as a suggestion was applied or dismissed, leaving the card
+    // stuck on the list with no way to clear it. Show it in every
+    // state: on a pristine suggestion it calls the backend dismiss
+    // endpoint (server-side ignore); on an already-applied /
+    // dismissed one it hides the card locally so the list stays
+    // tidy without touching backend state.
+    {
       const discard = document.createElement("button");
       discard.className = "doctor-sug-discard";
       discard.type = "button";
-      discard.textContent = t("setup.doctor.discard");
+      const hidden = _docHiddenIds.has(s.id);
+      discard.textContent = (s.applied || s.dismissed || hidden)
+        ? (t("setup.doctor.hide") || "Hide")
+        : t("setup.doctor.discard");
       discard.addEventListener("click", async () => {
         discard.disabled = true;
         try {
-          await fetch(`/plugins/${PLUGIN_ID}/doctor/dismiss/${s.id}`, { method: "POST" });
+          if (!s.applied && !s.dismissed) {
+            await fetch(`/plugins/${PLUGIN_ID}/doctor/dismiss/${s.id}`, { method: "POST" });
+          }
+          _docHiddenIds.add(s.id);
+          try { localStorage.setItem(DOC_HIDDEN_KEY, JSON.stringify([..._docHiddenIds])); } catch { /* silent */ }
           _docFetch();
         } catch { /* silent */ }
       });
@@ -5632,6 +5792,50 @@
   function _alSeverityIcon(sev) {
     return sev === "alarm" ? "!" : sev === "warn" ? "⚠" : "ℹ";
   }
+  // Rev135 (Carlos): the alarm engine builds the message string on
+  // the backend in English. Instead of duplicating the whole rule
+  // set to i18n it we parse the numeric args back out here, look up
+  // "alarm.rule.<id>.msg" and interpolate. If no translation is
+  // registered we fall back to the backend English string, so old
+  // rules keep working without a frontend change.
+  function _alExtractArgs(id, msg) {
+    const out = {};
+    if (id === "heading-deviation") {
+      const r = /error ([\d.]+)/.exec(msg);
+      if (r) out.deg = r[1];
+    } else if (id === "unable-to-steer") {
+      const r = /: ([\d.]+)° error, servo ([\d.]+)%/.exec(msg);
+      if (r) { out.deg = r[1]; out.duty = r[2]; }
+    } else if (id === "servo-overcurrent") {
+      const r = /([\d.]+) A/.exec(msg);
+      if (r) out.amp = r[1];
+    } else if (id === "servo-temp-high") {
+      const r = /([\d.]+) °C/.exec(msg);
+      if (r) out.temp = r[1];
+    } else if (id === "low-voltage") {
+      const r = /([\d.]+) V/.exec(msg);
+      if (r) out.volt = r[1];
+    } else if (id === "sensor-lost") {
+      const r = /lost: (.*)$/.exec(msg);
+      if (r) out.list = r[1];
+    } else if (id === "pypilot-disconnected") {
+      const r = /(\d+)s/.exec(msg);
+      if (r) out.sec = r[1];
+    }
+    return out;
+  }
+  function _alTranslate(a) {
+    const labelKey = `alarm.rule.${a.ruleId}.label`;
+    const labelT = t(labelKey);
+    const label = (labelT === labelKey) ? a.label : labelT;
+    const msgKey = `alarm.rule.${a.ruleId}.msg`;
+    const msgT = t(msgKey);
+    if (msgT === msgKey) return { label, message: a.message };
+    const args = _alExtractArgs(a.ruleId, a.message || "");
+    let msg = msgT;
+    for (const [k, v] of Object.entries(args)) msg = msg.replaceAll(`{${k}}`, v);
+    return { label, message: msg };
+  }
   function _alRenderBanner() {
     const el = document.getElementById("alarm-banner");
     if (!el) return;
@@ -5660,12 +5864,13 @@
       icon.textContent = _alSeverityIcon(a.severity);
       const txt = document.createElement("div");
       txt.className = "alarm-txt";
+      const trans = _alTranslate(a);
       const lab = document.createElement("div");
       lab.className = "alarm-label";
-      lab.textContent = a.label;
+      lab.textContent = trans.label;
       const msg = document.createElement("div");
       msg.className = "alarm-msg";
-      msg.textContent = a.message;
+      msg.textContent = trans.message;
       txt.appendChild(lab); txt.appendChild(msg);
       const ackBtn = document.createElement("button");
       ackBtn.className = "alarm-ack";
@@ -5843,15 +6048,18 @@
   }
   function _alPlayForSeverity(a) {
     if (!a) return;
+    // Rev135: speak the translated message so DE/ES/FR users hear it
+    // in their language, not the raw English backend string.
+    const spoken = _alTranslate(a).message;
     if (a.severity === "alarm") {
       // Triple high-pitch beep + spoken message.
       _alBeep(1200, 180, 0.35);
       setTimeout(() => _alBeep(1200, 180, 0.35), 250);
       setTimeout(() => _alBeep(1200, 180, 0.35), 500);
-      setTimeout(() => _alSpeak(a.message), 850);
+      setTimeout(() => _alSpeak(spoken), 850);
     } else {
       _alBeep(800, 250, 0.25);
-      setTimeout(() => _alSpeak(a.message), 350);
+      setTimeout(() => _alSpeak(spoken), 350);
     }
   }
   function alarmsStart() {
@@ -5868,6 +6076,14 @@
   // the rows with a colored pill per status.
 
   const _sq = { timer: null, lastData: null };
+  // Rev135 (Carlos): per-path ignore list. A sensor the user has
+  // marked as "not on this boat" keeps its row visible (with an
+  // IGNORED pill and a Restore button) but stops contributing to the
+  // Setup chip's red count.
+  const SQ_IGNORED_KEY = "pypilot-newui.sqIgnored";
+  const _sqIgnored = new Set(
+    (() => { try { return JSON.parse(localStorage.getItem(SQ_IGNORED_KEY) || "[]"); } catch { return []; } })()
+  );
 
   function _sqFormatValue(v) {
     if (v == null) return "--";
@@ -5908,14 +6124,14 @@
     const tbody = document.querySelector("#sq-table tbody");
     if (!tbody || !_sq.lastData) return;
     const rows = _sq.lastData.items || [];
-    // Rev105: collapsed summary "N good · M warn · K lost".
-    // Rev134 (Carlos): also count "missing" sensors (a watched path
-    // that has never emitted a delta - e.g. rudder without a rudder
-    // sensor wired). The ✕ tally now bundles missing + lost so the
-    // chip flags the situation instead of silently reporting 8✓ 0!
-    // 0✕ while one sensor is nowhere to be seen.
+    // Rev135 (Carlos): sensors the user has explicitly acknowledged
+    // as "not on this boat" (rudder sensor missing on a wheel-steer
+    // setup, temp sensor absent, ...) count as OK in the chip and
+    // stop turning it red. Persisted in localStorage; clearable per
+    // row from the table (a "Restore" button on the ignored one).
     let g = 0, w = 0, l = 0, m = 0;
     for (const r of rows) {
+      if (_sqIgnored.has(r.path)) { g += 1; continue; }
       if (r.level === "good") g += 1;
       else if (r.level === "degraded") w += 1;
       else if (r.level === "lost") l += 1;
@@ -5927,6 +6143,8 @@
     tbody.textContent = "";
     for (const r of rows) {
       const tr = document.createElement("tr");
+      const ignored = _sqIgnored.has(r.path);
+      const displayLevel = ignored ? "ignored" : (r.level || "");
       const cells = [
         r.label || r.path,
         _sqFormatValue(r.lastValue),
@@ -5934,7 +6152,7 @@
         _sqFormatHz(r.hz),
         _sqFormatJitter(r.jitterMs),
         r.source || "--",
-        `<span class="sq-status ${r.level}">${(r.level || "").toUpperCase()}</span>`,
+        `<span class="sq-status ${displayLevel}">${displayLevel.toUpperCase()}</span>`,
       ];
       for (let i = 0; i < cells.length; i += 1) {
         const td = document.createElement("td");
@@ -5943,6 +6161,28 @@
         if (i === 1) td.className = "sq-value";
         tr.appendChild(td);
       }
+      // Ignore/Restore action cell. Only meaningful for sensors that
+      // are actually degraded/lost/missing - a healthy sensor doesn't
+      // need to be silenced.
+      const actionTd = document.createElement("td");
+      actionTd.className = "sq-action";
+      const canIgnore = (r.level === "missing" || r.level === "lost" || r.level === "degraded");
+      if (ignored || canIgnore) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "sq-ignore-btn";
+        btn.textContent = ignored
+          ? (t("sq.action.restore") || "Restore")
+          : (t("sq.action.ignore") || "Ignore");
+        btn.addEventListener("click", () => {
+          if (_sqIgnored.has(r.path)) _sqIgnored.delete(r.path);
+          else _sqIgnored.add(r.path);
+          try { localStorage.setItem(SQ_IGNORED_KEY, JSON.stringify([..._sqIgnored])); } catch { /* silent */ }
+          sqRender();
+        });
+        actionTd.appendChild(btn);
+      }
+      tr.appendChild(actionTd);
       tbody.appendChild(tr);
     }
   }
