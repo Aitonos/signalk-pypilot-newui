@@ -9,6 +9,16 @@ and switches out of the box.
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
 
+## Screenshots
+
+| Control | Tune |
+|---|---|
+| ![Control tab](./public/screenshots/01-control-rose.jpg) | ![Tune tab](./public/screenshots/02-tune-gains.jpg) |
+
+| Info | Setup |
+|---|---|
+| ![Info tab](./public/screenshots/03-info.jpg) | ![Setup tab](./public/screenshots/04-setup.jpg) |
+
 ## What's new in 2.2.0
 
 2.2.0 turns the plugin into an **intelligence layer over pypilot**. Forty
