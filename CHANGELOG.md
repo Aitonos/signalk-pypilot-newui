@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.1 — 2026-08-31 — Rev128
+
+Docs-only patch release.
+
+- **README** — embedded the four App Store screenshots as absolute
+  `raw.githubusercontent.com` URLs so they render both on the NPM
+  website (which only surfaces the README, not `signalk.screenshots[]`)
+  and inside any other viewer that follows the README markdown. The
+  registry serves the README frozen at publish time, so this bump is
+  the only way to get the updated README to `npmjs.com/package/signalk-pypilot-newui`.
+
 ## 2.2.0 — 2026-08-31 — Rev88..Rev127
 
 Forty in-session Revs of navigation-oriented features on top of the

@@ -13,11 +13,11 @@ by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongs
 
 | Control | Tune |
 |---|---|
-| ![Control tab](./public/screenshots/01-control-rose.jpg) | ![Tune tab](./public/screenshots/02-tune-gains.jpg) |
+| ![Control tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg) | ![Tune tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-tune-gains.jpg) |
 
 | Info | Setup |
 |---|---|
-| ![Info tab](./public/screenshots/03-info.jpg) | ![Setup tab](./public/screenshots/04-setup.jpg) |
+| ![Info tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-info.jpg) | ![Setup tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-setup.jpg) |
 
 ## What's new in 2.2.0
 
