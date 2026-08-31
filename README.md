@@ -9,6 +9,68 @@ and switches out of the box.
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
 
+## What's new in 2.2.0
+
+2.2.0 turns the plugin into an **intelligence layer over pypilot**. Forty
+in-session Revs on top of the 2.1.0 visual foundation. Highlights:
+
+- **Aproado pseudo-mode** — a new "raise the sails" AP mode not in
+  pypilot upstream. Pick BY BOW / BY STERN via a 5 s modal, the
+  plugin switches pypilot to wind mode with target 0° (head to
+  wind), and a floating HUD over the boat shows elapsed time,
+  straight-line distance from the start and the compass heading
+  captured at activation. SALIR restores the previous mode + target
+  + engaged state. BY STERN forces a stern-through swing by walking
+  a chain of intermediate targets 60° apart so pypilot cannot
+  shortcut through the bow.
+- **Telemetry historian + Chart tab** — RAM ring buffer at 1 Hz for
+  the last 30 min (backend, Pi 5 friendly). Nine Trip Stats cards
+  (AP engaged time, distance, energy, mean / RMS / p95 heading
+  error, servo runtime, tacks / gybes, peak servo A) fed live via
+  SK paths, plus a canvas with 30 s / 2 min / 10 min windows.
+- **Sensor Quality + Servo Health + Alarm engine + Pre-departure
+  check** — new backend modules that grade every SK path the AP
+  depends on, learn a baseline servo current and flag anomalies,
+  evaluate seven alarm rules that publish canonical
+  `notifications.autopilot.*`, and roll everything into a single
+  READY / READY-WITH-CAVEATS / DO-NOT-ENGAGE verdict.
+- **Pypilot Doctor** — press DIAGNOSE, the plugin records 2-3 min
+  with the AP engaged, runs heuristic rules on the heading error
+  stream (bias / oscillation / low authority) and proposes P / I /
+  D adjustments with a plain explanation. Nothing is applied
+  automatically. The first Apply of a session **forks the current
+  pypilot profile** into a new `doctor-YYYYMMDD-HHMM` profile so
+  the previous gains stay one profile-select away.
+- **Setup as a launcher grid** — every setup block is now a square
+  tile in a 2 / 3 / 4-column grid. Tap opens fullscreen with a
+  small X to close and ESC support. Live summary pill on every
+  tile. Connection consolidated (status + LAN scan + manual host +
+  Autopilot Provider in one card). "Emergency" renamed to "Remote
+  Control Console".
+- **Interactive SSH console** — free-form command input with
+  on-screen arrow buttons for mobile history navigation,
+  accumulative output textarea, clipboard fallback for HTTP LAN,
+  and 14 preset buttons with plain human labels (Memory / IP
+  table / WiFi / Temperature / Who is connected / ...). BusyBox /
+  piCore-safe fallbacks for every command.
+- **Full RangeSetting sliders in Calibration** — every pypilot
+  `RangeSetting` grouped by category (rudder / servo / imu / ap /
+  other) with the same look as the Tune tab, a lock checkbox with
+  the padlock emoji, a frozen "before:" baseline that never moves
+  as you drag, and a per-slider ↺ restore button.
+- **Gota Chain shape swap** — after iterations with skippers using
+  the plugin: the AMBER "A" arrow (apparent wind) is now the LARGE
+  piece and the TEAL "T" arrow (true wind) the SMALL outer one.
+  Colors and letters kept their canonical meaning; only the SVG
+  paths moved so the amber piece is visually the dominant one.
+- **Full i18n audit** across EN / ES / FR / DE — every hard-coded
+  English string in the non-EN bundles purged, alarm messages and
+  Doctor suggestion reason / effect exposed as i18n keys + args so
+  the frontend renders in the user's language.
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for the full detailed list in
+four languages.
+
 ## Upgrading from 1.0.0 to 2.0.0
 
 2.0.0 is a **breaking release** addressing feedback from Sean D'Epagnier
@@ -162,15 +224,35 @@ that isolated TinyPilot.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET`  | `/plugins/signalk-pypilot-newui/status`        | Connection + last-seen catalog summary + Rev + version |
+| `GET`  | `/plugins/signalk-pypilot-newui/status`        | Connection + last-seen catalog summary + Rev + version + historian header + KPI computedTs |
 | `GET`  | `/plugins/signalk-pypilot-newui/scan`          | Scan LAN for `pypilot_web` hosts |
 | `GET`  | `/plugins/signalk-pypilot-newui/paths`         | Live list of published SK paths with GET / PUT URLs and units |
 | `GET`  | `/plugins/signalk-pypilot-newui/catalog`       | Raw pypilot catalog (all values + metadata) |
+| `GET`  | `/plugins/signalk-pypilot-newui/values`        | Current pypilot value cache |
 | `PUT`  | `/plugins/signalk-pypilot-newui/raw`           | Send raw `name=value` to pypilot (protected by `allowWrites`) |
-| `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH `sv restart` of pypilot core+web on the TinyPilot, uses `sshUser` + `sshPassword` from plugin config |
-| `POST` | `/plugins/signalk-pypilot-newui/debug-cmd`     | Run one of a closed whitelist of preset diagnostic / restart commands over SSH (`restart.web`, `reboot.pi`, `logs.pypilot`, `logs.web`, `dmesg`, `top`, `uptime`, `df`, `pypilot.version`). Body: `{ "preset": "<name>" }` |
-| `POST` | `/plugins/signalk-pypilot-newui/pause`         | Disconnect local socket (for scripts) |
-| `POST` | `/plugins/signalk-pypilot-newui/resume`        | Reconnect local socket (for scripts) |
+| `GET`  | `/plugins/signalk-pypilot-newui/history`       | Historian slice. Query `?window=30s\|2m\|10m` and `?paths=headingCmd,rudder,...`. RAM ring buffer at 1 Hz. |
+| `GET`  | `/plugins/signalk-pypilot-newui/stats`         | KPI snapshot: session (engaged time, distance, energy, tacks, gybes, max servo A) + window1m (mean / RMS / p95 heading error, servo duty). |
+| `POST` | `/plugins/signalk-pypilot-newui/session/reset` | Reset the KPI session counters. History buffer is kept. |
+| `GET`  | `/plugins/signalk-pypilot-newui/quality`       | Sensor Quality snapshot: age / observed Hz / jitter / source / status per watched SK path. |
+| `GET`  | `/plugins/signalk-pypilot-newui/servo-health`  | Servo Health snapshot: learned baseline current, deviation ratio, peak A, samples in the learn window. |
+| `GET`  | `/plugins/signalk-pypilot-newui/alarms/state`  | Active alarms + short resolved history. |
+| `GET`  | `/plugins/signalk-pypilot-newui/alarms/rules`  | Rule metadata (id / label / severity / enabled / muted / active). |
+| `POST` | `/plugins/signalk-pypilot-newui/alarms/ack/:id`     | Acknowledge one active alarm (silences the sound, banner stays visible). |
+| `POST` | `/plugins/signalk-pypilot-newui/alarms/mute/:id`    | Mute the RULE for N minutes (query `?min=15`). |
+| `POST` | `/plugins/signalk-pypilot-newui/alarms/enable/:id`  | Enable / disable a rule (query `?on=1\|0`). |
+| `GET`  | `/plugins/signalk-pypilot-newui/prechecks`     | Pre-departure autopilot check verdict: `ready` / `ready-with-caveats` / `do-not-engage` + per-item detail. |
+| `POST` | `/plugins/signalk-pypilot-newui/doctor/start`  | Start a diagnostic session (query `?duration=180`). Requires AP engaged. |
+| `POST` | `/plugins/signalk-pypilot-newui/doctor/cancel` | Cancel the current session. |
+| `GET`  | `/plugins/signalk-pypilot-newui/doctor/status` | Session state + progress + result (when completed). |
+| `POST` | `/plugins/signalk-pypilot-newui/doctor/apply/:id`   | Apply one gain suggestion. The FIRST apply of the session forks the profile into `doctor-YYYYMMDD-HHMM`. |
+| `POST` | `/plugins/signalk-pypilot-newui/doctor/apply-all`   | Apply every non-dismissed suggestion (all land in the same forked profile). |
+| `POST` | `/plugins/signalk-pypilot-newui/doctor/dismiss/:id` | Mark a suggestion as dismissed (user rejects it). |
+| `POST` | `/plugins/signalk-pypilot-newui/doctor/reset`  | Clear result, back to idle. |
+| `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH `sv restart` of pypilot core+web on the TinyPilot. |
+| `POST` | `/plugins/signalk-pypilot-newui/debug-cmd`     | Run one of a closed whitelist of preset diagnostic / restart commands over SSH. Body: `{ "preset": "<name>" }`. |
+| `POST` | `/plugins/signalk-pypilot-newui/ssh-exec`      | Free-form SSH command (Remote Control Console). Body: `{ "cmd": "<any shell>" }`. Requires `allowWrites`. |
+| `POST` | `/plugins/signalk-pypilot-newui/pause`         | Disconnect local socket (for scripts). |
+| `POST` | `/plugins/signalk-pypilot-newui/resume`        | Reconnect local socket (for scripts). |
 
 ## Safety
 
