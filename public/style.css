@@ -191,6 +191,11 @@ body.nav-hidden nav#tabbar {
   font-weight: 600;
   border-bottom: 3px solid transparent;
   cursor: pointer;
+  /* Rev144 (Carlos): tab labels in uppercase so accented characters
+     (e.g. "AJUSTES") stay readable regardless of whether the source
+     string carries the accent - accents are optional on uppercase. */
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .tab-btn.active {
@@ -3151,6 +3156,49 @@ body.setup-fullscreen-active #tabbar {
   font-size: 15px;
   padding: 4px 8px;
   min-width: 30px;
+}
+
+/* Rev139 (Carlos): plain-language help under each gain slider. One
+   short sentence is always visible, a "?" toggles a second line with
+   the "when to raise / lower" guidance. Kept small so the row height
+   stays readable on a phone. */
+.gain-help {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 4px 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--fg-dim);
+}
+.gain-help-short { flex: 1 1 auto; }
+.gain-help-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.gain-help-btn:hover,
+.gain-help-btn.open {
+  color: var(--accent, #4dd4ff);
+  border-color: var(--accent, #4dd4ff);
+}
+.gain-help-long {
+  padding: 4px 8px 6px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--accent, #4dd4ff);
+  margin: 0 4px 4px 8px;
+  border-radius: 0 4px 4px 0;
 }
 
 /* Rev135: Sensor Quality per-row Ignore / Restore button. */

@@ -16,10 +16,11 @@ import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
 import { AlarmEngine } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
+import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev137";
+const PLUGIN_REVISION = "Rev145";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -37,9 +38,17 @@ const SOURCE_LABEL = "pypilot-newui";
 // two or three concurrent clients (pypilot-autopilot-provider + upstream
 // UI + ours) saturated the process and cascaded to a hung SK server.
 // Reference: memory/project_tinypilot_pi_zero_limit.md
-const WATCH_HIGH: number = 0.5;   // 2 Hz - UI-facing values users may slide
-const WATCH_MED: number = 1;      // 1 Hz - telemetry (voltage, current, temps)
-const WATCH_LOW: number = 5;      // 0.2 Hz - runtime / version
+// Rev140 (Carlos): after Sean D'Epagnier flagged that our watch policy
+// pressures pypilot_web too hard, we redesigned watches around a small
+// permanently-active "core" set + a dynamic "focus" set that the UI
+// bumps only while a relevant tab is open. Rates were also relaxed to
+// the 1-2 Hz band Sean suggested for the streaming path.
+const WATCH_HIGH: number = 0.5;   // 2 Hz - only the couple of state paths that drive the AP indicator
+const WATCH_MED: number = 1;      // 1 Hz - core telemetry watched permanently (voltage, current, engaged)
+const WATCH_LOW: number = 10;     // 0.1 Hz - resting rate for RangeSettings the user opted-in but is not looking at
+const WATCH_FOCUS_MAX_TTL_S: number = 300;   // cap the requested TTL so a leaked focus dies within 5 min
+const WATCH_FOCUS_MIN_PERIOD_S: number = 0.5; // client cannot ask faster than 2 Hz
+const WATCH_FOCUS_MAX_KEYS: number = 80;      // per-request key cap
 
 interface PluginProps {
   host: string;
@@ -64,6 +73,18 @@ interface PluginProps {
   // setup needed). Stored plain in the config file.
   sshUser?: string;
   sshPassword?: string;
+  // Rev138 (Carlos): opt-in log capture from the TinyPilot Pi Zero.
+  // piCore keeps /var/log on tmpfs, so any hang or crash wipes the
+  // logs after a hard reset. When enabled we SSH into the Pi every
+  // logCaptureIntervalSec seconds, pull the tail of the pypilot logs
+  // and append the new lines to a persistent file on the Pi 5 side.
+  logCaptureEnabled?: boolean;
+  logCaptureIntervalSec?: number;
+  // Rev143 (Carlos): navigation session recorder. Enabled by default -
+  // the JSONL files stay local on the Pi 5 until the user downloads
+  // them, and the recorder only opens a session while the AP is
+  // actually engaged, so a moored boat produces nothing.
+  sessionRecorderEnabled?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,6 +119,22 @@ module.exports = function (app: any) {
   let disconnectedSinceMs: number | null = null;
   // Rev103: Doctor engine (holds one active diagnostic session at a time).
   let doctor: DoctorEngine | null = null;
+  // Rev143 (Carlos): navigation session recorder. Persists engaged
+  // sessions labelled by conditions to disk so I (Claude) can analyse
+  // them offline and inject boat-specific tuning heuristics in a
+  // future Rev. See src/session-recorder.ts.
+  let sessionRecorder: SessionRecorder | null = null;
+  let sessionSampleTimer: NodeJS.Timeout | null = null;
+  let lastEngagedState = false;
+  // Rev138 (Carlos): Pi Zero log capture runtime state.
+  let logCaptureTimer: NodeJS.Timeout | null = null;
+  let logCaptureLastRunTs: number | null = null;
+  let logCaptureLastError: string | null = null;
+  let logCaptureLastAppendedBytes = 0;
+  let logCaptureTailBuffer: string[] = [];
+  const LOG_CAPTURE_TAIL_MAX = 400;   // lines of preview kept in RAM
+  // per-source last-seen line hash for dedupe across polls.
+  const logCaptureLastLineHash: Record<string, string> = {};
 
   const plugin = {
     id: PLUGIN_ID,
@@ -198,6 +235,25 @@ module.exports = function (app: any) {
           description:
             "Password for the SSH user above. Stored in the plugin's config file in plain text (Signal K does not encrypt plugin settings). Leave blank to disable remote restart.",
           default: "",
+        },
+        logCaptureEnabled: {
+          type: "boolean",
+          title: "Capture Pi Zero logs to disk",
+          description:
+            "When ON, the plugin polls the TinyPilot via SSH every logCaptureIntervalSec seconds and appends the tail of /var/log/pypilot/current and /var/log/pypilot_web/current to daily files under this plugin's data directory. Useful because piCore keeps /var/log on tmpfs - after a hard reset the logs of the previous session are lost. Requires sshUser + sshPassword.",
+          default: false,
+        },
+        logCaptureIntervalSec: {
+          type: "number",
+          title: "Log capture poll interval (seconds)",
+          description: "How often to pull new lines from the Pi Zero. Default 60 s. Keep >=30 s to avoid pressuring the Pi Zero W (438 MB RAM).",
+          default: 60,
+        },
+        sessionRecorderEnabled: {
+          type: "boolean",
+          title: "Record labelled navigation sessions",
+          description: "When ON, the plugin appends 1 Hz autopilot telemetry (heading command/actual, servo current/duty, wind, etc.) to a JSONL file for every engaged session. Files stay on the Pi 5 until you download them from the visor. Used to feed the AI-tuned Doctor roadmap.",
+          default: true,
         },
       },
     }),
@@ -363,6 +419,12 @@ module.exports = function (app: any) {
       // Rev103: Pypilot Doctor engine. Starts an idle instance;
       // sessions are triggered on demand via /doctor/start.
       doctor = new DoctorEngine(historian, client);
+      // Rev143: session recorder wired into the historian tick so we
+      // share the same 1 Hz cadence and the same collectSample() call.
+      sessionRecorder = new SessionRecorder({
+        dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
+        log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
+      });
       historian.start(() => {
         const s = collectSample();
         // Update session counters BEFORE the sample lands in the buffer -
@@ -372,6 +434,10 @@ module.exports = function (app: any) {
         // Rev97: also feed the quality monitor. Reading each watched
         // path costs one getSelfPath() call, cheap on Pi 4.
         if (sensorQuality) { try { feedSensorQuality(); } catch { /* silent */ } }
+        // Rev143: session recorder gets a copy of this tick's sample
+        // when the AP is engaged. Engage/disengage transitions open
+        // and close a JSONL file.
+        if (props.sessionRecorderEnabled) { try { _sessionTick(s); } catch { /* silent */ } }
         // Rev100: run the alarm engine last so it has every input up to
         // date. Changed rules trigger SK notification deltas.
         try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
@@ -415,6 +481,31 @@ module.exports = function (app: any) {
       // when the plugin restarts if the underlying condition persists.
       alarms = null;
       disconnectedSinceMs = null;
+      // Rev138: stop the Pi Zero log capture timer so it does not
+      // outlive the plugin. State (last hash / tail buffer) is
+      // module-scope so it survives a start/stop cycle within the
+      // same node process - intentional, so a restart does not lose
+      // dedupe.
+      if (logCaptureTimer) {
+        try { clearInterval(logCaptureTimer); } catch {}
+        logCaptureTimer = null;
+      }
+      // Rev140: stop the watch sweep timer and drop focus state so a
+      // subsequent enable does not resurrect stale subscriptions.
+      _stopWatchSweep();
+      _focusWatches.clear();
+      _lastAppliedWatches = {};
+      // Rev143: close any in-flight session before dropping the
+      // recorder so we do not leave a JSONL half-written.
+      if (sessionRecorder) {
+        try { sessionRecorder.stop(); } catch {}
+        sessionRecorder = null;
+      }
+      if (sessionSampleTimer) {
+        try { clearInterval(sessionSampleTimer); } catch {}
+        sessionSampleTimer = null;
+      }
+      lastEngagedState = false;
       // Rev103: cancel any in-flight diagnostic session and drop the doctor.
       if (doctor) { try { doctor.cancel(); } catch { /* silent */ } }
       doctor = null;
@@ -1054,6 +1145,408 @@ module.exports = function (app: any) {
         }
       }
 
+      // ============================================================
+      // Rev138 (Carlos): Pi Zero log capture
+      // ============================================================
+      // piCore keeps /var/log entirely in tmpfs, so the moment we hard
+      // reset the Pi Zero we lose every log line from the previous
+      // session. This module polls the TinyPilot via SSH, tails the
+      // pypilot / pypilot_web / pypilot_hat logs, dedupes the lines
+      // it already saved, and appends the new ones to a daily file
+      // in this plugin's data directory (persistent on the Pi 5).
+      const LOG_CAPTURE_SOURCES = [
+        "/var/log/pypilot/current",
+        "/var/log/pypilot_web/current",
+        "/var/log/pypilot_hat/current",
+      ];
+      function _lcHash(s: string): string {
+        // FNV-1a 32-bit - short and stable, no crypto needed.
+        let h = 0x811c9dc5;
+        for (let i = 0; i < s.length; i += 1) {
+          h ^= s.charCodeAt(i);
+          h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+        }
+        return h.toString(16);
+      }
+      function _lcTodayPath(): string {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const path = require("path");
+        const dir = path.join(app.getDataDirPath ? app.getDataDirPath() : ".", "pizero-logs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs");
+        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return path.join(dir, `pizero-${yyyy}${mm}${dd}.log`);
+      }
+      async function _lcTick(): Promise<void> {
+        try {
+          if (!props.host || !(props.sshPassword && props.sshPassword.length)) {
+            logCaptureLastError = "SSH not configured";
+            return;
+          }
+          const marker = "===LC:SRC===";
+          const cmd = LOG_CAPTURE_SOURCES.map(
+            (p) => `echo "${marker}${p}"; tail -n 500 ${p} 2>/dev/null || echo "(missing)"`
+          ).join("; ");
+          const r = await _runSsh(cmd, 15000);
+          if (!r.ok) {
+            logCaptureLastError = `ssh failed: ${r.stdout.slice(0, 200)}`;
+            return;
+          }
+          const chunks: Record<string, string[]> = {};
+          let currentSrc = "";
+          for (const raw of r.stdout.split("\n")) {
+            const line = raw.replace(/\r$/, "");
+            if (line.startsWith(marker)) {
+              currentSrc = line.substring(marker.length).trim();
+              chunks[currentSrc] = [];
+              continue;
+            }
+            if (currentSrc) chunks[currentSrc].push(line);
+          }
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const fs = require("fs");
+          let appended = 0;
+          const outFile = _lcTodayPath();
+          const newLines: string[] = [];
+          for (const src of Object.keys(chunks)) {
+            const lines = chunks[src].filter((l) => l && l !== "(missing)");
+            if (lines.length === 0) continue;
+            const lastHash = logCaptureLastLineHash[src];
+            let startIdx = 0;
+            if (lastHash) {
+              // Find lastHash in the freshly tailed chunk; anything
+              // after it is new. If not found, log rotated or was
+              // truncated -> take everything.
+              for (let i = lines.length - 1; i >= 0; i -= 1) {
+                if (_lcHash(lines[i]) === lastHash) { startIdx = i + 1; break; }
+                if (i === 0) startIdx = 0;
+              }
+            }
+            const fresh = lines.slice(startIdx);
+            if (fresh.length === 0) continue;
+            for (const l of fresh) newLines.push(`[${src.split("/").pop()}] ${l}`);
+            logCaptureLastLineHash[src] = _lcHash(lines[lines.length - 1]);
+          }
+          if (newLines.length > 0) {
+            const payload = newLines.join("\n") + "\n";
+            fs.appendFileSync(outFile, payload);
+            appended = Buffer.byteLength(payload, "utf8");
+            logCaptureTailBuffer.push(...newLines);
+            if (logCaptureTailBuffer.length > LOG_CAPTURE_TAIL_MAX) {
+              logCaptureTailBuffer = logCaptureTailBuffer.slice(-LOG_CAPTURE_TAIL_MAX);
+            }
+          }
+          logCaptureLastRunTs = Date.now();
+          logCaptureLastAppendedBytes = appended;
+          logCaptureLastError = null;
+        } catch (e: any) {
+          logCaptureLastError = e?.message || String(e);
+        }
+      }
+      function _lcStart(): void {
+        if (logCaptureTimer) return;
+        const intervalSec = Math.max(30, Number(props.logCaptureIntervalSec) || 60);
+        // Fire once immediately (best-effort) then on a cadence.
+        _lcTick().catch(() => {});
+        logCaptureTimer = setInterval(() => { _lcTick().catch(() => {}); }, intervalSec * 1000);
+        app.debug?.(`[log-capture] started (interval ${intervalSec}s)`);
+      }
+      function _lcStop(): void {
+        if (!logCaptureTimer) return;
+        clearInterval(logCaptureTimer);
+        logCaptureTimer = null;
+        app.debug?.("[log-capture] stopped");
+      }
+      // Auto-start on plugin boot if config says so.
+      if (props.logCaptureEnabled) _lcStart();
+
+      router.get("/log-capture/status", (_req: any, res: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs");
+        const file = _lcTodayPath();
+        let fileSize = 0;
+        try { fileSize = fs.statSync(file).size; } catch {}
+        res.json({
+          enabled: !!logCaptureTimer,
+          configured: !!(props.host && props.sshPassword),
+          intervalSec: Math.max(30, Number(props.logCaptureIntervalSec) || 60),
+          lastRunTs: logCaptureLastRunTs,
+          lastAppendedBytes: logCaptureLastAppendedBytes,
+          lastError: logCaptureLastError,
+          todayFile: file,
+          todayFileSize: fileSize,
+          bufferedLines: logCaptureTailBuffer.length,
+        });
+      });
+      router.post("/log-capture/start", (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        if (!props.sshPassword) return res.status(400).json({ error: "sshPassword not set" });
+        _lcStart();
+        // Persist opt-in so it survives restarts.
+        try {
+          props.logCaptureEnabled = true;
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch {}
+        res.json({ ok: true, enabled: true });
+      });
+      router.post("/log-capture/stop", (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        _lcStop();
+        try {
+          props.logCaptureEnabled = false;
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch {}
+        res.json({ ok: true, enabled: false });
+      });
+      router.get("/log-capture/tail", (req: any, res: any) => {
+        const n = Math.max(1, Math.min(LOG_CAPTURE_TAIL_MAX, Number(req.query?.lines) || 200));
+        const lines = logCaptureTailBuffer.slice(-n);
+        res.type("text/plain").send(lines.join("\n"));
+      });
+      router.get("/log-capture/download", (_req: any, res: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const path = require("path");
+        const file = _lcTodayPath();
+        if (!fs.existsSync(file)) {
+          res.type("text/plain").send("(no data yet)");
+          return;
+        }
+        res.setHeader("Content-Disposition", `attachment; filename="${path.basename(file)}"`);
+        res.type("text/plain").sendFile(file);
+      });
+
+      // ============================================================
+      // Rev143 (Carlos): navigation session recorder endpoints
+      // ============================================================
+      // Session state (running / tags / sample count) + read of the
+      // archived JSONL files. Downloads go straight to the user; the
+      // idea is they email/WhatsApp them to the maintainer, who runs
+      // an offline AI analysis and hands back an "advice" JSON that
+      // the visor then displays under a "Consejos recibidos" panel.
+      router.get("/session-recorder/status", (_req: any, res: any) => {
+        res.json({
+          enabled: !!props.sessionRecorderEnabled,
+          recording: sessionRecorder ? sessionRecorder.isRecording() : false,
+          sessionId: sessionRecorder ? sessionRecorder.currentSessionId() : null,
+          startTs: sessionRecorder ? sessionRecorder.currentStartTs() : null,
+          samples: sessionRecorder ? sessionRecorder.currentSampleCount() : 0,
+          tags: sessionRecorder ? sessionRecorder.currentTags() : {},
+        });
+      });
+      router.post("/session-recorder/tags", (req: any, res: any) => {
+        if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        if (!sessionRecorder.isRecording()) return res.status(400).json({ error: "no active session" });
+        const patch: SessionTags = req.body?.tags && typeof req.body.tags === "object" ? req.body.tags : {};
+        sessionRecorder.updateTags(patch);
+        res.json({ ok: true, tags: sessionRecorder.currentTags() });
+      });
+      router.get("/session-recorder/list", (_req: any, res: any) => {
+        if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        const rows = sessionRecorder.list();
+        const summaries = rows.map((r) => ({
+          id: r.id,
+          startTs: r.startTs,
+          endTs: r.endTs,
+          durationSec: r.endTs && r.startTs ? Math.round((r.endTs - r.startTs) / 1000) : null,
+          samples: r.sampleCount,
+          tags: r.tags,
+          pilot: r.pilot,
+          profile: r.profile,
+          hasAdvice: _sessionHasAdvice(r.id),
+        }));
+        res.json({ sessions: summaries });
+      });
+      router.get("/session-recorder/download/:id", (req: any, res: any) => {
+        if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        if (!id) return res.status(400).json({ error: "bad id" });
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs");
+        const file = sessionRecorder.fileFor(id);
+        if (!fs.existsSync(file)) return res.status(404).json({ error: "not found" });
+        res.setHeader("Content-Disposition", `attachment; filename="session-${id}.jsonl"`);
+        res.type("application/x-ndjson").sendFile(file);
+      });
+      router.delete("/session-recorder/session/:id", (req: any, res: any) => {
+        if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        const ok = sessionRecorder.deleteSession(id);
+        // Also drop advice tied to this session if present.
+        try { _sessionDeleteAdvice(id); } catch { /* silent */ }
+        res.json({ ok });
+      });
+      // Advice files land here from an off-boat analysis. The visor
+      // fetches them under /session-recorder/advice to render the
+      // "Consejos recibidos" list.
+      function _sessionAdviceDir(): string {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require("path");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs2 = require("fs");
+        const dir = p.join((app.getDataDirPath ? app.getDataDirPath() : "."), "session-advice");
+        try { fs2.mkdirSync(dir, { recursive: true }); } catch {}
+        return dir;
+      }
+      function _sessionHasAdvice(id: string): boolean {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs2 = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require("path");
+        try { return fs2.existsSync(p.join(_sessionAdviceDir(), `advice-${id}.json`)); } catch { return false; }
+      }
+      function _sessionDeleteAdvice(id: string): void {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs2 = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require("path");
+        try { fs2.unlinkSync(p.join(_sessionAdviceDir(), `advice-${id}.json`)); } catch {}
+      }
+      router.get("/session-recorder/advice", (_req: any, res: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs2 = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require("path");
+        const dir = _sessionAdviceDir();
+        const out: any[] = [];
+        try {
+          const files = fs2.readdirSync(dir).filter((f: string) => f.startsWith("advice-") && f.endsWith(".json"));
+          for (const f of files) {
+            try {
+              const raw = fs2.readFileSync(p.join(dir, f), "utf8");
+              const j = JSON.parse(raw);
+              j.__file = f;
+              out.push(j);
+            } catch { /* skip corrupt */ }
+          }
+        } catch { /* empty dir */ }
+        out.sort((a, b) => (b.analyzedAt || 0) - (a.analyzedAt || 0));
+        res.json({ advice: out });
+      });
+      router.post("/session-recorder/advice", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const body = req.body || {};
+        const sessionId = String(body.sessionId || "").replace(/[^A-Za-z0-9\-]/g, "");
+        if (!sessionId) return res.status(400).json({ error: "sessionId required" });
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs2 = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require("path");
+        try {
+          const payload = { ...body, sessionId, analyzedAt: body.analyzedAt || Date.now() };
+          fs2.writeFileSync(p.join(_sessionAdviceDir(), `advice-${sessionId}.json`), JSON.stringify(payload, null, 2));
+          res.json({ ok: true });
+        } catch (e: any) {
+          res.status(500).json({ error: e?.message || String(e) });
+        }
+      });
+      router.post("/session-recorder/advice/:id/helpful", (req: any, res: any) => {
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs2 = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require("path");
+        try {
+          const file = p.join(_sessionAdviceDir(), `advice-${id}.json`);
+          const j = JSON.parse(fs2.readFileSync(file, "utf8"));
+          j.userFeedback = req.body?.feedback || "helpful";
+          j.feedbackTs = Date.now();
+          fs2.writeFileSync(file, JSON.stringify(j, null, 2));
+          res.json({ ok: true });
+        } catch (e: any) {
+          res.status(500).json({ error: e?.message || String(e) });
+        }
+      });
+
+      // ============================================================
+      // Rev140 (Carlos, following Sean D'Epagnier): dynamic watch focus
+      // ============================================================
+      // The visor calls /watch/focus when a tab that shows detailed
+      // values opens (Tune -> pilot gains, Setup > Calibration ->
+      // RangeSettings). The plugin bumps the requested keys to the
+      // asked period for at most ttlSec seconds; when the tab
+      // closes the sweep timer (5 s cadence) drops them back to their
+      // resting rate. Cap keys per request and honour a min period so
+      // a runaway client cannot pin pypilot_web.
+      router.post("/watch/focus", (req: any, res: any) => {
+        const body = req.body || {};
+        const keysReq = Array.isArray(body.keys) ? body.keys : [];
+        const period = Math.max(
+          WATCH_FOCUS_MIN_PERIOD_S,
+          Number(body.periodSec) > 0 ? Number(body.periodSec) : 1
+        );
+        const ttl = Math.min(
+          WATCH_FOCUS_MAX_TTL_S,
+          Math.max(5, Number(body.ttlSec) > 0 ? Number(body.ttlSec) : 60)
+        );
+        const keys: string[] = keysReq
+          .filter((k: any) => typeof k === "string" && k.length > 0)
+          .slice(0, WATCH_FOCUS_MAX_KEYS);
+        const expireTs = Date.now() + ttl * 1000;
+        for (const k of keys) {
+          // Rev141: reserved keys can also be focused (see _applyWatches
+          // comment). Reserved means "do not republish", not "do not
+          // subscribe".
+          _focusWatches.set(k, { period, expireTs });
+        }
+        if (client) {
+          try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
+        }
+        res.json({ ok: true, focused: keys.length, periodSec: period, ttlSec: ttl });
+      });
+      router.post("/watch/release", (req: any, res: any) => {
+        const body = req.body || {};
+        const keys: string[] = Array.isArray(body.keys) ? body.keys : [];
+        if (keys.length === 0) {
+          _focusWatches.clear();
+        } else {
+          for (const k of keys) _focusWatches.delete(k);
+        }
+        if (client) {
+          try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
+        }
+        res.json({ ok: true, remaining: _focusWatches.size });
+      });
+      router.get("/watch/status", (_req: any, res: any) => {
+        const now = Date.now();
+        const focus: Array<{ key: string; periodSec: number; expiresInSec: number }> = [];
+        for (const [key, e] of _focusWatches.entries()) {
+          focus.push({ key, periodSec: e.period, expiresInSec: Math.max(0, Math.floor((e.expireTs - now) / 1000)) });
+        }
+        res.json({
+          totalWatched: Object.keys(_lastAppliedWatches).length,
+          focusCount: focus.length,
+          focus,
+          appliedByPeriod: Object.entries(_lastAppliedWatches).reduce((acc: Record<string, number>, [, p]) => {
+            const label = `${p}s`;
+            acc[label] = (acc[label] || 0) + 1;
+            return acc;
+          }, {}),
+        });
+      });
+
+      // Rev140: quick reboot of the pypilot_web process on the Pi
+      // Zero. piCore uses runit, so `sv restart pypilot_web` is the
+      // right primitive. Useful when the socket buffer looks jammed
+      // and a full hard reset would be overkill. Guarded by
+      // allowWrites + a saved SSH password, same as /debug-cmd.
+      router.post("/pypilot-web-restart", async (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        if (!props.sshPassword) return res.status(400).json({ error: "sshPassword not set" });
+        const r = await _runSsh("sv restart pypilot_web 2>&1", 15000);
+        return res.json({
+          ok: r.ok,
+          elapsedMs: r.elapsedMs,
+          stdout: r.stdout.slice(0, 4000),
+        });
+      });
+
       // Rev113: free-form SSH exec. Runs any shell command as the saved
       // SSH user on the TinyPilot. Requires allowWrites (same guard as
       // /debug-cmd) plus SK admin auth (SK server enforces). No
@@ -1232,6 +1725,10 @@ module.exports = function (app: any) {
       sshUser: typeof options.sshUser === "string" && options.sshUser.trim()
         ? options.sshUser.trim() : "tc",
       sshPassword: typeof options.sshPassword === "string" ? options.sshPassword : "",
+      logCaptureEnabled: options.logCaptureEnabled === true,
+      logCaptureIntervalSec: typeof options.logCaptureIntervalSec === "number"
+        ? Math.max(30, options.logCaptureIntervalSec) : 60,
+      sessionRecorderEnabled: options.sessionRecorderEnabled !== false,
     };
   }
 
@@ -1317,6 +1814,77 @@ module.exports = function (app: any) {
   //   - app.getSelfPath(...)    -> external SK paths (wind, sog, heel)
   //                                published by other plugins.
   // Missing values are `null` - the historian tolerates them.
+  // Rev143: per-tick handler that mirrors the historian sample into
+  // the session recorder while the AP is engaged. Engage/disengage
+  // transitions open/close a JSONL file. Off-boat analysis reads the
+  // file to produce a "corpus navegante" - future Revs will inject
+  // heuristics learned from this corpus back into the Doctor.
+  function _sessionTick(s: Sample): void {
+    if (!sessionRecorder) return;
+    const engagedNow = !!s.engaged;
+    if (engagedNow && !lastEngagedState) {
+      // Engaging: start a new session with the pilot / profile / gains
+      // snapshot the visor is currently using.
+      const pv = (client && client.connected) ? client.getValues() : {};
+      const pilotName = typeof pv["ap.pilot"] === "string" ? (pv["ap.pilot"] as string) : null;
+      const profileName = typeof pv["profile"] === "string" ? (pv["profile"] as string) : null;
+      const gains: Record<string, number> = {};
+      if (pilotName) {
+        for (const k of Object.keys(pv)) {
+          if (k.startsWith(`ap.pilot.${pilotName}.`) && typeof pv[k] === "number") {
+            const short = k.split(".").slice(3).join(".");
+            gains[short] = pv[k] as number;
+          }
+        }
+      }
+      sessionRecorder.start({
+        pilot: pilotName,
+        profile: profileName,
+        gainsAtStart: Object.keys(gains).length > 0 ? gains : null,
+        revision: PLUGIN_REVISION,
+      });
+    } else if (!engagedNow && lastEngagedState) {
+      // Disengaging: close the session so the JSONL is a finished
+      // artifact ready to share.
+      sessionRecorder.stop();
+    }
+    lastEngagedState = engagedNow;
+    if (engagedNow && sessionRecorder.isRecording()) {
+      const pv = (client && client.connected) ? client.getValues() : {};
+      const hdgErr = (typeof s.headingCmd === "number" && typeof s.headingActual === "number")
+        ? _wrapPi(s.headingCmd - s.headingActual)
+        : null;
+      const sample: SessionSample = {
+        ts: s.ts,
+        hdgCmd: s.headingCmd,
+        hdgAct: s.headingActual,
+        hdgErr,
+        hdgRate: typeof pv["imu.headingrate"] === "number" ? pv["imu.headingrate"] as number : null,
+        hdgRateRate: null,
+        servoCmd: typeof pv["servo.command"] === "number" ? pv["servo.command"] as number : null,
+        servoCur: s.servoCurrent,
+        servoDuty: null,
+        servoVolt: s.servoVoltage,
+        engaged: engagedNow,
+        mode: s.mode,
+        tws: s.tws,
+        twa: null,
+        aws: s.aws,
+        awa: s.awa,
+        sog: s.sog,
+        cog: null,
+        pitchRms: null,
+        rollRms: s.heel,
+      };
+      sessionRecorder.sample(sample);
+    }
+  }
+  function _wrapPi(a: number): number {
+    while (a > Math.PI)  a -= 2 * Math.PI;
+    while (a < -Math.PI) a += 2 * Math.PI;
+    return a;
+  }
+
   function collectSample(): Sample {
     const pv = (client && client.connected) ? client.getValues() : {};
     const skNum = (path: string): number | null => {
@@ -1580,63 +2148,92 @@ module.exports = function (app: any) {
     return out.length > 0 ? out : undefined;
   }
 
-  function setupWatches(c: PypilotClient, catalog: PypilotCatalog): void {
-    // High-rate: engage/mode changes and gains that the user might slide.
+  // Rev140 (Carlos): watch policy revamp per Sean D'Epagnier's advice.
+  // Instead of subscribing every RangeSetting in the catalog at 1 Hz
+  // (which put ~170 permanent watches on pypilot_web), we now keep a
+  // MINIMAL permanent set + accept "focus" requests from the visor.
+  // The visor bumps a small set of keys to 1-2 Hz only while a tab
+  // that shows them is open, and lets the TTL expire when the tab
+  // is left. Everything else stays either unwatched or at WATCH_LOW.
+  const _focusWatches = new Map<string, { period: number; expireTs: number }>();
+  let _lastAppliedWatches: Record<string, number> = {};
+  function _corePeriodFor(name: string, catalog: PypilotCatalog): number | null {
+    // Highest-priority state paths - drive the AP status indicator
+    // and the SK autopilot API bridge.
+    if (name === "ap.enabled") return WATCH_HIGH;
+    if (name === "ap.mode") return WATCH_HIGH;
+    if (name === "ap.heading_command") return WATCH_HIGH;
+    if (name === "servo.engaged") return WATCH_HIGH;
+    // Mid-priority telemetry watched permanently so alarms/servo-health
+    // KPIs never see a gap - kept at 1 Hz so the load is modest.
+    if (
+      name === "servo.voltage" || name === "servo.current" ||
+      name === "servo.controller_temp" || name === "servo.motor_temp" ||
+      name === "servo.amp_hours"
+    ) return WATCH_MED;
+    if (name === "imu.warning" || name === "imu.error") return WATCH_MED;
+    // Rarely-changing metadata used by the visor's Info tab.
+    if (name === "ap.pilot" || name === "profile" || name === "profiles" || name === "ap.modes") return WATCH_MED;
+    // Everything the user has opted-in to publish (enabledPaths) but
+    // is not currently focusing goes at the resting rate - 10 s is
+    // enough to reflect a slow-moving telemetry change in KIP /
+    // WilhelmSK without pinning pypilot_web.
+    const en = props.enabledPaths || {};
+    if (en[name] === true) return WATCH_LOW;
+    // Anything else stays unwatched by default.
+    void catalog;
+    return null;
+  }
+  function _applyWatches(c: PypilotClient, catalog: PypilotCatalog): void {
+    const now = Date.now();
+    const desired: Record<string, number> = {};
+    // Sweep expired focuses first.
+    for (const [name, entry] of _focusWatches.entries()) {
+      if (entry.expireTs <= now) _focusWatches.delete(name);
+    }
+    // Core paths applied to every catalog member. Rev141 fix: do NOT
+    // skip RESERVED_PYPILOT_KEYS here - those are reserved from
+    // PUBLISH (to avoid clashing with pypilot-autopilot-provider) but
+    // we absolutely need to subscribe to them internally so the mode
+    // selector, engage toggle and target heading stay in sync.
     for (const name of Object.keys(catalog)) {
-      if (RESERVED_PYPILOT_KEYS.has(name)) continue;
-      // Rev45: watch EVERY RangeSetting in the catalog. Before, only the
-      // explicit branches below covered ap.tack.*, servo telemetry and
-      // imu/rudder. That left servo.max_slew_speed, servo.max_slew_slow,
-      // servo.min_speed, servo.max_current and any future RangeSetting
-      // unwatched, so their Ajustes sliders were empty forever.
-      const meta = catalog[name] as any;
-      if (meta && meta.type === "RangeSetting") {
-        c.watch(name, WATCH_MED);
-        continue;
-      }
-      // Note: pypilot exposes gains as ap.pilot.<pilot>.<gain> (SINGULAR),
-      // not ap.pilots.*. Confirmed by inspecting pypilot_values on the wire.
-      if (name.startsWith("ap.pilot.") && !RESERVED_PYPILOT_KEYS.has(name)) {
-        c.watch(name, WATCH_HIGH);
-      } else if (
-        name.startsWith("ap.tack.") ||
-        name === "ap.pilot" ||
-        name === "profile" ||
-        name === "profiles" ||
-        name === "ap.modes"
-      ) {
-        c.watch(name, WATCH_HIGH);
-      } else if (
-        name === "servo.voltage" ||
-        name === "servo.current" ||
-        name === "servo.controller_temp" ||
-        name === "servo.motor_temp" ||
-        name === "servo.amp_hours" ||
-        name === "servo.engaged" ||
-        name === "servo.flags" ||
-        name === "servo.controller"
-      ) {
-        c.watch(name, WATCH_MED);
-      } else if (name.startsWith("rudder.") || name.startsWith("imu.")) {
-        c.watch(name, WATCH_MED);
-      } else if (name === "ap.runtime" || name === "ap.version") {
-        c.watch(name, WATCH_LOW);
-      } else if (name === "imu.warning" || name === "imu.error") {
-        c.watch(name, WATCH_HIGH);
-      }
-      // Anything else is left unwatched by default. User can request via /raw
-      // (future: expose per-path opt-in via config UI).
+      const p = _corePeriodFor(name, catalog);
+      if (p != null) desired[name] = p;
     }
-    // Rev32: watch the four core AP vars that RESERVED_PYPILOT_KEYS skips
-    // above. These feed apProvider.data.{state,mode,target,engaged} which in
-    // turn drive the canonical steering.autopilot.* deltas. Registered here
-    // (post-catalog) rather than in plugin.start() so the socket is fully
-    // settled and pypilot_web does not drop the subscription.
-    if (apProvider) {
-      c.watch("ap.enabled", WATCH_HIGH);
-      c.watch("ap.mode", WATCH_HIGH);
-      c.watch("ap.heading_command", WATCH_HIGH);
+    // Focus wins over core (finer period, i.e. smaller number).
+    for (const [name, entry] of _focusWatches.entries()) {
+      const cur = desired[name];
+      if (cur == null || entry.period < cur) desired[name] = entry.period;
     }
+    // Reconcile against last applied set: watch new/changed, unwatch dropped.
+    for (const [name, period] of Object.entries(desired)) {
+      if (_lastAppliedWatches[name] !== period) c.watch(name, period);
+    }
+    for (const name of Object.keys(_lastAppliedWatches)) {
+      if (!(name in desired)) c.watch(name, false);
+    }
+    _lastAppliedWatches = desired;
+  }
+  // Timer that reruns _applyWatches so expiring focuses actually
+  // relax the subscription. Runs every 5 s while the plugin is up.
+  let watchSweepTimer: NodeJS.Timeout | null = null;
+  function _startWatchSweep(c: PypilotClient): void {
+    if (watchSweepTimer) return;
+    watchSweepTimer = setInterval(() => {
+      try { _applyWatches(c, lastCatalog); } catch { /* silent */ }
+    }, 5000);
+  }
+  function _stopWatchSweep(): void {
+    if (watchSweepTimer) {
+      try { clearInterval(watchSweepTimer); } catch {}
+      watchSweepTimer = null;
+    }
+  }
+
+  function setupWatches(c: PypilotClient, catalog: PypilotCatalog): void {
+    _lastAppliedWatches = {};
+    _applyWatches(c, catalog);
+    _startWatchSweep(c);
   }
 
   function publishValue(name: string, value: unknown): void {

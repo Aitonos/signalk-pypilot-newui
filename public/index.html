@@ -888,6 +888,26 @@
           <div class="doctor-progress-time" id="doctor-progress-time">0/0s</div>
         </div>
         <div id="doctor-result" class="doctor-result" hidden></div>
+
+        <!-- Rev143 (Carlos): navigation session recorder + shared advice
+             loop. The plugin auto-records every engaged session as a
+             JSONL file on the Pi 5. The user labels conditions from
+             here, shares the file (WhatsApp / email) with Carlos, and
+             an off-boat analysis produces an "advice" JSON that lands
+             back here as a "Consejos recibidos" card. -->
+        <div class="session-recorder-panel" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+          <div class="section-title" style="font-size:14px;margin-bottom:4px" data-i18n="sess.title">Grabador de sesiones de navegacion</div>
+          <div class="hint" style="font-size:11px" data-i18n="sess.hint">Cada vez que el AP se engancha, el plugin graba un JSONL con la telemetria. Al desenganchar cierra la sesion. Compartelo para recibir consejos de ajuste personalizados.</div>
+          <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px">
+            <span id="sess-status" class="hint" style="font-size:12px;font-family:ui-monospace,monospace"></span>
+          </div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button id="sess-tag-btn" class="ghost" data-i18n="sess.tag">Etiquetar sesion actual</button>
+            <button id="sess-list-btn" class="ghost" data-i18n="sess.list">Ver sesiones grabadas</button>
+            <button id="sess-advice-btn" class="ghost" data-i18n="sess.advice">Consejos recibidos</button>
+          </div>
+          <div id="sess-body" style="margin-top:8px"></div>
+        </div>
       </div>
 
       <!-- Rev107 (Carlos): Connection + Scan LAN + Manual host + Autopilot
@@ -1047,6 +1067,50 @@
             <button id="debug-send" class="ghost" data-i18n="setup.debug.send">Share / send</button>
             <button id="debug-clear" class="ghost" data-i18n="setup.debug.clear">Clear</button>
             <span id="debug-status" class="hint" style="font-size:12px;margin-left:auto"></span>
+          </div>
+
+          <!-- Rev138 (Carlos): Pi Zero log capture. piCore keeps /var/log
+               entirely in tmpfs, so any hang or crash of the TinyPilot
+               wipes its logs after the hard reset. This toggle turns on
+               a backend poller that SSHes in every N seconds, tails the
+               pypilot / pypilot_web / pypilot_hat logs and appends any
+               new lines to a persistent file on the Pi 5 side. -->
+          <!-- Rev140 (Carlos, per Sean D'Epagnier): quick reboot of the
+               pypilot_web process on the Pi Zero. Less invasive than a
+               full hard reset - useful when the socket buffer is jammed
+               but pypilot itself is healthy. -->
+          <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <button id="pypilot-web-restart" class="ghost" data-i18n="setup.pypilotWebRestart">Restart pypilot_web</button>
+            <span id="pypilot-web-restart-status" class="hint" style="font-size:11px"></span>
+          </div>
+
+          <!-- Rev141 (Carlos): live watch inspector so we can prove
+               Sean's advice is landing: total subscriptions in flight,
+               how many are pinned by the current tab's focus, and the
+               breakdown per period. Refreshes every 3 s while Setup is
+               on screen. -->
+          <div class="watch-panel" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div class="section-title" style="font-size:13px;margin-bottom:4px" data-i18n="watch.title">pypilot subscriptions</div>
+            <div class="hint" style="font-size:11px" data-i18n="watch.hint">Live count of what the backend is subscribing to on pypilot_web. Should stay well under 40 - Sean D'Epagnier flagged that saturating pypilot_web is what crashes it.</div>
+            <div id="watch-status-summary" class="hint" style="font-size:12px;margin-top:6px;font-family:ui-monospace,monospace"></div>
+            <details style="margin-top:6px">
+              <summary style="cursor:pointer;font-size:12px;color:var(--fg-dim)" data-i18n="watch.detailsToggle">Show focus detail</summary>
+              <pre id="watch-focus-detail" style="max-height:180px;overflow:auto;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.35;margin-top:6px;white-space:pre"></pre>
+            </details>
+          </div>
+          <div class="log-capture-panel" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div class="section-title" style="font-size:13px;margin-bottom:4px" data-i18n="lc.title">Log capture (Pi Zero)</div>
+            <div class="hint" style="font-size:11px" data-i18n="lc.hint">piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.</div>
+            <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+                <input type="checkbox" id="lc-enabled" />
+                <span data-i18n="lc.toggle">Enable log capture</span>
+              </label>
+              <button id="lc-view"     class="ghost" data-i18n="lc.view">Show recent</button>
+              <button id="lc-download" class="ghost" data-i18n="lc.download">Download today</button>
+              <span id="lc-status" class="hint" style="font-size:11px;margin-left:auto"></span>
+            </div>
+            <pre id="lc-viewer" hidden style="max-height:220px;overflow:auto;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.35;margin-top:6px;white-space:pre"></pre>
           </div>
         </div>
       </div>
@@ -1449,6 +1513,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev137"></script>
+  <script src="app.js?v=Rev145"></script>
 </body>
 </html>

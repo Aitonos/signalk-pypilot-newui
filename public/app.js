@@ -284,6 +284,105 @@
       "setup.ssh.password.ph.default": "tc (TinyPilot default)",
       "setup.ssh.password.ph.set": "(set - retype to change)",
       "setup.ssh.defaultHint": "TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.",
+      "setup.pypilotWebRestart":         "Restart pypilot_web",
+      "setup.pypilotWebRestart.running": "restarting...",
+      "setup.pypilotWebRestart.ok":      "OK",
+      "setup.pypilotWebRestart.err":     "failed",
+      "watch.title":         "pypilot subscriptions",
+      "watch.hint":          "Live count of what the backend is subscribing to on pypilot_web. Should stay well under 40 - Sean D'Epagnier flagged that saturating pypilot_web is what crashes it.",
+      "watch.total":         "total",
+      "watch.focused":       "focused",
+      "watch.detailsToggle": "Show focus detail",
+      "watch.noFocus":       "(no focus active)",
+      "sess.title":          "Navigation session recorder",
+      "sess.hint":           "Every engaged AP session is saved as a JSONL file on the Pi 5. Share it with the plugin author to receive personalized tuning advice back.",
+      "sess.tag":            "Tag current session",
+      "sess.list":           "See recorded sessions",
+      "sess.advice":         "Received advice",
+      "sess.close":          "Close",
+      "sess.cancel":         "Cancel",
+      "sess.st.disabled":    "recorder disabled in plugin config",
+      "sess.st.idle":        "idle — AP not engaged, no session open",
+      "sess.st.recording":   "recording",
+      "sess.st.samples":     "samples",
+      "sess.tag.title":      "Tag current session",
+      "sess.tag.save":       "Save",
+      "sess.tag.err":        "Save failed",
+      "sess.tag.wind":       "Wind (kn)",
+      "sess.tag.sea":        "Sea state",
+      "sess.tag.motor":      "Propulsion",
+      "sess.tag.pos":        "Point of sail",
+      "sess.tag.crew":       "Crew",
+      "sess.tag.note":       "Note",
+      "sess.sea.flat":       "flat",
+      "sess.sea.ripple":     "ripple",
+      "sess.sea.short-chop": "short chop",
+      "sess.sea.long-swell": "long swell",
+      "sess.sea.mixed":      "mixed",
+      "sess.motor.sail":     "sail only",
+      "sess.motor.motor-sailing": "motor sailing",
+      "sess.motor.motor":    "motor only",
+      "sess.pos.close-hauled": "close-hauled",
+      "sess.pos.reaching":   "reaching",
+      "sess.pos.broad-reach": "broad reach",
+      "sess.pos.running":    "running",
+      "sess.crew.single":    "single-handed",
+      "sess.crew.double":    "double-handed",
+      "sess.crew.crewed":    "full crew",
+      "sess.list.title":     "Recorded sessions",
+      "sess.list.empty":     "No sessions recorded yet.",
+      "sess.list.download":  "Download JSON",
+      "sess.list.share":     "Share via WhatsApp",
+      "sess.list.delete":    "Delete",
+      "sess.list.delConfirm": "Delete session {id}?",
+      "sess.list.hasAdvice": "advice received",
+      "sess.advice.title":   "Received advice",
+      "sess.advice.empty":   "No advice received yet. Share a session first, then upload the advice JSON you get back.",
+      "sess.advice.findings": "Findings",
+      "sess.advice.recs":    "Recommendations",
+      "sess.advice.upload":  "Upload advice JSON",
+      "mode.label.compass":   "COMPASS",
+      "mode.label.gps":       "GPS",
+      "mode.label.wind":      "APPARENT WIND",
+      "mode.label.true-wind": "TRUE WIND",
+      "mode.label.nav":       "WAYPOINT",
+      "mode.label.aproado":   "HEAD TO WIND",
+      "tune.gain.helpBtn":  "More info",
+      "tune.gain.P.short":  "Corrects a heading error instantly with rudder. The 'act now' reflex.",
+      "tune.gain.P.long":   "Raise if the AP takes too long to close a heading error. Lower if the rudder dances at every wave.",
+      "tune.gain.I.short":  "Closes a sustained drift over time: if the boat sits 5° off, this nudges it back.",
+      "tune.gain.I.long":   "Raise if there is a persistent offset that never zeroes. Lower if the AP overshoots after a course change.",
+      "tune.gain.D.short":  "Brakes the correction as the boat returns to heading, to avoid overshoot.",
+      "tune.gain.D.long":   "Raise if the AP oscillates and won't settle. Lower if response feels sluggish or 'mushy'.",
+      "tune.gain.DD.short": "Anticipates how fast the error is growing. Helps in short chop and quick yaws.",
+      "tune.gain.DD.long":  "Raise in choppy seas or short following waves. Lower if it adds nervousness to the helm.",
+      "tune.gain.PR.short": "Like P but reacts to how fast the boat is turning, not the error itself.",
+      "tune.gain.PR.long":  "Raise if the boat swings into a turn too eagerly. Lower if the response feels lazy.",
+      "tune.gain.FF.short": "Reacts to your target-heading changes before an error even shows up.",
+      "tune.gain.FF.long":  "Raise for crisper heading-change response. Lower if the AP overshoots when you set a new heading.",
+      "tune.gain.servo.max_current.short":    "Max motor current the servo will draw. Protects the drive from jams.",
+      "tune.gain.servo.max_current.long":     "Raise if the boat needs more torque in heavy weather. Lower to trip the safety earlier on a fragile drive.",
+      "tune.gain.servo.max_slew_speed.short": "How fast the rudder is allowed to move. Too high and it 'slaps' the water.",
+      "tune.gain.servo.max_slew_speed.long":  "Raise for a snappier response on a light boat. Lower on heavy displacement to keep motion smooth.",
+      "tune.gain.imu.heading_offset.short":   "Angle between the boat centerline and the IMU sensor. Set via 'Level (boat is flat)'.",
+      "tune.gain.imu.heading_offset.long":    "Do not touch by hand unless you know the exact misalignment. Use the calibration button instead.",
+      "tune.gain.rudder.range.short":         "Maximum rudder deflection to each side (degrees).",
+      "tune.gain.rudder.range.long":          "Match to your physical rudder stops. Too small and the AP loses authority; too big and you burn the drive.",
+      "tune.gain.ap.tack.angle.short":        "How many degrees an automatic tack turns through.",
+      "tune.gain.ap.tack.angle.long":         "Raise for wider tacks (safer on rough water). Lower for tighter, race-style turns.",
+      "tune.gain.ap.tack.rate.short":         "Speed of an automatic tack in degrees per second.",
+      "tune.gain.ap.tack.rate.long":          "Raise for a snappier tack. Lower if the boat heels aggressively or the crew can't keep up.",
+      "lc.title":    "Log capture (Pi Zero)",
+      "lc.hint":     "piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.",
+      "lc.toggle":   "Enable log capture",
+      "lc.view":     "Show recent",
+      "lc.download": "Download today",
+      "lc.err":      "Log capture failed",
+      "lc.st.on":    "ON",
+      "lc.st.off":   "OFF",
+      "lc.st.every": "every",
+      "lc.st.file":  "file",
+      "lc.st.last":  "last",
       "setup.ssh.save.btn": "Save",
       "setup.restart.btn": "RESTART pypilot",
       "setup.security.hint": "Signal K stores plugin config in plain text at ~/.signalk/plugin-config-data/. Use a password that is only valid for this isolated TinyPilot.",
@@ -692,6 +791,105 @@
       "setup.ssh.password.ph.notset": "(sin configurar)",
       "setup.ssh.password.ph.default": "tc (por defecto en TinyPilot)",
       "setup.ssh.defaultHint": "TinyPilot viene con credenciales por defecto: usuario <b>tc</b> / contrasena <b>tc</b>. Cambialas en el Pi si quieres mayor seguridad.",
+      "setup.pypilotWebRestart":         "Reiniciar pypilot_web",
+      "setup.pypilotWebRestart.running": "reiniciando...",
+      "setup.pypilotWebRestart.ok":      "OK",
+      "setup.pypilotWebRestart.err":     "fallo",
+      "watch.title":         "Suscripciones a pypilot",
+      "watch.hint":          "Cuantas keys esta el backend suscribiendo a pypilot_web en vivo. Debe quedarse bien por debajo de 40 - Sean D'Epagnier avisa que saturar pypilot_web es lo que lo cuelga.",
+      "watch.total":         "total",
+      "watch.focused":       "focus",
+      "watch.detailsToggle": "Ver detalle del focus",
+      "watch.noFocus":       "(sin focus activo)",
+      "sess.title":          "Grabador de sesiones de navegacion",
+      "sess.hint":           "Cada sesion con el AP enganchado se guarda en el Pi 5 como JSONL. Comparte con el autor del plugin para recibir consejos de ajuste personalizados.",
+      "sess.tag":            "Etiquetar sesion actual",
+      "sess.list":           "Ver sesiones grabadas",
+      "sess.advice":         "Consejos recibidos",
+      "sess.close":          "Cerrar",
+      "sess.cancel":         "Cancelar",
+      "sess.st.disabled":    "grabador desactivado en config del plugin",
+      "sess.st.idle":        "en reposo — AP no enganchado, no hay sesion abierta",
+      "sess.st.recording":   "grabando",
+      "sess.st.samples":     "muestras",
+      "sess.tag.title":      "Etiquetar sesion actual",
+      "sess.tag.save":       "Guardar",
+      "sess.tag.err":        "Fallo al guardar",
+      "sess.tag.wind":       "Viento (kn)",
+      "sess.tag.sea":        "Estado del mar",
+      "sess.tag.motor":      "Propulsion",
+      "sess.tag.pos":        "Rumbo del viento",
+      "sess.tag.crew":       "Tripulacion",
+      "sess.tag.note":       "Nota",
+      "sess.sea.flat":       "en calma",
+      "sess.sea.ripple":     "rizada",
+      "sess.sea.short-chop": "olas cortas",
+      "sess.sea.long-swell": "mar tendida",
+      "sess.sea.mixed":      "mar cruzada",
+      "sess.motor.sail":     "solo vela",
+      "sess.motor.motor-sailing": "motorvela",
+      "sess.motor.motor":    "solo motor",
+      "sess.pos.close-hauled": "cenida",
+      "sess.pos.reaching":   "traves",
+      "sess.pos.broad-reach": "largo",
+      "sess.pos.running":    "empopada",
+      "sess.crew.single":    "solitario",
+      "sess.crew.double":    "dos manos",
+      "sess.crew.crewed":    "tripulacion completa",
+      "sess.list.title":     "Sesiones grabadas",
+      "sess.list.empty":     "Sin sesiones grabadas todavia.",
+      "sess.list.download":  "Descargar JSON",
+      "sess.list.share":     "Compartir por WhatsApp",
+      "sess.list.delete":    "Borrar",
+      "sess.list.delConfirm": "Borrar sesion {id}?",
+      "sess.list.hasAdvice": "consejos recibidos",
+      "sess.advice.title":   "Consejos recibidos",
+      "sess.advice.empty":   "No hay consejos aun. Comparte una sesion y sube despues el JSON de consejos que recibas.",
+      "sess.advice.findings": "Hallazgos",
+      "sess.advice.recs":    "Recomendaciones",
+      "sess.advice.upload":  "Subir JSON de consejos",
+      "mode.label.compass":   "COMPAS",
+      "mode.label.gps":       "GPS",
+      "mode.label.wind":      "VIENTO APARENTE",
+      "mode.label.true-wind": "VIENTO REAL",
+      "mode.label.nav":       "RUMBO A WAYPOINT",
+      "mode.label.aproado":   "APROADO",
+      "tune.gain.helpBtn":  "Mas info",
+      "tune.gain.P.short":  "Corrige el error de rumbo al instante con mas rueda. Es el reflejo 'hay que corregir ya'.",
+      "tune.gain.P.long":   "Subir si el AP tarda en cerrar un desvio. Bajar si el timon 'baila' a cada ola.",
+      "tune.gain.I.short":  "Cierra una deriva mantenida en el tiempo: si el barco se queda 5° a un lado, la I lo empuja de vuelta.",
+      "tune.gain.I.long":   "Subir si hay desvio persistente que no se cierra. Bajar si el AP se pasa de largo (overshoot).",
+      "tune.gain.D.short":  "Frena la correccion cuando el barco ya vuelve al rumbo, para no pasarse.",
+      "tune.gain.D.long":   "Subir si el AP oscila y no se estabiliza. Bajar si la respuesta se siente pastosa o lenta.",
+      "tune.gain.DD.short": "Anticipa la velocidad a la que crece el error. Ayuda con olas cortas y guinadas rapidas.",
+      "tune.gain.DD.long":  "Subir en mar rizada o con olas cortas de popa. Bajar si mete nervios al timon.",
+      "tune.gain.PR.short": "Como la P pero reacciona a la velocidad de giro del barco, no al error en si.",
+      "tune.gain.PR.long":  "Subir si el barco entra en el giro con demasiadas ganas. Bajar si va apatico.",
+      "tune.gain.FF.short": "Reacciona al cambio de rumbo objetivo antes de que aparezca el error.",
+      "tune.gain.FF.long":  "Subir para cambios de rumbo mas nitidos. Bajar si hay overshoot al fijar rumbo nuevo.",
+      "tune.gain.servo.max_current.short":    "Corriente maxima que aceptas del motor del timon. Protege el servo de tirones.",
+      "tune.gain.servo.max_current.long":     "Subir si el barco necesita mas par en mal tiempo. Bajar para saltar antes la proteccion en un actuador fragil.",
+      "tune.gain.servo.max_slew_speed.short": "Velocidad maxima con la que el timon se mueve. Si es muy alta, el timon 'corta' el agua.",
+      "tune.gain.servo.max_slew_speed.long":  "Subir para respuesta mas viva en barco ligero. Bajar en desplazamiento pesado para suavizar el movimiento.",
+      "tune.gain.imu.heading_offset.short":   "Angulo entre la linea de cruja y el sensor IMU. Se ajusta con el boton 'Level (boat is flat)'.",
+      "tune.gain.imu.heading_offset.long":    "No lo toques a mano salvo que sepas la desalineacion exacta. Usa el boton de calibracion.",
+      "tune.gain.rudder.range.short":         "Grados maximos que puede mover el timon a cada banda.",
+      "tune.gain.rudder.range.long":          "Ajusta al tope fisico real del timon. Muy pequeno y el AP pierde autoridad; muy grande y quemas el motor.",
+      "tune.gain.ap.tack.angle.short":        "Grados que gira una virada automatica.",
+      "tune.gain.ap.tack.angle.long":         "Subir para viradas amplias (mas seguras en marejada). Bajar para viradas cerradas estilo regata.",
+      "tune.gain.ap.tack.rate.short":         "Velocidad de una virada automatica en grados por segundo.",
+      "tune.gain.ap.tack.rate.long":          "Subir para virada mas rapida. Bajar si el barco escora demasiado o la tripulacion no sigue.",
+      "lc.title":    "Captura de logs (Pi Zero)",
+      "lc.hint":     "piCore guarda /var/log solo en RAM, un hard reset los pierde. Activalo para que el plugin guarde pypilot / pypilot_web / pypilot_hat en un archivo persistente del Pi 5.",
+      "lc.toggle":   "Activar captura",
+      "lc.view":     "Ver reciente",
+      "lc.download": "Descargar hoy",
+      "lc.err":      "Fallo en captura de logs",
+      "lc.st.on":    "ACTIVA",
+      "lc.st.off":   "PARADA",
+      "lc.st.every": "cada",
+      "lc.st.file":  "archivo",
+      "lc.st.last":  "ultima",
       "setup.ssh.password.ph.set": "(configurado - reescribe para cambiarlo)",
       "setup.ssh.save.btn": "Guardar",
       "setup.restart.btn": "REINICIAR pypilot",
@@ -914,6 +1112,58 @@
       "setup.paths.title":    "Pfade & API",
       "setup.precheck.title": "Autopilot-Check",
       "setup.doctor.title":   "Diagnose & Empfehlungen",
+      "setup.pypilotWebRestart":         "pypilot_web neu starten",
+      "setup.pypilotWebRestart.running": "startet neu...",
+      "setup.pypilotWebRestart.ok":      "OK",
+      "setup.pypilotWebRestart.err":     "fehlgeschlagen",
+      "watch.title":         "pypilot Abonnements",
+      "watch.hint":          "Live-Anzahl der Abonnements auf pypilot_web. Sollte unter 40 bleiben.",
+      "watch.total":         "gesamt",
+      "watch.focused":       "Fokus",
+      "watch.detailsToggle": "Fokus-Detail zeigen",
+      "watch.noFocus":       "(kein aktiver Fokus)",
+      "mode.label.compass":   "KOMPASS",
+      "mode.label.gps":       "GPS",
+      "mode.label.wind":      "SCHEINBARER WIND",
+      "mode.label.true-wind": "WAHRER WIND",
+      "mode.label.nav":       "WEGPUNKT",
+      "mode.label.aproado":   "AUFSCHIESSEN",
+      "tune.gain.helpBtn":  "Mehr Info",
+      "tune.gain.P.short":  "Korrigiert einen Kursfehler sofort mit dem Ruder. Der 'jetzt gegensteuern'-Reflex.",
+      "tune.gain.P.long":   "Anheben, wenn der AP zu lang braucht, um einen Fehler auszugleichen. Senken, wenn das Ruder bei jeder Welle tanzt.",
+      "tune.gain.I.short":  "Schliesst eine anhaltende Kursabweichung ueber die Zeit.",
+      "tune.gain.I.long":   "Anheben bei anhaltendem Versatz, der nicht auf null geht. Senken, wenn der AP nach einem Kurswechsel ueberschwingt.",
+      "tune.gain.D.short":  "Bremst die Korrektur, wenn das Boot bereits zurueckdreht - gegen Ueberschwinger.",
+      "tune.gain.D.long":   "Anheben, wenn der AP oszilliert und sich nicht setzt. Senken, wenn die Reaktion 'weich' oder traege wirkt.",
+      "tune.gain.DD.short": "Nimmt vorweg, wie schnell der Fehler waechst. Hilft bei kurzer See und schnellen Gieren.",
+      "tune.gain.DD.long":  "Anheben in kabbeliger See oder kurzen Achterwellen. Senken, wenn das Ruder unruhig wird.",
+      "tune.gain.PR.short": "Wie P, aber reagiert auf die Drehrate des Bootes statt auf den Fehler selbst.",
+      "tune.gain.PR.long":  "Anheben, wenn das Boot zu eifrig in die Drehung geht. Senken, wenn die Reaktion traege wirkt.",
+      "tune.gain.FF.short": "Reagiert auf deine Soll-Kursaenderungen, bevor ein Fehler entsteht.",
+      "tune.gain.FF.long":  "Anheben fuer knackigere Kurswechsel. Senken bei Ueberschwinger nach einer neuen Kursvorgabe.",
+      "tune.gain.servo.max_current.short":    "Maximaler Motorstrom des Servos. Schuetzt den Antrieb vor Blockaden.",
+      "tune.gain.servo.max_current.long":     "Anheben, wenn mehr Drehmoment bei schwerem Wetter noetig ist. Senken, um empfindliche Antriebe frueher zu sichern.",
+      "tune.gain.servo.max_slew_speed.short": "Maximale Ruderbewegungsgeschwindigkeit. Zu hoch und das Ruder 'schlaegt' ins Wasser.",
+      "tune.gain.servo.max_slew_speed.long":  "Anheben fuer knackigere Reaktion auf leichtem Boot. Senken bei schwerer Verdraengung.",
+      "tune.gain.imu.heading_offset.short":   "Winkel zwischen Bootslinie und IMU-Sensor. Via 'Level (boat is flat)' setzen.",
+      "tune.gain.imu.heading_offset.long":    "Nicht von Hand setzen - nutze die Kalibrierung.",
+      "tune.gain.rudder.range.short":         "Maximaler Ruderausschlag zu jeder Seite (Grad).",
+      "tune.gain.rudder.range.long":          "An die physischen Ruderanschlaege anpassen. Zu klein: AP verliert Autoritaet. Zu gross: Antrieb ueberlastet.",
+      "tune.gain.ap.tack.angle.short":        "Wie viele Grad eine automatische Wende dreht.",
+      "tune.gain.ap.tack.angle.long":         "Anheben fuer weite Wenden (sicherer in rauer See). Senken fuer enge Regatta-Wenden.",
+      "tune.gain.ap.tack.rate.short":         "Geschwindigkeit einer automatischen Wende (Grad/Sekunde).",
+      "tune.gain.ap.tack.rate.long":          "Anheben fuer schnellere Wende. Senken, wenn das Boot zu stark kraengt oder die Crew nicht mitkommt.",
+      "lc.title":    "Log-Erfassung (Pi Zero)",
+      "lc.hint":     "piCore haelt /var/log nur im RAM - ein Hard Reset loescht sie. Aktivieren, um pypilot / pypilot_web / pypilot_hat in einer Datei auf dem Pi 5 zu speichern.",
+      "lc.toggle":   "Erfassung aktivieren",
+      "lc.view":     "Neueste zeigen",
+      "lc.download": "Heute laden",
+      "lc.err":      "Log-Erfassung fehlgeschlagen",
+      "lc.st.on":    "AN",
+      "lc.st.off":   "AUS",
+      "lc.st.every": "alle",
+      "lc.st.file":  "Datei",
+      "lc.st.last":  "letzte",
       "alarm.rule.heading-deviation.label":    "Kursabweichung",
       "alarm.rule.heading-deviation.msg":      "AP-Kursfehler {deg}° anhaltend",
       "alarm.rule.unable-to-steer.label":      "AP verliert Steuerung",
@@ -1008,6 +1258,58 @@
       "setup.paths.title":    "Paths & API",
       "setup.precheck.title": "Verification autopilote",
       "setup.doctor.title":   "Diagnostic & Conseils",
+      "setup.pypilotWebRestart":         "Redemarrer pypilot_web",
+      "setup.pypilotWebRestart.running": "redemarrage...",
+      "setup.pypilotWebRestart.ok":      "OK",
+      "setup.pypilotWebRestart.err":     "echec",
+      "watch.title":         "Abonnements pypilot",
+      "watch.hint":          "Nombre d'abonnements actifs sur pypilot_web. Doit rester bien sous 40.",
+      "watch.total":         "total",
+      "watch.focused":       "focus",
+      "watch.detailsToggle": "Voir detail du focus",
+      "watch.noFocus":       "(aucun focus actif)",
+      "mode.label.compass":   "COMPAS",
+      "mode.label.gps":       "GPS",
+      "mode.label.wind":      "VENT APPARENT",
+      "mode.label.true-wind": "VENT REEL",
+      "mode.label.nav":       "WAYPOINT",
+      "mode.label.aproado":   "FACE AU VENT",
+      "tune.gain.helpBtn":  "Plus d'infos",
+      "tune.gain.P.short":  "Corrige une erreur de cap instantanement avec le safran. Le reflexe 'corriger maintenant'.",
+      "tune.gain.P.long":   "Monter si l'AP tarde a fermer une erreur. Baisser si le safran 'danse' a chaque vague.",
+      "tune.gain.I.short":  "Ferme une deviation persistante dans le temps: si le bateau reste 5° a cote, la I le ramene.",
+      "tune.gain.I.long":   "Monter en cas de decalage persistant qui ne se ferme pas. Baisser si l'AP depasse apres un changement de cap.",
+      "tune.gain.D.short":  "Freine la correction quand le bateau revient deja au cap, pour eviter le depassement.",
+      "tune.gain.D.long":   "Monter si l'AP oscille et ne se stabilise pas. Baisser si la reponse est molle.",
+      "tune.gain.DD.short": "Anticipe la vitesse de croissance de l'erreur. Utile en clapot et lacets rapides.",
+      "tune.gain.DD.long":  "Monter dans le clapot ou vagues courtes arriere. Baisser si le safran devient nerveux.",
+      "tune.gain.PR.short": "Comme la P mais reagit a la vitesse de rotation du bateau plutot qu'a l'erreur.",
+      "tune.gain.PR.long":  "Monter si le bateau entre trop vivement dans le virage. Baisser si la reponse est molle.",
+      "tune.gain.FF.short": "Reagit aux changements du cap cible avant qu'une erreur apparaisse.",
+      "tune.gain.FF.long":  "Monter pour des changements de cap plus nets. Baisser en cas de depassement au nouveau cap.",
+      "tune.gain.servo.max_current.short":    "Courant moteur max du servo. Protege l'entrainement.",
+      "tune.gain.servo.max_current.long":     "Monter si plus de couple est necessaire en mauvais temps. Baisser pour proteger un entrainement fragile.",
+      "tune.gain.servo.max_slew_speed.short": "Vitesse max du safran. Trop haute et le safran 'claque' l'eau.",
+      "tune.gain.servo.max_slew_speed.long":  "Monter pour une reponse plus vive sur bateau leger. Baisser en deplacement lourd.",
+      "tune.gain.imu.heading_offset.short":   "Angle entre l'axe du bateau et le capteur IMU. Regler via 'Level (boat is flat)'.",
+      "tune.gain.imu.heading_offset.long":    "Ne pas modifier a la main - utiliser le bouton de calibration.",
+      "tune.gain.rudder.range.short":         "Debattement max du safran de chaque cote (degres).",
+      "tune.gain.rudder.range.long":          "Ajuster aux butees physiques. Trop petit: l'AP perd l'autorite. Trop grand: usure du verin.",
+      "tune.gain.ap.tack.angle.short":        "Degres de rotation lors d'un virement automatique.",
+      "tune.gain.ap.tack.angle.long":         "Monter pour virements amples (plus surs en mer forte). Baisser pour virements serres regate.",
+      "tune.gain.ap.tack.rate.short":         "Vitesse d'un virement automatique (degres par seconde).",
+      "tune.gain.ap.tack.rate.long":          "Monter pour virement plus rapide. Baisser si le bateau gite trop ou l'equipage ne suit pas.",
+      "lc.title":    "Capture des logs (Pi Zero)",
+      "lc.hint":     "piCore garde /var/log en RAM uniquement - un hard reset les efface. Activer pour sauvegarder pypilot / pypilot_web / pypilot_hat dans un fichier persistant du Pi 5.",
+      "lc.toggle":   "Activer la capture",
+      "lc.view":     "Voir recents",
+      "lc.download": "Telecharger aujourd'hui",
+      "lc.err":      "Echec de la capture",
+      "lc.st.on":    "ACTIVE",
+      "lc.st.off":   "ARRET",
+      "lc.st.every": "chaque",
+      "lc.st.file":  "fichier",
+      "lc.st.last":  "derniere",
       "alarm.rule.heading-deviation.label":    "Deviation de cap",
       "alarm.rule.heading-deviation.msg":      "Erreur de cap AP {deg}° soutenue",
       "alarm.rule.unable-to-steer.label":      "AP en perte d'autorite",
@@ -1053,6 +1355,10 @@
     applyI18n();
     // Rev130: language card badge changes with the language.
     if (typeof _refreshSetupBadges === "function") _refreshSetupBadges();
+    // Rev144 (Carlos): re-render dynamic selects/labels that we build
+    // in JS (not via data-i18n), otherwise the mode selector, gain
+    // helps and Aproado HUD keep the language they had at last fill.
+    if (typeof _relabelDynamicUI === "function") _relabelDynamicUI();
   }
   function t(key) {
     const d = I18N[currentLang()] || I18N.en;
@@ -2400,6 +2706,8 @@
           });
           const bot = row.querySelector(".gain-bot");
           if (bot) bot.appendChild(resetBtn);
+          // Rev139 (Carlos): plain-language help under Advanced sliders too.
+          _attachGainHelp(row, name);
           _calRows.set(name, { row, rng, val, resetBtn, baselineEl: baseEl });
           section.appendChild(row);
         }
@@ -2563,6 +2871,8 @@
       });
       const bot = row.querySelector(".gain-bot");
       if (bot) bot.appendChild(resetBtn);
+      // Rev139 (Carlos): plain-language explanation right under the row.
+      _attachGainHelp(row, shortName);
       cont.appendChild(row);
       // If cache is empty (stream started after gain deltas were emitted),
       // fetch the current value via REST so the slider position reflects
@@ -2592,14 +2902,53 @@
     }
   }
 
+  // Rev141 (Carlos): translate the pypilot mode value into the active
+  // language. pypilot ships raw English lowercase strings ("compass",
+  // "wind", "true wind", "gps", "nav"); "aproado" is our own custom
+  // pseudo-mode injected into the list. Any key without a translation
+  // renders its raw value verbatim so unknown future pypilot modes
+  // don't disappear.
+  function _modeLabel(value) {
+    if (value == null) return "";
+    const k = String(value).toLowerCase().replace(/\s+/g, "-");
+    const tk = `mode.label.${k}`;
+    const tx = t(tk);
+    return tx === tk ? String(value) : tx;
+  }
+  // Rev144 (Carlos): when the language changes, refresh the widgets we
+  // built once in JS. data-i18n only handles static markup; anything
+  // whose text came from _modeLabel / fillSelect (mode + pilot +
+  // profile) or from _attachGainHelp needs a manual redraw.
+  function _relabelDynamicUI() {
+    // Mode selector: rebuild the same list under the new language.
+    if (Array.isArray(state.modeList)) {
+      const withAproado = state.modeList.includes("aproado") ? state.modeList : [...state.modeList, "aproado"];
+      const prev = document.getElementById("mode-select")?.value;
+      fillSelect("#mode-select", withAproado);
+      if (prev != null) setSelect("#mode-select", prev);
+    }
+    // Gain help lines under the Tune sliders + Calibration sliders
+    // are attached once per row and cached. Drop them so the next
+    // render (in-place refresh of renderGains + renderCalibrationSliders)
+    // rebuilds them in the new language.
+    document.querySelectorAll(".gain-help, .gain-help-long").forEach((el) => el.remove());
+    if (typeof renderGains === "function") { try { renderGains(); } catch { /* silent */ } }
+    if (typeof renderCalibrationSliders === "function") { try { renderCalibrationSliders(); } catch { /* silent */ } }
+  }
+
   function fillSelect(sel, list) {
     const el = $(sel);
     if (!el) return;
     const prev = el.value;
     el.textContent = "";
+    // Rev141: allow a per-select label mapper. Mode select uses the
+    // pypilot-mode i18n helper; everything else falls back to the raw
+    // value so pilot / profile lists behave exactly as before.
+    const useModeLabel = String(sel).includes("mode-select");
     for (const v of list) {
       const o = document.createElement("option");
-      o.value = String(v); o.textContent = String(v);
+      o.value = String(v);
+      o.textContent = useModeLabel ? _modeLabel(v) : String(v);
       el.appendChild(o);
     }
     if (list.includes(prev)) el.value = prev;
@@ -3893,10 +4242,418 @@
     }
   }
 
+  // Rev138 (Carlos): Pi Zero log capture panel wiring. Toggle asks
+  // the backend to enable the SSH-tail poller; a small status blob
+  // (last capture ts + file size + last error if any) is refreshed
+  // every 5 s while the panel is on-screen, so Carlos can see the
+  // file growing without opening it.
+  let _lcRefreshTimer = null;
+  function _lcFmtTs(ms) {
+    if (!ms) return "--";
+    const d = new Date(ms);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  function _lcFmtSize(b) {
+    if (!Number.isFinite(b) || b <= 0) return "0 B";
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / 1024 / 1024).toFixed(2)} MB`;
+  }
+  async function _lcRefreshStatus() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/log-capture/status`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const cb = document.getElementById("lc-enabled");
+      const status = document.getElementById("lc-status");
+      if (cb && cb.checked !== !!j.enabled) cb.checked = !!j.enabled;
+      if (status) {
+        const parts = [];
+        parts.push(j.enabled ? (t("lc.st.on") || "ON") : (t("lc.st.off") || "OFF"));
+        if (j.enabled) parts.push(`${t("lc.st.every") || "every"} ${j.intervalSec}s`);
+        parts.push(`${t("lc.st.file") || "file"} ${_lcFmtSize(j.todayFileSize)}`);
+        if (j.lastRunTs) parts.push(`${t("lc.st.last") || "last"} ${_lcFmtTs(j.lastRunTs)}`);
+        if (j.lastError) parts.push(`⚠ ${j.lastError}`);
+        status.textContent = parts.join("  ·  ");
+        status.style.color = j.lastError ? "var(--warn)" : "var(--fg-dim)";
+      }
+    } catch { /* silent */ }
+  }
+  async function _lcShowRecent() {
+    const box = document.getElementById("lc-viewer");
+    if (!box) return;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/log-capture/tail?lines=200`);
+      const txt = r.ok ? await r.text() : `HTTP ${r.status}`;
+      box.textContent = txt || "(no data yet)";
+      box.hidden = false;
+      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      box.textContent = String(e);
+      box.hidden = false;
+    }
+  }
+  function _lcDownload() {
+    // Force a real browser download - the endpoint sets Content-Disposition.
+    const a = document.createElement("a");
+    a.href = `/plugins/${PLUGIN_ID}/log-capture/download?t=${Date.now()}`;
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 100);
+  }
+  async function _lcToggle(ev) {
+    const on = !!ev.target.checked;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/log-capture/${on ? "start" : "stop"}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert((t("lc.err") || "Log capture failed") + ": " + (j.error || `HTTP ${r.status}`));
+        ev.target.checked = !on;
+      }
+    } catch (e) {
+      alert((t("lc.err") || "Log capture failed") + ": " + e);
+      ev.target.checked = !on;
+    }
+    _lcRefreshStatus();
+  }
+  // Rev141 (Carlos): live inspector for the pypilot_web watch set.
+  // Sits inside the Remote Control Console tile in Setup. Polls
+  // /watch/status every 3 s while it's on screen.
+  let _watchInspectorTimer = null;
+  async function _refreshWatchInspector() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/watch/status`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const sum = document.getElementById("watch-status-summary");
+      const det = document.getElementById("watch-focus-detail");
+      if (sum) {
+        const parts = [];
+        parts.push(`${t("watch.total") || "total"}: ${j.totalWatched}`);
+        parts.push(`${t("watch.focused") || "focused"}: ${j.focusCount}`);
+        const buckets = j.appliedByPeriod || {};
+        const keys = Object.keys(buckets).sort((a, b) => parseFloat(a) - parseFloat(b));
+        if (keys.length) {
+          parts.push("[" + keys.map((k) => `${k}: ${buckets[k]}`).join(", ") + "]");
+        }
+        sum.textContent = parts.join("  ·  ");
+        // Colour hint: green if <=25, amber 26-40, red >40.
+        sum.style.color = j.totalWatched > 40 ? "var(--err)"
+                        : j.totalWatched > 25 ? "var(--warn)"
+                        : "var(--ok, #2ecc71)";
+      }
+      if (det) {
+        if (!j.focus || j.focus.length === 0) {
+          det.textContent = t("watch.noFocus") || "(no focus active)";
+        } else {
+          det.textContent = j.focus
+            .map((f) => `${f.periodSec.toFixed(1)}s  ${String(f.expiresInSec).padStart(3)}s  ${f.key}`)
+            .join("\n");
+        }
+      }
+    } catch { /* silent */ }
+  }
+  function _watchInspectorStart() {
+    _refreshWatchInspector();
+    if (_watchInspectorTimer) clearInterval(_watchInspectorTimer);
+    _watchInspectorTimer = setInterval(_refreshWatchInspector, 3000);
+  }
+
+  // Rev143 (Carlos): navigation session recorder panel. Lives inside
+  // the Doctor tile so it stays visually next to the AI-tuning story.
+  // Polls /session-recorder/status every 5 s while Setup is on screen.
+  let _sessRefreshTimer = null;
+  const SESS_WIND    = ["<5", "5-10", "10-15", "15-20", "20-30", ">30"];
+  const SESS_SEA     = ["flat", "ripple", "short-chop", "long-swell", "mixed"];
+  const SESS_MOTOR   = ["sail", "motor-sailing", "motor"];
+  const SESS_POS     = ["close-hauled", "reaching", "broad-reach", "running"];
+  const SESS_CREW    = ["single", "double", "crewed"];
+  function _sessFmtDur(s) {
+    if (!Number.isFinite(s) || s <= 0) return "0s";
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return m > 0 ? `${m}m ${String(ss).padStart(2, "0")}s` : `${ss}s`;
+  }
+  function _sessFmtDate(ms) {
+    if (!ms) return "?";
+    const d = new Date(ms);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  async function _sessRefreshStatus() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/status`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const el = document.getElementById("sess-status");
+      if (!el) return;
+      if (!j.enabled) {
+        el.textContent = t("sess.st.disabled") || "recorder disabled in plugin config";
+        el.style.color = "var(--fg-dim)";
+        return;
+      }
+      if (!j.recording) {
+        el.textContent = t("sess.st.idle") || "idle — AP not engaged, no session open";
+        el.style.color = "var(--fg-dim)";
+        return;
+      }
+      const durSec = j.startTs ? Math.floor((Date.now() - j.startTs) / 1000) : 0;
+      const tagStr = Object.keys(j.tags || {}).length
+        ? " · " + Object.entries(j.tags).map(([k, v]) => `${k}=${v}`).join(",")
+        : "";
+      el.textContent = `${t("sess.st.recording") || "recording"} · ${j.samples} ${t("sess.st.samples") || "samples"} · ${_sessFmtDur(durSec)}${tagStr}`;
+      el.style.color = "var(--ok, #2ecc71)";
+    } catch { /* silent */ }
+  }
+  function _sessOpenModal(title, bodyHtml, actions) {
+    let m = document.getElementById("sess-modal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "sess-modal";
+      m.className = "tune-fork-backdrop";
+      m.innerHTML = `<div class="modal-card" style="max-width:520px;width:92%;max-height:80vh;overflow:auto"><h3 id="sess-modal-title"></h3><div id="sess-modal-body"></div><div id="sess-modal-actions" class="tune-fork-actions" style="margin-top:12px"></div></div>`;
+      document.body.appendChild(m);
+    }
+    m.querySelector("#sess-modal-title").textContent = title;
+    m.querySelector("#sess-modal-body").innerHTML = bodyHtml;
+    const actEl = m.querySelector("#sess-modal-actions");
+    actEl.innerHTML = "";
+    const close = () => { m.hidden = true; m.classList.remove("open"); };
+    for (const a of actions) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = a.className || "ghost";
+      b.textContent = a.label;
+      b.addEventListener("click", async () => {
+        try { await a.onClick(close, m); } catch (e) { alert(String(e)); }
+      });
+      actEl.appendChild(b);
+    }
+    m.hidden = false;
+    m.classList.add("open");
+    return m;
+  }
+  function _sessSelectMarkup(id, opts, current, i18nPrefix) {
+    const list = ["", ...opts];
+    return `<select id="${id}">` + list.map((v) => {
+      const label = v === "" ? "—" : (t(`${i18nPrefix}.${v}`) || v);
+      const sel = current === v ? " selected" : "";
+      return `<option value="${v}"${sel}>${label}</option>`;
+    }).join("") + `</select>`;
+  }
+  async function _sessOpenTagsModal() {
+    // Fetch current status so we prefill the modal.
+    let currentTags = {};
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/status`);
+      if (r.ok) currentTags = (await r.json()).tags || {};
+    } catch { /* silent */ }
+    const body =
+      `<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0">
+        <label style="min-width:110px">${t("sess.tag.wind") || "Wind (kn)"}</label>
+        ${_sessSelectMarkup("sess-wind",  SESS_WIND,  currentTags.wind  || "", "sess.wind")}
+       </div>` +
+      `<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0">
+        <label style="min-width:110px">${t("sess.tag.sea") || "Sea state"}</label>
+        ${_sessSelectMarkup("sess-sea",   SESS_SEA,   currentTags.sea   || "", "sess.sea")}
+       </div>` +
+      `<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0">
+        <label style="min-width:110px">${t("sess.tag.motor") || "Propulsion"}</label>
+        ${_sessSelectMarkup("sess-motor", SESS_MOTOR, currentTags.motor || "", "sess.motor")}
+       </div>` +
+      `<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0">
+        <label style="min-width:110px">${t("sess.tag.pos") || "Point of sail"}</label>
+        ${_sessSelectMarkup("sess-pos",   SESS_POS,   currentTags.pos   || "", "sess.pos")}
+       </div>` +
+      `<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0">
+        <label style="min-width:110px">${t("sess.tag.crew") || "Crew"}</label>
+        ${_sessSelectMarkup("sess-crew",  SESS_CREW,  currentTags.crew  || "", "sess.crew")}
+       </div>` +
+      `<div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-start;margin:6px 0">
+        <label style="min-width:110px">${t("sess.tag.note") || "Note"}</label>
+        <textarea id="sess-note" rows="2" style="flex:1 1 220px" maxlength="200">${currentTags.note || ""}</textarea>
+       </div>`;
+    _sessOpenModal(t("sess.tag.title") || "Etiquetar sesion actual", body, [
+      { label: t("sess.tag.save") || "Save", className: "primary", onClick: async (close) => {
+        const tags = {
+          wind:  document.getElementById("sess-wind").value  || undefined,
+          sea:   document.getElementById("sess-sea").value   || undefined,
+          motor: document.getElementById("sess-motor").value || undefined,
+          pos:   document.getElementById("sess-pos").value   || undefined,
+          crew:  document.getElementById("sess-crew").value  || undefined,
+          note:  document.getElementById("sess-note").value.slice(0, 200),
+        };
+        const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/tags`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tags }),
+        });
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          alert((t("sess.tag.err") || "Save failed") + ": " + (e.error || `HTTP ${r.status}`));
+          return;
+        }
+        close();
+        _sessRefreshStatus();
+      } },
+      { label: t("sess.cancel") || "Cancel", onClick: (close) => close() },
+    ]);
+  }
+  async function _sessOpenListModal() {
+    let sessions = [];
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/list`);
+      if (r.ok) sessions = (await r.json()).sessions || [];
+    } catch { /* silent */ }
+    let body;
+    if (sessions.length === 0) {
+      body = `<div class="hint">${t("sess.list.empty") || "No sessions recorded yet."}</div>`;
+    } else {
+      body = "<div style=\"display:flex;flex-direction:column;gap:8px\">" + sessions.map((s) => {
+        const dur = s.durationSec ? _sessFmtDur(s.durationSec) : "(open)";
+        const tags = Object.entries(s.tags || {}).map(([k, v]) => `${k}=${v}`).join(", ") || "(no tags)";
+        const advice = s.hasAdvice
+          ? `<span style="color:var(--ok, #2ecc71);font-size:11px">✓ ${t("sess.list.hasAdvice") || "advice received"}</span>`
+          : "";
+        return `<div style="border:1px solid var(--border);border-radius:6px;padding:8px">
+          <div style="font-family:ui-monospace,monospace;font-size:11px;color:var(--fg-dim)">${_sessFmtDate(s.startTs)}  ·  ${s.samples} samples  ·  ${dur}</div>
+          <div style="font-size:12px;margin:4px 0">${tags} ${advice}</div>
+          <div class="row" style="gap:6px;flex-wrap:wrap">
+            <a class="ghost sess-dl" data-id="${s.id}" href="/plugins/${PLUGIN_ID}/session-recorder/download/${s.id}" download>${t("sess.list.download") || "Download JSON"}</a>
+            <button class="ghost sess-share" data-id="${s.id}">${t("sess.list.share") || "Share"}</button>
+            <button class="ghost sess-del" data-id="${s.id}">${t("sess.list.delete") || "Delete"}</button>
+          </div>
+        </div>`;
+      }).join("") + "</div>";
+    }
+    const m = _sessOpenModal(t("sess.list.title") || "Sesiones grabadas", body, [
+      { label: t("sess.close") || "Close", onClick: (close) => close() },
+    ]);
+    m.querySelectorAll(".sess-share").forEach((b) => b.addEventListener("click", () => {
+      const id = b.dataset.id;
+      const url = `${location.origin}/plugins/${PLUGIN_ID}/session-recorder/download/${id}`;
+      const msg = encodeURIComponent(`Hi Carlos, sharing pypilot-newui session ${id} for AI tuning advice. Download: ${url}`);
+      window.open(`https://wa.me/?text=${msg}`, "_blank");
+    }));
+    m.querySelectorAll(".sess-del").forEach((b) => b.addEventListener("click", async () => {
+      if (!confirm((t("sess.list.delConfirm") || "Delete session {id}?").replace("{id}", b.dataset.id))) return;
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/session/${b.dataset.id}`, { method: "DELETE" });
+      if (r.ok) _sessOpenListModal();
+    }));
+  }
+  async function _sessOpenAdviceModal() {
+    let advice = [];
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/advice`);
+      if (r.ok) advice = (await r.json()).advice || [];
+    } catch { /* silent */ }
+    let body;
+    if (advice.length === 0) {
+      body = `<div class="hint">${t("sess.advice.empty") || "No advice received yet. Share a session first, then upload the advice JSON you get back."}</div>`;
+    } else {
+      body = "<div style=\"display:flex;flex-direction:column;gap:10px\">" + advice.map((a) => {
+        const findings = (a.findings || []).map((f) => `<li>${f.text || f.category || ""}</li>`).join("");
+        const recs = (a.recommendations || []).map((r) =>
+          `<li>${r.gain ? `<b>${r.gain}</b> ${r.current} → ${r.suggested}` : ""} ${r.reason || ""}</li>`
+        ).join("");
+        return `<div style="border:1px solid var(--border);border-radius:6px;padding:8px">
+          <div style="font-family:ui-monospace,monospace;font-size:11px;color:var(--fg-dim)">${a.sessionId}  ·  ${_sessFmtDate(a.analyzedAt)}</div>
+          <div style="font-size:12px;margin:6px 0"><b>${t("sess.advice.findings") || "Findings"}:</b><ul style="margin:2px 0 4px 18px">${findings || "<li>(none)</li>"}</ul></div>
+          <div style="font-size:12px;margin:6px 0"><b>${t("sess.advice.recs") || "Recommendations"}:</b><ul style="margin:2px 0 4px 18px">${recs || "<li>(none)</li>"}</ul></div>
+        </div>`;
+      }).join("") + "</div>";
+    }
+    _sessOpenModal(t("sess.advice.title") || "Consejos recibidos", body, [
+      { label: t("sess.advice.upload") || "Upload advice JSON", className: "primary", onClick: async (close) => {
+        const inp = document.createElement("input");
+        inp.type = "file";
+        inp.accept = "application/json";
+        inp.onchange = async () => {
+          const f = inp.files && inp.files[0];
+          if (!f) return;
+          const txt = await f.text();
+          let j;
+          try { j = JSON.parse(txt); } catch { alert("Bad JSON"); return; }
+          if (!j.sessionId) { alert("Advice missing sessionId"); return; }
+          const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/advice`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(j),
+          });
+          if (r.ok) { close(); _sessOpenAdviceModal(); }
+          else alert("Upload failed");
+        };
+        inp.click();
+      } },
+      { label: t("sess.close") || "Close", onClick: (close) => close() },
+    ]);
+  }
+  function _sessWire() {
+    const bt = document.getElementById("sess-tag-btn");
+    const bl = document.getElementById("sess-list-btn");
+    const ba = document.getElementById("sess-advice-btn");
+    if (bt && !bt.__wired) { bt.__wired = true; bt.addEventListener("click", _sessOpenTagsModal); }
+    if (bl && !bl.__wired) { bl.__wired = true; bl.addEventListener("click", _sessOpenListModal); }
+    if (ba && !ba.__wired) { ba.__wired = true; ba.addEventListener("click", _sessOpenAdviceModal); }
+    _sessRefreshStatus();
+    if (_sessRefreshTimer) clearInterval(_sessRefreshTimer);
+    _sessRefreshTimer = setInterval(_sessRefreshStatus, 5000);
+  }
+
+  function _lcWire() {
+    const cb  = document.getElementById("lc-enabled");
+    const bv  = document.getElementById("lc-view");
+    const bd  = document.getElementById("lc-download");
+    if (cb && !cb.__wired) { cb.__wired = true; cb.addEventListener("change", _lcToggle); }
+    if (bv && !bv.__wired) { bv.__wired = true; bv.addEventListener("click", _lcShowRecent); }
+    if (bd && !bd.__wired) { bd.__wired = true; bd.addEventListener("click", _lcDownload); }
+    // Kick a status refresh right away and every 5 s while Setup tab active.
+    _lcRefreshStatus();
+    if (_lcRefreshTimer) clearInterval(_lcRefreshTimer);
+    _lcRefreshTimer = setInterval(_lcRefreshStatus, 5000);
+    // Rev141: also start the watch inspector.
+    _watchInspectorStart();
+    // Rev140 (Carlos): restart pypilot_web on the Pi Zero. Runs
+    // `sv restart pypilot_web` via SSH. Less invasive than a hard
+    // reset - clears a jammed socket without losing NMEA / SK links.
+    const rst = document.getElementById("pypilot-web-restart");
+    const rstMsg = document.getElementById("pypilot-web-restart-status");
+    if (rst && !rst.__wired) {
+      rst.__wired = true;
+      rst.addEventListener("click", async () => {
+        rst.disabled = true;
+        if (rstMsg) rstMsg.textContent = t("setup.pypilotWebRestart.running") || "restarting...";
+        try {
+          const r = await skFetch(`/plugins/${PLUGIN_ID}/pypilot-web-restart`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          const j = await r.json();
+          if (rstMsg) rstMsg.textContent = j.ok
+            ? (t("setup.pypilotWebRestart.ok") || "OK") + ` (${j.elapsedMs}ms)`
+            : (t("setup.pypilotWebRestart.err") || "failed") + `: ${j.error || j.stdout || "?"}`;
+        } catch (e) {
+          if (rstMsg) rstMsg.textContent = (t("setup.pypilotWebRestart.err") || "failed") + `: ${e}`;
+        } finally {
+          rst.disabled = false;
+        }
+      });
+    }
+  }
+
   function wireSetup() {
     $("#scan-btn").addEventListener("click", scan);
     $("#cfg-apply").addEventListener("click", applyCfg);
     $("#paths-refresh").addEventListener("click", refreshPaths);
+    _lcWire();
+    _sessWire();
     const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);
     const langSel = $("#lang-select");
     if (langSel) {
@@ -4392,6 +5149,87 @@
   // interpolate from far-off to translateX(0). Old panel gets .leaving-*
   // to slide the opposite way. Cleanup after 350 ms.
   const TAB_ANIM_MS = 360;
+  // Rev140 (Carlos, per Sean D'Epagnier): dynamic subscription rate.
+  // pypilot_web gets pressured when we permanently subscribe to
+  // every RangeSetting. Instead, keep the backend on a small "core"
+  // set and ask it to bump specific keys only while the visor tab
+  // that shows them is on screen. The backend TTL takes care of
+  // relaxing them when we leave; this heartbeat renews the focus
+  // every 30 s so the rate does not drop mid-session.
+  let _focusRenewTimer = null;
+  let _focusCurrentTab = null;
+  async function _watchFocusPost(keys, periodSec, ttlSec) {
+    if (!Array.isArray(keys) || keys.length === 0) return;
+    try {
+      await skFetch(`/plugins/${PLUGIN_ID}/watch/focus`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys, periodSec, ttlSec }),
+      });
+    } catch { /* silent */ }
+  }
+  async function _watchReleaseAll() {
+    try {
+      await skFetch(`/plugins/${PLUGIN_ID}/watch/release`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+    } catch { /* silent */ }
+  }
+  function _tuneFocusKeys() {
+    // All ap.pilot.<current>.<gain> plus the pilot / profile selectors
+    // + the state paths the Tune tab shows in its header.
+    const keys = [];
+    const cat = state.catalog || {};
+    if (state.pilot) {
+      const prefix = `ap.pilot.${state.pilot}.`;
+      for (const k of Object.keys(cat)) {
+        if (k.startsWith(prefix)) keys.push(k);
+      }
+    }
+    keys.push("ap.pilot", "profile", "profiles");
+    // Config sliders are all RangeSettings that appear in Tune too.
+    for (const k of Object.keys(cat)) {
+      if (cat[k]?.type === "RangeSetting" && !k.startsWith("imu.") && !k.startsWith("servo.")) {
+        keys.push(k);
+      }
+    }
+    return keys;
+  }
+  function _setupFocusKeys() {
+    // Setup > Calibration shows every RangeSetting. The chip / status
+    // requests in the Setup grid do not need extra focus - they are
+    // already covered by the core set.
+    const keys = [];
+    const cat = state.catalog || {};
+    for (const k of Object.keys(cat)) {
+      if (cat[k]?.type === "RangeSetting") keys.push(k);
+    }
+    // rudder / imu telemetry helps the Sensor Quality card too.
+    for (const k of Object.keys(cat)) {
+      if (k.startsWith("rudder.") || k.startsWith("imu.")) keys.push(k);
+    }
+    return keys;
+  }
+  function _watchFocusForTab(id) {
+    _focusCurrentTab = id;
+    if (_focusRenewTimer) { clearInterval(_focusRenewTimer); _focusRenewTimer = null; }
+    const kick = () => {
+      if (_focusCurrentTab === "tune") {
+        _watchFocusPost(_tuneFocusKeys(), 0.5, 60);
+      } else if (_focusCurrentTab === "setup") {
+        _watchFocusPost(_setupFocusKeys(), 1.0, 60);
+      } else if (_focusCurrentTab === "chart") {
+        // Chart tab renders KPIs the historian populates on the backend
+        // side; no extra pypilot focus needed beyond the core set.
+      }
+    };
+    kick();
+    // Renew ~10 s before the TTL runs out so we never dip.
+    _focusRenewTimer = setInterval(kick, 45000);
+  }
+
   function _activateTab(id, direction) {
     $$(".tab-btn").forEach((x) => x.classList.remove("active"));
     const btn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
@@ -4447,6 +5285,12 @@
       // re-enters the tab. Muscle memory should be "tick then touch".
       _setTuneLocked(true);
     }
+    // Rev140 (Carlos, per Sean D'Epagnier): dynamic watch focus. Bump
+    // the sub rate on the pypilot values a specific tab actually
+    // needs, then let the TTL expire when we leave. Renew every 30 s
+    // while the tab stays open so no key drops below the requested
+    // rate while the user is looking at it.
+    _watchFocusForTab(id);
     // Rev96: Chart tab lifecycle - kick off a fetch on entry, stop the
     // auto-refresh timer when the user navigates away.
     if (id === "chart") chartOnTabEnter();
@@ -4468,6 +5312,63 @@
   // a data attribute and render it in orange next to the live value so
   // the user always knows where the value started. On lock, clear the
   // baseline so the next unlock captures a fresh snapshot.
+  // Rev139 (Carlos): plain-language help for each gain slider. Keys
+  // match either the short gain name (P / I / D / DD / PR / FF, from
+  // ap.pilot.<pilot>.<gain>) or the full pypilot RangeSetting name
+  // (servo.max_current, rudder.range, ...). Only a curated subset is
+  // documented; anything not in the table renders without help text.
+  // The "short" line is always visible under the slider; the "long"
+  // block opens on click of a small "?" button.
+  const _GAIN_HELP_KEYS = new Set([
+    "P", "I", "D", "DD", "PR", "FF",
+    "servo.max_current", "servo.max_slew_speed", "imu.heading_offset",
+    "rudder.range", "ap.tack.angle", "ap.tack.rate",
+  ]);
+  function _gainHelpKeyFor(name) {
+    if (!name) return null;
+    if (_GAIN_HELP_KEYS.has(name)) return name;
+    // Long form: 'ap.pilot.basic.P' -> tail 'P'
+    const tail = name.split(".").pop();
+    if (tail && _GAIN_HELP_KEYS.has(tail)) return tail;
+    return null;
+  }
+  function _attachGainHelp(row, name) {
+    // Skip if this row has no matching help entry or was already
+    // decorated (dedupe when the Calibration in-place refresh runs).
+    const key = _gainHelpKeyFor(name);
+    if (!key) return;
+    if (row.querySelector(":scope > .gain-help")) return;
+    const shortKey = `tune.gain.${key}.short`;
+    const longKey  = `tune.gain.${key}.long`;
+    const shortTxt = t(shortKey);
+    const longTxt  = t(longKey);
+    if (shortTxt === shortKey && longTxt === longKey) return;   // untranslated - render nothing
+    const wrap = document.createElement("div");
+    wrap.className = "gain-help";
+    const line = document.createElement("span");
+    line.className = "gain-help-short";
+    line.textContent = shortTxt !== shortKey ? shortTxt : "";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "gain-help-btn";
+    btn.textContent = "?";
+    btn.setAttribute("aria-label", t("tune.gain.helpBtn") || "More info");
+    btn.setAttribute("title", t("tune.gain.helpBtn") || "More info");
+    const longBox = document.createElement("div");
+    longBox.className = "gain-help-long";
+    longBox.textContent = longTxt !== longKey ? longTxt : "";
+    longBox.hidden = true;
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      longBox.hidden = !longBox.hidden;
+      btn.classList.toggle("open", !longBox.hidden);
+    });
+    wrap.appendChild(line);
+    if (longBox.textContent) wrap.appendChild(btn);
+    row.appendChild(wrap);
+    if (longBox.textContent) row.appendChild(longBox);
+  }
+
   // Rev130 (Carlos): each Setup card shows what is currently
   // configured. The tab feels less like a wall of forms and more like
   // a status dashboard. Called at boot (after /status resolves), on

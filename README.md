@@ -23,6 +23,81 @@ by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongs
 |---|---|
 | ![Race tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) | ![Info tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-info.jpg) |
 
+## What's new in 2.4.0
+
+Feature release. The plugin has learnt to behave itself around the Pi
+Zero and now speaks the sailor's language instead of pilot-programmer
+jargon. The rework was driven by direct feedback from **Sean D'Epagnier**
+(pypilot author) on how his `pypilot_web` handles a firehose of
+subscriptions, and by field observations from Carlos on Tunatunes.
+
+- **Dynamic watch focus (per Sean D'Epagnier's advice)** — before, the
+  plugin permanently subscribed ~170 pypilot values, which pressured
+  `pypilot_web` on the Pi Zero W and eventually locked its socket
+  buffer. Now the backend keeps a minimal always-on "core" set (~15
+  paths) and accepts short-lived `focus` requests from the visor: the
+  Tune tab bumps its gain paths to 2 Hz only while it is on screen,
+  same for the Calibration sliders in Setup. When the tab closes the
+  TTL expires and the rate drops back. New endpoints
+  `/watch/focus`, `/watch/release` and `/watch/status`, a live
+  inspector in Setup → Remote Control Console, plus a `Restart
+  pypilot_web` button that runs `sv restart pypilot_web` via SSH.
+- **Navigation session recorder + shared-advice loop** — every engaged
+  AP session is now saved as JSONL to
+  `~/.signalk/plugin-config-data/signalk-pypilot-newui/nav-sessions/`.
+  Users label conditions (wind, sea state, propulsion, point of sail,
+  crew) from a modal in Setup → Doctor, share the file via WhatsApp
+  or email, receive an "advice" JSON back and upload it to the visor,
+  where it renders as "Consejos recibidos". First step towards an
+  AI-tuned Doctor: the plugin does not run any AI at runtime - all
+  the learning happens off-boat and gets injected into future Revs as
+  plain heuristics.
+- **Pi Zero log capture** — piCore keeps `/var/log` in tmpfs, so a
+  hang wipes the logs the moment the user hits the hard reset relay.
+  A new opt-in poller SSHes into the Pi Zero on a configurable
+  cadence, tails `/var/log/pypilot/*` and appends the new lines to a
+  persistent daily file on the Pi 5. Toggle + downloader live in the
+  Remote Control Console.
+- **Plain-language help for every gain** — every P / I / D / DD / PR
+  / FF slider in Tune and every documented RangeSetting slider in
+  Setup → Calibration now carries a short "what it does" line plus a
+  `?` button that expands into "when to raise, when to lower". EN /
+  ES / DE / FR. Directly inspired by Sean's own suggestion in the
+  pypilot forum.
+- **Alarm engine and Doctor speak the user's language** — the seven
+  built-in alarm rules and the Doctor findings + summary now render
+  in the active language (EN / ES / DE / FR); the backend still ships
+  English strings on `notifications.autopilot.*` for KIP / WilhelmSK
+  compatibility.
+- **Mode selector proper i18n and uppercase tabs** — pypilot mode
+  strings (`compass`, `wind`, `true wind`, `nav`) plus the plugin's
+  own `aproado` pseudo-mode all render as translated UPPERCASE labels
+  ("COMPAS", "VIENTO APARENTE", "APROADO", ...). Sailing tab labels
+  are UPPERCASE too so accents remain optional per RAE convention.
+- **Doctor UX polish** — every suggestion carries a Hide/Discard
+  button that stays visible even after the suggestion has been
+  applied, so stale advice never sticks in the list; the Setup tile
+  chip mirrors the visible count.
+- **Setup launcher — live status chips on every tile** — pypilot
+  host+port, active language, last calibration adjustment timestamp
+  (with a Reset button), count of active SK sentences vs the total
+  catalogue (all 181 keys), and an SSH-configured pill on Remote
+  Control Console. Sensor Quality gains a per-row Ignore / Restore
+  button so a rudder feedback that does not exist on this boat stops
+  turning the chip red.
+- **Chart tab — hover freeze + per-band Y-axis** — touch or hover
+  over the timeline to freeze the auto-refresh and read the exact
+  value at that point for every band. Min / mid / max ticks appear
+  inside the right gutter of each band.
+- **Tune — per-slider ↺ restore and profile-fork prompt** — every
+  gain gets a ↺ that snaps back to the frozen "was:" baseline. The
+  first change per unlock triggers a Doctor-style modal to keep the
+  tweaks in the current profile, save them in a new
+  `tune-YYYYMMDD-HHMM` fork, or Cancel and revert.
+- **Nav bar slide-down gesture** — swipe from the top of the visor
+  to bring the tab bar back (counterpart to the existing slide-up
+  hide).
+
 ## What's new in 2.3.0
 
 Feature batch on top of 2.2.x:

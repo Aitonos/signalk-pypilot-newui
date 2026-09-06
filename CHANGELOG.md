@@ -1,5 +1,173 @@
 # Changelog
 
+## 2.4.0 — 2026-09-07 — Rev138..Rev145
+
+Feature release. The plugin has learnt to behave itself around the
+Pi Zero (following direct advice from Sean D'Epagnier, pypilot author)
+and now speaks the sailor's language instead of pilot-programmer
+jargon.
+
+### English
+
+**Added**
+
+- **Dynamic watch focus (Rev140..Rev141)** — the old policy kept ~170
+  pypilot subscriptions pinned to `pypilot_web`, which pressured the
+  Pi Zero W and eventually locked its socket buffer. The backend now
+  keeps a minimal always-on core (~15 paths, 1-2 Hz) and accepts
+  short-lived focus requests from the visor: Tune bumps the gain
+  paths only while it is on screen, same for the Calibration
+  sliders. TTL expires when the tab closes. New endpoints
+  `/watch/focus`, `/watch/release`, `/watch/status`, a live inspector
+  in Setup → Remote Control Console, and a `Restart pypilot_web`
+  button that runs `sv restart pypilot_web` via SSH.
+- **Navigation session recorder + advice loop (Rev143)** — every
+  engaged AP session is now saved as JSONL to
+  `~/.signalk/plugin-config-data/signalk-pypilot-newui/nav-sessions/`.
+  Users label conditions (wind / sea / motor / point of sail / crew)
+  from a modal in Setup → Doctor, share the file via WhatsApp or
+  email, receive an "advice" JSON back and upload it - the visor
+  renders it as a "Consejos recibidos" card. First step of the
+  AI-tuned Doctor roadmap: no AI runs at runtime, learning happens
+  off-boat and gets injected as plain heuristics in later Revs.
+- **Pi Zero log capture (Rev138)** — piCore keeps `/var/log` in
+  tmpfs, so a hard reset wipes the previous session's logs. New
+  opt-in poller SSHes into the Pi Zero on a configurable cadence,
+  tails `/var/log/pypilot/*` and appends new lines to a persistent
+  daily file on the Pi 5. Toggle + downloader live in the Remote
+  Control Console.
+- **Plain-language help for every gain (Rev139)** — every P / I / D
+  / DD / PR / FF slider in Tune and every documented RangeSetting in
+  Setup → Calibration now carries a short "what it does" line plus a
+  `?` button that expands into "when to raise, when to lower". EN /
+  ES / DE / FR. Aligned with Sean's own forum suggestion.
+- **Doctor findings and summary translated (Rev136)** — backend now
+  emits i18n keys with args so the whole Doctor panel reads in the
+  active language instead of half English / half Spanish.
+- **Alarm engine i18n (Rev135..Rev136)** — the seven built-in rules
+  (heading-deviation, unable-to-steer, servo-overcurrent,
+  servo-temp-high, low-voltage, sensor-lost, pypilot-disconnected)
+  render banners and speak in the active language. The backend still
+  ships English strings on `notifications.autopilot.*` for
+  KIP / WilhelmSK compatibility.
+- **Mode selector proper i18n + uppercase tabs (Rev142, Rev144)** —
+  `compass`, `wind`, `true wind`, `nav` and the plugin's own
+  `aproado` render as translated UPPERCASE labels ("COMPAS", "VIENTO
+  APARENTE", "APROADO"). Tab labels are UPPERCASE too so accents
+  become optional (RAE convention). Language switch now refreshes
+  the mode selector and gain help lines immediately.
+- **Doctor - persistent Hide button (Rev135..Rev136)** — the discard
+  action stays visible even after a suggestion has been applied,
+  the tile chip mirrors the count.
+- **Setup launcher - live status chips (Rev130..Rev135)** — pypilot
+  host+port, active language, calibration last-adjust timestamp
+  (with a Reset button), count of active SK sentences vs the plugin
+  catalogue total, and an SSH-configured pill on Remote Control
+  Console. Sensor Quality gains a per-row Ignore / Restore button so
+  a sensor absent from the boat (rudder feedback missing, ...)
+  stops turning the chip red.
+- **Chart hover freeze + per-band Y axis (Rev129)** — touch or hover
+  to freeze the auto-refresh and read the exact value at that point
+  for every band. Min / mid / max ticks in the right gutter.
+- **Tune - per-slider ↺ restore + profile-fork prompt (Rev129,
+  Rev132..Rev134)** — snap back to the frozen "was:" baseline, or
+  save the change in a new `tune-YYYYMMDD-HHMM` fork on first
+  unlock, or Cancel and revert.
+- **Nav bar slide-down gesture (Rev129)** — swipe from the top to
+  bring the tab bar back, counterpart to the existing slide-up hide.
+
+**Changed**
+
+- The `RESERVED_PYPILOT_KEYS` set now only blocks publish, not
+  subscribe. Rev141 regression fix: `ap.mode`, `ap.enabled`,
+  `ap.heading_command` are needed internally to sync with the SK
+  Autopilot API v2.
+- All six screenshots refreshed to match the current UI.
+
+### Español
+
+**Añadido**
+
+- **Watch focus dinámico** — el plugin mantiene un núcleo mínimo
+  suscrito (~15 keys, 1-2 Hz) y sube el rate solo mientras haya una
+  pestaña que necesite ver esos valores. Sigue la recomendación de
+  Sean D'Epagnier: pypilot_web se satura si le mandas ~170
+  suscripciones constantes. Nuevos endpoints, inspector en vivo y
+  botón "Reiniciar pypilot_web" en la consola remota.
+- **Grabador de sesiones + loop de consejos** — cada sesión con el
+  AP enganchado se guarda como JSONL. Etiquetas por condiciones
+  (viento / mar / propulsión / rumbo / tripulación), botón compartir
+  por WhatsApp, y subida del JSON de consejos que se recibe de
+  vuelta. Primer paso del "Doctor afinado por IA": la IA no corre
+  en tiempo real, aprende offline y sus heurísticas se inyectan
+  como código en las próximas Revs.
+- **Captura de logs Pi Zero** — piCore guarda `/var/log` solo en
+  RAM, un hard reset borra el historial. Toggle en la consola
+  remota que hace SSH cada N segundos y guarda los logs en un
+  archivo persistente del Pi 5.
+- **Explicaciones "en cristiano" para cada ganancia** — P / I / D /
+  DD / PR / FF más los sliders principales de Calibration llevan
+  una línea corta con qué hace y un `?` que expande "cuándo subir,
+  cuándo bajar". EN / ES / DE / FR.
+- **Doctor + alarmas en tu idioma** — findings, summary y las siete
+  reglas de alarma ahora se traducen en el visor. El backend sigue
+  enviando inglés al SK para KIP / WilhelmSK.
+- **Selector de modo traducido en MAYÚSCULAS** — "COMPAS", "VIENTO
+  APARENTE", "VIENTO REAL", "APROADO", ... con jerga marinera. Las
+  pestañas también en MAYÚSCULAS para que la tilde sea opcional.
+- **Doctor - botón Ocultar siempre visible** — no se atasca la
+  lista de sugerencias aunque ya las hayas aplicado.
+- **Setup - chips vivos en cada tile** — host + puerto TinyPilot,
+  idioma activo, fecha del último ajuste de calibración, sentencias
+  SK activas y SSH configurado.
+- **Sensor Quality con Ignorar / Restaurar por fila** — para
+  sensores que no existen en el barco (por ejemplo el timón sin
+  feedback).
+- **Chart con freeze al pasar el cursor + escala Y por banda**.
+- **Tune con ↺ por slider + fork de perfil al primer cambio**.
+- **Slide desde arriba para mostrar la barra de pestañas**.
+
+**Cambiado**
+
+- Regresión Rev141 corregida: `RESERVED_PYPILOT_KEYS` bloquea
+  solo publish, no subscribe. El selector de modo del AP vuelve
+  a poblarse correctamente.
+- 6 screenshots actualizados a la UI actual.
+
+### Deutsch
+
+**Neu**
+
+- Dynamischer Watch-Fokus, entlastet pypilot_web auf dem Pi Zero.
+- Sitzungs-Rekorder + Ratschlag-Loop (JSONL pro Engage).
+- Pi Zero Log-Capture (persistiert /var/log auf dem Pi 5).
+- Klartext-Hilfe pro Gain-Slider.
+- Doctor + Alarme in aktiver Sprache.
+- Modus-Auswahl uebersetzt in GROSSBUCHSTABEN.
+- Doctor: Verwerfen bleibt sichtbar.
+- Setup-Kacheln zeigen Live-Status.
+- Sensor Quality: Ignorieren pro Zeile.
+- Chart: Hover-Freeze + Y-Achse pro Band.
+- Tune: ↺ pro Slider + Fork-Dialog.
+- Wisch-von-oben blendet Tab-Leiste ein.
+
+### Français
+
+**Nouveautés**
+
+- Focus d'abonnements dynamique, allege pypilot_web sur le Pi Zero.
+- Enregistreur de sessions + boucle de conseils (JSONL par engage).
+- Capture des logs Pi Zero sur le Pi 5.
+- Aide en clair par slider de gain.
+- Doctor et alarmes dans la langue active.
+- Selecteur de mode traduit en MAJUSCULES.
+- Doctor: bouton Masquer toujours visible.
+- Puces de statut vivantes sur chaque tuile Setup.
+- Sensor Quality avec Ignorer / Restaurer par ligne.
+- Chart: figeage au survol + graduation Y par bande.
+- Tune: ↺ par slider + modal de fork de profil.
+- Glissement du haut vers le bas pour reafficher la barre d'onglets.
+
 ## 2.3.0 — 2026-08-31 — Rev130..Rev137
 
 Feature batch on top of 2.2.x. Themes: make the visor speak the user's
