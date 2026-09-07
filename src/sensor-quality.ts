@@ -26,6 +26,13 @@ export interface QualityThreshold {
   minHz?: number;
   /** Optional friendly label shown in the panel. Defaults to the SK path. */
   label?: string;
+  /** Rev148 (Carlos): alternative SK paths that all count as "this
+   *  metric". Sensor Quality watches every one of them; the row uses
+   *  the freshest of the group so any one healthy source turns the
+   *  row green. Example: TWS is satisfied by either
+   *  environment.wind.speedTrue OR .speedOverGround OR
+   *  .speedOverWater - whichever the SK setup happens to publish. */
+  alternatives?: string[];
 }
 
 export interface PathQuality {
@@ -70,7 +77,28 @@ export const DEFAULT_QUALITY_WATCH: Record<string, QualityThreshold> = {
   "navigation.position":              { label: "GPS position", degradedAgeMs: 5000, lostAgeMs: 30000 },
   "environment.wind.angleApparent":   { label: "AWA",         degradedAgeMs: 5000,  lostAgeMs: 30000 },
   "environment.wind.speedApparent":   { label: "AWS",         degradedAgeMs: 5000,  lostAgeMs: 30000 },
-  "environment.wind.speedTrue":       { label: "TWS",         degradedAgeMs: 5000,  lostAgeMs: 30000 },
+  // Rev148 (Carlos): TWS row is fed by whichever true-wind speed
+  // path the SK setup publishes. speedTrue is the canonical spec
+  // path but almost nobody publishes it; signalk-derived-data emits
+  // speedOverGround; a few instruments publish speedOverWater. If
+  // ANY of the three is fresh, the row turns green.
+  "environment.wind.speedOverGround": {
+    label: "TWS", degradedAgeMs: 5000, lostAgeMs: 30000,
+    alternatives: [
+      "environment.wind.speedTrue",
+      "environment.wind.speedOverWater",
+    ],
+  },
+  // TWA row: same idea. Different derived-data / instrument setups
+  // emit angleTrueWater, angleTrueGround, or the deprecated
+  // angleTrue - accept any of them.
+  "environment.wind.angleTrueWater": {
+    label: "TWA", degradedAgeMs: 5000, lostAgeMs: 30000,
+    alternatives: [
+      "environment.wind.angleTrueGround",
+      "environment.wind.angleTrue",
+    ],
+  },
   "steering.rudderAngle":             { label: "Rudder",      degradedAgeMs: 3000,  lostAgeMs: 20000 },
 };
 
@@ -113,6 +141,25 @@ export class SensorQualityMonitor {
         lastValue: null,
         lastSource: null,
       });
+      // Rev148 (Carlos): register a hidden slot for every alternative
+      // path in the group so freshness/hz/jitter are all measured, but
+      // tag the threshold with the same label as the primary slot -
+      // the snapshot dedupes by label and keeps only the freshest.
+      if (thr.alternatives) {
+        for (const alt of thr.alternatives) {
+          if (this.slots.has(alt)) continue;
+          this.slots.set(alt, {
+            path: alt,
+            threshold: { ...thr, alternatives: undefined },   // avoid recursion
+            arrivals: new Array(this.bufferPerPath).fill(0),
+            head: 0,
+            count: 0,
+            lastSkTs: null,
+            lastValue: null,
+            lastSource: null,
+          });
+        }
+      }
     }
   }
 
@@ -153,14 +200,25 @@ export class SensorQualityMonitor {
   }
 
   snapshot(nowMs: number = Date.now()): QualitySnapshot {
-    const items: PathQuality[] = [];
+    // Rev148 (Carlos): classify every slot, then dedupe by label -
+    // paths that share a label (alternatives) collapse into a single
+    // row keeping the freshest (or the greenest) as the canonical.
+    // If no alternative has ever emitted, the row stays "missing".
+    const classified: PathQuality[] = [];
     for (const slot of this.slots.values()) {
-      items.push(this.classify(slot, nowMs));
+      classified.push(this.classify(slot, nowMs));
+    }
+    const bestByLabel = new Map<string, PathQuality>();
+    for (const it of classified) {
+      const key = it.label || it.path;
+      const prev = bestByLabel.get(key);
+      if (!prev) { bestByLabel.set(key, it); continue; }
+      if (isBetter(it, prev)) bestByLabel.set(key, it);
     }
     return {
       computedTs: nowMs,
       windowSec: this.windowMs / 1000,
-      items,
+      items: [...bestByLabel.values()],
     };
   }
 
@@ -223,6 +281,19 @@ export class SensorQualityMonitor {
     if (thr.minHz != null && hz != null && hz < thr.minHz) return "degraded";
     return "good";
   }
+}
+
+/** Rev148: rank two PathQuality reports so the dedupe by-label picks
+ *  the "greenest and freshest". Ordering: good beats degraded beats
+ *  lost beats missing; within the same level, the smaller ageMs wins. */
+function isBetter(a: PathQuality, b: PathQuality): boolean {
+  const rank = (l: QualityLevel): number => (l === "good" ? 3 : l === "degraded" ? 2 : l === "lost" ? 1 : 0);
+  const ra = rank(a.level);
+  const rb = rank(b.level);
+  if (ra !== rb) return ra > rb;
+  const aa = a.ageMs ?? Infinity;
+  const bb = b.ageMs ?? Infinity;
+  return aa < bb;
 }
 
 function normaliseTs(raw: unknown): number | null {

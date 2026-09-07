@@ -1554,6 +1554,10 @@
       "environment.wind.angleTrueWater",
       "environment.wind.angleTrueGround",
       "environment.wind.speedTrue",
+      // Rev146 (Carlos): signalk-derived-data emits speedOverGround
+      // in place of speedTrue on most SK setups - subscribe both so
+      // the corner tiles and Aproado modal get a real value.
+      "environment.wind.speedOverGround",
       "environment.wind.directionTrue",
       "environment.depth.belowKeel",
       "environment.depth.belowTransducer",
@@ -1712,6 +1716,12 @@
         state.windAngleTrue = numericOrNull(value); break;
       case "environment.wind.speedTrue":
         state.windSpeedTrue = numericOrNull(value); break;
+      case "environment.wind.speedOverGround":
+        // Rev146: use as TWS fallback only when the canonical
+        // speedTrue path is missing (some SK setups do publish
+        // speedTrue via NMEA MWD - respect that value first).
+        if (state.windSpeedTrue == null) state.windSpeedTrue = numericOrNull(value);
+        break;
       case "navigation.speedOverGround":
         state.sog = numericOrNull(value); renderCogAndCurrent(); break;
       case "navigation.courseOverGroundTrue":
@@ -1952,18 +1962,46 @@
       if (!meta) continue;
       const label = typeof meta.label === "function" ? meta.label() : meta.label;
       const val = meta.read();
+      // Rev151 (Carlos): colour A/T inside the corner-tile label so
+      // "AWA/AWS" gets an amber A and "TWA/TWS" a teal T. The rest of
+      // the label stays neutral so the tile does not look shouty.
+      const paintedLabel = _paintABLabel(label, key);
       // Wind returns {value, sub}; the rest returns a string.
       if (val && typeof val === "object" && "value" in val) {
-        el.innerHTML = `<div class="label">${label}</div><div class="value">${val.value}</div><div class="sub">${val.sub}</div>`;
+        el.innerHTML = `<div class="label">${paintedLabel}</div><div class="value">${val.value}</div><div class="sub">${val.sub}</div>`;
       } else {
-        el.innerHTML = `<div class="label">${label}</div><div class="value">${val}</div>`;
+        el.innerHTML = `<div class="label">${paintedLabel}</div><div class="value">${val}</div>`;
       }
       // Rev48: color coding by data type - keep classic B&G-ish palette.
-      el.classList.remove("heading","target","wind","sog","depth","cog","mode","twa","twd");
-      const colorMap = { hdg:"heading", tgt:"target", wind:"wind", awa:"wind", aws:"wind",
-                         twa:"twa", tws:"wind", twd:"twd", sog:"sog", cog:"cog", depth:"depth", mode:"mode" };
+      // Rev151: tgt goes red (matches the AP button); awa/aws lean amber;
+      // twa/tws lean teal; wind combo picks amber/teal via the paint below.
+      el.classList.remove("heading","target","wind","sog","depth","cog","mode","twa","twd","wind-app","wind-true");
+      const colorMap = { hdg:"heading", tgt:"target",
+                         wind: state.windCornerShow === "twa" ? "wind-true" : "wind-app",
+                         awa:"wind-app", aws:"wind-app",
+                         twa:"wind-true", tws:"wind-true", twd:"twd",
+                         sog:"sog", cog:"cog", depth:"depth", mode:"mode" };
       if (colorMap[key]) el.classList.add(colorMap[key]);
     }
+  }
+  // Rev151: wrap the leading A / T of a corner label into a coloured
+  // span so the eye maps the tile to the matching arrow instantly.
+  function _paintABLabel(label, key) {
+    if (typeof label !== "string" || label.length === 0) return label;
+    // Cases we know: "AWA/AWS", "AWS", "AWA", "TWA/TWS", "TWS", "TWA".
+    // For the toggling `wind` corner, check state.windCornerShow.
+    const isApp = key === "awa" || key === "aws" || (key === "wind" && state.windCornerShow !== "twa");
+    const isTru = key === "twa" || key === "tws" || (key === "wind" && state.windCornerShow === "twa");
+    if (!isApp && !isTru) return label;
+    const cls = isApp ? "lbl-app" : "lbl-true";
+    // Split around the '/' so "AWA/AWS" -> both sides paint their leader.
+    return label.split("/").map((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return part;
+      const head = trimmed[0];
+      const tail = trimmed.slice(1);
+      return `<span class="${cls}"><b>${head}</b>${tail}</span>`;
+    }).join("/");
   }
   function _dashPopulateSelectors() {
     // Rev58: the corner dropdown lists CORE keys + user-enabled extras +
@@ -2270,11 +2308,19 @@
     }
     const speedLabel = document.getElementById("rose-speed-label");
     const speedText  = document.getElementById("rose-speed");
+    const chip = document.getElementById("rose-speed-chip");
     if (speedLabel) speedLabel.textContent = windSpeed == null ? "" : tag;
     if (speedText) {
       speedText.textContent = windSpeed == null
         ? "--- kn"
         : (windSpeed * 1.94384).toFixed(1) + " kn";
+    }
+    // Rev152 (Carlos): tint the WHOLE chip (label + value) with the
+    // matching arrow colour - AWS gets amber, TWS gets teal. Toggling
+    // a class on the chip lets CSS colour both children at once.
+    if (chip) {
+      chip.classList.remove("wind-app", "wind-true");
+      if (windSpeed != null) chip.classList.add(tag === "TWS" ? "wind-true" : "wind-app");
     }
   }
 
@@ -5198,31 +5244,54 @@
     return keys;
   }
   function _setupFocusKeys() {
-    // Setup > Calibration shows every RangeSetting. The chip / status
-    // requests in the Setup grid do not need extra focus - they are
-    // already covered by the core set.
-    const keys = [];
+    // Rev149 (Carlos, per Sean D'Epagnier): the launcher grid alone
+    // (no card fullscreen) needs NO focus - the tile chips read
+    // aggregate state from the SK server, not raw pypilot values.
+    // Only bump keys when a card that actually shows raw values is
+    // opened fullscreen, and only the keys that card renders. This
+    // keeps the watch count well under Sean's 40-path ceiling.
+    const fs = document.querySelector('.setup-block[data-fullscreen="1"]');
+    if (!fs) return [];
+    const blockKey = fs.dataset.blockKey || "";
     const cat = state.catalog || {};
-    for (const k of Object.keys(cat)) {
-      if (cat[k]?.type === "RangeSetting") keys.push(k);
+    const keys = [];
+    if (blockKey === "calibration") {
+      // Only the RangeSettings we ship help text for + the alignment
+      // metadata the calibration card actually renders.
+      const DOCUMENTED = [
+        "servo.max_current", "servo.max_slew_speed", "servo.min_speed",
+        "rudder.range", "imu.heading_offset",
+        "ap.tack.angle", "ap.tack.rate",
+      ];
+      for (const k of DOCUMENTED) if (cat[k]) keys.push(k);
     }
-    // rudder / imu telemetry helps the Sensor Quality card too.
-    for (const k of Object.keys(cat)) {
-      if (k.startsWith("rudder.") || k.startsWith("imu.")) keys.push(k);
-    }
+    // Doctor / Sensor Quality / Paths / Language / Emergency / Connection
+    // do not depend on any pypilot value the core set doesn't already
+    // subscribe to. Adding them here would just re-inflate the count.
     return keys;
   }
   function _watchFocusForTab(id) {
     _focusCurrentTab = id;
     if (_focusRenewTimer) { clearInterval(_focusRenewTimer); _focusRenewTimer = null; }
     const kick = () => {
+      let keys = [];
+      let period = 1.0;
       if (_focusCurrentTab === "tune") {
-        _watchFocusPost(_tuneFocusKeys(), 0.5, 60);
+        keys = _tuneFocusKeys();
+        period = 0.5;
       } else if (_focusCurrentTab === "setup") {
-        _watchFocusPost(_setupFocusKeys(), 1.0, 60);
-      } else if (_focusCurrentTab === "chart") {
-        // Chart tab renders KPIs the historian populates on the backend
-        // side; no extra pypilot focus needed beyond the core set.
+        keys = _setupFocusKeys();
+        period = 1.0;
+      }
+      // Rev149 (Carlos, per Sean D'Epagnier): if this tab / card
+      // combination needs no focus, actively release whatever the
+      // previous state had rather than letting the 60 s TTL run down.
+      // Otherwise Setup would keep 60+ keys pinned for a full minute
+      // after the user closed the Calibration card.
+      if (keys.length === 0) {
+        _watchReleaseAll();
+      } else {
+        _watchFocusPost(keys, period, 60);
       }
     };
     kick();
@@ -7659,6 +7728,10 @@
     block.dataset.fullscreen = "1";
     block.scrollTop = 0;
     document.body.classList.add("setup-fullscreen-active");
+    // Rev149 (Carlos, per Sean): re-evaluate focus now that the
+    // fullscreen block is known, so the relevant card's paths get
+    // bumped immediately instead of waiting for the 45 s heartbeat.
+    if (typeof _watchFocusForTab === "function") _watchFocusForTab("setup");
   }
   function _setupFullscreenOff(block) {
     if (!block) {
@@ -7679,6 +7752,11 @@
     if (!document.querySelector('.setup-block[data-fullscreen="1"]')) {
       document.body.classList.remove("setup-fullscreen-active");
     }
+    // Rev149: re-evaluate focus. With no card open, _watchFocusForTab
+    // sees an empty key list and calls _watchReleaseAll itself, so
+    // the previously bumped subscriptions drop back to the core set
+    // immediately rather than after the 60 s TTL.
+    if (typeof _watchFocusForTab === "function") _watchFocusForTab("setup");
   }
   function initSetupTiles() {
     const setup = document.getElementById("tab-setup");

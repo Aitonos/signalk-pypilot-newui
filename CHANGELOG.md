@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.4.1 — 2026-09-08 — Rev146..Rev153
+
+Patch release. Fixes + UI polish on top of 2.4.0.
+
+### English
+
+**Fixed**
+
+- **TWS row in Sensor Quality no longer stuck as MISSING** on plain SK
+  setups. `environment.wind.speedTrue` (canonical) is rarely populated;
+  the canonical row now accepts `.speedOverGround` (what
+  `signalk-derived-data` emits) or `.speedOverWater` as alternatives.
+  Same treatment for TWA (`.angleTrueWater` / `.angleTrueGround` /
+  `.angleTrue`). Rev146-148.
+- **Regression: AP mode selector went blank** after the Rev140 watch
+  refactor - `RESERVED_PYPILOT_KEYS` was blocking subscribe too, when
+  it should only block re-publish. Restored so the visor keeps
+  `ap.enabled/mode/heading_command` in sync. Rev142.
+- **Watch focus was pinning 60+ keys** on `pypilot_web` when the Setup
+  launcher was open. Rev149-150: the launcher grid takes NO focus;
+  only the Calibration card (fullscreen) bumps the 7 documented
+  sliders. Empty focus now triggers explicit release, so the count
+  drops back to the ~15 core watches immediately instead of waiting
+  for the 60 s TTL. Well under Sean D'Epagnier's 40-path ceiling.
+- **`[current]` prefix in Pi Zero log capture** replaced with the
+  parent directory (`[pypilot]`, `[pypilot_web]`, `[pypilot_hat]`) so
+  the merged file is actually readable. Rev149.
+
+**Changed**
+
+- **Rose colour palette (Carlos)**: Target/DIA diamond is now red
+  (`--target-red`, matches the AP engage button); AWS/TWS chip below
+  the rose is fully tinted amber for apparent, teal for true; corner
+  tiles tint value + sub in the matching wind colour; SOG back to
+  white; Rev151-152.
+- **Configure-corners modal** — h4 + close button now sticky at the
+  top, body scrolls independently. X on the LEFT with the solid red
+  `--engaged` style used by the Setup fullscreen cards. Rev151-153.
+- **Mode selector labels re-render on language change**: switching
+  language now redraws mode / pilot / profile selects immediately
+  instead of waiting for the next backend delta. Rev144.
+
 ## 2.4.0 — 2026-09-07 — Rev138..Rev145
 
 Feature release. The plugin has learnt to behave itself around the

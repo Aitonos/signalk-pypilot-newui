@@ -20,7 +20,7 @@ import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder"
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev145";
+const PLUGIN_REVISION = "Rev153";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1228,7 +1228,15 @@ module.exports = function (app: any) {
             }
             const fresh = lines.slice(startIdx);
             if (fresh.length === 0) continue;
-            for (const l of fresh) newLines.push(`[${src.split("/").pop()}] ${l}`);
+            // Rev149 (Carlos): tag each line with the parent directory
+            // instead of the file basename. All three logs are named
+            // "current" (svlogd convention) so the previous prefix
+            // showed [current] for everything - useless when reviewing
+            // the aggregated file. Now: [pypilot], [pypilot_web],
+            // [pypilot_hat].
+            const parts = src.split("/");
+            const tag = parts.length >= 2 ? parts[parts.length - 2] : (parts[0] || "log");
+            for (const l of fresh) newLines.push(`[${tag}] ${l}`);
             logCaptureLastLineHash[src] = _lcHash(lines[lines.length - 1]);
           }
           if (newLines.length > 0) {
@@ -1868,7 +1876,11 @@ module.exports = function (app: any) {
         engaged: engagedNow,
         mode: s.mode,
         tws: s.tws,
-        twa: null,
+        // Rev146: TWA comes from angleTrueWater in most SK setups
+        // (derived-data emits that, not the legacy angleTrue).
+        twa: (typeof (app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null) === "number")
+          ? app.getSelfPath("environment.wind.angleTrueWater.value") as number
+          : null,
         aws: s.aws,
         awa: s.awa,
         sog: s.sog,
@@ -1934,7 +1946,11 @@ module.exports = function (app: any) {
       servoVoltage:  servoV,
       awa:           skNum("environment.wind.angleApparent"),
       aws:           skNum("environment.wind.speedApparent"),
-      tws:           skNum("environment.wind.speedTrue"),
+      // Rev146 (Carlos): signalk-derived-data does not emit
+      // environment.wind.speedTrue - it publishes speedOverGround
+      // instead. Try the canonical path first (some setups still
+      // populate it via NMEA MWD) and fall back to the derived one.
+      tws:           skNum("environment.wind.speedTrue") ?? skNum("environment.wind.speedOverGround"),
       sog:           skNum("navigation.speedOverGround"),
       heel:          skAttitudeField("roll"),
       engaged,
@@ -2042,11 +2058,23 @@ module.exports = function (app: any) {
   function feedSensorQuality(): void {
     if (!sensorQuality) return;
     const now = Date.now();
-    for (const path of Object.keys(DEFAULT_QUALITY_WATCH)) {
+    // Rev148 (Carlos): feed the primary path AND every alternative the
+    // threshold advertises so the monitor can pick the freshest source
+    // for that metric (TWS, TWA, ...) instead of failing on the
+    // canonical path that most SK setups don't publish.
+    for (const [path, thr] of Object.entries(DEFAULT_QUALITY_WATCH)) {
       try {
         const entry = app.getSelfPath(path);
         if (entry) sensorQuality.observe(path, entry, now);
       } catch { /* silent - a missing path stays "missing" naturally */ }
+      if (thr.alternatives) {
+        for (const alt of thr.alternatives) {
+          try {
+            const entry = app.getSelfPath(alt);
+            if (entry) sensorQuality.observe(alt, entry, now);
+          } catch { /* silent */ }
+        }
+      }
     }
   }
 

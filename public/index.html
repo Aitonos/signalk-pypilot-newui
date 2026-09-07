@@ -181,8 +181,12 @@
                    sean afiladas (sin curvatura extra que crea bump
                    asimétrico al renderizar en algunos ángulos de
                    rotación). Path desde la punta (Rev80) mantenido. -->
+              <!-- Rev151 (Carlos): Target/DIA en rojo AP (var(--target-red))
+                   para que el hito visual coincida con el color del boton
+                   engage AP. Anteriormente cian; el cian queda libre para
+                   otros overlays neutros. -->
               <path d="M 0,-68 L -21.15,-91.59 A 94 94 0 0 1 21.15,-91.59 Z"
-                    fill="#4dd4ff" stroke="#2ea6c9" stroke-width="0.75"
+                    fill="#ff3b30" stroke="#a82420" stroke-width="0.75"
                     stroke-linejoin="miter" stroke-miterlimit="10"/>
             </g>
             <!-- Raya: marca radial negra dibujada DESPUÉS de las 3
@@ -391,9 +395,13 @@
            any corner cell. 4 dropdowns, one per corner. Choice persists
            in localStorage so each user gets their own layout. -->
       <div class="popup-overlay" id="dash-help-pop" onclick="if(event.target.id==='dash-help-pop')this.classList.remove('open')">
+        <!-- Rev151 (Carlos): header (h4 + X) fijo, body scrolleable
+             en su propio contenedor. Estilos alineados con las cards
+             fullscreen de Setup (X rojo, header con fondo bg-3). -->
         <div class="popup-box" onclick="event.stopPropagation()">
-          <button class="popup-close" onclick="document.getElementById('dash-help-pop').classList.remove('open')">✕</button>
           <h4 data-i18n="dash.help.title">Configure the rose corners</h4>
+          <button class="popup-close" onclick="document.getElementById('dash-help-pop').classList.remove('open')">✕</button>
+          <div class="popup-body">
           <p class="dash-help-body" data-i18n="dash.help.body">Pick which datum shows in each corner. Saved in your browser.</p>
           <div class="dash-corner-cfg">
             <label><span data-i18n="dash.corner.tl">Top left</span> <select id="dash-corner-tl" data-corner="tl"></select></label>
@@ -492,6 +500,7 @@
             <datalist id="dash-custom-path-list"></datalist>
             <div id="dash-custom-list"></div>
           </div>
+          </div><!-- /.popup-body Rev151 -->
         </div>
       </div>
 
@@ -1513,6 +1522,6 @@
   </div>
 
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev145"></script>
+  <script src="app.js?v=Rev153"></script>
 </body>
 </html>

@@ -16,6 +16,16 @@
   --border:        #2b3542;
   --radius:        14px;
   --tap:           56px;
+  /* Rev151 (Carlos): rose data-tag palette - the corner tiles, chip
+     labels and Target diamond now inherit these tokens so the visual
+     link with each arrow is unambiguous. Apparent = amber, True =
+     teal, Target = the same red as the AP engaged button. */
+  --wind-app:      #ffd54a;
+  --wind-app-dim:  #cba822;
+  --wind-true:     #5ce8c0;
+  --wind-true-dim: #38b596;
+  --target-red:    #ff3b30;
+  --target-red-dim:#a82420;
 }
 
 * { box-sizing: border-box; }
@@ -394,6 +404,28 @@ main {
   white-space: nowrap;
 }
 .dash-rose .wind-chip:active { transform: translateX(-50%) scale(0.96); }
+
+/* Rev151/152 (Carlos): the WHOLE AWS/TWS chip below the rose plus the
+   corner tiles gets tinted with the matching arrow colour - amber for
+   apparent, teal for true. In the tile label we still highlight the
+   leading A / T with a bold span (helps parse "AWA/AWS" in a glance)
+   but the rest of the text now shares the tint so the chip reads as
+   one unit. */
+.dash-rose .wind-chip.wind-app  .label,
+.dash-rose .wind-chip.wind-app  .value { color: var(--wind-app); }
+.dash-rose .wind-chip.wind-true .label,
+.dash-rose .wind-chip.wind-true .value { color: var(--wind-true); }
+.lbl-app  { color: var(--wind-app); }
+.lbl-true { color: var(--wind-true); }
+.lbl-app b, .lbl-true b { font-weight: 900; }
+/* Corner tiles inherit the palette via body classes so the whole tile
+   gets a subtle tint, not just the label. */
+.dash-rose .dash-cell.wind-app  .value,
+.dash-rose .dash-cell.wind-app  .sub    { color: var(--wind-app); }
+.dash-rose .dash-cell.wind-true .value,
+.dash-rose .dash-cell.wind-true .sub    { color: var(--wind-true); }
+.dash-rose .dash-cell.target    .value,
+.dash-rose .dash-cell.target    .sub    { color: var(--target-red); }
 .dash-rose .dash-cell {
   display: flex;
   flex-direction: column;
@@ -483,20 +515,59 @@ main {
   font-size: 22px;
   color: var(--accent, #37b6ff);
 }
-.popup-close {
-  position: absolute;
-  top: 10px;
-  right: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ccc;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  font-size: 18px;
-  cursor: pointer;
+/* Rev151 (Carlos): popups carrying a .popup-body get a sticky header
+   layout - the h4 + close button stay pinned while the body scrolls.
+   Legacy popups (no .popup-body) keep the previous block layout. */
+.popup-box:has(> .popup-body) {
+  padding: 0;
+  max-height: 85vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
-.popup-close:hover { background: rgba(255, 255, 255, 0.15); }
+.popup-box:has(> .popup-body) > h4 {
+  /* Rev152 (Carlos): X now on the LEFT so reserve padding on that
+     side and let the right edge breathe. */
+  margin: 0;
+  padding: 14px 22px 14px 60px;
+  font-size: 20px;
+  font-weight: 800;
+  background: var(--bg-3, #1c2632);
+  border-bottom: 1px solid var(--border, #2b3542);
+  letter-spacing: 0.3px;
+}
+/* Rev151: dedicated scrolling wrapper for popup body. Everything
+   after the sticky h4 lives inside .popup-body. */
+.popup-box > .popup-body {
+  overflow-y: auto;
+  padding: 18px 22px 22px;
+  -webkit-overflow-scrolling: touch;
+}
+.popup-close {
+  /* Rev151/152/153 (Carlos): X on the LEFT of the header, styled EXACTLY
+     like the Setup fullscreen close button - solid red background with
+     white glyph, no border. Same visual language across the whole app. */
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  background: var(--engaged, #ff3b30);
+  border: none;
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 1;
+}
+.popup-close:hover  { filter: brightness(1.1); }
+.popup-close:active { transform: scale(0.94); }
 
 /* Rev47: long-press dash-help popup content. */
 .dash-help-body {
@@ -704,13 +775,16 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   margin-top: 4px;
 }
 
-/* B&G-ish tile color coding: current heading in soft white, target in blue,
-   wind in green, SOG in yellow. */
+/* B&G-ish tile color coding.
+   Rev151/152 (Carlos): SOG back to white (was yellow), wind now split
+   into apparent (amber) / true (teal). The wind-app / wind-true rules
+   further down in this file override the legacy green .wind rules. */
 .dash-cell.heading .value { color: #ffffff; }
 .dash-cell.target  .value { color: #37b6ff; }
 .dash-cell.wind    .value { color: #4dd982; }
 .dash-cell.wind    .sub   { color: #4dd982; }
-.dash-cell.sog     .value { color: #ffcf47; }
+.dash-cell.sog     .value { color: #ffffff; }
+.dash-cell.sog     .sub   { color: #ffffff; }
 
 .controls { display: flex; flex-direction: column; gap: 10px; }
 
