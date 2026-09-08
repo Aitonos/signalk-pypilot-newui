@@ -391,19 +391,57 @@ main {
   -webkit-tap-highlight-color: transparent;
 }
 .dash-rose .wind-chip .label {
-  font-size: 10px;
+  /* Rev170 (Carlos): pumped up so it reads at a glance in portrait.
+     Rev172 (Carlos): trimmed alongside .value so the chip does not
+     dominate the boat area on a portrait phone. */
+  font-size: 11px;
   line-height: 1;
   margin-bottom: 2px;
   color: var(--fg-dim);
   letter-spacing: 1.2px;
+  font-weight: 700;
 }
 .dash-rose .wind-chip .value {
-  font-size: clamp(18px, 3.5vw, 34px);
+  /* Rev170: was clamp(18px, 3.5vw, 34px). Bumped to make room for the
+     amber/teal tint to actually read at cockpit distance - portrait
+     screens had plenty of vertical slack under the rose.
+     Rev172 (Carlos): was clamp(24px,5vw,46px) - covered half the boat
+     in portrait phone. Trimmed to a modest reading size, cap width
+     also uses vh so tall-narrow devices don't blow it up. */
+  font-size: clamp(16px, min(3.6vw, 4.6vh), 28px);
   line-height: 1;
   font-family: ui-monospace, monospace;
+  font-weight: 800;
   white-space: nowrap;
 }
 .dash-rose .wind-chip:active { transform: translateX(-50%) scale(0.96); }
+
+/* Rev171 (Carlos): boat sprite glow while the post-tack stats HUD
+   is visible so the skipper spots the summary panel at a glance. */
+@keyframes boat-glow-pulse {
+  0%   { filter: drop-shadow(0 0 8px  rgba(77, 217, 130, 0.5)); }
+  50%  { filter: drop-shadow(0 0 16px rgba(77, 217, 130, 0.9)); }
+  100% { filter: drop-shadow(0 0 8px  rgba(77, 217, 130, 0.5)); }
+}
+#rose-boat.boat-glow {
+  animation: boat-glow-pulse 2.2s ease-in-out infinite;
+}
+
+/* Rev167 (Carlos): Smart Pilot card toggle rows. Larger tap targets
+   than plain checkbox+label so a wet finger on deck still works. */
+.smart-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 14px;
+  user-select: none;
+  cursor: pointer;
+}
+.smart-toggle-row input[type=checkbox] {
+  transform: scale(1.4);
+  transform-origin: left center;
+}
 
 /* Rev151/152 (Carlos): the WHOLE AWS/TWS chip below the rose plus the
    corner tiles gets tinted with the matching arrow colour - amber for
@@ -479,8 +517,29 @@ main {
   line-height: 1;
 }
 .dash-rose .dash-cell .sub {
-  font-size: clamp(14px, 3vw, 22px);
-  margin-top: 2px;
+  /* Rev171 (Carlos): "sub" line = wind speed under the angle. Was too
+     small in portrait - amber/teal tint invisible next to the big
+     number. Bumped so the wind speed is a first-class figure.
+     Rev172 (Carlos): !important to beat the earlier
+     `.dash-rose .dash-cell .sub { font-size: clamp(11px,2vw,16px) !important }`
+     rule; without it the earlier declaration wins by cascade. */
+  font-size: clamp(18px, min(3.6vw, 3.4vh), 30px) !important;
+  font-weight: 700;
+  margin-top: 4px;
+}
+/* Rev172 (Carlos): landscape on a large screen (laptop / tablet) - the
+   wind-chip AWS/TWS badge was going oversized because 5vw at 2000px hits
+   the 46px ceiling. Cap it lower for landscape on wide screens. */
+@media (orientation: landscape) and (min-width: 900px) {
+  .dash-rose .wind-chip .value {
+    font-size: clamp(20px, min(3.2vw, 5.2vh), 34px);
+  }
+  .dash-rose .wind-chip .label {
+    font-size: clamp(10px, 1.4vw, 13px);
+  }
+  .dash-rose .dash-cell .sub {
+    font-size: clamp(14px, min(2vw, 3vh), 22px) !important;
+  }
 }
 .dash-rose .dash-cell:active { transform: scale(0.95); transition: transform 80ms ease; }
 

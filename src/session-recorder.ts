@@ -83,6 +83,46 @@ export class SessionRecorder {
     this.flushMs = opts.flushIntervalMs ?? 30000;
     this.log = (opts.log as (l: string, m: string) => void) ?? (() => {});
     try { fs.mkdirSync(this.dir, { recursive: true }); } catch {}
+    // Rev159 (Carlos): prune old sessions on startup so the plugin
+    // reclaims disk if the user forgot to delete them. Runs once here
+    // and again inside start() so a long uptime with many sessions
+    // does not grow unbounded either.
+    try { this.pruneToBudget(); } catch { /* silent */ }
+  }
+
+  // Rev159: FIFO cap on the sessions directory. Enforce a soft
+  // budget in bytes (default 200 MB): while total > budget, delete
+  // the oldest session file. Never touches the file currently being
+  // written to (currentFile).
+  pruneToBudget(maxBytes = 200 * 1024 * 1024): { deleted: number; freedBytes: number } {
+    let deleted = 0, freed = 0;
+    let entries: Array<{ name: string; mtime: number; size: number }> = [];
+    try {
+      const names = fs.readdirSync(this.dir).filter((f) => f.startsWith("session-") && f.endsWith(".jsonl"));
+      for (const name of names) {
+        try {
+          const st = fs.statSync(path.join(this.dir, name));
+          entries.push({ name, mtime: st.mtimeMs, size: st.size });
+        } catch { /* skip unreadable */ }
+      }
+    } catch { return { deleted, freedBytes: freed }; }
+    let total = entries.reduce((a, e) => a + e.size, 0);
+    if (total <= maxBytes) return { deleted, freedBytes: freed };
+    // Sort ascending by mtime = oldest first.
+    entries.sort((a, b) => a.mtime - b.mtime);
+    for (const e of entries) {
+      if (total <= maxBytes) break;
+      const full = path.join(this.dir, e.name);
+      if (this.currentFile && full === this.currentFile) continue;
+      try {
+        fs.unlinkSync(full);
+        total -= e.size;
+        freed += e.size;
+        deleted += 1;
+      } catch { /* skip */ }
+    }
+    if (deleted > 0) this.log("info", `[session] pruned ${deleted} old sessions (${(freed / 1024 / 1024).toFixed(1)} MB freed)`);
+    return { deleted, freedBytes: freed };
   }
 
   isRecording(): boolean { return this.currentFile != null; }
@@ -98,6 +138,9 @@ export class SessionRecorder {
     revision: string;
   }): void {
     if (this.currentFile) return;   // idempotent
+    // Rev159: enforce the FIFO budget before opening a new file so a
+    // long-running boat does not silently fill the SD card.
+    try { this.pruneToBudget(); } catch { /* silent */ }
     const now = new Date();
     const yy = now.getFullYear();
     const mo = String(now.getMonth() + 1).padStart(2, "0");

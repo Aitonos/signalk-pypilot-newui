@@ -16,6 +16,7 @@
 import { Historian, Sample } from "./historian";
 import { errorRad } from "./kpis";
 import { PypilotClient } from "./pypilot-client";
+import { SERVO_ON_MIN_A } from "./constants";
 
 export type DoctorState = "idle" | "running" | "analyzing" | "completed" | "cancelled";
 
@@ -243,7 +244,7 @@ export class DoctorEngine {
     const rmsDeg = rms * 180 / Math.PI;
 
     // Servo duty (fraction of engaged samples with servo drawing)
-    const servoOnCount = engaged.filter((s) => typeof s.servoCurrent === "number" && s.servoCurrent > 0.3).length;
+    const servoOnCount = engaged.filter((s) => typeof s.servoCurrent === "number" && s.servoCurrent > SERVO_ON_MIN_A).length;
     const servoDuty = engaged.length > 0 ? servoOnCount / engaged.length : 0;
 
     // Zero-crossing count -> rough oscillation period estimate
@@ -266,6 +267,30 @@ export class DoctorEngine {
         messageKey: "doctor.finding.insufficientData",
         messageArgs: { n: String(n) },
       });
+      return this.buildResult(session, now, samples, engaged, findings, suggestions);
+    }
+
+    // Rev163 (Carlos, per Sean D'Epagnier forum #6): hardware ceiling
+    // finding. Sean's core message was that the best gain tuning
+    // cannot beat a saturated servo - a stronger motor is the fix.
+    // We flag "hardware ceiling" when:
+    //   - servo duty > 0.75 (drive is on 3/4 of the time)  AND
+    //   - RMS heading error still > 5° (i.e. tracking is bad)
+    // AND emit it as a finding WITHOUT any P/I/D suggestion so the
+    // skipper doesn't chase gains that cannot help. The message
+    // explicitly names hardware, not tuning, as the fix.
+    if (servoDuty > 0.75 && rmsDeg > 5) {
+      findings.push({
+        category: "hardware-ceiling",
+        severity: "critical",
+        message: `Servo running at ${(servoDuty * 100).toFixed(0)}% duty with ${rmsDeg.toFixed(1)}° RMS error. Tuning cannot close a saturated actuator - consider a more powerful drive or reducing steering friction.`,
+        metric: `duty=${(servoDuty * 100).toFixed(0)}% rms=${rmsDeg.toFixed(1)}°`,
+        messageKey: "doctor.finding.hardwareCeiling",
+        messageArgs: { duty: (servoDuty * 100).toFixed(0), rms: rmsDeg.toFixed(1) },
+      });
+      // Intentional early return: the follow-on rules would suggest
+      // gain changes that cannot help while the drive is saturated.
+      // Present just the honest verdict.
       return this.buildResult(session, now, samples, engaged, findings, suggestions);
     }
 
@@ -481,17 +506,44 @@ export class DoctorEngine {
     return { ok: true, message: "Dismissed." };
   }
 
-  applyAll(): { ok: boolean; applied: string[]; failed: { id: string; message: string }[] } {
+  // Rev162 (Carlos, per Sean D'Epagnier): apply ONLY ONE gain at a
+  // time. The old applyAll iterated blindly through P + I + D in the
+  // same tick, which contradicts Sean's forum advice ("tweak the
+  // values one at a time") and made it impossible to isolate which
+  // change helped. Now applyAll picks the top-priority suggestion,
+  // applies it, and marks the rest as "waiting for a fresh Doctor
+  // session before the next change". The visor uses `mustRunFreshSession`
+  // in the response to render the banner.
+  applyAll(): {
+    ok: boolean;
+    applied: string[];
+    failed: { id: string; message: string }[];
+    mustRunFreshSession?: boolean;
+    remaining?: number;
+  } {
     const applied: string[] = [];
     const failed: { id: string; message: string }[] = [];
     if (!this.result) return { ok: false, applied, failed };
-    for (const s of this.result.suggestions) {
-      if (s.applied || s.dismissed) continue;
-      const r = this.applySuggestion(s.id);
-      if (r.ok) applied.push(s.id);
-      else failed.push({ id: s.id, message: r.message });
+    // Priority order: bias > authority > oscillation > noise. Same as
+    // pypilot forum guidance - fix the biggest-error direction first.
+    const priority: Record<string, number> = { bias: 0, authority: 1, oscillation: 2, noise: 3 };
+    const pending = this.result.suggestions
+      .filter((s) => !s.applied && !s.dismissed)
+      .sort((a, b) => (priority[a.category] ?? 99) - (priority[b.category] ?? 99));
+    if (pending.length === 0) {
+      return { ok: true, applied, failed, mustRunFreshSession: false, remaining: 0 };
     }
-    return { ok: failed.length === 0, applied, failed };
+    const first = pending[0];
+    const r = this.applySuggestion(first.id);
+    if (r.ok) applied.push(first.id);
+    else failed.push({ id: first.id, message: r.message });
+    return {
+      ok: failed.length === 0,
+      applied,
+      failed,
+      mustRunFreshSession: pending.length > 1,
+      remaining: pending.length - 1,
+    };
   }
 
   reset(): void {

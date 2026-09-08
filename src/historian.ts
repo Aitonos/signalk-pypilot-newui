@@ -19,7 +19,12 @@ export interface Sample {
   headingActual: number | null;  // rad - navigation.headingMagnetic
   rudder:        number | null;  // rad - steering.rudderAngle
   servoCurrent:  number | null;  // A
-  servoTemp:     number | null;  // C
+  servoTemp:     number | null;  // C - controller temperature
+  // Rev156 (Carlos): motor coil temperature. Pypilot exposes it as
+  // servo.motor_temp separately from servo.controller_temp. Needed
+  // by the servo-motor-temp alarm rule (previously we only watched
+  // controller_temp, which trips later than the coil).
+  servoMotorTemp: number | null; // C - motor coil temperature
   servoVoltage:  number | null;  // V - Rev99: needed by the Servo Health card
   awa:           number | null;  // rad - environment.wind.angleApparent
   aws:           number | null;  // m/s - environment.wind.speedApparent

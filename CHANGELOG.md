@@ -1,5 +1,123 @@
 # Changelog
 
+## 2.5.0-experimental.1 — 2026-09-09 — Rev154..Rev174
+
+> ## ⚠️ Version experimental — nos vale ORO tu feedback en el mar
+>
+> Esta version trae funciones nuevas que **no las hemos podido probar
+> navegando**. Necesitamos que las useis y nos digais que tal van. Si
+> algo va raro, avisa: `https://github.com/aitonos/signalk-pypilot-newui/issues`.
+>
+> **Se instala solo si tu lo pides:**
+> `npm install signalk-pypilot-newui@experimental`
+> Los que instalen normal seguiran recibiendo la 2.4.1 estable.
+>
+> ### ⛵ Que tenemos que probar en el mar (checklist rapida)
+>
+> 1. **Contador de virada** (grande sobre el barco): al pulsar TACK
+>    con el AP enganchado, cuenta atras rojo (5-4-3-2-1) y luego pasa
+>    a naranja "VIRANDO" mientras el pypilot vira. Tocar el circulo
+>    cancela.
+> 2. **Resumen despues de virar** (panel que sale 2 min): compara la
+>    velocidad y el angulo antes y despues del bordo. Verde = buena.
+>    Amarillo = normal. Rojo = perdida.
+> 3. **Historial de bordos** (deja pulsado el barco -> "Historial"):
+>    guarda cada bordo con retencion de velocidad y tiempo de
+>    recuperacion. Filtro por dias, resalta el mejor.
+> 4. **Marca de rafagas** (activable en "Cambiar esquinas" ->
+>    Overlays): cuando entra una rafaga fuerte, deja una flecha
+>    amarilla fantasma con la velocidad del viento durante 10 segundos.
+> 5. **Cerebro auto** (opcional, en la ficha Smart Pilot): si lo
+>    activas, cambia el perfil del pypilot segun el viento (suave /
+>    normal / duro) y reacciona a rafagas segun la estrategia elegida
+>    (avisar / congelar rumbo / subir D / cambiar a perfil duro).
+> 6. **Corta automatica** (opcional): si el timon toca los topes
+>    demasiado tiempo, suelta el AP para que retomes tu.
+>
+> **Como nos ayudas**: usalas, y si algo se comporta raro o no te
+> gusta, mandanos: que hiciste, que esperabas, que paso. Con eso
+> tunearemos los limites antes de sacar la 2.5.0 estable.
+
+### English (Rev154..Rev174, pending sea-trial confirmation)
+
+**Added — supervisor layer ("brain over pypilot")**
+
+- **Auto-profile by wind** — the plugin can switch the active pypilot
+  profile between light / medium / heavy based on rolling TWS. Bands
+  configurable in the visor's Smart Pilot card. Disabled by default.
+  Rev164.
+- **Gust strategy** — configurable response when a remarkable AWS jump
+  is detected: `off`, `warn`, `freeze-target`, `boost-D`, `temp-heavy`.
+  Replaces the Rev165 warn-only detector. Restore-first logic returns
+  the pilot to the prior state when the gust window closes. Rev167.
+- **Auto-disengage on lost authority** — if the servo saturates against
+  its rudder stops for a sustained window, the AP releases so a manned
+  helm regains control. Rev166.
+- **Config surface moved to the visor** — the Smart Pilot card in the
+  plugin's own UI now owns every supervisor toggle. Nothing to touch in
+  SK Admin. Rev167.
+
+**Added — rose UI**
+
+- **Tack countdown overlay over the boat sprite** — huge red digit
+  during the pre-tack delay, then flips to orange `VIRANDO` + elapsed
+  seconds during execution. Click cancels the maneuver. Fresh delay is
+  fetched every arm so an edit in Calibration takes effect without a
+  page reload. Rev171/172.
+- **Post-tack stats HUD** — for 2 minutes after a completed tack the
+  boat sprite glows and a small panel shows TWS / |AWA| / SOG averaged
+  30 s before vs. 30 s after (measured t+30..t+60 so the boat has time
+  to settle). Verdict is colour-coded by SOG retention. Rev171.
+- **Persistent tack log (long-press on the boat)** — every completed
+  tack is stored locally with pre/post averages, SOG retention %, and
+  time to recover 95 % of pre-SOG. The action sheet on the boat sprite
+  now offers "Cambiar esquinas" (the old corner selector) or
+  "Historial de bordos". The log modal filters by day range and
+  highlights the best tack by retention and the fastest to recover.
+  Rev172.
+- **Gust ghost arrow (opt-in in the corner-selector modal)** — a
+  remarkable AWS jump (≥ 6 kn over the 30-s baseline or ≥ 1.55×) or a
+  sharp AWA rotation (≥ 30° in 5 s) leaves a translucent A-shaped
+  arrow frozen at the gust angle, with the AWS reading printed
+  radially outside it, fading to zero over 10 s. Cooldown 30 s and
+  single-ghost policy so it never chases the live arrow. Card lives
+  alongside the A / T / COG / Current overlay cards. Rev172-174.
+- **Mode selector reads full phrases** — `APARENTE` / `REAL` shown on
+  the collapsed button, `VIENTO APARENTE` / `VIENTO REAL` on the open
+  dropdown (swapped on pointerdown / blur). Rev172.
+- **T over A on overlap** — when both wind pieces cover the same angle
+  the teal T now draws on top of the amber A, so TWA stays readable at
+  a glance. Rev172.
+- **Rose corner sub-line resized (Carlos)** — the wind speed under the
+  angle in the top corners is now a first-class figure in portrait and
+  a compact one in landscape (media-query split). Bottom AWS/TWS chip
+  also trimmed so it stops covering half the boat on a portrait phone.
+  Rev171-173.
+- **Tack countdown click-to-cancel** — tapping the huge red circle at
+  any moment (delay or VIRANDO) sends `ap.tack.state=none`. Guard added
+  so TACK does nothing if the AP is not engaged. Rev171.
+
+**Changed — internal**
+
+- Shared `SERVO_ON_MIN_A` constant across doctor / kpis / servo-health.
+  Rev154.
+- Alarm rules extended with `servo-motor-temp`, `servo-load-high`
+  (deviation-ratio > 1.65), and `cruise-drift`. Rev155.
+- `doctor.applyAll()` applies only the top-priority suggestion and
+  returns `mustRunFreshSession` + `remaining` so the caller can drive a
+  next-iteration loop. Rev160.
+- Session recorder JSONL now enforces a 200 MB FIFO cap. Rev158.
+- Servo-health snapshot persists to disk between restarts. Rev158.
+- Hardware-ceiling finding in `doctor` (duty>0.75 & rms>5°) short-
+  circuits further advice with a "you have out-tuned the actuator"
+  message. Rev163.
+
+**Removed**
+
+- All "helm is manned" confirmation modals on engage / tack / Doctor
+  apply. Confirming every action was noise; the physical presence of
+  the helm is a given while at sea. Rev170.
+
 ## 2.4.1 — 2026-09-08 — Rev146..Rev153
 
 Patch release. Fixes + UI polish on top of 2.4.0.

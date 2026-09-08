@@ -29,6 +29,7 @@
 // batch alongside the historian disk snapshots.
 
 import { Sample } from "./historian";
+import { SERVO_ON_MIN_A } from "./constants";
 
 export type ServoHealthStatus = "learning" | "good" | "elevated" | "high" | "idle";
 
@@ -52,7 +53,7 @@ export interface ServoHealthSnapshot {
 export interface ServoHealthOptions {
   /** Current threshold (A) above which we count the servo as "on".
    *  Should match the KPI computer's threshold so the two agree on
-   *  what "working" means. Default 0.3. */
+   *  what "working" means. Default from SERVO_ON_MIN_A. */
   servoOnThresholdA?: number;
   /** How many servo-on samples we need before we consider the
    *  baseline learned. Default 300 (~10 minutes of half-duty). */
@@ -85,7 +86,7 @@ export class ServoHealthMonitor {
   private lastSample: Sample | null = null;
 
   constructor(opts: ServoHealthOptions = {}) {
-    this.servoOnA = opts.servoOnThresholdA ?? 0.3;
+    this.servoOnA = opts.servoOnThresholdA ?? SERVO_ON_MIN_A;
     this.targetSamples = Math.max(30, opts.baselineSamples ?? 300);
     this.recentWindowMs = Math.max(5000, (opts.recentWindowSec ?? 30) * 1000);
     this.elevatedRatio = opts.elevatedRatio ?? 1.20;
@@ -99,6 +100,28 @@ export class ServoHealthMonitor {
     this.learnSum = 0;
     this.recent = [];
     this.lastSample = null;
+  }
+
+  // Rev158 (Carlos): persistence helpers so the baseline survives
+  // plugin restarts. A restart otherwise wipes the ~10 min of
+  // learning and the servo-load-high alarm goes deaf until it
+  // rebuilds. Serialised form is intentionally minimal - just the
+  // baseline and the learn state, no rolling window or EWMA
+  // internals.
+  toPersistable(): { baselineA: number | null; learnCount: number; learnSum: number; savedAt: number } {
+    return {
+      baselineA: this.baselineA,
+      learnCount: this.learnCount,
+      learnSum: this.learnSum,
+      savedAt: Date.now(),
+    };
+  }
+  loadPersisted(p: { baselineA: number | null; learnCount: number; learnSum: number; savedAt?: number }): void {
+    if (typeof p.baselineA === "number" && isFinite(p.baselineA) && p.baselineA > 0) {
+      this.baselineA = p.baselineA;
+    }
+    if (typeof p.learnCount === "number" && p.learnCount > 0) this.learnCount = p.learnCount;
+    if (typeof p.learnSum === "number" && p.learnSum > 0) this.learnSum = p.learnSum;
   }
 
   /** Called on every sampler tick with the latest Sample. O(1). */

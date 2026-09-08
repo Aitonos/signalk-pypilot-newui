@@ -101,6 +101,72 @@
             <g id="rose-boat" transform="rotate(-90) scale(0.22)">
               <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
             </g>
+            <!-- Rev170/171 (Carlos): tack countdown overlay. Huge red
+                 digit over the boat, clickable to cancel. Two phases:
+                   phase "arming"   → shows "5, 4, 3, 2, 1"  (integer secs)
+                   phase "executing"→ shows "VIRANDO" + a small counter
+                 The <g> is clickable (cursor pointer, taps the whole
+                 circle). Fill/opacity toggled from JS. -->
+            <!-- Rev171 (Carlos): tack stats HUD. Shown for 2 min after
+                 a completed tack. Compares wind + boat conditions
+                 30 s before the maneuver vs a settled 30 s window
+                 (t+31 .. t+60) after it. Boat sprite gets a soft
+                 glow while it is visible. -->
+            <g id="tack-stats-hud" style="display:none;pointer-events:auto">
+              <rect x="-95" y="-95" width="190" height="145" rx="10"
+                    fill="rgba(11,15,20,0.94)" stroke="#4dd982" stroke-width="1.5"/>
+              <text x="0" y="-72" text-anchor="middle" fill="#4dd982"
+                    font-size="12" font-weight="900" letter-spacing="1.4"
+                    font-family="ui-monospace, monospace">VIRADA</text>
+              <text x="0" y="-56" text-anchor="middle" fill="#8b98a5"
+                    font-size="9" letter-spacing="0.8"
+                    font-family="ui-monospace, monospace">antes  →  después</text>
+              <!-- 3 rows: TWS, AWA, SOG. Filled from JS. -->
+              <text x="-82" y="-32" fill="#8b98a5" font-size="11"
+                    font-family="ui-monospace, monospace">TWS</text>
+              <text x="0"   y="-32" id="tack-stats-tws-before" text-anchor="middle"
+                    fill="#e6edf3" font-size="14" font-weight="700"
+                    font-family="ui-monospace, monospace">--</text>
+              <text x="82"  y="-32" id="tack-stats-tws-after" text-anchor="end"
+                    fill="#4dd982" font-size="14" font-weight="700"
+                    font-family="ui-monospace, monospace">--</text>
+              <text x="-82" y="-6" fill="#8b98a5" font-size="11"
+                    font-family="ui-monospace, monospace">|AWA|</text>
+              <text x="0"   y="-6" id="tack-stats-awa-before" text-anchor="middle"
+                    fill="#e6edf3" font-size="14" font-weight="700"
+                    font-family="ui-monospace, monospace">--</text>
+              <text x="82"  y="-6" id="tack-stats-awa-after" text-anchor="end"
+                    fill="#4dd982" font-size="14" font-weight="700"
+                    font-family="ui-monospace, monospace">--</text>
+              <text x="-82" y="20" fill="#8b98a5" font-size="11"
+                    font-family="ui-monospace, monospace">SOG</text>
+              <text x="0"   y="20" id="tack-stats-sog-before" text-anchor="middle"
+                    fill="#e6edf3" font-size="14" font-weight="700"
+                    font-family="ui-monospace, monospace">--</text>
+              <text x="82"  y="20" id="tack-stats-sog-after" text-anchor="end"
+                    fill="#4dd982" font-size="14" font-weight="700"
+                    font-family="ui-monospace, monospace">--</text>
+              <text x="0" y="42" text-anchor="middle" id="tack-stats-verdict"
+                    fill="#4dd982" font-size="11" font-weight="800"
+                    font-family="ui-monospace, monospace">--</text>
+              <!-- Close X in the top-right -->
+              <g id="tack-stats-close" style="cursor:pointer">
+                <rect x="72" y="-92" width="20" height="20" rx="4"
+                      fill="rgba(255,59,48,0.9)" stroke="#ff3b30"/>
+                <text x="82" y="-82" text-anchor="middle" dominant-baseline="central"
+                      fill="#fff" font-size="14" font-weight="900"
+                      font-family="ui-monospace, monospace">×</text>
+              </g>
+            </g>
+            <g id="tack-countdown-overlay" style="display:none;cursor:pointer">
+              <circle cx="0" cy="0" r="52" fill="rgba(255,59,48,0.18)" stroke="#ff3b30" stroke-width="2.5"/>
+              <text id="tack-countdown-phase" x="0" y="-18" text-anchor="middle" dominant-baseline="central"
+                    fill="#ff3b30" font-size="14" font-weight="800" letter-spacing="1.5"
+                    font-family="ui-monospace, monospace" style="display:none">VIRANDO</text>
+              <text id="tack-countdown-num" x="0" y="4" text-anchor="middle" dominant-baseline="central"
+                    fill="#ff3b30" font-size="64" font-weight="900"
+                    font-family="ui-monospace, monospace">--</text>
+            </g>
             <!-- Rev73: "Gota Chain" - target + AWA + TWA rediseño.
                  Tres piezas concéntricas SVG que se ensamblan en una
                  gota cuando los tres ángulos coinciden (target ≡ AWA ≡
@@ -113,18 +179,37 @@
                  Diseño validado con Carlos en Artifact v3 antes de
                  portar. Radios y vértices exactos definidos en
                  CHANGELOG Rev73. -->
+            <!-- AWA (middle, amber): revierte a V-hembra Rev74.
+                 Cuadrilátero cóncavo: hombros (±21.15,-91.59) en el
+                 aro, punta afilada (0,-44), V-hembra vertex (0,-68)
+                 que recibe la punta de DIA cuando alinean. Cuando
+                 DIA se separa, la V queda hueca.
+                 Rev172 (Carlos): AWA se dibuja PRIMERO para que TWA
+                 (teal) quede por encima cuando ambos ángulos se
+                 solapan. Antes el amber tapaba el teal, difícil de
+                 leer TWA a un vistazo. -->
+            <g id="rose-piece-awa" style="display:none">
+              <!-- Rev126: path grande (era el de TWA). Punta al centro
+                   (0,-24), V-hueco en (0,-48). Amarillo, letra "A". -->
+              <path d="M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z"
+                    fill="#ffd54a" stroke="#cba822" stroke-width="0.75"
+                    stroke-linejoin="round"/>
+              <!-- Rev82: "A" moved from (0,-58) to (0,-60), a bit
+                   further from the tip. Color rose-gray #8b98a5
+                   (same as compass numeric labels). Two-orientation
+                   flip logic in JS. Font-size 9 + weight 900. -->
+              <!-- Rev126: label "A" reposicionado a y=-38 para caer
+                   dentro del nuevo path grande (punta -24 → V-hueco -48). -->
+              <text id="rose-piece-awa-label" x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
+                    fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
+            </g>
             <!-- Rev77: TWA vuelve a la estructura Rev74 (4-vértices
                  concave quad) pero con hombros a ±15° (24.33,-90.79)
                  — ligeramente MÁS ANCHOS que AWA (±13°) para que
                  aterrice adyacente al borde externo de AWA en el
-                 aro, con AMBAS líneas (la del cuerpo hacia la punta
-                 y la de la V-hembra hacia el socket) convergiendo
-                 al MISMO PUNTO shoulder. Stroke bumpeado a 2 para
-                 que la "llegada" al aro sea visualmente más
-                 gruesa. Carlos Rev76 QA #1: "las dos lineas...
-                 lleguen al mismo punto de la rosa, adyacente al
-                 borde EXTERNO de AWA... como antes era pero un
-                 poco mas gruesa en la lleguada". -->
+                 aro. Rev172: TWA dibujado DESPUÉS de AWA → queda
+                 por encima al solaparse (Carlos: "cuando se solapen
+                 que la flecha T quede por encima de la flecha A"). -->
             <g id="rose-piece-twa" style="display:none">
               <!-- Rev126 (Carlos): PATH SWAPPED. La pieza teal (TWA,
                    viento real) es ahora la PEQUEÑA externa (path que
@@ -147,26 +232,6 @@
                    dentro del nuevo path pequeño (punta -48 → V-hueco -68). -->
               <text id="rose-piece-twa-label" x="0" y="-56" text-anchor="middle" dominant-baseline="middle"
                     fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">T</text>
-            </g>
-            <!-- AWA (middle, amber): revierte a V-hembra Rev74.
-                 Cuadrilátero cóncavo: hombros (±21.15,-91.59) en el
-                 aro, punta afilada (0,-44), V-hembra vertex (0,-68)
-                 que recibe la punta de DIA cuando alinean. Cuando
-                 DIA se separa, la V queda hueca. -->
-            <g id="rose-piece-awa" style="display:none">
-              <!-- Rev126: path grande (era el de TWA). Punta al centro
-                   (0,-24), V-hueco en (0,-48). Amarillo, letra "A". -->
-              <path d="M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z"
-                    fill="#ffd54a" stroke="#cba822" stroke-width="0.75"
-                    stroke-linejoin="round"/>
-              <!-- Rev82: "A" moved from (0,-58) to (0,-60), a bit
-                   further from the tip. Color rose-gray #8b98a5
-                   (same as compass numeric labels). Two-orientation
-                   flip logic in JS. Font-size 9 + weight 900. -->
-              <!-- Rev126: label "A" reposicionado a y=-38 para caer
-                   dentro del nuevo path grande (punta -24 → V-hueco -48). -->
-              <text id="rose-piece-awa-label" x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
-                    fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
             </g>
             <!-- DIA (outermost, cyan target diamond): arco base r=94 +
                  lados rectos + punta afilada (0,-68). Rotado a
@@ -478,6 +543,24 @@
                 </svg>
                 <div class="overlay-title" data-i18n="dash.overlay.current.title">Current vector</div>
                 <div class="overlay-needs" data-i18n="dash.overlay.current.needs">Only shows when the log (SOW) is publishing and current > 0.2 kn.</div>
+              </label>
+              <!-- Rev173 (Carlos): "gust ghost" overlay-card. Same shape as
+                   the A / T / COG / Current cards so it lives alongside
+                   them in the rose configuration modal. -->
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-gust-ghost" checked />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <g opacity="0.5">
+                    <path d="M -20.85,-58.53 L 0,-16 L 20.85,-58.53 L 0,-40 Z"
+                          fill="#ffd54a" stroke="#cba822" stroke-width="0.75" stroke-linejoin="round"/>
+                    <text x="0" y="-28" text-anchor="middle" dominant-baseline="middle"
+                          fill="#8b98a5" font-size="14" font-weight="900" font-family="ui-monospace, monospace">A</text>
+                  </g>
+                  <text x="0" y="-52" text-anchor="middle" fill="#ffd54a"
+                        font-size="8" font-weight="800" font-family="ui-monospace, monospace">12 kn</text>
+                </svg>
+                <div class="overlay-title">Marca de ráfagas</div>
+                <div class="overlay-needs">Deja una flecha A fantasma con la velocidad de la racha; se desvanece en 10 s. Necesita sensor de viento.</div>
               </label>
             </div>
           </div>
@@ -959,6 +1042,73 @@
           <div class="hint" style="color: var(--warn);" data-i18n="setup.absorb.hint">
             When ON, this plugin registers itself as the Signal K Autopilot Provider (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.
           </div>
+        </div>
+      </div>
+
+      <!-- Rev167 (Carlos): Smart Pilot card. Wraps the supervisor
+           layer that commands pypilot from above: auto-profile by
+           wind band (Rev164), gust strategy (Rev167), authority-lost
+           auto-disengage (Rev166). All configuration lives here, NOT
+           in the SK Admin plugin schema. -->
+      <div class="setup-block" data-setup-order="25" data-block-key="smartpilot">
+        <div class="section-title" data-i18n="smart.title">Smart Pilot</div>
+        <div class="setup-block-status" id="setup-status-smart"></div>
+        <div class="hint" style="font-size:11px" data-i18n="smart.hint">Higher-level control on top of pypilot: auto-selects the pilot profile by wind band, reacts to gusts (freeze / boost D / heavy profile), auto-disengages if the pilot loses authority.</div>
+
+        <!-- Section 1: auto profile by wind band -->
+        <div class="smart-section" style="margin-top:12px">
+          <div class="section-title" style="font-size:13px" data-i18n="smart.autoProfile.title">Auto pilot profile by wind</div>
+          <label class="smart-toggle-row">
+            <input type="checkbox" id="smart-auto-profile-enabled" />
+            <span data-i18n="smart.autoProfile.enable">Enable</span>
+          </label>
+          <div class="hint" style="font-size:11px;margin-top:2px" data-i18n="smart.autoProfile.hint">The plugin averages TWS over 60 s while engaged; when the wind band is stable for 90 s it switches pypilot to the matching profile. Leave a field blank to skip that band.</div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+            <label style="min-width:150px" data-i18n="smart.autoProfile.light">Profile for TWS &lt; 8 kn</label>
+            <select id="smart-auto-profile-light" style="min-width:140px"></select>
+          </div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px">
+            <label style="min-width:150px" data-i18n="smart.autoProfile.medium">Profile for 8 – 16 kn</label>
+            <select id="smart-auto-profile-medium" style="min-width:140px"></select>
+          </div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px">
+            <label style="min-width:150px" data-i18n="smart.autoProfile.heavy">Profile for TWS &gt; 16 kn</label>
+            <select id="smart-auto-profile-heavy" style="min-width:140px"></select>
+          </div>
+          <div id="smart-auto-profile-status" class="hint" style="font-size:11px;margin-top:6px;font-family:ui-monospace,monospace"></div>
+        </div>
+
+        <!-- Section 2: gust strategy -->
+        <div class="smart-section" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+          <div class="section-title" style="font-size:13px" data-i18n="smart.gust.title">Gust strategy</div>
+          <div class="hint" style="font-size:11px" data-i18n="smart.gust.hint">Detects when AWS jumps ≥ 5 kn in 5 s and applies the chosen action.</div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+            <label style="min-width:150px" data-i18n="smart.gust.strategy">Strategy on gust</label>
+            <select id="smart-gust-strategy" style="min-width:180px">
+              <option value="off"           data-i18n="smart.gust.opt.off">OFF - do nothing</option>
+              <option value="warn"          data-i18n="smart.gust.opt.warn">Warn only (advisory)</option>
+              <option value="freeze-target" data-i18n="smart.gust.opt.freeze">Freeze target (wind modes)</option>
+              <option value="boost-D"       data-i18n="smart.gust.opt.boostD">Boost D +20% for 20 s</option>
+              <option value="temp-heavy"    data-i18n="smart.gust.opt.heavy">Switch to Heavy profile 30 s</option>
+            </select>
+          </div>
+          <div id="smart-gust-status" class="hint" style="font-size:11px;margin-top:6px;font-family:ui-monospace,monospace"></div>
+        </div>
+
+        <!-- Section 3: auto-disengage on lost authority -->
+        <div class="smart-section" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+          <div class="section-title" style="font-size:13px;color:var(--engaged)" data-i18n="smart.autoDis.title">Emergency: auto-disengage on lost authority</div>
+          <div class="hint" style="font-size:11px" data-i18n="smart.autoDis.hint">If RMS heading error &gt; 30° AND servo duty &gt; 90% sustained 10 s, the plugin disengages the AP and fires an emergency notification. Re-engage is manual.</div>
+          <label class="smart-toggle-row" style="margin-top:6px">
+            <input type="checkbox" id="smart-auto-disengage-enabled" />
+            <span data-i18n="smart.autoDis.enable">Enable auto-disengage</span>
+          </label>
+          <div id="smart-auto-dis-status" class="hint" style="font-size:11px;margin-top:6px;font-family:ui-monospace,monospace"></div>
+        </div>
+
+        <div class="row" style="gap:8px;margin-top:12px">
+          <button id="smart-save" class="primary" data-i18n="smart.save">Save Smart Pilot settings</button>
+          <span id="smart-save-status" class="hint" style="font-size:11px"></span>
         </div>
       </div>
 
@@ -1521,7 +1671,51 @@
     </div>
   </div>
 
+  <!-- Rev172 (Carlos): long-press-on-boat action sheet. Two choices:
+       reopen the corner-selector popup, or open the tack log modal. -->
+  <div class="popup-overlay" id="boat-menu-pop"
+       onclick="if(event.target.id==='boat-menu-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()" style="max-width:360px">
+      <h4 style="margin:0 0 6px 0">Barco</h4>
+      <button class="popup-close" onclick="document.getElementById('boat-menu-pop').classList.remove('open')">✕</button>
+      <div class="popup-body" style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        <button class="primary" id="boat-menu-corners" style="padding:16px;font-size:16px;text-align:left">
+          Cambiar esquinas
+          <span style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Elige qué dato aparece en cada corner de la rosa.</span>
+        </button>
+        <button class="primary" id="boat-menu-tacklog" style="padding:16px;font-size:16px;text-align:left">
+          Historial de bordos
+          <span style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Lista de tus últimos bordos, con retención de velocidad y tiempo de recuperación.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rev172 (Carlos): tack-log modal. Shows every stored tack, filterable
+       by day range. Highlights the best by SOG retention and the best by
+       recovery time (fastest boat back to 95% of pre-tack SOG). -->
+  <div class="popup-overlay" id="tack-log-pop"
+       onclick="if(event.target.id==='tack-log-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()" style="max-width:720px">
+      <h4 style="margin:0">Historial de bordos</h4>
+      <button class="popup-close" onclick="document.getElementById('tack-log-pop').classList.remove('open')">✕</button>
+      <div class="popup-body">
+        <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="ghost tack-log-filter" data-days="1">Hoy</button>
+          <button class="ghost tack-log-filter" data-days="3">3 d</button>
+          <button class="ghost tack-log-filter" data-days="7">7 d</button>
+          <button class="ghost tack-log-filter" data-days="30">30 d</button>
+          <button class="ghost tack-log-filter" data-days="0">Todos</button>
+          <span style="flex:1"></span>
+          <button class="ghost" id="tack-log-clear" style="color:var(--danger,#ff5d5d)">Vaciar</button>
+        </div>
+        <div id="tack-log-stats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="tack-log-list" style="display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev153"></script>
+  <script src="app.js?v=Rev174"></script>
 </body>
 </html>

@@ -188,6 +188,9 @@
       "setup.doctor.applied":      "APPLIED",
       "setup.doctor.applyAll":     "Apply all",
       "setup.doctor.applyAllConfirm": "Apply every suggested gain change to pypilot?",
+      "setup.doctor.applyTop":     "Apply top priority",
+      "setup.doctor.applyTopConfirm": "Apply the top-priority gain change and run a fresh Doctor session before the next one?",
+      "setup.doctor.freshRequired":  "Applied 1 gain. Run a fresh Doctor session before applying the next {n}.",
       "setup.doctor.confidence":   "Confidence",
       "setup.doctor.samplesSummary": "{engaged} engaged samples of {total}, pilot '{pilot}'.",
       "setup.doctor.forkedProfile":  "Changes applied to a NEW profile {new}. Your original profile {orig} is untouched and one tap away in Tune → Profile.",
@@ -222,6 +225,7 @@
       "doctor.finding.oscillation": "Heading oscillating with period ~{period}s, RMS {rms}°.",
       "doctor.finding.authority":   "Servo running at {duty}% duty but heading error still {rms}°. AP is losing authority.",
       "doctor.finding.noise":       "Heading is tight ({rms}°) but servo running {duty}% duty - possible chatter on a noisy heading signal.",
+      "doctor.finding.hardwareCeiling": "Servo running at {duty}% duty with {rms}° RMS error - the drive is saturated. Tuning cannot close a hardware limit; consider a more powerful actuator or reducing steering system friction.",
       "alarm.summary.active":      "{n} active",
       "alarm.summary.muted":       "{n} muted",
       "alarm.summary.off":         "{n} off",
@@ -249,12 +253,18 @@
       // present, and everyone else keeps the backend fallback.
       "alarm.rule.heading-deviation.label":    "Heading deviation",
       "alarm.rule.heading-deviation.msg":      "Sustained AP heading error of {deg}°",
+      "alarm.rule.cruise-drift.label":         "Sustained heading drift",
+      "alarm.rule.cruise-drift.msg":           "Boat drifting {deg}° to {side} of target",
       "alarm.rule.unable-to-steer.label":      "Unable to steer",
       "alarm.rule.unable-to-steer.msg":        "AP losing authority: {deg}° error, servo at {duty}% duty",
       "alarm.rule.servo-overcurrent.label":    "Servo overcurrent",
       "alarm.rule.servo-overcurrent.msg":      "Servo overcurrent {amp} A",
-      "alarm.rule.servo-temp-high.label":      "Servo temperature high",
-      "alarm.rule.servo-temp-high.msg":        "Servo temperature {temp} °C",
+      "alarm.rule.servo-temp-high.label":      "Servo controller temperature high",
+      "alarm.rule.servo-temp-high.msg":        "Servo controller temperature {temp} °C",
+      "alarm.rule.servo-motor-temp.label":     "Servo motor temperature high",
+      "alarm.rule.servo-motor-temp.msg":       "Servo motor temperature {temp} °C",
+      "alarm.rule.servo-load-high.label":      "Autopilot load high",
+      "alarm.rule.servo-load-high.msg":        "AP load {pct}% of baseline (drag or heavy weather?)",
       "alarm.rule.low-voltage.label":          "Low voltage",
       "alarm.rule.low-voltage.msg":            "Low voltage {volt} V",
       "alarm.rule.sensor-lost.label":          "Sensor lost",
@@ -288,6 +298,35 @@
       "setup.pypilotWebRestart.running": "restarting...",
       "setup.pypilotWebRestart.ok":      "OK",
       "setup.pypilotWebRestart.err":     "failed",
+      "smart.title":               "Smart Pilot",
+      "smart.hint":                "Higher-level control on top of pypilot: auto-selects the pilot profile by wind band, reacts to gusts (freeze / boost D / heavy profile), auto-disengages if the pilot loses authority.",
+      "smart.autoProfile.title":   "Auto pilot profile by wind",
+      "smart.autoProfile.enable":  "Enable",
+      "smart.autoProfile.hint":    "The plugin averages TWS over 60 s while engaged; when the wind band is stable for 90 s it switches pypilot to the matching profile.",
+      "smart.autoProfile.light":   "Profile for TWS < 8 kn",
+      "smart.autoProfile.medium":  "Profile for 8 – 16 kn",
+      "smart.autoProfile.heavy":   "Profile for TWS > 16 kn",
+      "smart.autoProfile.skip":    "(skip)",
+      "smart.gust.title":          "Gust strategy",
+      "smart.gust.hint":           "Detects when AWS jumps 5 kn+ in 5 s and applies the chosen action.",
+      "smart.gust.strategy":       "Strategy on gust",
+      "smart.gust.opt.off":        "OFF — do nothing",
+      "smart.gust.opt.warn":       "Warn only (advisory)",
+      "smart.gust.opt.freeze":     "Freeze target (wind modes)",
+      "smart.gust.opt.boostD":     "Boost D +20% for 20 s",
+      "smart.gust.opt.heavy":      "Switch to Heavy profile 30 s",
+      "smart.autoDis.title":       "Emergency: auto-disengage on lost authority",
+      "smart.autoDis.hint":        "If RMS heading error > 30° AND servo duty > 90% sustained 10 s, the plugin disengages the AP and fires an emergency notification. Re-engage is manual.",
+      "smart.autoDis.enable":      "Enable auto-disengage",
+      "smart.save":                "Save Smart Pilot settings",
+      "smart.saving":              "saving...",
+      "smart.saved":               "saved",
+      "smart.saveFail":            "failed",
+      "smart.st.disabled":         "disabled",
+      "smart.st.armed":            "armed",
+      "smart.st.band":             "band",
+      "smart.st.pending":          "pending",
+      "smart.st.strategy":         "strategy",
       "watch.title":         "pypilot subscriptions",
       "watch.hint":          "Live count of what the backend is subscribing to on pypilot_web. Should stay well under 40 - Sean D'Epagnier flagged that saturating pypilot_web is what crashes it.",
       "watch.total":         "total",
@@ -486,6 +525,14 @@
       "helm.warn":    "MAKE SURE SOMEONE IS AT THE HELM before you continue. This is not the moment to be below deck.",
       "helm.cancel":  "Cancel",
       "helm.confirm": "I confirm - helm is manned",
+      "helm.op.engage.title":     "Engage autopilot",
+      "helm.op.engage.msg":       "Engage the autopilot? Confirm someone is watching the heading.",
+      "helm.op.modeChange.title": "Change AP mode",
+      "helm.op.modeChange.msg":   "Change mode {from} -> {to}? Target reference will jump.",
+      "helm.op.tack.title":       "Start tack",
+      "helm.op.tack.msg":         "Start a {side} tack? The boat is about to swing through the wind.",
+      "helm.op.doctor.title":     "Apply gain change",
+      "helm.op.doctor.msg":       "Apply {gain} {from} -> {to}? The pilot response will change.",
       // Debug console
       "setup.debug.title":      "Debug console",
       "setup.debug.output.ph":  "Press a preset above. Output shows here.",
@@ -701,6 +748,9 @@
       "setup.doctor.applied":      "APLICADO",
       "setup.doctor.applyAll":     "Aplicar todo",
       "setup.doctor.applyAllConfirm": "Aplicar todos los ajustes sugeridos a pypilot?",
+      "setup.doctor.applyTop":     "Aplicar el mas prioritario",
+      "setup.doctor.applyTopConfirm": "Aplicar el ajuste mas prioritario y correr otra sesion del Doctor antes del siguiente?",
+      "setup.doctor.freshRequired":  "Aplicado 1 ajuste. Corre otra sesion del Doctor antes de aplicar los siguientes {n}.",
       "setup.doctor.confidence":   "Confianza",
       "setup.doctor.samplesSummary": "{engaged} muestras activas de {total}, piloto '{pilot}'.",
       "setup.doctor.forkedProfile":  "Cambios aplicados en un perfil NUEVO {new}. Tu perfil original {orig} queda intacto y a un toque en Ajustes → Perfil.",
@@ -733,6 +783,7 @@
       "doctor.finding.oscillation": "Rumbo oscilando con periodo ~{period}s, RMS {rms}°.",
       "doctor.finding.authority":   "Servo al {duty}% de trabajo pero el error de rumbo sigue en {rms}°. El piloto pierde autoridad.",
       "doctor.finding.noise":       "Rumbo muy ajustado ({rms}°) pero servo al {duty}% de trabajo - posible ruido en la señal de rumbo.",
+      "doctor.finding.hardwareCeiling": "Servo al {duty}% de trabajo con {rms}° de error RMS - el actuador esta saturado. Ningun ajuste de P/I/D cierra un limite hardware; considera un servo mas potente o reducir la friccion del sistema de direccion.",
       "alarm.summary.active":      "{n} activas",
       "alarm.summary.muted":       "{n} silenciadas",
       "alarm.summary.off":         "{n} off",
@@ -757,12 +808,18 @@
       "sq.action.restore":         "Restaurar",
       "alarm.rule.heading-deviation.label":    "Desvio de rumbo",
       "alarm.rule.heading-deviation.msg":      "Error de rumbo del piloto: {deg}° sostenido",
+      "alarm.rule.cruise-drift.label":         "Desvio sostenido del rumbo",
+      "alarm.rule.cruise-drift.msg":           "El barco corre {deg}° a {side} del rumbo objetivo",
       "alarm.rule.unable-to-steer.label":      "Piloto sin autoridad",
       "alarm.rule.unable-to-steer.msg":        "El piloto pierde autoridad: {deg}° de error, servo al {duty}%",
       "alarm.rule.servo-overcurrent.label":    "Sobrecorriente servo",
       "alarm.rule.servo-overcurrent.msg":      "Sobrecorriente en el servo: {amp} A",
-      "alarm.rule.servo-temp-high.label":      "Temperatura servo alta",
-      "alarm.rule.servo-temp-high.msg":        "Temperatura del servo: {temp} °C",
+      "alarm.rule.servo-temp-high.label":      "Temperatura controladora servo alta",
+      "alarm.rule.servo-temp-high.msg":        "Temperatura controladora: {temp} °C",
+      "alarm.rule.servo-motor-temp.label":     "Temperatura motor servo alta",
+      "alarm.rule.servo-motor-temp.msg":       "Temperatura del motor: {temp} °C",
+      "alarm.rule.servo-load-high.label":      "Carga del piloto alta",
+      "alarm.rule.servo-load-high.msg":        "El piloto trabaja al {pct}% de su base (¿arrastre o mal tiempo?)",
       "alarm.rule.low-voltage.label":          "Tension baja",
       "alarm.rule.low-voltage.msg":            "Tension baja: {volt} V",
       "alarm.rule.sensor-lost.label":          "Sensor perdido",
@@ -795,6 +852,35 @@
       "setup.pypilotWebRestart.running": "reiniciando...",
       "setup.pypilotWebRestart.ok":      "OK",
       "setup.pypilotWebRestart.err":     "fallo",
+      "smart.title":               "Piloto Inteligente",
+      "smart.hint":                "Control superior sobre pypilot: elige perfil de piloto segun el viento, reacciona a rachas (congelar objetivo / subir D / perfil pesado), desengancha si el piloto pierde autoridad.",
+      "smart.autoProfile.title":   "Auto perfil por viento",
+      "smart.autoProfile.enable":  "Activar",
+      "smart.autoProfile.hint":    "Con el AP enganchado, el plugin promedia el TWS 60 s. Cuando la banda de viento lleva 90 s estable, cambia el perfil de pypilot al indicado.",
+      "smart.autoProfile.light":   "Perfil para TWS < 8 kn",
+      "smart.autoProfile.medium":  "Perfil para 8 – 16 kn",
+      "smart.autoProfile.heavy":   "Perfil para TWS > 16 kn",
+      "smart.autoProfile.skip":    "(saltar)",
+      "smart.gust.title":          "Estrategia frente a rachas",
+      "smart.gust.hint":           "Detecta cuando el AWS sube 5 kn o mas en 5 s y aplica la accion elegida.",
+      "smart.gust.strategy":       "Accion en racha",
+      "smart.gust.opt.off":        "OFF — no hacer nada",
+      "smart.gust.opt.warn":       "Solo avisar",
+      "smart.gust.opt.freeze":     "Congelar objetivo (modos viento)",
+      "smart.gust.opt.boostD":     "Subir D +20% durante 20 s",
+      "smart.gust.opt.heavy":      "Cambiar a perfil Pesado 30 s",
+      "smart.autoDis.title":       "Emergencia: desenganchar si pierde autoridad",
+      "smart.autoDis.hint":        "Si el error RMS supera 30° Y el servo trabaja al >90% durante 10 s, el plugin desengancha el AP y dispara notificacion de emergencia. Reenganchar es accion manual.",
+      "smart.autoDis.enable":      "Activar auto-desenganche",
+      "smart.save":                "Guardar ajustes del Piloto Inteligente",
+      "smart.saving":              "guardando...",
+      "smart.saved":               "guardado",
+      "smart.saveFail":            "fallo",
+      "smart.st.disabled":         "desactivado",
+      "smart.st.armed":            "armado",
+      "smart.st.band":             "banda",
+      "smart.st.pending":          "pendiente",
+      "smart.st.strategy":         "estrategia",
       "watch.title":         "Suscripciones a pypilot",
       "watch.hint":          "Cuantas keys esta el backend suscribiendo a pypilot_web en vivo. Debe quedarse bien por debajo de 40 - Sean D'Epagnier avisa que saturar pypilot_web es lo que lo cuelga.",
       "watch.total":         "total",
@@ -850,10 +936,15 @@
       "sess.advice.upload":  "Subir JSON de consejos",
       "mode.label.compass":   "COMPAS",
       "mode.label.gps":       "GPS",
-      "mode.label.wind":      "VIENTO APARENTE",
-      "mode.label.true-wind": "VIENTO REAL",
+      "mode.label.wind":      "APARENTE",
+      "mode.label.true-wind": "REAL",
       "mode.label.nav":       "RUMBO A WAYPOINT",
       "mode.label.aproado":   "APROADO",
+      // Rev172 (Carlos): short labels for the collapsed button, long
+      // ones swapped in on pointerdown so the dropdown itself reads
+      // "VIENTO APARENTE" / "VIENTO REAL" fully.
+      "mode.label.wind.long":      "VIENTO APARENTE",
+      "mode.label.true-wind.long": "VIENTO REAL",
       "tune.gain.helpBtn":  "Mas info",
       "tune.gain.P.short":  "Corrige el error de rumbo al instante con mas rueda. Es el reflejo 'hay que corregir ya'.",
       "tune.gain.P.long":   "Subir si el AP tarda en cerrar un desvio. Bajar si el timon 'baila' a cada ola.",
@@ -994,6 +1085,14 @@
       "helm.warn":    "ASEGURATE DE QUE ALGUIEN ESTA AL TIMON antes de continuar. No es el momento de estar bajo cubierta.",
       "helm.cancel":  "Cancelar",
       "helm.confirm": "Confirmo - hay alguien al timon",
+      "helm.op.engage.title":     "Enganchar piloto",
+      "helm.op.engage.msg":       "Enganchar el piloto? Confirma que alguien vigila el rumbo.",
+      "helm.op.modeChange.title": "Cambiar modo AP",
+      "helm.op.modeChange.msg":   "Cambiar modo {from} -> {to}? El rumbo objetivo cambiara.",
+      "helm.op.tack.title":       "Iniciar virada",
+      "helm.op.tack.msg":         "Iniciar virada por {side}? El barco va a cruzar el viento.",
+      "helm.op.doctor.title":     "Aplicar cambio de ganancia",
+      "helm.op.doctor.msg":       "Aplicar {gain} {from} -> {to}? La respuesta del piloto cambiara.",
       // Debug console
       "setup.debug.title":      "Consola debug",
       "setup.debug.output.ph":  "Pulsa un preset de arriba. La salida aparecera aqui.",
@@ -1185,6 +1284,7 @@
       "doctor.finding.oscillation": "Kurs schwingt mit Periode ~{period}s, RMS {rms}°.",
       "doctor.finding.authority":   "Servo bei {duty}% aber Kursfehler {rms}°. AP verliert Autoritaet.",
       "doctor.finding.noise":       "Kurs sehr eng ({rms}°) aber Servo bei {duty}% - moegliches Rauschen im Kurssignal.",
+      "doctor.finding.hardwareCeiling": "Servo bei {duty}% mit {rms}° RMS-Fehler - Antrieb gesaettigt. Keine Gain-Aenderung schliesst ein Hardware-Limit; staerkerer Antrieb oder geringere Reibung.",
       // Restart triad + helm
       "setup.restart.title":         "Notfall-Neustart / Reboot",
       "helm.warn":    "STELL SICHER, DASS JEMAND AM RUDER STEHT, bevor du fortfahrst. Nicht der Moment, unter Deck zu sein.",
@@ -1331,6 +1431,7 @@
       "doctor.finding.oscillation": "Cap oscillant avec periode ~{period}s, RMS {rms}°.",
       "doctor.finding.authority":   "Servo a {duty}% mais erreur de cap {rms}°. AP en perte d'autorite.",
       "doctor.finding.noise":       "Cap tres serre ({rms}°) mais servo a {duty}% - bruit possible dans le signal de cap.",
+      "doctor.finding.hardwareCeiling": "Servo a {duty}% avec {rms}° d'erreur RMS - actionneur sature. Aucun reglage P/I/D ne peut fermer une limite materielle ; envisager un servo plus puissant.",
       // Restart triad + helm
       "setup.restart.title":         "Urgence : redemarrage / reboot",
       "helm.warn":    "ASSURE-TOI QU'UNE PERSONNE EST A LA BARRE avant de continuer. Ce n'est pas le moment d'etre en bas.",
@@ -1702,7 +1803,9 @@
         break;
       // Rev63 / 2.0.0: verbatim - was `.tack.state`, now `.ap.tack.state` (from pypilot key `ap.tack.state`).
       case "steering.autopilot.pypilot.ap.tack.state":
-        renderTackButton(value); break;
+        renderTackButton(value);
+        _tackStatsOnStateChange(value);
+        break;
       case "navigation.headingMagnetic":
         state.heading = numericOrNull(value); renderCogAndCurrent(); break;
       case "steering.rudderAngle":
@@ -2423,6 +2526,524 @@
         b.dataset.state = "tack";
       }
     }
+    // Rev170/171 (Carlos): drive the countdown overlay from the real
+    // pypilot tack state.
+    //   none               -> hide (either finished or cancelled)
+    //   port | starboard    -> arming phase; keep the local countdown
+    //   anything else       -> assume executing, switch to VIRANDO
+    if (!inProgress) {
+      _tackCountdownHide();
+    } else if (tackState !== "port" && tackState !== "starboard"
+               && _tackCountdownPhase === "arming"
+               && document.getElementById("tack-countdown-overlay")?.style.display !== "none") {
+      _tackCountdownToExecuting();
+    }
+  }
+
+  // Rev171 (Carlos): big countdown over the boat sprite. Two phases:
+  // arming (during ap.tack.delay) and executing ("VIRANDO"). The
+  // overlay circle is clickable and taps cancel the maneuver. Reads
+  // ap.tack.delay fresh from pypilot so a Setup > Calibration edit
+  // takes effect without a page reload.
+  let _tackCountdownTimer = null;
+  let _tackCountdownEndTs = 0;
+  let _tackCountdownPhase = "arming";   // "arming" | "executing"
+  let _tackCountdownExecuteStartTs = 0;
+  async function _tackFetchDelaySec() {
+    // First look at whatever we have in the local pypilot values
+    // cache; if it's a number, use it directly.
+    const cached = state.pypilotValues && state.pypilotValues["ap.tack.delay"];
+    if (typeof cached === "number" && isFinite(cached)) return cached;
+    // Otherwise pull a fresh /values snapshot from the backend so an
+    // in-session Calibration edit is reflected right away. Fallback
+    // to 5 s if the fetch fails (pypilot's own default).
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/values`);
+      if (r.ok) {
+        const j = await r.json();
+        state.pypilotValues = j;
+        const v = j["ap.tack.delay"];
+        if (typeof v === "number" && isFinite(v)) return v;
+      }
+    } catch { /* silent */ }
+    return 5;
+  }
+  async function _tackCountdownStart() {
+    // Fetch a fresh delay every arm so a mid-session pypilot edit is
+    // honoured without a page reload (Carlos Rev171).
+    const delaySec = await _tackFetchDelaySec();
+    _tackCountdownEndTs = Date.now() + delaySec * 1000;
+    _tackCountdownPhase = "arming";
+    _tackCountdownExecuteStartTs = 0;
+    const overlay = document.getElementById("tack-countdown-overlay");
+    const phase = document.getElementById("tack-countdown-phase");
+    const num = document.getElementById("tack-countdown-num");
+    const circle = overlay ? overlay.querySelector("circle") : null;
+    if (overlay) overlay.style.display = "";
+    if (phase) phase.style.display = "none";
+    if (num) {
+      num.setAttribute("y", "4");
+      num.setAttribute("font-size", "64");
+      num.setAttribute("fill", "#ff3b30");
+    }
+    if (circle) {
+      circle.setAttribute("fill", "rgba(255,59,48,0.18)");
+      circle.setAttribute("stroke", "#ff3b30");
+    }
+    if (_tackCountdownTimer) clearInterval(_tackCountdownTimer);
+    _tackCountdownTimer = setInterval(_tackCountdownTick, 250);
+    _tackCountdownTick();
+  }
+  function _tackCountdownTick() {
+    const num = document.getElementById("tack-countdown-num");
+    if (!num) return;
+    if (_tackCountdownPhase === "arming") {
+      const remaining = (_tackCountdownEndTs - Date.now()) / 1000;
+      if (remaining <= 0) {
+        // Auto-transition: pypilot should now be executing. If the
+        // real tack state has cleared meanwhile _tackCountdownHide
+        // already fired via renderTackButton.
+        _tackCountdownToExecuting();
+        return;
+      }
+      // Integer seconds only - Carlos: "no decimales al final".
+      num.textContent = Math.ceil(remaining).toString();
+    } else {
+      // Executing: show elapsed seconds under the "VIRANDO" label.
+      const elapsed = Math.floor((Date.now() - _tackCountdownExecuteStartTs) / 1000);
+      num.textContent = elapsed.toString();
+    }
+  }
+  function _tackCountdownToExecuting() {
+    _tackCountdownPhase = "executing";
+    _tackCountdownExecuteStartTs = Date.now();
+    const overlay = document.getElementById("tack-countdown-overlay");
+    const phase = document.getElementById("tack-countdown-phase");
+    const num = document.getElementById("tack-countdown-num");
+    const circle = overlay ? overlay.querySelector("circle") : null;
+    // Rev172 (Carlos): during VIRANDO phase, recolor the whole overlay
+    // to orange (was red = "armed / about to fire"; orange = "action in
+    // progress"). Also enlarge the elapsed-seconds counter, which was
+    // reduced too aggressively in Rev171.
+    const ORANGE = "#ff9500";
+    if (phase) {
+      phase.style.display = "";
+      phase.setAttribute("fill", ORANGE);
+      phase.setAttribute("font-size", "16");
+    }
+    if (num) {
+      num.setAttribute("y", "22");
+      num.setAttribute("font-size", "54");
+      num.setAttribute("fill", ORANGE);
+    }
+    if (circle) {
+      circle.setAttribute("fill", "rgba(255,149,0,0.22)");
+      circle.setAttribute("stroke", ORANGE);
+    }
+  }
+  function _tackCountdownHide() {
+    if (_tackCountdownTimer) { clearInterval(_tackCountdownTimer); _tackCountdownTimer = null; }
+    const overlay = document.getElementById("tack-countdown-overlay");
+    if (overlay) overlay.style.display = "none";
+    _tackCountdownPhase = "arming";
+    _tackCountdownExecuteStartTs = 0;
+  }
+  function _wireTackCountdownClick() {
+    const overlay = document.getElementById("tack-countdown-overlay");
+    if (!overlay || overlay.__wired) return;
+    overlay.__wired = true;
+    // Both mouse and touch. Cancel any tack in progress.
+    const onCancel = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      pluginRaw("ap.tack.state", "none");
+      _tackCountdownHide();
+    };
+    overlay.addEventListener("click", onCancel);
+    overlay.addEventListener("touchstart", onCancel, { passive: false });
+    // Rev171: X on the post-tack stats HUD closes it early.
+    const closeBtn = document.getElementById("tack-stats-close");
+    if (closeBtn && !closeBtn.__wired) {
+      closeBtn.__wired = true;
+      const onClose = (ev) => { ev.preventDefault(); ev.stopPropagation(); _tackStatsHide(); };
+      closeBtn.addEventListener("click", onClose);
+      closeBtn.addEventListener("touchstart", onClose, { passive: false });
+    }
+  }
+
+  // Rev171 (Carlos): tack maneuver stats HUD. Records rolling 1 Hz
+  // samples of TWS/|AWA|/SOG. When a tack completes, compares the
+  // average of the 30 s BEFORE the maneuver against the 30 s window
+  // that starts 30 s AFTER the boat settles on the new tack
+  // (t+30..t+60). HUD renders for 2 min; the boat sprite glows so
+  // the skipper spots it without looking away.
+  const _tackStats = {
+    samples: [],        // { ts, tws, awaAbs, sog }
+    pre: null,          // snapshot averaged from t-30..t
+    postScheduledFor: 0,// when to compute the "after" snapshot
+    hideAt: 0,
+    hudTimer: null,
+    lastTackState: null,
+  };
+  const TACK_STATS_MAX_MS = 120_000;
+  const TACK_STATS_WINDOW_MS = 30_000;
+  const TACK_STATS_POST_START_MS = 30_000;
+  const TACK_STATS_HUD_MS = 120_000;
+  function _tackStatsSample() {
+    const now = Date.now();
+    _tackStats.samples.push({
+      ts: now,
+      tws: typeof state.windSpeedTrue === "number" ? state.windSpeedTrue * 1.94384 : null,
+      aws: typeof state.windSpeed === "number" ? state.windSpeed * 1.94384 : null,
+      awaAbs: typeof state.windAngle === "number" ? Math.abs(state.windAngle * RAD2DEG) : null,
+      awaSigned: typeof state.windAngle === "number" ? state.windAngle : null,
+      sog: typeof state.sog === "number" ? state.sog * 1.94384 : null,
+    });
+    // Rev172 (Carlos): the gust-ghost detector piggybacks on this 1 Hz
+    // ring buffer - baseline AWS and rolling AWA both come from the
+    // same samples so no separate loop is needed.
+    _gustGhostTick();
+    while (_tackStats.samples.length > 0 && now - _tackStats.samples[0].ts > TACK_STATS_MAX_MS) {
+      _tackStats.samples.shift();
+    }
+    // If a post-tack measurement was scheduled and its window is now
+    // complete, compute + display it.
+    if (_tackStats.postScheduledFor && now >= _tackStats.postScheduledFor + TACK_STATS_WINDOW_MS) {
+      const post = _tackStatsAverage(_tackStats.postScheduledFor, _tackStats.postScheduledFor + TACK_STATS_WINDOW_MS);
+      _tackStatsShow(_tackStats.pre, post);
+      _tackStats.postScheduledFor = 0;
+    }
+    // Auto-hide when the HUD dwell time is up.
+    if (_tackStats.hideAt && now >= _tackStats.hideAt) _tackStatsHide();
+  }
+  function _tackStatsAverage(fromTs, toTs) {
+    let tws = 0, twsN = 0, awa = 0, awaN = 0, sog = 0, sogN = 0;
+    for (const s of _tackStats.samples) {
+      if (s.ts < fromTs || s.ts > toTs) continue;
+      if (typeof s.tws === "number")     { tws += s.tws;     twsN += 1; }
+      if (typeof s.awaAbs === "number")  { awa += s.awaAbs;  awaN += 1; }
+      if (typeof s.sog === "number")     { sog += s.sog;     sogN += 1; }
+    }
+    return {
+      tws: twsN > 0 ? tws / twsN : null,
+      awa: awaN > 0 ? awa / awaN : null,
+      sog: sogN > 0 ? sog / sogN : null,
+    };
+  }
+  function _tackStatsOnTackCompleted() {
+    // Snapshot the last 30 s as "before".
+    const now = Date.now();
+    _tackStats.pre = _tackStatsAverage(now - TACK_STATS_WINDOW_MS, now);
+    _tackStats.postScheduledFor = now + TACK_STATS_POST_START_MS;
+    _tackStats.completedTs = now;   // Rev172: needed for recovery timer
+  }
+  // Rev172 (Carlos): persistent tack log. Every completed tack lands in
+  // localStorage with pre/post averages, SOG retention %, and time to
+  // recover 95 % of pre SOG. Long-press on the boat opens a modal that
+  // ranks tacks by day, best by retention, best by recovery. Ring-
+  // limited so it never fills the browser storage.
+  const TACK_LOG_KEY = "pypilotnewui.tackLog";
+  const TACK_LOG_MAX = 200;
+  function _tackLogLoad() {
+    try {
+      const raw = localStorage.getItem(TACK_LOG_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+  function _tackLogSave(entry) {
+    try {
+      const arr = _tackLogLoad();
+      arr.push(entry);
+      while (arr.length > TACK_LOG_MAX) arr.shift();
+      localStorage.setItem(TACK_LOG_KEY, JSON.stringify(arr));
+    } catch { /* localStorage disabled: silent */ }
+  }
+  function _tackLogRecoverySec(fromTs, preSog) {
+    if (!fromTs || !preSog || preSog < 0.5) return null;
+    const target = preSog * 0.95;
+    for (const s of _tackStats.samples) {
+      if (s.ts < fromTs) continue;
+      if (typeof s.sog === "number" && s.sog >= target) {
+        return Math.round((s.ts - fromTs) / 100) / 10;
+      }
+    }
+    return null;
+  }
+  // Rev172 (Carlos): "gust ghost arrow". A remarkable wind change leaves
+  // a ghost copy of the apparent-wind piece frozen at the angle where
+  // the gust hit, with the AWS reading beside it. Ghost fades to zero
+  // over 10 s. Triggers on either a big AWS jump vs the 30-s rolling
+  // baseline OR a sharp AWA rotation within a 5-s window. Cooldown
+  // avoids retrigger while an existing ghost is fading. On/off toggle
+  // stored per browser.
+  const GUST_GHOST_LS_KEY = "pypilotnewui.gustGhost";
+  const GUST_GHOST_COOLDOWN_MS = 30_000;
+  let _gustGhostActive = null;    // { g, label, expireAt } - only one at a time
+  const GUST_GHOST_JUMP_KN = 6;
+  const GUST_GHOST_JUMP_RATIO = 1.55;
+  const GUST_GHOST_SHIFT_DEG = 30;
+  const GUST_GHOST_BASELINE_MS = 30_000;
+  const GUST_GHOST_SHIFT_MS = 5_000;
+  const GUST_GHOST_FADE_MS = 10_000;
+  let _gustGhostLastTs = 0;
+  function _gustGhostEnabled() {
+    try {
+      const raw = localStorage.getItem(GUST_GHOST_LS_KEY);
+      return raw == null ? true : raw === "true";
+    } catch { return true; }
+  }
+  function _gustGhostSetEnabled(on) {
+    try { localStorage.setItem(GUST_GHOST_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
+  }
+  function _gustGhostTick() {
+    if (!_gustGhostEnabled()) return;
+    const now = Date.now();
+    if (now - _gustGhostLastTs < GUST_GHOST_COOLDOWN_MS) return;
+    // Need current AWS + AWA to snapshot.
+    const awsKn = typeof state.windSpeed === "number" ? state.windSpeed * 1.94384 : null;
+    const awaRad = typeof state.windAngle === "number" ? state.windAngle : null;
+    if (awsKn == null || awaRad == null) return;
+    // Baseline AWS (last 30 s minus most recent 3 s so the spike itself
+    // does not raise the baseline).
+    let bAws = 0, bN = 0;
+    for (const s of _tackStats.samples) {
+      if (s.ts < now - GUST_GHOST_BASELINE_MS || s.ts > now - 3000) continue;
+      if (typeof s.tws !== "number") continue;
+      // Use apparent when available in samples; fall back to tws proxy.
+      const kn = typeof s.aws === "number" ? s.aws : s.tws;
+      if (kn == null) continue;
+      bAws += kn; bN += 1;
+    }
+    const baseAws = bN > 0 ? bAws / bN : null;
+    // AWA rolling in the last 5 s.
+    let refAwa = null, refAwaTs = 0;
+    for (const s of _tackStats.samples) {
+      if (s.ts < now - GUST_GHOST_SHIFT_MS) continue;
+      if (typeof s.awaSigned === "number") { refAwa = s.awaSigned; refAwaTs = s.ts; break; }
+    }
+    const awaDegNow = awaRad * RAD2DEG;
+    const jumpKn = baseAws != null ? awsKn - baseAws : 0;
+    const jumpRatio = baseAws != null && baseAws > 0.5 ? awsKn / baseAws : 1;
+    const shiftDeg = refAwa != null ? Math.abs(awaDegNow - refAwa * RAD2DEG) : 0;
+    const bigJump  = baseAws != null && baseAws >= 3 && (jumpKn >= GUST_GHOST_JUMP_KN || jumpRatio >= GUST_GHOST_JUMP_RATIO);
+    const bigShift = shiftDeg >= GUST_GHOST_SHIFT_DEG && (now - refAwaTs) >= 500;
+    if (!bigJump && !bigShift) return;
+    _gustGhostLastTs = now;
+    _gustGhostRender(awaRad, awsKn);
+  }
+  function _gustGhostRender(awaRad, awsKn) {
+    // Rev173 (Carlos): only ONE ghost active at a time - a new gust
+    // during the fade window would look like the ghost "chases" the
+    // live arrow. Cooldown already gates most retriggers; this belt-
+    // and-suspenders check finishes the job.
+    if (_gustGhostActive && Date.now() < _gustGhostActive.expireAt) return;
+    const svg = document.getElementById("wind-rose");
+    if (!svg) return;
+    const NS = "http://www.w3.org/2000/svg";
+    const awaDeg = awaRad * RAD2DEG;
+    // Rev173 fix: instead of cloning children from the live #rose-piece-awa
+    // (which fed a subtle "keeps moving" bug), build the ghost from
+    // scratch with the exact same path literals as in index.html. This
+    // node has zero DOM ancestry with the live piece - only OUR own
+    // rotate() ever touches it.
+    const ghost = document.createElementNS(NS, "g");
+    ghost.setAttribute("transform", `rotate(${awaDeg})`);
+    ghost.style.opacity = "0.5";
+    ghost.style.pointerEvents = "none";
+    ghost.style.transition = `opacity ${GUST_GHOST_FADE_MS}ms linear`;
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", "M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z");
+    path.setAttribute("fill", "#ffd54a");
+    path.setAttribute("stroke", "#cba822");
+    path.setAttribute("stroke-width", "0.75");
+    path.setAttribute("stroke-linejoin", "round");
+    ghost.appendChild(path);
+    const aLetter = document.createElementNS(NS, "text");
+    aLetter.setAttribute("x", "0");
+    aLetter.setAttribute("y", "-38");
+    aLetter.setAttribute("text-anchor", "middle");
+    aLetter.setAttribute("dominant-baseline", "middle");
+    aLetter.setAttribute("fill", "#8b98a5");
+    aLetter.setAttribute("font-size", "12");
+    aLetter.setAttribute("font-weight", "900");
+    aLetter.setAttribute("font-family", "ui-monospace, monospace");
+    aLetter.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -38)`);
+    aLetter.textContent = "A";
+    ghost.appendChild(aLetter);
+    // AWS reading, radially outside the piece.
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("x", "0");
+    label.setAttribute("y", "-108");
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("dominant-baseline", "middle");
+    label.setAttribute("fill", "#ffd54a");
+    label.setAttribute("font-size", "9");
+    label.setAttribute("font-weight", "800");
+    label.setAttribute("font-family", "ui-monospace, monospace");
+    label.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -108)`);
+    label.textContent = `${awsKn.toFixed(1)} kn`;
+    ghost.appendChild(label);
+    // Append at the root of the wind-rose SVG so there is no ancestor
+    // transform we could unknowingly inherit later.
+    svg.appendChild(ghost);
+    _gustGhostActive = { g: ghost, expireAt: Date.now() + GUST_GHOST_FADE_MS + 500 };
+    requestAnimationFrame(() => { ghost.style.opacity = "0"; });
+    setTimeout(() => {
+      try { ghost.remove(); } catch { /* silent */ }
+      _gustGhostActive = null;
+    }, GUST_GHOST_FADE_MS + 500);
+  }
+  let _tackLogFilterDays = 7;
+  function _tackLogOpen() {
+    _tackLogRender();
+    document.getElementById("tack-log-pop")?.classList.add("open");
+  }
+  function _tackLogRender() {
+    const list = document.getElementById("tack-log-list");
+    const stats = document.getElementById("tack-log-stats");
+    if (!list || !stats) return;
+    list.textContent = "";
+    stats.textContent = "";
+    const all = _tackLogLoad();
+    const nowMs = Date.now();
+    const cutoff = _tackLogFilterDays > 0 ? nowMs - _tackLogFilterDays * 86400000 : 0;
+    const rows = all.filter((e) => e && (cutoff === 0 || e.ts >= cutoff));
+    rows.sort((a, b) => b.ts - a.ts);
+    if (rows.length === 0) {
+      list.innerHTML = '<div style="opacity:0.6;font-size:13px;padding:20px 0;text-align:center">Sin bordos registrados en el rango.</div>';
+      return;
+    }
+    // Best by retention (%) and best by recoverySec.
+    let bestRetIdx = -1, bestRet = -Infinity;
+    let bestRecIdx = -1, bestRec = Infinity;
+    rows.forEach((e, i) => {
+      if (typeof e.retention === "number" && e.retention > bestRet) { bestRet = e.retention; bestRetIdx = i; }
+      if (typeof e.recoverySec === "number" && e.recoverySec < bestRec) { bestRec = e.recoverySec; bestRecIdx = i; }
+    });
+    const fmtDate = (ts) => {
+      const d = new Date(ts);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    // Summary chips.
+    const mkChip = (label, value, color) =>
+      `<div style="padding:8px 10px;border-radius:8px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#2b3542);min-width:140px">
+        <div style="font-size:11px;opacity:0.65;letter-spacing:0.5px">${label}</div>
+        <div style="font-size:14px;font-weight:700;color:${color}">${value}</div>
+      </div>`;
+    let chips = "";
+    chips += mkChip("Total", `${rows.length} bordos`, "#e8ecf1");
+    if (bestRetIdx >= 0) chips += mkChip("Mejor retención", `${bestRet.toFixed(0)}% SOG`, "#4dd982");
+    if (bestRecIdx >= 0) chips += mkChip("Recuperación más rápida", `${bestRec.toFixed(1)} s`, "#5ce8c0");
+    stats.innerHTML = chips;
+    // Row for each tack.
+    rows.forEach((e, i) => {
+      const isBestRet = i === bestRetIdx;
+      const isBestRec = i === bestRecIdx;
+      const retTxt = typeof e.retention === "number" ? `${e.retention.toFixed(0)}% SOG` : "--";
+      const retColor = typeof e.retention === "number"
+        ? (e.retention >= 95 ? "#4dd982" : e.retention >= 80 ? "#ffd54a" : "#ff5d5d")
+        : "#8b98a5";
+      const recTxt = typeof e.recoverySec === "number" ? `${e.recoverySec.toFixed(1)} s` : "n/a";
+      const preAwa = e.pre?.awa != null ? `${Math.round(e.pre.awa)}°` : "--";
+      const postAwa = e.post?.awa != null ? `${Math.round(e.post.awa)}°` : "--";
+      const preTws = e.pre?.tws != null ? `${e.pre.tws.toFixed(1)} kn` : "--";
+      const preSog = e.pre?.sog != null ? `${e.pre.sog.toFixed(1)} kn` : "--";
+      const postSog = e.post?.sog != null ? `${e.post.sog.toFixed(1)} kn` : "--";
+      const badges = [];
+      if (isBestRet) badges.push('<span style="background:#4dd98230;color:#4dd982;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">MEJOR RET</span>');
+      if (isBestRec) badges.push('<span style="background:#5ce8c030;color:#5ce8c0;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">MÁS RÁPIDA</span>');
+      const row = document.createElement("div");
+      row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:10px;border-radius:8px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#2b3542);align-items:center";
+      row.innerHTML =
+        `<div style="font-size:12px;opacity:0.75;font-family:ui-monospace,monospace;min-width:78px">${fmtDate(e.ts)}</div>` +
+        `<div style="display:flex;flex-direction:column;gap:2px">
+           <div style="font-size:13px">AWA ${preAwa} → ${postAwa}  •  SOG ${preSog} → ${postSog}  •  TWS ${preTws}</div>
+           <div style="font-size:11px;opacity:0.65">Recuperación 95% SOG: ${recTxt}</div>
+         </div>` +
+        `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+           <div style="font-size:14px;font-weight:800;color:${retColor}">${retTxt}</div>
+           <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">${badges.join("")}</div>
+         </div>`;
+      list.appendChild(row);
+    });
+  }
+  function _wireTackLogButtons() {
+    document.querySelectorAll(".tack-log-filter").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        _tackLogFilterDays = parseInt(btn.dataset.days || "0", 10) || 0;
+        document.querySelectorAll(".tack-log-filter").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        _tackLogRender();
+      });
+    });
+    const clear = document.getElementById("tack-log-clear");
+    if (clear) clear.addEventListener("click", () => {
+      if (!confirm("¿Vaciar todo el historial de bordos?")) return;
+      try { localStorage.removeItem(TACK_LOG_KEY); } catch { /* silent */ }
+      _tackLogRender();
+    });
+  }
+  function _tackStatsShow(pre, post) {
+    const g = document.getElementById("tack-stats-hud");
+    if (!g) return;
+    const fmt = (v, unit, dec) => v == null ? "--" : v.toFixed(dec) + (unit || "");
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    set("tack-stats-tws-before", fmt(pre?.tws, " kn", 1));
+    set("tack-stats-tws-after",  fmt(post?.tws, " kn", 1));
+    set("tack-stats-awa-before", fmt(pre?.awa, "°", 0));
+    set("tack-stats-awa-after",  fmt(post?.awa, "°", 0));
+    set("tack-stats-sog-before", fmt(pre?.sog, " kn", 1));
+    set("tack-stats-sog-after",  fmt(post?.sog, " kn", 1));
+    // Simple verdict: SOG loss expressed as pct of the pre value.
+    const v = document.getElementById("tack-stats-verdict");
+    if (v && pre && post && pre.sog != null && post.sog != null && pre.sog > 0.1) {
+      const delta = post.sog - pre.sog;
+      const pct = (delta / pre.sog) * 100;
+      if (pct >= -5)      { v.textContent = `SOG ${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%  •  buena virada`; v.setAttribute("fill", "#4dd982"); }
+      else if (pct >= -20){ v.textContent = `SOG ${pct.toFixed(0)}%  •  virada normal`;                     v.setAttribute("fill", "#ffd54a"); }
+      else                { v.textContent = `SOG ${pct.toFixed(0)}%  •  virada perdida`;                    v.setAttribute("fill", "#ff3b30"); }
+    } else if (v) {
+      v.textContent = "";
+    }
+    g.style.display = "";
+    // Boat glow while the HUD is up.
+    const boat = document.getElementById("rose-boat");
+    if (boat) boat.classList.add("boat-glow");
+    _tackStats.hideAt = Date.now() + TACK_STATS_HUD_MS;
+    // Rev172: persist this tack in the local log so long-press-on-boat
+    // can rank tacks by SOG retention and by recovery time.
+    const retention = (pre?.sog > 0 && post?.sog != null)
+      ? (post.sog / pre.sog) * 100 : null;
+    const recoverySec = _tackLogRecoverySec(_tackStats.completedTs, pre?.sog);
+    _tackLogSave({
+      ts: _tackStats.completedTs || Date.now(),
+      pre:  { tws: pre?.tws  ?? null, awa: pre?.awa  ?? null, sog: pre?.sog  ?? null },
+      post: { tws: post?.tws ?? null, awa: post?.awa ?? null, sog: post?.sog ?? null },
+      retention,
+      recoverySec,
+    });
+  }
+  function _tackStatsHide() {
+    const g = document.getElementById("tack-stats-hud");
+    if (g) g.style.display = "none";
+    _tackStats.hideAt = 0;
+    const boat = document.getElementById("rose-boat");
+    if (boat) boat.classList.remove("boat-glow");
+  }
+  function _tackStatsStartSampler() {
+    if (_tackStats.hudTimer) return;
+    _tackStats.hudTimer = setInterval(_tackStatsSample, 1000);
+  }
+  function _tackStatsOnStateChange(newState) {
+    // Detect the completion transition: was in a non-none tack state,
+    // now back to none. Skip the very first render (undefined -> none).
+    if (_tackStats.lastTackState && _tackStats.lastTackState !== "none"
+        && (!newState || newState === "none")) {
+      _tackStatsOnTackCompleted();
+    }
+    _tackStats.lastTackState = newState || "none";
   }
 
   // Rev66 / 2.0.4 - cache to avoid repainting ticks every rudder delta.
@@ -2954,12 +3575,26 @@
   // pseudo-mode injected into the list. Any key without a translation
   // renders its raw value verbatim so unknown future pypilot modes
   // don't disappear.
-  function _modeLabel(value) {
+  function _modeLabel(value, long) {
     if (value == null) return "";
     const k = String(value).toLowerCase().replace(/\s+/g, "-");
+    if (long) {
+      const tkL = `mode.label.${k}.long`;
+      const txL = t(tkL);
+      if (txL !== tkL) return txL;
+    }
     const tk = `mode.label.${k}`;
     const tx = t(tk);
     return tx === tk ? String(value) : tx;
+  }
+  // Rev172 (Carlos): swap all <option> labels of the mode select to
+  // their long form while the dropdown is being opened, and revert on
+  // blur/change so the collapsed button stays compact. Called from the
+  // wiring block below.
+  function _modeSelectSwapLabels(long) {
+    const el = document.getElementById("mode-select");
+    if (!el) return;
+    for (const o of el.options) o.textContent = _modeLabel(o.value, !!long);
   }
   // Rev144 (Carlos): when the language changes, refresh the widgets we
   // built once in JS. data-i18n only handles static markup; anything
@@ -3752,6 +4387,12 @@
 
   // ---- Control tab wiring ----
   function wireControl() {
+    // Rev171 (Carlos): the tack countdown overlay is clickable to
+    // cancel the maneuver at any moment during arming OR executing.
+    _wireTackCountdownClick();
+    // Rev171: start the 1 Hz sampler that feeds the post-tack stats
+    // HUD (both the "before" and "after" windows).
+    _tackStatsStartSampler();
     // Nudges. Use a local accumulator like the pypilot upstream JS so quick
     // successive presses don't rubber-band against the server value.
     // Kinds: big-port (-nudgeBig), small-port (-nudgeSmall), small-star (+nudgeSmall), big-star (+nudgeBig).
@@ -3828,6 +4469,10 @@
       const nowTs = Date.now();
       if (nowTs - _lastEngageTs < AP_CLICK_COOLDOWN_MS) return;
       _lastEngageTs = nowTs;
+      // Rev170 (Carlos): removed helm-manned confirmation on engage
+      // per user feedback - "es evidente que si". The confirm modals
+      // were interrupting normal operation; the muscle-memory of
+      // tapping AP is already an intentional action.
       _apPending = true;
       eng.classList.add("pending");
       const wasEngaged = state.engaged;
@@ -3924,8 +4569,19 @@
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); doEngage(); }
     });
 
+    // Rev172 (Carlos): expand option labels to their long form while the
+    // dropdown is being opened; revert on blur/change to keep the
+    // collapsed button reading "APARENTE" / "REAL" instead of a
+    // truncated "VIENTO A". "keydown" also opens the picker on the
+    // spacebar / arrow-down, so cover it too.
+    const _msExpand = () => _modeSelectSwapLabels(true);
+    const _msCollapse = () => _modeSelectSwapLabels(false);
+    $("#mode-select").addEventListener("pointerdown", _msExpand);
+    $("#mode-select").addEventListener("keydown", _msExpand);
+    $("#mode-select").addEventListener("blur", _msCollapse);
     // Mode change
     $("#mode-select").addEventListener("change", (e) => {
+      _msCollapse();
       const chosen = e.target.value;
       // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
       // choice modal (bow / stern) and starts the maneuver on confirmation.
@@ -3939,7 +4595,50 @@
       if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
         aproadoTearDown();
       }
-      apSetMode(chosen);
+      // Rev170/171 (Carlos): fix target reference when switching
+      // between compass-family and wind-family modes without the
+      // brief "wrong then right" flash. Pypilot interprets
+      // ap.heading_command differently per mode - a heading value in
+      // compass/gps/nav, an APPARENT WIND ANGLE in wind, a TRUE WIND
+      // ANGLE in "true wind". If we just change mode, the old value
+      // is reinterpreted for one tick and the diamond leaps.
+      //
+      // Rev170 approach: apSetMode() then apSetTargetRad() 250 ms
+      // later. That produced the "duda" Carlos reported.
+      //
+      // Rev171 approach: compute the right target FIRST, apply it
+      // OPTIMISTICALLY to the visor, then send target + mode in
+      // parallel (Promise.all). The visor never renders the stale
+      // interpretation, and pypilot receives both PUTs at once so
+      // the AutopilotProvider echo-cancellation absorbs the swap.
+      const prevMode = String(state.mode || "").toLowerCase();
+      const newMode = String(chosen).toLowerCase();
+      const isNewTrueWind = newMode.includes("true") && newMode.includes("wind");
+      const isNewWind     = newMode.includes("wind") && !isNewTrueWind;
+      const isNewCompassFam = !newMode.includes("wind");
+      const wasWindFam    = prevMode.includes("wind");
+      const familyChanged = state.engaged && (wasWindFam !== !isNewCompassFam);
+      let newTargetRad = null;
+      if (familyChanged) {
+        if (isNewTrueWind && state.windAngleTrue != null) newTargetRad = state.windAngleTrue;
+        else if (isNewWind && state.windAngle != null)    newTargetRad = state.windAngle;
+        else if (isNewCompassFam && state.heading != null) newTargetRad = state.heading;
+      }
+      if (newTargetRad != null) {
+        // Snap the visor first so the diamond never renders the
+        // stale value under the new mode. Then fire mode + target
+        // together to pypilot.
+        state.target = newTargetRad;
+        state.localTargetRad = newTargetRad;
+        state.mode = chosen;
+        renderTargetArrow();
+        Promise.all([
+          apSetMode(chosen),
+          apSetTargetRad(newTargetRad),
+        ]).catch(() => { /* silent */ });
+      } else {
+        apSetMode(chosen);
+      }
     });
 
     // Rev88 / Rev89: aproado overlay wiring. The overlay has 3 phases;
@@ -3975,8 +4674,24 @@
     const tackHandler = (dir) => async () => {
       const st = $("#tack-port-btn").dataset.state;
       if (st === "cancel") {
+        // Rev161 (Carlos): cancelling a tack is always instant -
+        // safety-side action, no confirm.
         pluginRaw("ap.tack.state", "none");
       } else {
+        // Rev171 (Carlos): tack requires the AP to be engaged. Pypilot
+        // would silently ignore the command otherwise; the visor
+        // now short-circuits and shows a brief warning on the
+        // buttons instead of misleading the skipper.
+        if (!state.engaged) {
+          const bp = $("#tack-port-btn"), bs = $("#tack-star-btn");
+          for (const b of [bp, bs]) {
+            if (!b) continue;
+            b.classList.add("failed");
+            setTimeout(() => b.classList.remove("failed"), 1200);
+          }
+          return;
+        }
+        _tackCountdownStart();
         apTack(dir);
       }
     };
@@ -4640,6 +5355,131 @@
       { label: t("sess.close") || "Close", onClick: (close) => close() },
     ]);
   }
+  // Rev167 (Carlos): Smart Pilot card wiring. All config lives here
+  // (no more SK Admin schema toggles). The 3 sections read/write via
+  // /supervisor/config and poll /supervisor/status every 3 s while
+  // Setup is on screen.
+  let _smartRefreshTimer = null;
+  function _smartFillProfiles(select, current) {
+    if (!select) return;
+    select.innerHTML = "";
+    // First option: blank = skip this band.
+    const blank = document.createElement("option");
+    blank.value = "";
+    blank.textContent = t("smart.autoProfile.skip") || "(skip)";
+    select.appendChild(blank);
+    const list = Array.isArray(state.profiles) ? state.profiles : [];
+    for (const p of list) {
+      const o = document.createElement("option");
+      o.value = String(p);
+      o.textContent = String(p);
+      select.appendChild(o);
+    }
+    // If current is not in list (deleted profile etc.), still show it.
+    if (current && !list.includes(current)) {
+      const o = document.createElement("option");
+      o.value = current;
+      o.textContent = current + " (?)";
+      select.appendChild(o);
+    }
+    select.value = current || "";
+  }
+  async function _smartLoadConfig() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/supervisor/config`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const cb1 = document.getElementById("smart-auto-profile-enabled");
+      const cb2 = document.getElementById("smart-auto-disengage-enabled");
+      const ss  = document.getElementById("smart-gust-strategy");
+      if (cb1) cb1.checked = !!j.autoProfileEnabled;
+      if (cb2) cb2.checked = !!j.autoDisengageOnLostAuthority;
+      if (ss)  ss.value    = j.gustStrategy || "warn";
+      _smartFillProfiles(document.getElementById("smart-auto-profile-light"),  j.autoProfileLight);
+      _smartFillProfiles(document.getElementById("smart-auto-profile-medium"), j.autoProfileMedium);
+      _smartFillProfiles(document.getElementById("smart-auto-profile-heavy"),  j.autoProfileHeavy);
+    } catch { /* silent */ }
+  }
+  async function _smartRefreshStatus() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/supervisor/status`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const ap = j.autoProfile || {};
+      const ge = j.gust || {};
+      const ad = j.autoDisengage || {};
+      const el1 = document.getElementById("smart-auto-profile-status");
+      if (el1) {
+        if (!ap.enabled) el1.textContent = t("smart.st.disabled") || "disabled";
+        else {
+          const parts = [];
+          parts.push(`${t("smart.st.band") || "band"}: ${ap.currentBand || "—"}`);
+          if (ap.pendingBand && ap.pendingBand !== ap.currentBand) {
+            parts.push(`${t("smart.st.pending") || "pending"} ${ap.pendingBand} (${ap.pendingForSec ?? 0}/${ap.stableThresholdSec}s)`);
+          }
+          if (ap.lastReason) parts.push(ap.lastReason);
+          el1.textContent = parts.join("  ·  ");
+        }
+      }
+      const el2 = document.getElementById("smart-gust-status");
+      if (el2) {
+        const bits = [];
+        bits.push(`${t("smart.st.strategy") || "strategy"}: ${ge.strategy}`);
+        if (ge.freezeActive)  bits.push(`freeze ${ge.freezeRemainingSec}s left`);
+        if (ge.boostActive)   bits.push(`D boost ${ge.boostRemainingSec}s left`);
+        if (ge.heavyActive)   bits.push(`heavy profile ${ge.heavyRemainingSec}s left`);
+        if (ge.lastAlertTs)   bits.push(`last gust: ${new Date(ge.lastAlertTs).toLocaleTimeString()}`);
+        el2.textContent = bits.join("  ·  ");
+      }
+      const el3 = document.getElementById("smart-auto-dis-status");
+      if (el3) {
+        if (!ad.enabled) el3.textContent = t("smart.st.disabled") || "disabled";
+        else {
+          const bits = [];
+          bits.push(`${t("smart.st.armed") || "armed"} · RMS>${ad.rmsThresholdDeg}° AND duty>${(ad.dutyThreshold * 100).toFixed(0)}% · sustain ${ad.sustainSec}s`);
+          if (ad.currentlyLostSinceSec != null) bits.push(`⚠ authority lost for ${ad.currentlyLostSinceSec}s`);
+          if (ad.lastAutoDisengageTs) bits.push(`last auto-cut: ${new Date(ad.lastAutoDisengageTs).toLocaleString()}`);
+          el3.textContent = bits.join("  ·  ");
+        }
+      }
+    } catch { /* silent */ }
+  }
+  async function _smartSave() {
+    const statusEl = document.getElementById("smart-save-status");
+    if (statusEl) { statusEl.textContent = t("smart.saving") || "saving..."; statusEl.style.color = ""; }
+    const body = {
+      autoProfileEnabled: !!document.getElementById("smart-auto-profile-enabled")?.checked,
+      autoProfileLight:   document.getElementById("smart-auto-profile-light")?.value || "",
+      autoProfileMedium:  document.getElementById("smart-auto-profile-medium")?.value || "",
+      autoProfileHeavy:   document.getElementById("smart-auto-profile-heavy")?.value || "",
+      gustStrategy:       document.getElementById("smart-gust-strategy")?.value || "warn",
+      autoDisengageOnLostAuthority: !!document.getElementById("smart-auto-disengage-enabled")?.checked,
+    };
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/supervisor/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) {
+        if (statusEl) { statusEl.textContent = (t("smart.saved") || "saved") + " ✓"; statusEl.style.color = "var(--ok, #2ecc71)"; }
+        _smartRefreshStatus();
+      } else {
+        const j = await r.json().catch(() => ({}));
+        if (statusEl) { statusEl.textContent = (t("smart.saveFail") || "failed") + ": " + (j.error || `HTTP ${r.status}`); statusEl.style.color = "var(--err, #e74c3c)"; }
+      }
+    } catch (e) {
+      if (statusEl) { statusEl.textContent = String(e); statusEl.style.color = "var(--err, #e74c3c)"; }
+    }
+  }
+  function _smartWire() {
+    const btn = document.getElementById("smart-save");
+    if (btn && !btn.__wired) { btn.__wired = true; btn.addEventListener("click", _smartSave); }
+    _smartLoadConfig().then(() => _smartRefreshStatus());
+    if (_smartRefreshTimer) clearInterval(_smartRefreshTimer);
+    _smartRefreshTimer = setInterval(_smartRefreshStatus, 3000);
+  }
+
   function _sessWire() {
     const bt = document.getElementById("sess-tag-btn");
     const bl = document.getElementById("sess-list-btn");
@@ -4700,6 +5540,14 @@
     $("#paths-refresh").addEventListener("click", refreshPaths);
     _lcWire();
     _sessWire();
+    _smartWire();
+    _wireTackLogButtons();
+    // Rev172 (Carlos): gust ghost toggle in the corner-selector popup.
+    const gg = document.getElementById("dash-gust-ghost");
+    if (gg) {
+      gg.checked = _gustGhostEnabled();
+      gg.addEventListener("change", () => _gustGhostSetEnabled(gg.checked));
+    }
     const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);
     const langSel = $("#lang-select");
     if (langSel) {
@@ -4984,7 +5832,24 @@
   // Promise that resolves to true (user confirmed) or false (cancelled).
   // Cancelling via Cancel button, click outside, or Escape all resolve
   // false so a helm operator never confirms by accident.
-  function askHelmConfirm({ titleKey, outageKey, duration }) {
+  // Rev161 (Carlos): every destructive AP command (engage, mode
+  // change, tack, Doctor apply) also asks helm-manned confirm now,
+  // reusing this modal. `askHelmConfirm` accepts an optional
+  // messageOverride so ops that don't have an "outage duration"
+  // just render a plain warning line. A short-lived cache
+  // (`_helmConfirmCache`) auto-confirms consecutive same-op prompts
+  // within 5 min so the skipper is not bombarded when rapidly
+  // trimming P/I/D during a Doctor session.
+  const _helmConfirmCache = new Map();       // opKey -> tsMs
+  const HELM_CACHE_TTL_MS = 5 * 60 * 1000;
+  function askHelmConfirm({ titleKey, outageKey, duration, messageOverride, opKey }) {
+    // Auto-confirm if this exact op was confirmed within the last 5 min.
+    if (opKey && _helmConfirmCache.has(opKey)) {
+      const last = _helmConfirmCache.get(opKey);
+      if (Date.now() - last < HELM_CACHE_TTL_MS) {
+        return Promise.resolve(true);
+      }
+    }
     return new Promise((resolve) => {
       const overlay = document.getElementById("helm-confirm-pop");
       const titleEl = document.getElementById("helm-modal-title");
@@ -4996,8 +5861,18 @@
         resolve(false); return;
       }
       titleEl.innerHTML = `&#9888; ${t(titleKey)}`;
-      durEl.textContent = duration;
-      scopeEl.textContent = t(outageKey);
+      // messageOverride mode: hide the outage duration line entirely
+      // and put the whole warning into the scope paragraph. Used by
+      // operational confirms (engage, mode change, tack, gain apply).
+      const durLine = durEl.parentElement;
+      if (messageOverride) {
+        if (durLine) durLine.style.display = "none";
+        scopeEl.textContent = messageOverride;
+      } else {
+        if (durLine) durLine.style.display = "";
+        durEl.textContent = duration;
+        scopeEl.textContent = t(outageKey);
+      }
       const cleanup = () => {
         overlay.classList.remove("open");
         cancel.removeEventListener("click",  onCancel);
@@ -5006,7 +5881,11 @@
         document.removeEventListener("keydown", onKey);
       };
       const onCancel  = () => { cleanup(); resolve(false); };
-      const onConfirm = () => { cleanup(); resolve(true); };
+      const onConfirm = () => {
+        cleanup();
+        if (opKey) _helmConfirmCache.set(opKey, Date.now());
+        resolve(true);
+      };
       const onOverlay = (e) => { if (e.target === overlay) onCancel(); };
       const onKey     = (e) => { if (e.key === "Escape") onCancel(); };
       cancel.addEventListener("click",  onCancel);
@@ -5752,16 +6631,47 @@
         if (_dashCornerCfg[cell.dataset.corner] === "wind") _toggleWindCornerShow();
       });
     });
-    // Rev81: boat sprite (rose-boat) also opens the corner selector on
-    // long-press, so the user does not have to hunt for a corner cell.
-    // Short-tap on the boat does nothing. Carlos Rev80 QA: "que el
-    // selecto pueda ser tambien activado hacidndo long press en el
-    // barco".
+    // Rev81: boat sprite (rose-boat) opens the boat action sheet on
+    // long-press. Rev172 (Carlos): the sheet has TWO choices now -
+    // "Cambiar esquinas" (the old corner selector) and "Historial de
+    // bordos" (persistent tack log). Short-tap on the boat still does
+    // nothing.
     const boatSprite = document.getElementById("rose-boat");
     if (boatSprite) {
       boatSprite.style.cursor = "pointer";
-      attachLongTap(boatSprite, () => { /* no short-tap action */ });
+      let bTimer = null;
+      const openBoatMenu = (e) => {
+        e && e.preventDefault();
+        const pop = document.getElementById("boat-menu-pop");
+        if (pop) pop.classList.add("open");
+      };
+      const startBoat = () => {
+        if (bTimer) clearTimeout(bTimer);
+        bTimer = setTimeout(openBoatMenu, 500);
+      };
+      const cancelBoat = () => { if (bTimer) { clearTimeout(bTimer); bTimer = null; } };
+      boatSprite.addEventListener("touchstart", startBoat, { passive: true });
+      boatSprite.addEventListener("touchend",   cancelBoat, { passive: true });
+      boatSprite.addEventListener("touchmove",  cancelBoat, { passive: true });
+      boatSprite.addEventListener("touchcancel", cancelBoat, { passive: true });
+      boatSprite.addEventListener("contextmenu", openBoatMenu);
+      boatSprite.addEventListener("mousedown", (e) => { if (e.button === 0) startBoat(); });
+      boatSprite.addEventListener("mouseup", cancelBoat);
+      boatSprite.addEventListener("mouseleave", cancelBoat);
     }
+    // Rev172 (Carlos): action-sheet buttons -> either corner selector or
+    // tack-log modal. Both closes are handled by the outer overlay click.
+    const bmCorners = document.getElementById("boat-menu-corners");
+    if (bmCorners) bmCorners.addEventListener("click", () => {
+      document.getElementById("boat-menu-pop")?.classList.remove("open");
+      _dashPopulateSelectors();
+      document.getElementById("dash-help-pop")?.classList.add("open");
+    });
+    const bmLog = document.getElementById("boat-menu-tacklog");
+    if (bmLog) bmLog.addEventListener("click", () => {
+      document.getElementById("boat-menu-pop")?.classList.remove("open");
+      _tackLogOpen();
+    });
     // Rev72: short-tap-only handler on the wind chip. Previously used
     // attachLongTap, but the 500 ms timer inside it opened the corner
     // selector popup - unwanted on the chip (it is not a corner). Also
@@ -6484,16 +7394,25 @@
         list.appendChild(_docRenderSuggestion(s));
       }
       root.appendChild(list);
-      // Apply all button (only if any unapplied)
+      // Rev162 (Carlos, per Sean D'Epagnier): "Apply all" now applies
+      // the TOP-PRIORITY suggestion and blocks the rest until a fresh
+      // Doctor session has run. Backend enforces the sequencing; here
+      // we relabel the button and render the "fresh session required"
+      // banner from the response.
       if (r.suggestions.some((s) => !s.applied)) {
         const all = document.createElement("button");
         all.className = "doctor-apply-all";
         all.type = "button";
-        all.textContent = t("setup.doctor.applyAll");
+        all.textContent = t("setup.doctor.applyTop") || "Apply top priority";
         all.addEventListener("click", async () => {
-          if (!confirm(t("setup.doctor.applyAllConfirm"))) return;
+          // Rev170: helm-manned confirm removed.
           try {
-            await fetch(`/plugins/${PLUGIN_ID}/doctor/apply-all`, { method: "POST" });
+            const res = await fetch(`/plugins/${PLUGIN_ID}/doctor/apply-all`, { method: "POST" });
+            const j = await res.json().catch(() => ({}));
+            if (j.mustRunFreshSession && (j.remaining || 0) > 0) {
+              alert((t("setup.doctor.freshRequired") || "Applied 1 gain. Run a fresh Doctor session before applying the next {n}.")
+                .replace("{n}", String(j.remaining)));
+            }
             _docFetch();
           } catch { /* silent */ }
         });
@@ -6596,6 +7515,9 @@
     else                  apply.textContent = t("setup.doctor.apply");
     apply.disabled = !!(s.applied || s.dismissed);
     apply.addEventListener("click", async () => {
+      // Rev170 (Carlos): removed helm-manned confirm on Doctor apply.
+      // The Doctor button is inside a modal the user opened deliberately;
+      // asking again on every gain change was noise.
       apply.disabled = true;
       apply.textContent = "...";
       try {
@@ -6779,9 +7701,15 @@
     } else if (id === "servo-overcurrent") {
       const r = /([\d.]+) A/.exec(msg);
       if (r) out.amp = r[1];
-    } else if (id === "servo-temp-high") {
+    } else if (id === "servo-temp-high" || id === "servo-motor-temp") {
       const r = /([\d.]+) °C/.exec(msg);
       if (r) out.temp = r[1];
+    } else if (id === "servo-load-high") {
+      const r = /load ([\d.]+)%/.exec(msg);
+      if (r) out.pct = r[1];
+    } else if (id === "cruise-drift") {
+      const r = /([\d.]+)° to (\w+)/.exec(msg);
+      if (r) { out.deg = r[1]; out.side = r[2]; }
     } else if (id === "low-voltage") {
       const r = /([\d.]+) V/.exec(msg);
       if (r) out.volt = r[1];

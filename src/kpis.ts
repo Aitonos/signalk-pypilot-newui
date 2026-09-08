@@ -15,6 +15,7 @@
 //     mode: heading in compass/gps modes, AWA in wind modes.
 
 import { Historian, Sample } from "./historian";
+import { SERVO_ON_MIN_A } from "./constants";
 
 export interface SessionStats {
   /** Wall-clock ms of session start (or last reset). */
@@ -56,7 +57,7 @@ export interface KPISnapshot {
 }
 
 export interface KPIOptions {
-  /** Servo current threshold to count as "on" (A). Default 0.3. */
+  /** Servo current threshold to count as "on" (A). Default from SERVO_ON_MIN_A. */
   servoOnThresholdA?: number;
   /** Rolling window length for window1m (seconds). Default 60. */
   windowSec?: number;
@@ -82,7 +83,7 @@ export class KPIComputer {
 
   constructor(hist: Historian, opts: KPIOptions = {}) {
     this.hist = hist;
-    this.servoOnThresholdA = opts.servoOnThresholdA ?? 0.3;
+    this.servoOnThresholdA = opts.servoOnThresholdA ?? SERVO_ON_MIN_A;
     this.windowSec = opts.windowSec ?? 60;
     this.tickMs = opts.sampleTickMs ?? 1000;
     this.tackDebounceMs = opts.tackDebounceMs ?? 3000;

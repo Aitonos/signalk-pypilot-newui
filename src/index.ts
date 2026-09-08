@@ -20,7 +20,7 @@ import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder"
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev153";
+const PLUGIN_REVISION = "Rev174";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -85,6 +85,32 @@ interface PluginProps {
   // them, and the recorder only opens a session while the AP is
   // actually engaged, so a moored boat produces nothing.
   sessionRecorderEnabled?: boolean;
+  // Rev164 (Carlos): auto-select a pypilot profile per wind band.
+  // Off by default (opt-in). Bins hard-coded to <8 kn / 8-16 / >16 kn
+  // for now - the wind numbers below reflect typical B&G Wind Response
+  // divisions and are safe on most cruising boats. Requires engaged
+  // navigation and a valid tws source; will not touch the profile at
+  // the dock.
+  autoProfileEnabled?: boolean;
+  autoProfileLight?: string;    // profile name for TWS < 8 kn
+  autoProfileMedium?: string;   // profile name for TWS 8-16 kn
+  autoProfileHeavy?: string;    // profile name for TWS > 16 kn
+  // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
+  // gustDetectorEnabled; now the user picks what to do when a gust
+  // lands:
+  //   "off"          - do nothing
+  //   "warn"         - fire an advisory notification (Rev165 behaviour)
+  //   "freeze-target"- pin the current target for GUST_FREEZE_SEC so
+  //                    the AP does not chase the shifted apparent wind
+  //                    (B&G Gust Response). Wind-mode only.
+  //   "boost-D"      - temporarily raise D by +20% for GUST_BOOST_SEC
+  //                    to damp the rudder response.
+  //   "temp-heavy"   - swap to the "heavy" profile of autoProfile*
+  //                    for GUST_HEAVY_SEC, then restore.
+  gustStrategy?: "off" | "warn" | "freeze-target" | "boost-D" | "temp-heavy";
+  // Rev166: auto-disengage safety. When RMS > 30 deg sustained 10 s AND
+  // duty > 0.90, cut the AP. Opt-in - defaults OFF until validated at sea.
+  autoDisengageOnLostAuthority?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -113,6 +139,51 @@ module.exports = function (app: any) {
   // first ~5-10 min of engaged navigation and grades subsequent draws.
   let servoHealth: ServoHealthMonitor | null = null;
   let servoHealthMetaSent = false;
+  // Rev158: periodic snapshot of the baseline learn state.
+  let servoHealthPersistTimer: NodeJS.Timeout | null = null;
+  // Rev164 (Carlos): supervisor state that watches TWS averaged over the
+  // last 60 s and switches the pypilot profile when the wind band has
+  // been stable for BAND_STABLE_MS. Kept off the historian tick to
+  // avoid entangling the KPI loop.
+  const AUTO_PROFILE_BAND_STABLE_MS = 90 * 1000;
+  const AUTO_PROFILE_WIND_AVG_MS    = 60 * 1000;
+  const AUTO_PROFILE_TWS_MED_KN     = 8;    // < 8 kn = light
+  const AUTO_PROFILE_TWS_HEAVY_KN   = 16;   // > 16 kn = heavy
+  type AutoProfileBand = "light" | "medium" | "heavy" | null;
+  let _autoProfileCurrentBand: AutoProfileBand = null;
+  let _autoProfilePendingBand: AutoProfileBand = null;
+  let _autoProfilePendingSince: number | null = null;
+  let _autoProfileLastSwitchTs: number | null = null;
+  let _autoProfileLastReason: string | null = null;
+  // Rev167: gust supervisor. Rolling ring of AWS samples with timestamps.
+  const GUST_WINDOW_MS    = 5000;     // look-back for rate-of-change
+  const GUST_MIN_JUMP_KN  = 5;        // AWS jump >= 5 kn = "gust"
+  const GUST_COOLDOWN_MS  = 60_000;   // do not re-alert / re-strategy for 60 s
+  const GUST_FREEZE_SEC   = 12;       // pin target for 12 s after detection
+  const GUST_BOOST_SEC    = 20;       // damp D for 20 s after detection
+  const GUST_HEAVY_SEC    = 30;       // temp heavy profile for 30 s
+  const _gustAwsBuffer: Array<{ ts: number; ktts: number }> = [];
+  let _gustLastAlertTs = 0;
+  // Runtime state for the "freeze-target" strategy so the visor +
+  // /supervisor/status can show why the target has stopped following
+  // the wind for a few seconds.
+  let _gustFreezeUntilMs: number | null = null;
+  let _gustFreezeTargetRad: number | null = null;
+  // "boost-D" bookkeeping: original D per pilot so we can restore.
+  let _gustBoostUntilMs: number | null = null;
+  let _gustBoostRestoreGain: { pilot: string; key: "D"; value: number } | null = null;
+  // "temp-heavy" bookkeeping: original profile so we can restore.
+  let _gustHeavyUntilMs: number | null = null;
+  let _gustHeavyRestoreProfile: string | null = null;
+  // Rev166: authority-lost auto-disengage. Track how long we have been
+  // in the "cannot steer" condition so the disengage fires exactly at
+  // 10 s of sustained loss, not on a single spike.
+  const AUTHORITY_LOST_SUSTAIN_MS   = 10_000;
+  const AUTHORITY_LOST_RMS_DEG      = 30;
+  const AUTHORITY_LOST_DUTY_MIN     = 0.90;
+  const AUTHORITY_LOST_COOLDOWN_MS  = 60_000;   // after auto-disengage, block re-arm 60 s
+  let _authorityLostSinceMs: number | null = null;
+  let _authorityLastAutoDisengageTs: number | null = null;
   // Rev100: Alarm engine + pypilot disconnect timestamp used by the
   // pypilot-disconnected rule.
   let alarms: AlarmEngine | null = null;
@@ -255,6 +326,10 @@ module.exports = function (app: any) {
           description: "When ON, the plugin appends 1 Hz autopilot telemetry (heading command/actual, servo current/duty, wind, etc.) to a JSONL file for every engaged session. Files stay on the Pi 5 until you download them from the visor. Used to feed the AI-tuned Doctor roadmap.",
           default: true,
         },
+        // Rev167 (Carlos): the Smart Pilot toggles (auto-profile, gust
+        // strategy, auto-disengage) live under Setup > Smart Pilot in
+        // the visor, not here. Kept in the runtime PluginProps for
+        // persistence but not exposed to the SK Admin schema.
       },
     }),
 
@@ -410,7 +485,40 @@ module.exports = function (app: any) {
       sensorQuality = new SensorQualityMonitor(DEFAULT_QUALITY_WATCH, { windowMs: 30_000 });
       // Rev99: Servo Health monitor learns baseline + grades deviation
       // from each servo-on engaged sample. Also O(1).
+      // Rev158 (Carlos): load persisted baseline if present so the
+      // ~10 min of learning survives plugin restarts. Snapshot is
+      // written every 5 min while running (see servoHealthPersistTimer
+      // below) and on plugin.stop().
       servoHealth = new ServoHealthMonitor();
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require("path");
+        const file = p.join(app.getDataDirPath ? app.getDataDirPath() : ".", "servo-baseline.json");
+        if (fs.existsSync(file)) {
+          const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+          servoHealth.loadPersisted(raw);
+          app.debug?.(`[servo-health] baseline restored (${raw.baselineA?.toFixed?.(3)} A saved ${raw.savedAt ? new Date(raw.savedAt).toISOString() : "?"})`);
+        }
+      } catch (e: any) {
+        app.debug?.(`[servo-health] baseline load skipped: ${e?.message || e}`);
+      }
+      if (servoHealthPersistTimer) { try { clearInterval(servoHealthPersistTimer); } catch {} }
+      servoHealthPersistTimer = setInterval(() => {
+        try {
+          if (!servoHealth) return;
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const fs = require("fs");
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const p = require("path");
+          const file = p.join(app.getDataDirPath ? app.getDataDirPath() : ".", "servo-baseline.json");
+          fs.writeFileSync(file, JSON.stringify(servoHealth.toPersistable()));
+        } catch { /* silent */ }
+      }, 5 * 60 * 1000);
+      if (typeof (servoHealthPersistTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
+        (servoHealthPersistTimer as NodeJS.Timeout & { unref: () => void }).unref();
+      }
       // Rev100: Alarm engine. Evaluates 7 built-in rules against every
       // tick + snapshot from the KPI computer + Sensor Quality + Servo
       // Health. Rules that fire publish canonical SK notifications and
@@ -438,6 +546,9 @@ module.exports = function (app: any) {
         // when the AP is engaged. Engage/disengage transitions open
         // and close a JSONL file.
         if (props.sessionRecorderEnabled) { try { _sessionTick(s); } catch { /* silent */ } }
+        // Rev164/165/166: supervisor layer. Each helper is cheap and
+        // returns immediately when its feature is disabled.
+        try { _supervisorTick(s); } catch (e: any) { app.debug?.(`[supervisor] tick: ${e?.message || e}`); }
         // Rev100: run the alarm engine last so it has every input up to
         // date. Changed rules trigger SK notification deltas.
         try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
@@ -475,6 +586,23 @@ module.exports = function (app: any) {
       sensorQuality = null;
       // Rev99: drop the servo health monitor (its EWMA baseline resets
       // on plugin restart - persistence lands with the disk snapshots).
+      // Rev158: flush the baseline one last time before dropping the
+      // monitor so a graceful stop persists whatever was learned this
+      // uptime, even if the 5 min timer had not fired yet.
+      if (servoHealth) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const fs = require("fs");
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const p = require("path");
+          const file = p.join(app.getDataDirPath ? app.getDataDirPath() : ".", "servo-baseline.json");
+          fs.writeFileSync(file, JSON.stringify(servoHealth.toPersistable()));
+        } catch { /* silent */ }
+      }
+      if (servoHealthPersistTimer) {
+        try { clearInterval(servoHealthPersistTimer); } catch {}
+        servoHealthPersistTimer = null;
+      }
       servoHealth = null;
       servoHealthMetaSent = false;
       // Rev100: drop the alarm engine. Active alarms will be re-fired
@@ -1272,6 +1400,93 @@ module.exports = function (app: any) {
       // Auto-start on plugin boot if config says so.
       if (props.logCaptureEnabled) _lcStart();
 
+      // Rev164-166: supervisor status. Visor uses this to render the
+      // "smart pilot" card so the skipper can see WHY the plugin
+      // acted (or did not act).
+      router.get("/supervisor/status", (_req: any, res: any) => {
+        res.json({
+          autoProfile: {
+            enabled: !!props.autoProfileEnabled,
+            currentBand: _autoProfileCurrentBand,
+            pendingBand: _autoProfilePendingBand,
+            pendingForSec: _autoProfilePendingSince ? Math.floor((Date.now() - _autoProfilePendingSince) / 1000) : null,
+            stableThresholdSec: Math.floor(AUTO_PROFILE_BAND_STABLE_MS / 1000),
+            lastSwitchTs: _autoProfileLastSwitchTs,
+            lastReason: _autoProfileLastReason,
+            profiles: {
+              light: props.autoProfileLight || "",
+              medium: props.autoProfileMedium || "",
+              heavy: props.autoProfileHeavy || "",
+            },
+            twsThresholdsKn: { light: AUTO_PROFILE_TWS_MED_KN, heavy: AUTO_PROFILE_TWS_HEAVY_KN },
+          },
+          // Rev167: legacy field kept for compat with any KIP widget
+          // that read it under the old name. Prefer the "gust" block
+          // below for the full strategy state.
+          gustDetector: {
+            enabled: (props.gustStrategy ?? "warn") !== "off",
+            windowSec: Math.floor(GUST_WINDOW_MS / 1000),
+            minJumpKn: GUST_MIN_JUMP_KN,
+            lastAlertTs: _gustLastAlertTs || null,
+          },
+          autoDisengage: {
+            enabled: !!props.autoDisengageOnLostAuthority,
+            rmsThresholdDeg: AUTHORITY_LOST_RMS_DEG,
+            dutyThreshold: AUTHORITY_LOST_DUTY_MIN,
+            sustainSec: Math.floor(AUTHORITY_LOST_SUSTAIN_MS / 1000),
+            currentlyLostSinceSec: _authorityLostSinceMs ? Math.floor((Date.now() - _authorityLostSinceMs) / 1000) : null,
+            lastAutoDisengageTs: _authorityLastAutoDisengageTs,
+          },
+          // Rev167: gust strategy runtime state.
+          gust: {
+            strategy: props.gustStrategy ?? "warn",
+            lastAlertTs: _gustLastAlertTs || null,
+            freezeActive: _gustFreezeUntilMs != null,
+            freezeRemainingSec: _gustFreezeUntilMs ? Math.max(0, Math.floor((_gustFreezeUntilMs - Date.now()) / 1000)) : null,
+            boostActive: _gustBoostUntilMs != null,
+            boostRemainingSec: _gustBoostUntilMs ? Math.max(0, Math.floor((_gustBoostUntilMs - Date.now()) / 1000)) : null,
+            heavyActive: _gustHeavyUntilMs != null,
+            heavyRemainingSec: _gustHeavyUntilMs ? Math.max(0, Math.floor((_gustHeavyUntilMs - Date.now()) / 1000)) : null,
+          },
+        });
+      });
+
+      // Rev167: config read + write for the Smart Pilot card. All the
+      // toggles live in the visor, not in the SK Admin schema. Writes
+      // go through app.savePluginOptions so they survive restart.
+      router.get("/supervisor/config", (_req: any, res: any) => {
+        res.json({
+          autoProfileEnabled: !!props.autoProfileEnabled,
+          autoProfileLight:  props.autoProfileLight  || "",
+          autoProfileMedium: props.autoProfileMedium || "",
+          autoProfileHeavy:  props.autoProfileHeavy  || "",
+          gustStrategy: props.gustStrategy ?? "warn",
+          autoDisengageOnLostAuthority: !!props.autoDisengageOnLostAuthority,
+        });
+      });
+      router.post("/supervisor/config", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const b = req.body || {};
+        const patch: Partial<PluginProps> = {};
+        if (typeof b.autoProfileEnabled === "boolean") patch.autoProfileEnabled = b.autoProfileEnabled;
+        if (typeof b.autoProfileLight  === "string") patch.autoProfileLight  = b.autoProfileLight.trim();
+        if (typeof b.autoProfileMedium === "string") patch.autoProfileMedium = b.autoProfileMedium.trim();
+        if (typeof b.autoProfileHeavy  === "string") patch.autoProfileHeavy  = b.autoProfileHeavy.trim();
+        if (["off","warn","freeze-target","boost-D","temp-heavy"].includes(b.gustStrategy)) {
+          patch.gustStrategy = b.gustStrategy;
+        }
+        if (typeof b.autoDisengageOnLostAuthority === "boolean") {
+          patch.autoDisengageOnLostAuthority = b.autoDisengageOnLostAuthority;
+        }
+        Object.assign(props, patch);
+        try {
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: e?.message || String(e) });
+        }
+        res.json({ ok: true, applied: patch });
+      });
+
       router.get("/log-capture/status", (_req: any, res: any) => {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
@@ -1737,6 +1952,13 @@ module.exports = function (app: any) {
       logCaptureIntervalSec: typeof options.logCaptureIntervalSec === "number"
         ? Math.max(30, options.logCaptureIntervalSec) : 60,
       sessionRecorderEnabled: options.sessionRecorderEnabled !== false,
+      autoProfileEnabled: options.autoProfileEnabled === true,
+      autoProfileLight:   typeof options.autoProfileLight  === "string" ? options.autoProfileLight.trim()  : "",
+      autoProfileMedium:  typeof options.autoProfileMedium === "string" ? options.autoProfileMedium.trim() : "",
+      autoProfileHeavy:   typeof options.autoProfileHeavy  === "string" ? options.autoProfileHeavy.trim()  : "",
+      gustStrategy: (["off","warn","freeze-target","boost-D","temp-heavy"] as const)
+        .includes(options.gustStrategy as any) ? options.gustStrategy : "warn",
+      autoDisengageOnLostAuthority: options.autoDisengageOnLostAuthority === true,
     };
   }
 
@@ -1891,6 +2113,242 @@ module.exports = function (app: any) {
       sessionRecorder.sample(sample);
     }
   }
+  // Rev164/165/166: supervisor layer. Runs on every historian tick.
+  // Three independent responsibilities:
+  //   - Auto-profile switch by wind band (only while engaged, opt-in).
+  //   - Gust detector (advisory notification, no pilot command).
+  //   - Authority-lost auto-disengage (safety-off, opt-in).
+  // Every branch is defensive: if a required input is missing the tick
+  // returns without doing anything.
+  function _supervisorTick(s: Sample): void {
+    const now = Date.now();
+    // ------------------ Rev167: gust supervisor ------------------
+    // Release any strategy whose timer has expired BEFORE evaluating a
+    // new gust. Guarantees restore-first even if a follow-on gust
+    // lands during the window.
+    _releaseGustStrategiesIfExpired(now);
+    const strat = props.gustStrategy ?? "warn";
+    if (strat !== "off") {
+      const awsKn = typeof s.aws === "number" ? s.aws * 1.94384 : null;
+      if (awsKn != null) {
+        _gustAwsBuffer.push({ ts: s.ts, ktts: awsKn });
+        const cutoff = s.ts - GUST_WINDOW_MS;
+        while (_gustAwsBuffer.length > 0 && _gustAwsBuffer[0].ts < cutoff) _gustAwsBuffer.shift();
+        if (_gustAwsBuffer.length >= 3 && now - _gustLastAlertTs > GUST_COOLDOWN_MS) {
+          let minKn = Infinity, maxKn = -Infinity;
+          for (const e of _gustAwsBuffer) {
+            if (e.ktts < minKn) minKn = e.ktts;
+            if (e.ktts > maxKn) maxKn = e.ktts;
+          }
+          const jump = maxKn - minKn;
+          if (jump >= GUST_MIN_JUMP_KN && maxKn === awsKn) {
+            _gustLastAlertTs = now;
+            _applyGustStrategy(strat, minKn, maxKn, s, now);
+          }
+        }
+      }
+    }
+    // ------------------ Rev166: authority-lost auto-disengage ------------------
+    if (props.autoDisengageOnLostAuthority && kpis && apProvider) {
+      const engaged = !!apProvider.data.engaged;
+      const rmsRad = kpis.snapshot().window1m.rmsErrorRad;
+      const duty = kpis.snapshot().window1m.servoDutyPct;
+      if (engaged && typeof rmsRad === "number" && typeof duty === "number"
+          && rmsRad * 180 / Math.PI > AUTHORITY_LOST_RMS_DEG
+          && duty > AUTHORITY_LOST_DUTY_MIN
+          && (!_authorityLastAutoDisengageTs || now - _authorityLastAutoDisengageTs > AUTHORITY_LOST_COOLDOWN_MS)) {
+        if (_authorityLostSinceMs == null) _authorityLostSinceMs = now;
+        else if (now - _authorityLostSinceMs > AUTHORITY_LOST_SUSTAIN_MS) {
+          // Fire once, then latch the cooldown so a bouncing metric
+          // does not cause a disengage/re-engage loop.
+          _authorityLastAutoDisengageTs = now;
+          _authorityLostSinceMs = null;
+          try { client?.set("ap.enabled", false); } catch { /* silent */ }
+          _emitEmergencyNotification("authority-lost",
+            `AP AUTO-DISENGAGED: heading control lost (RMS ${(rmsRad * 180 / Math.PI).toFixed(0)}deg, duty ${(duty * 100).toFixed(0)}%). Take the helm.`);
+        }
+      } else {
+        _authorityLostSinceMs = null;
+      }
+    }
+    // ------------------ Rev164: auto-profile by wind band ------------------
+    if (props.autoProfileEnabled && apProvider && client && historian) {
+      const engaged = !!apProvider.data.engaged;
+      if (!engaged) {
+        _autoProfilePendingBand = null;
+        _autoProfilePendingSince = null;
+        return;
+      }
+      // Average TWS over the last 60 s from the historian ring.
+      const samples = historian.slice(AUTO_PROFILE_WIND_AVG_MS, ["tws"]);
+      let sum = 0, n = 0;
+      for (const sm of samples) {
+        if (typeof sm.tws === "number" && isFinite(sm.tws)) { sum += sm.tws; n += 1; }
+      }
+      if (n < 10) return;
+      const avgKn = (sum / n) * 1.94384;
+      const targetBand: AutoProfileBand =
+        avgKn < AUTO_PROFILE_TWS_MED_KN   ? "light"
+        : avgKn > AUTO_PROFILE_TWS_HEAVY_KN ? "heavy"
+        : "medium";
+      if (targetBand === _autoProfileCurrentBand) {
+        _autoProfilePendingBand = null;
+        _autoProfilePendingSince = null;
+        return;
+      }
+      if (_autoProfilePendingBand !== targetBand) {
+        _autoProfilePendingBand = targetBand;
+        _autoProfilePendingSince = now;
+        return;
+      }
+      if (_autoProfilePendingSince != null && now - _autoProfilePendingSince > AUTO_PROFILE_BAND_STABLE_MS) {
+        const targetProfile =
+          targetBand === "light"  ? (props.autoProfileLight  || "")
+          : targetBand === "heavy" ? (props.autoProfileHeavy || "")
+          : (props.autoProfileMedium || "");
+        if (!targetProfile) { _autoProfilePendingSince = null; return; }
+        const currentProfile = client.getValues()["profile"];
+        if (currentProfile !== targetProfile) {
+          try { client.set("profile", targetProfile); } catch { /* silent */ }
+          _autoProfileLastSwitchTs = now;
+          _autoProfileLastReason = `TWS avg ${avgKn.toFixed(1)} kn → band ${targetBand} → profile ${targetProfile}`;
+          _emitAdvisoryNotification("auto-profile-switch", _autoProfileLastReason);
+        }
+        _autoProfileCurrentBand = targetBand;
+        _autoProfilePendingBand = null;
+        _autoProfilePendingSince = null;
+      }
+    }
+  }
+  // Rev167: gust strategy dispatcher. Called once per detected gust.
+  function _applyGustStrategy(strat: string, minKn: number, maxKn: number, s: Sample, now: number): void {
+    const summary = `AWS ${minKn.toFixed(0)}->${maxKn.toFixed(0)} kn in ${(GUST_WINDOW_MS / 1000).toFixed(0)} s`;
+    if (strat === "warn") {
+      _emitAdvisoryNotification("gust-detected", `Gust detected: ${summary}`);
+      return;
+    }
+    if (!apProvider || !client) return;
+    const engaged = !!apProvider.data.engaged;
+    if (!engaged) {
+      // Nothing to do - no target to pin, no gain to boost. Fall
+      // back to a warning so the skipper still sees the gust.
+      _emitAdvisoryNotification("gust-detected", `Gust (AP off): ${summary}`);
+      return;
+    }
+    if (strat === "freeze-target") {
+      const mode = String(apProvider.data.mode || "").toLowerCase();
+      // Only meaningful in wind / true wind modes - in compass/nav the
+      // target is already fixed to a heading, so a "freeze" is a
+      // no-op. Fall back to warn in that case.
+      if (!mode.includes("wind")) {
+        _emitAdvisoryNotification("gust-detected", `Gust in ${mode || "?"} mode (freeze not applicable): ${summary}`);
+        return;
+      }
+      const currentTarget = typeof apProvider.data.target === "number" ? apProvider.data.target : null;
+      if (currentTarget == null) return;
+      _gustFreezeUntilMs = now + GUST_FREEZE_SEC * 1000;
+      _gustFreezeTargetRad = currentTarget;
+      // Re-PUT the target every second while frozen (inside the
+      // _releaseGustStrategiesIfExpired check on the next tick). The
+      // *first* PUT here nails it so pypilot cannot drift on this
+      // sample already.
+      try { client.set("ap.heading_command", currentTarget * 180 / Math.PI); } catch { /* silent */ }
+      _emitAdvisoryNotification("gust-target-frozen",
+        `Gust ${summary}: target pinned at ${(currentTarget * 180 / Math.PI).toFixed(0)}deg for ${GUST_FREEZE_SEC} s`);
+      return;
+    }
+    if (strat === "boost-D") {
+      const pilot = typeof client.getValues()["ap.pilot"] === "string" ? client.getValues()["ap.pilot"] as string : null;
+      if (!pilot) return;
+      const key = `ap.pilot.${pilot}.D`;
+      const currentD = client.getValues()[key];
+      if (typeof currentD !== "number" || currentD <= 0) return;
+      const boostedD = currentD * 1.20;
+      _gustBoostUntilMs = now + GUST_BOOST_SEC * 1000;
+      _gustBoostRestoreGain = { pilot, key: "D", value: currentD };
+      try { client.set(key, boostedD); } catch { /* silent */ }
+      _emitAdvisoryNotification("gust-boost-d",
+        `Gust ${summary}: D boosted ${currentD.toFixed(4)} -> ${boostedD.toFixed(4)} for ${GUST_BOOST_SEC} s`);
+      return;
+    }
+    if (strat === "temp-heavy") {
+      const heavy = props.autoProfileHeavy || "";
+      if (!heavy) {
+        // Configuration incomplete - warn instead of silently doing
+        // nothing so the skipper knows the strategy needs setup.
+        _emitAdvisoryNotification("gust-detected", `Gust ${summary} (temp-heavy needs Heavy profile filled in)`);
+        return;
+      }
+      const currentProfile = typeof client.getValues()["profile"] === "string"
+        ? client.getValues()["profile"] as string : null;
+      if (currentProfile === heavy) return;   // already there
+      _gustHeavyUntilMs = now + GUST_HEAVY_SEC * 1000;
+      _gustHeavyRestoreProfile = currentProfile;
+      try { client.set("profile", heavy); } catch { /* silent */ }
+      _emitAdvisoryNotification("gust-heavy-profile",
+        `Gust ${summary}: profile ${currentProfile ?? "?"} -> ${heavy} for ${GUST_HEAVY_SEC} s`);
+      return;
+    }
+    // Unknown strategy - do nothing.
+    void s;
+  }
+  // Rev167: release any expired gust strategy so the pilot returns to
+  // its normal behaviour without needing a wind lull. Called at the
+  // top of _supervisorTick before evaluating a new gust.
+  function _releaseGustStrategiesIfExpired(now: number): void {
+    if (_gustFreezeUntilMs != null) {
+      if (now >= _gustFreezeUntilMs) {
+        _gustFreezeUntilMs = null;
+        _gustFreezeTargetRad = null;
+        _emitAdvisoryNotification("gust-target-frozen", "Gust freeze released");
+      } else if (client && _gustFreezeTargetRad != null) {
+        // While frozen we keep the target pinned - pypilot may drift
+        // otherwise if the skipper had a wind-mode target.
+        try { client.set("ap.heading_command", _gustFreezeTargetRad * 180 / Math.PI); } catch { /* silent */ }
+      }
+    }
+    if (_gustBoostUntilMs != null && now >= _gustBoostUntilMs) {
+      const r = _gustBoostRestoreGain;
+      if (client && r) {
+        try { client.set(`ap.pilot.${r.pilot}.${r.key}`, r.value); } catch { /* silent */ }
+      }
+      _gustBoostUntilMs = null;
+      _gustBoostRestoreGain = null;
+      _emitAdvisoryNotification("gust-boost-d", "D restored to pre-gust value");
+    }
+    if (_gustHeavyUntilMs != null && now >= _gustHeavyUntilMs) {
+      if (client && _gustHeavyRestoreProfile != null) {
+        try { client.set("profile", _gustHeavyRestoreProfile); } catch { /* silent */ }
+      }
+      _gustHeavyUntilMs = null;
+      _gustHeavyRestoreProfile = null;
+      _emitAdvisoryNotification("gust-heavy-profile", "Profile restored to pre-gust value");
+    }
+  }
+
+  function _emitAdvisoryNotification(id: string, message: string): void {
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [{
+          path: `notifications.autopilot.${id}`,
+          value: { state: "nominal", method: ["visual"], message },
+        }]}],
+      });
+    } catch (e: any) { app.debug?.(`[notify:${id}] ${e?.message || e}`); }
+  }
+  function _emitEmergencyNotification(id: string, message: string): void {
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [{
+          path: `notifications.autopilot.${id}`,
+          value: { state: "emergency", method: ["visual", "sound"], message },
+        }]}],
+      });
+    } catch (e: any) { app.debug?.(`[notify:${id}] ${e?.message || e}`); }
+  }
+
   function _wrapPi(a: number): number {
     while (a > Math.PI)  a -= 2 * Math.PI;
     while (a < -Math.PI) a += 2 * Math.PI;
@@ -1925,6 +2383,9 @@ module.exports = function (app: any) {
     // Servo current + temp arrive as plain numbers from pypilot.
     const servoA = typeof pv["servo.current"] === "number" ? (pv["servo.current"] as number) : null;
     const servoT = typeof pv["servo.controller_temp"] === "number" ? (pv["servo.controller_temp"] as number) : null;
+    // Rev156 (Carlos): motor coil temperature so servo-motor-temp
+    // alarm has fresh data.
+    const servoMT = typeof pv["servo.motor_temp"] === "number" ? (pv["servo.motor_temp"] as number) : null;
     // Rev99: pypilot exposes battery voltage as servo.voltage (V).
     const servoV = typeof pv["servo.voltage"] === "number" ? (pv["servo.voltage"] as number) : null;
     // Engaged / mode: prefer the AP provider when active, fall back to
@@ -1943,6 +2404,7 @@ module.exports = function (app: any) {
       rudder:        skNum("steering.rudderAngle"),
       servoCurrent:  servoA,
       servoTemp:     servoT,
+      servoMotorTemp: servoMT,
       servoVoltage:  servoV,
       awa:           skNum("environment.wind.angleApparent"),
       aws:           skNum("environment.wind.speedApparent"),
@@ -2099,6 +2561,11 @@ module.exports = function (app: any) {
     "steering.autopilot.pypilot.stats.error.rmsRad":            { units: "rad", description: "RMS heading error over the last 60 s (engaged samples only)." },
     "steering.autopilot.pypilot.stats.error.p95Rad":            { units: "rad", description: "95th percentile of |error| over the last 60 s (engaged samples only)." },
     "steering.autopilot.pypilot.stats.servo.dutyPct":           { units: "ratio", description: "Fraction of last-60-s samples with servo drawing above threshold (0..1)." },
+    // Rev157 (Carlos): derived KPI - energy per distance. Useful as an
+    // efficiency indicator on multi-hour passages. Null until session
+    // has some distance under its belt (avoids divide-by-zero and
+    // spurious huge values on first sample).
+    "steering.autopilot.pypilot.stats.session.consumptionAhPerNm": { units: "Ah/nm", description: "Session amp-hour consumption divided by distance travelled (null until distance > 0.1 nm)." },
   };
   function publishKpiPaths(): void {
     if (!kpis) return;
@@ -2116,6 +2583,11 @@ module.exports = function (app: any) {
       { path: "steering.autopilot.pypilot.stats.error.rmsRad",            value: snap.window1m.rmsErrorRad },
       { path: "steering.autopilot.pypilot.stats.error.p95Rad",            value: snap.window1m.p95ErrorRad },
       { path: "steering.autopilot.pypilot.stats.servo.dutyPct",           value: snap.window1m.servoDutyPct },
+      // Rev157: derived KPI. Cheap: two fields we already publish.
+      {
+        path: "steering.autopilot.pypilot.stats.session.consumptionAhPerNm",
+        value: snap.session.distanceNm > 0.1 ? snap.session.energyAh / snap.session.distanceNm : null,
+      },
     ];
     const nowIso = new Date().toISOString();
     try {
@@ -2200,6 +2672,17 @@ module.exports = function (app: any) {
       name === "servo.amp_hours"
     ) return WATCH_MED;
     if (name === "imu.warning" || name === "imu.error") return WATCH_MED;
+    // Rev155 (Carlos): pypilot exposes its own hardware ceilings as
+    // RangeSettings (servo.max_current, .max_motor_temp,
+    // .max_controller_temp). Watching them at 10 s gives the Doctor +
+    // Alarms free access to "hardware limit" comparisons without
+    // asking the user to type them into the plugin config. Almost
+    // static so 0.1 Hz is plenty.
+    if (
+      name === "servo.max_current" ||
+      name === "servo.max_motor_temp" ||
+      name === "servo.max_controller_temp"
+    ) return WATCH_LOW;
     // Rarely-changing metadata used by the visor's Info tab.
     if (name === "ap.pilot" || name === "profile" || name === "profiles" || name === "ap.modes") return WATCH_MED;
     // Everything the user has opted-in to publish (enabledPaths) but

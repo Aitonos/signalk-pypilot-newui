@@ -114,6 +114,29 @@ export const DEFAULT_RULES: RuleDef[] = [
     },
   },
   {
+    // Rev160 (Carlos): cruise-drift catches the slow bleed the RMS
+    // rule cannot see - a boat that consistently sits 6-8° off the
+    // target because of an unbalanced sail plan or current. Uses
+    // meanErrorRad instead of RMS. Threshold 5° | 120 s so trimming
+    // manoeuvres (short excursions) don't trip it.
+    id: "cruise-drift",
+    label: "Sustained heading drift",
+    severity: "warn",
+    defaultEnabled: true,
+    sustainSec: 120,
+    description: "Signed mean heading error > 5° for over 2 min - possible sail imbalance, current, or misaligned target.",
+    evaluate: (c) => {
+      if (!c.kpis || !c.sample || !c.sample.engaged) return false;
+      const mean = c.kpis.window1m.meanErrorRad;
+      return typeof mean === "number" && Math.abs(mean) > (5 * Math.PI / 180);
+    },
+    message: (c) => {
+      const m = (c.kpis?.window1m.meanErrorRad ?? 0) * 180 / Math.PI;
+      const side = m > 0 ? "starboard" : "port";
+      return `Boat drifting ${Math.abs(m).toFixed(1)}° to ${side} of target`;
+    },
+  },
+  {
     id: "unable-to-steer",
     label: "Unable to steer",
     severity: "alarm",
@@ -158,6 +181,45 @@ export const DEFAULT_RULES: RuleDef[] = [
       return c.sample.servoTemp > RULE_SERVO_TEMP_C;
     },
     message: (c) => `Servo temp ${(c.sample?.servoTemp ?? 0).toFixed(0)} °C`,
+  },
+  {
+    // Rev156 (Carlos): coil temperature complements servo-temp-high,
+    // which watches the controller. In practice the coil heats first
+    // under prolonged full-power operation. Threshold 70 C conservative
+    // (most pypilot motors alarm at 80-85).
+    id: "servo-motor-temp",
+    label: "Servo motor temperature high",
+    severity: "warn",
+    defaultEnabled: true,
+    sustainSec: 15,
+    description: "Motor coil temperature above 70 C.",
+    evaluate: (c) => {
+      if (!c.sample || typeof c.sample.servoMotorTemp !== "number") return false;
+      return c.sample.servoMotorTemp > 70;
+    },
+    message: (c) => `Servo motor temp ${(c.sample?.servoMotorTemp ?? 0).toFixed(0)} °C`,
+  },
+  {
+    // Rev156 (Carlos): ServoHealth already grades the drive as
+    // learning/good/elevated/high on the deviation ratio (recent avg
+    // vs learned baseline). Surface "high" as a notification so KIP /
+    // WilhelmSK show the same red banner the visor card does. Only
+    // fires once the baseline is actually learned (deviation != null).
+    id: "servo-load-high",
+    label: "Autopilot load high",
+    severity: "warn",
+    defaultEnabled: true,
+    sustainSec: 60,
+    description: "Servo current is running >65% above the learned baseline. Check for extra drag, hard rudder, clutch slip, or heavy weather.",
+    evaluate: (c) => {
+      const sh = c.servoHealth;
+      if (!sh || sh.status !== "high" || sh.deviationRatio == null) return false;
+      return sh.deviationRatio > 1.65;
+    },
+    message: (c) => {
+      const r = c.servoHealth?.deviationRatio ?? 0;
+      return `AP load ${(r * 100).toFixed(0)}% of baseline (drag / heavy weather?)`;
+    },
   },
   {
     id: "low-voltage",
