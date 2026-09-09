@@ -1,5 +1,16 @@
 # signalk-pypilot-newui
 
+> ### ⚠️ 2.5.0 ships new features that have not been tested at sea yet
+>
+> The day we cut this release there was not enough wind to validate
+> the tack countdown, the post-tack stats, the tack log, the gust
+> marker, or the "auto brain" that switches profiles and reacts to
+> gusts for you. **Your feedback is GOLD:** install it, try it, and if
+> anything looks off, tell us at
+> https://github.com/Aitonos/signalk-pypilot-newui/issues
+> That is how we tune the thresholds before we sign these features
+> off as stable.
+>
 > ### ⚠️ 2.5.0 trae funciones que aun no hemos probado en el mar
 >
 > El dia de sacarla no habia viento suficiente para validar el

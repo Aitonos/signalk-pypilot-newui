@@ -1,7 +1,24 @@
 # Changelog
 
+## 2.5.1 — 2026-09-09 — README bilingual
+
+Docs-only patch. The EXPERIMENTAL banner in README and CHANGELOG
+now appears in English *and* Spanish so the SignalK App Store
+description communicates the sea-trial-pending status to English
+speakers too. No code changes.
+
 ## 2.5.0 — 2026-09-09 — Rev154..Rev174
 
+> ## ⚠️ Ships with features that have not been tested at sea yet
+>
+> This release brings NEW features that we **could not validate under
+> sail** yet (there was not enough wind the day we cut it). Install
+> it if you fancy helping us test them — and if anything looks off,
+> **tell us**: https://github.com/Aitonos/signalk-pypilot-newui/issues
+>
+> Your feedback is GOLD for tuning the thresholds before we sign
+> these features off as stable for everyone.
+>
 > ## ⚠️ Version con funciones aun sin probar en el mar
 >
 > Esta version trae funciones NUEVAS que **no hemos podido validar
