@@ -1,16 +1,16 @@
 # Changelog
 
-## 2.5.0-experimental.1 — 2026-09-09 — Rev154..Rev174
+## 2.5.0 — 2026-09-09 — Rev154..Rev174
 
-> ## ⚠️ Version experimental — nos vale ORO tu feedback en el mar
+> ## ⚠️ Version con funciones aun sin probar en el mar
 >
-> Esta version trae funciones nuevas que **no las hemos podido probar
-> navegando**. Necesitamos que las useis y nos digais que tal van. Si
-> algo va raro, avisa: `https://github.com/aitonos/signalk-pypilot-newui/issues`.
+> Esta version trae funciones NUEVAS que **no hemos podido validar
+> navegando** todavia (el dia de sacarla no habia viento).
+> Instalala si te apetece ayudarnos a probarlas — y si algo va raro,
+> **avisa**: https://github.com/Aitonos/signalk-pypilot-newui/issues
 >
-> **Se instala solo si tu lo pides:**
-> `npm install signalk-pypilot-newui@experimental`
-> Los que instalen normal seguiran recibiendo la 2.4.1 estable.
+> Tu feedback nos vale ORO para tunear los limites antes de dejar
+> estas funciones a punto para todos.
 >
 > ### ⛵ Que tenemos que probar en el mar (checklist rapida)
 >

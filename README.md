@@ -1,5 +1,15 @@
 # signalk-pypilot-newui
 
+> ### ⚠️ 2.5.0 trae funciones que aun no hemos probado en el mar
+>
+> El dia de sacarla no habia viento suficiente para validar el
+> contador de virada, el resumen post-virada, el historial de bordos,
+> la marca de rafagas ni el "cerebro auto" que gestiona perfiles y
+> rafagas por ti. **Nos vale ORO tu feedback:** instalala, usala y si
+> algo va raro cuentanoslo en
+> https://github.com/Aitonos/signalk-pypilot-newui/issues
+> Con eso tuneamos los limites antes de dar todo por bueno.
+
 **PyPilot New-UI + SK Paths** — a modern, touch-first control panel for the
 open-source [pypilot](https://github.com/pypilot/pypilot) autopilot, plus every
 pypilot value exposed as a first-class Signal K path so tools like
