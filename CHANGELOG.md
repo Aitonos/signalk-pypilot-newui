@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.2 — 2026-09-14 — Registry score bump
+
+No code change vs 2.7.1. Adds a smoke test suite (Node built-in test
+runner, no extra devDependencies) so `npm test` passes for the Signal K
+Plugin Registry, and clears a `high` `npm audit` finding in a
+transitive dependency. Together these lift the plugin's registry
+score by ~45 points.
+
 ## 2.7.1 — 2026-09-14
 
 Sea-trial release. Big reliability upgrade after intensive on-water
