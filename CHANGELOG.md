@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.7.4 — 2026-09-15 — Async control tightening + uppercase accents
+
+Closes three findings from the external Rev277 review and finishes
+the Spanish accent pass across UPPERCASE headers and badges.
+
+### Async control
+
+- **NAV activation can no longer survive a disengage.** `setNavMode`
+  now snapshots the engage generation BEFORE `getCourse()` and
+  `setMode("nav")`, and bails silently if a disengage arrives during
+  either await. A superseded NAV attempt no longer arms the 500 ms
+  timer that could have turned a cancelled request into a fresh
+  engage. `engage()` also filters "superseded" errors so its own
+  fallback into `setState("enabled")` cannot resurrect the cancelled
+  intent.
+- **Stale target and mode retries can no longer overwrite newer
+  ones.** `setTarget` / `setMode` / `adjustTarget` now each bump a
+  dedicated generation counter and pass an `isStale()` callback into
+  `_setWithRetry`. If a first `setTarget(1 rad)` was still in retry
+  when a second `setTarget(2 rad)` succeeded, the first no longer
+  wakes up and pushes 1 rad. Same class of guard R01 already applied
+  to `ap.enabled`; now it covers all three write paths.
+- **Restore verdict actually verifies mode and target.** The 10 s
+  poll used to only check `pypilotHealthy` and `engaged`; that let a
+  pypilot ignoring the mode / target orders still be announced as
+  "restored". Now the verdict also compares `state.mode` against
+  the snapshot and `state.target` against it (with a 3° tolerance
+  for pypilot's own rounding on the wire) before speaking success.
+  A mismatch fires the failure banner with a specific reason
+  ("mode did not switch" / "target did not match").
+
+### i18n
+
+- Second Spanish accent pass covering UPPERCASE tokens the previous
+  pass missed: `ESTADÍSTICAS`, `HISTÓRICO`, `SESIÓN`, `CONEXIÓN`,
+  `CONFIGURACIÓN`, `CATÁLOGO`, `GRÁFICA`, `MÁS RÁPIDA`, `TIMÓN`,
+  `ÁNGULO`, `MÁXIMA`, and so on.
+
 ## 2.7.3 — 2026-09-14 — Spanish accents restored
 
 The Spanish translation now carries the accents it always should have

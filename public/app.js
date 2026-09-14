@@ -564,6 +564,8 @@
       "restore.working":     "Restoring... verifying pypilot confirmation",
       "restore.reason.noPy": "pypilot did not confirm",
       "restore.reason.noEng":"AP did not engage",
+      "restore.reason.modeMismatch":   "mode did not switch",
+      "restore.reason.targetMismatch": "target did not match",
       // Alerts / prompts / confirms
       "alert.saveOk": "Saved.",
       "alert.saveFail": "Save failed. Are you logged in to Signal K admin?",
@@ -784,7 +786,7 @@
       "tab.setup":   "Setup",
       "tab.info":    "Info",
       // Chart tab (Rev96)
-      "chart.stats.title":         "ESTADISTICAS SESION",
+      "chart.stats.title":         "ESTADÍSTICAS SESIÓN",
       "chart.session.empty":       "Sesión no iniciada",
       "chart.session.started":     "Sesión iniciada a las",
       "chart.session.ago":         "hace",
@@ -799,7 +801,7 @@
       "chart.stat.servoRuntime":   "Servo activo",
       "chart.stat.tacksGybes":     "Viradas / Trasluchadas",
       "chart.stat.maxServoA":      "Max servo A",
-      "chart.history.title":       "HISTORICO",
+      "chart.history.title":       "HISTÓRICO",
       "chart.history.refresh":     "Actualizar",
       "chart.empty":               "Aún sin datos - esperando primera muestra...",
       "chart.servoHealth.title":   "SALUD DEL SERVO",
@@ -1144,7 +1146,7 @@
       "tackLog.bestRet":       "Mejor retención",
       "tackLog.bestRec":       "Recuperación más rápida",
       "tackLog.badgeRet":      "MEJOR RET",
-      "tackLog.badgeRec":      "MAS RAPIDA",
+      "tackLog.badgeRec":      "MÁS RÁPIDA",
       "tackLog.recoverLabel":  "Recuperación 95% SOG:",
       "tackLog.clearConfirm":  "¿Vaciar todo el historial de bordos?",
       // Veredicto HUD de maniobra
@@ -1219,9 +1221,11 @@
       "restore.doneSpeak":   "Target restaurado",
       "restore.failSpeak":   "Restauración fallida",
       "restore.failed":      "Restauración fallida",
-      "restore.working":     "Restaurando... esperando confirmacion pypilot",
+      "restore.working":     "Restaurando... esperando confirmación pypilot",
       "restore.reason.noPy": "pypilot no confirma",
       "restore.reason.noEng":"AP no enganchó",
+      "restore.reason.modeMismatch":   "el modo no cambió",
+      "restore.reason.targetMismatch": "el target no coincide",
       // Alerts / prompts / confirms
       "alert.saveOk": "Guardado.",
       "alert.saveFail": "Guardar fallo. Estas logueado como admin en Signal K?",
@@ -1278,7 +1282,7 @@
       "setup.restart.outage.pypilot": "Se reinician el core pypilot y su servidor web. El AP suelta el rumbo brevemente y se reengancha tras reconectar.",
       "setup.restart.outage.reboot":  "Se reinicia la Raspberry Pi entera (kernel, servicios, red). NO hay autopiloto durante ~35-60 segundos. Arranque en frio.",
       "helm.outage":  "Corte del piloto:",
-      "helm.warn":    "ASEGURATE DE QUE ALGUIEN ESTA AL TIMON antes de continuar. No es el momento de estar bajo cubierta.",
+      "helm.warn":    "ASEGURATE DE QUE ALGUIEN ESTA AL TIMÓN antes de continuar. No es el momento de estar bajo cubierta.",
       "helm.cancel":  "Cancelar",
       "helm.confirm": "Confirmo - hay alguien al timón",
       "helm.op.engage.title":     "Enganchar piloto",
@@ -2951,12 +2955,21 @@
           if (!state.engaged) {
             throwIfNotOk(await apEngage(), "engage");
           }
-          // Rev274: poll every 500 ms up to 10 s. Bail out as soon
-          // as any negative evidence lands (healthy went false,
-          // disengage delta undid the engage). Only speak success
-          // if BOTH survive the whole window.
+          // Rev279 (audit follow-up C): the previous verdict only
+          // required healthy + engaged after 10 s. That let a pypilot
+          // that ignored the mode / target orders (or that a competing
+          // controller quickly overrode) still be announced as
+          // "restaurado". Now we ALSO compare state.mode and
+          // state.target against the snapshot the user asked to
+          // restore, so we speak success only when the AP is engaged
+          // AND healthy AND actually running with the requested mode
+          // and target (within a 3° tolerance to allow for pypilot's
+          // own rounding on the wire).
           const started = Date.now();
           const maxMs = 10000;
+          const TOL_RAD = 3 * Math.PI / 180;
+          const wantMode = snap.mode ? String(snap.mode).toLowerCase() : null;
+          const wantTarget = typeof snap.target === "number" ? snap.target : null;
           const tick = () => {
             if (state.pypilotHealthy === false) {
               return verdict("fail", t("restore.reason.noPy"));
@@ -2965,6 +2978,18 @@
               return verdict("fail", t("restore.reason.noEng"));
             }
             if (Date.now() - started >= maxMs) {
+              // Final check on mode and target before speaking OK.
+              if (wantMode) {
+                const curMode = String(state.mode || "").toLowerCase();
+                if (curMode !== wantMode) {
+                  return verdict("fail", t("restore.reason.modeMismatch"));
+                }
+              }
+              if (wantTarget !== null && typeof state.target === "number") {
+                if (Math.abs(state.target - wantTarget) > TOL_RAD) {
+                  return verdict("fail", t("restore.reason.targetMismatch"));
+                }
+              }
               return verdict("ok");
             }
             setTimeout(tick, 500);

@@ -92,6 +92,14 @@ export class AutopilotProvider {
   // 500 ms NAV-mode setTimeout that setNavMode arms, so a disengage
   // during that window cannot be undone by the timer waking up.
   private engageGen = 0;
+  // Rev279 (audit follow-up A / B): parallel counters for target and
+  // mode writes. Bumped on every setTarget / setMode / adjustTarget
+  // and consulted by the retry loop, so a stale write that was
+  // waiting to retry aborts before overwriting a newer intent. R01
+  // only protected ap.enabled; these close the same class of race
+  // on the two other write paths.
+  private targetGen = 0;
+  private modeGen = 0;
   private navPendingTimer: NodeJS.Timeout | null = null;
   // Rev272 (audit R06): adjustTarget reads data.target BEFORE awaiting
   // the write, so two concurrent +Δ calls could both start from the
@@ -312,10 +320,19 @@ export class AutopilotProvider {
     ) {
       throw new Error(`Invalid mode: ${mode}`);
     }
+    // Rev279 (audit follow-up B): bump modeGen so a stale mode retry
+    // aborts before overwriting a newer setMode / setState intent.
+    const gen = ++this.modeGen;
     // Rev254 (Carlos audit): fail explicit when pypilot offline.
     // Rev255: retry with backoff.
-    if (!(await this._setWithRetry("ap.mode", mode))) {
+    if (!(await this._setWithRetry("ap.mode", mode, () => this.modeGen !== gen))) {
+      if (this.modeGen !== gen) {
+        throw new Error("mode change superseded by newer order");
+      }
       throw new Error("pypilot offline: mode change not delivered");
+    }
+    if (this.modeGen !== gen) {
+      throw new Error("mode change superseded after write");
     }
   }
 
@@ -335,10 +352,21 @@ export class AutopilotProvider {
     // side).
     // eslint-disable-next-line no-console
     console.log(`[apProvider.setTarget] rad=${rad.toFixed(4)} deg=${deg.toFixed(2)}`);
+    // Rev279 (audit follow-up B): bump targetGen so a stale target
+    // retry aborts before overwriting a newer setTarget. Without this
+    // guard, target=1 rad → 2 rad → retry(1 rad) ended up leaving
+    // 1 rad on pypilot.
+    const gen = ++this.targetGen;
     // Rev254 (Carlos audit): reject BEFORE mutating optimistic target.
     // Rev255: retry with backoff.
-    if (!(await this._setWithRetry("ap.heading_command", deg))) {
+    if (!(await this._setWithRetry("ap.heading_command", deg, () => this.targetGen !== gen))) {
+      if (this.targetGen !== gen) {
+        throw new Error("target superseded by newer order");
+      }
       throw new Error("pypilot offline: target not delivered");
+    }
+    if (this.targetGen !== gen) {
+      throw new Error("target superseded after write");
     }
     this.data.target = rad;
     this.pendingTarget = { value: rad, until: Date.now() + TARGET_PENDING_MS };
@@ -360,10 +388,20 @@ export class AutopilotProvider {
       if (this.data.engaged) {
         const base = typeof this.data.target === "number" ? this.data.target : 0;
         const newRad = base + rad;
+        // Rev279 (audit follow-up B): adjustTarget also bumps targetGen
+        // so an in-flight absolute setTarget cannot silently overwrite
+        // the adjusted value from a retry (and vice versa).
+        const gen = ++this.targetGen;
         // Rev254 (Carlos audit): same reject-before-optimistic guard.
         // Rev255: retry with backoff.
-        if (!(await this._setWithRetry("ap.heading_command", newRad * RAD_TO_DEG))) {
+        if (!(await this._setWithRetry("ap.heading_command", newRad * RAD_TO_DEG, () => this.targetGen !== gen))) {
+          if (this.targetGen !== gen) {
+            throw new Error("target adjust superseded by newer order");
+          }
           throw new Error("pypilot offline: target adjust not delivered");
+        }
+        if (this.targetGen !== gen) {
+          throw new Error("target adjust superseded after write");
         }
         this.data.target = newRad;
         this.pendingTarget = { value: newRad, until: Date.now() + TARGET_PENDING_MS };
@@ -418,9 +456,17 @@ export class AutopilotProvider {
   }
 
   private async engage(): Promise<void> {
+    // Rev279 (audit follow-up A): the catch used to fall through to
+    // setState("enabled") on ANY setNavMode failure, including a
+    // "superseded by newer order" thrown when a disengage arrived
+    // during setMode's retry. That turned the cancellation into a
+    // fresh engage. setNavMode now returns silently on supersede
+    // (does not throw), but we still filter defensively so a
+    // superseded throw from lower layers cannot re-arm engage either.
     try {
       await this.setNavMode();
-    } catch {
+    } catch (e: any) {
+      if (/superseded/.test(String(e?.message))) return;
       await this.setState("enabled");
     }
   }
@@ -430,24 +476,37 @@ export class AutopilotProvider {
   }
 
   private async setNavMode(): Promise<void> {
+    // Rev279 (audit follow-up A): capture engageGen BEFORE the first
+    // await. On Rev278 the snapshot was taken after
+    // `await this.setMode("nav")`, so a disengage that landed during
+    // the mode retry ended up sharing the SAME generation as the
+    // arming step — the 500 ms timer then happily fired an engage the
+    // user had explicitly cancelled. Now: any bump between here and
+    // the timer means we bail silently. engage()'s catch is not
+    // supposed to re-fire that either, so we return normally instead
+    // of throwing (throwing would trigger engage()'s fallback into a
+    // direct setState("enabled"), reintroducing the same bug).
+    const gen = this.engageGen;
+    const isStale = () => this.engageGen !== gen;
     const cdata = await this.app.getCourse?.();
+    if (isStale()) return;
     if (
       cdata?.nextPoint &&
       this.getAvailableActionIds().includes("courseCurrentPoint")
     ) {
-      await this.setMode("nav");
-      // Rev271 (audit R04): snapshot the generation at the moment we
-      // arm the delayed engage. A disengage or other setState between
-      // now and the timer firing will have bumped the counter, and the
-      // timer will simply exit. Cancelling the timer directly (in
-      // _bumpEngageGen) is the primary defence; this second check
-      // covers the tiny window where the bump happens after our
-      // clearTimeout would have fired.
-      const gen = this.engageGen;
+      try {
+        await this.setMode("nav");
+      } catch (e: any) {
+        // setMode threw because it was superseded — bail without
+        // arming the delayed engage.
+        if (/superseded/.test(String(e?.message))) return;
+        throw e;
+      }
+      if (isStale()) return;
       if (this.navPendingTimer) clearTimeout(this.navPendingTimer);
       this.navPendingTimer = setTimeout(() => {
         this.navPendingTimer = null;
-        if (this.engageGen !== gen) return; // superseded, do nothing
+        if (isStale()) return; // superseded, do nothing
         this.setState("enabled").catch(() => {});
       }, 500);
     } else {
