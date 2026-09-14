@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -113,48 +113,79 @@
                  (t+31 .. t+60) after it. Boat sprite gets a soft
                  glow while it is visible. -->
             <g id="tack-stats-hud" style="display:none;pointer-events:auto">
-              <rect x="-95" y="-95" width="190" height="145" rx="10"
-                    fill="rgba(11,15,20,0.94)" stroke="#4dd982" stroke-width="1.5"/>
-              <text x="0" y="-72" text-anchor="middle" fill="#4dd982"
-                    font-size="12" font-weight="900" letter-spacing="1.4"
+              <!-- Rev219 (Carlos): cuadro compactado. Antes 190x150
+                   ocupaba casi todo el compass, se mezclaba con boat
+                   y flechas. Ahora 126x94 para que quede dentro del
+                   círculo del countdown (r=52 aprox). Filas alineadas
+                   por columnas fijas: label izquierda 30 anchor,
+                   ANTES centro col x=8, DESPUÉS centro col x=48. -->
+              <!-- Rev224 (Carlos): rediseno con separadores finos
+                   horizontales, flecha "->" entre valores ANTES y
+                   DESPUES y fila nueva de TIEMPO de ejecucion.
+                   AWA sin barras de valor absoluto. -->
+              <rect x="-82" y="-84" width="164" height="168" rx="10"
+                    fill="rgba(11,15,20,0.98)" stroke="#4a5867" stroke-width="1.5"/>
+              <text x="0" y="-68" text-anchor="middle" fill="#8b98a5"
+                    font-size="13" font-weight="900" letter-spacing="1.6"
                     font-family="ui-monospace, monospace">VIRADA</text>
-              <text x="0" y="-56" text-anchor="middle" fill="#8b98a5"
-                    font-size="9" letter-spacing="0.8"
-                    font-family="ui-monospace, monospace">antes  →  después</text>
-              <!-- 3 rows: TWS, AWA, SOG. Filled from JS. -->
-              <text x="-82" y="-32" fill="#8b98a5" font-size="11"
+              <line x1="-72" y1="-56" x2="72" y2="-56" stroke="#4a5867" stroke-width="0.6"/>
+              <text x="-28" y="-46" text-anchor="middle" fill="#8b98a5"
+                    font-size="8" font-weight="700" letter-spacing="0.6"
+                    font-family="ui-monospace, monospace">ANTES</text>
+              <text x="36" y="-46" text-anchor="middle" fill="#8b98a5"
+                    font-size="8" font-weight="700" letter-spacing="0.6"
+                    font-family="ui-monospace, monospace">DESPUÉS</text>
+              <line x1="-72" y1="-38" x2="72" y2="-38" stroke="#4a5867" stroke-width="0.6"/>
+              <text x="-72" y="-24" fill="#8b98a5" font-size="10" font-weight="700"
                     font-family="ui-monospace, monospace">TWS</text>
-              <text x="0"   y="-32" id="tack-stats-tws-before" text-anchor="middle"
-                    fill="#e6edf3" font-size="14" font-weight="700"
+              <text x="-28" y="-24" id="tack-stats-tws-before" text-anchor="middle"
+                    fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="82"  y="-32" id="tack-stats-tws-after" text-anchor="end"
-                    fill="#4dd982" font-size="14" font-weight="700"
+              <text x="6"   y="-24" text-anchor="middle" fill="#8b98a5"
+                    font-size="12" font-weight="700"
+                    font-family="ui-monospace, monospace">→</text>
+              <text x="36"  y="-24" id="tack-stats-tws-after" text-anchor="middle"
+                    fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="-82" y="-6" fill="#8b98a5" font-size="11"
-                    font-family="ui-monospace, monospace">|AWA|</text>
-              <text x="0"   y="-6" id="tack-stats-awa-before" text-anchor="middle"
-                    fill="#e6edf3" font-size="14" font-weight="700"
+              <line x1="-72" y1="-14" x2="72" y2="-14" stroke="#4a5867" stroke-width="0.6"/>
+              <text x="-72" y="0" fill="#8b98a5" font-size="10" font-weight="700"
+                    font-family="ui-monospace, monospace">AWA</text>
+              <text x="-28" y="0" id="tack-stats-awa-before" text-anchor="middle"
+                    fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="82"  y="-6" id="tack-stats-awa-after" text-anchor="end"
-                    fill="#4dd982" font-size="14" font-weight="700"
+              <text x="6"   y="0" text-anchor="middle" fill="#8b98a5"
+                    font-size="12" font-weight="700"
+                    font-family="ui-monospace, monospace">→</text>
+              <text x="36"  y="0" id="tack-stats-awa-after" text-anchor="middle"
+                    fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="-82" y="20" fill="#8b98a5" font-size="11"
+              <line x1="-72" y1="10" x2="72" y2="10" stroke="#4a5867" stroke-width="0.6"/>
+              <text x="-72" y="24" fill="#8b98a5" font-size="10" font-weight="700"
                     font-family="ui-monospace, monospace">SOG</text>
-              <text x="0"   y="20" id="tack-stats-sog-before" text-anchor="middle"
-                    fill="#e6edf3" font-size="14" font-weight="700"
+              <text x="-28" y="24" id="tack-stats-sog-before" text-anchor="middle"
+                    fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="82"  y="20" id="tack-stats-sog-after" text-anchor="end"
-                    fill="#4dd982" font-size="14" font-weight="700"
+              <text x="6"   y="24" text-anchor="middle" fill="#8b98a5"
+                    font-size="12" font-weight="700"
+                    font-family="ui-monospace, monospace">→</text>
+              <text x="36"  y="24" id="tack-stats-sog-after" text-anchor="middle"
+                    fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="0" y="42" text-anchor="middle" id="tack-stats-verdict"
-                    fill="#4dd982" font-size="11" font-weight="800"
+              <line x1="-72" y1="34" x2="72" y2="34" stroke="#4a5867" stroke-width="0.6"/>
+              <text x="-72" y="48" fill="#8b98a5" font-size="10" font-weight="700"
+                    font-family="ui-monospace, monospace">TIEMPO</text>
+              <text x="4"  y="48" id="tack-stats-time" text-anchor="middle"
+                    fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <!-- Close X in the top-right -->
+              <line x1="-72" y1="58" x2="72" y2="58" stroke="#4a5867" stroke-width="0.6"/>
+              <text x="0" y="72" text-anchor="middle" id="tack-stats-verdict"
+                    fill="#ffffff" font-size="10" font-weight="800"
+                    font-family="ui-monospace, monospace">--</text>
               <g id="tack-stats-close" style="cursor:pointer">
-                <rect x="72" y="-92" width="20" height="20" rx="4"
-                      fill="rgba(255,59,48,0.9)" stroke="#ff3b30"/>
-                <text x="82" y="-82" text-anchor="middle" dominant-baseline="central"
-                      fill="#fff" font-size="14" font-weight="900"
+                <rect x="62" y="-82" width="18" height="18" rx="3"
+                      fill="rgba(255,59,48,0.95)" stroke="#ff3b30"/>
+                <text x="71" y="-73" text-anchor="middle" dominant-baseline="central"
+                      fill="#fff" font-size="13" font-weight="900"
                       font-family="ui-monospace, monospace">×</text>
               </g>
             </g>
@@ -166,6 +197,24 @@
               <text id="tack-countdown-num" x="0" y="4" text-anchor="middle" dominant-baseline="central"
                     fill="#ff3b30" font-size="64" font-weight="900"
                     font-family="ui-monospace, monospace">--</text>
+              <!-- Rev187 (Carlos): degrees line under the big digit.
+                   Arming shows total tack rotation (e.g. "100° total").
+                   Executing shows degrees left to reach target
+                   (e.g. "42° al target"). -->
+              <text id="tack-countdown-deg" x="0" y="36" text-anchor="middle" dominant-baseline="central"
+                    fill="#ff3b30" font-size="11" font-weight="700" letter-spacing="0.8"
+                    font-family="ui-monospace, monospace" style="display:none"></text>
+              <!-- Rev212 (Carlos): "convert to VIRAR" pill shown only
+                   when the maneuver is auto-classified as jibe. Tap
+                   it to flip the rotation direction and re-classify
+                   as tack (short arc by the bow). -->
+              <g id="tack-countdown-toTack" style="display:none;cursor:pointer">
+                <rect x="-38" y="56" width="76" height="20" rx="10"
+                      fill="rgba(255,59,48,0.9)" stroke="#ff3b30" stroke-width="1.5"/>
+                <text x="0" y="66" text-anchor="middle" dominant-baseline="central"
+                      fill="#fff" font-size="12" font-weight="800" letter-spacing="1"
+                      font-family="ui-monospace, monospace">→ VIRAR</text>
+              </g>
             </g>
             <!-- Rev73: "Gota Chain" - target + AWA + TWA rediseño.
                  Tres piezas concéntricas SVG que se ensamblan en una
@@ -375,6 +424,23 @@
               <text id="rose-hdg-value" x="0" y="-91" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
               <text id="rose-hdg-deg"   x="0" y="-91" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
             </g>
+            <!-- Rev216 (Carlos): rotation-sense indicator. A curved
+                 arrow drawn just inside the compass ring, showing
+                 which way the AP is going to rotate to reach the
+                 target (short arc by default, long arc when the
+                 sailor tapped "→ VIRAR"). Path recomputed by
+                 renderTackRotationArc() on every countdown tick. -->
+            <g id="tack-rotation-arc" style="display:none">
+              <path id="tack-rotation-arc-path" fill="none" stroke="#ff9500"
+                    stroke-width="3" stroke-linecap="round"
+                    marker-end="url(#tack-arrow-head)"/>
+            </g>
+            <defs>
+              <marker id="tack-arrow-head" viewBox="0 0 10 10" refX="7" refY="5"
+                      markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 Z" fill="#ff9500"/>
+              </marker>
+            </defs>
           </svg>
           <!-- Rev71: wind-speed chip promoted from SVG group to an HTML div
                overlaid on the rose bottom-center. Text baseline aligned
@@ -546,21 +612,27 @@
               </label>
               <!-- Rev173 (Carlos): "gust ghost" overlay-card. Same shape as
                    the A / T / COG / Current cards so it lives alongside
-                   them in the rose configuration modal. -->
+                   them in the rose configuration modal.
+                   Rev175 (Carlos): "Probar" button so the sailor can
+                   validate the render without waiting for a real gust. -->
               <label class="overlay-card">
                 <input type="checkbox" id="dash-gust-ghost" checked />
                 <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
                   <g opacity="0.5">
                     <path d="M -20.85,-58.53 L 0,-16 L 20.85,-58.53 L 0,-40 Z"
-                          fill="#ffd54a" stroke="#cba822" stroke-width="0.75" stroke-linejoin="round"/>
+                          fill="#ff9500" stroke="#b56500" stroke-width="0.75" stroke-linejoin="round"/>
                     <text x="0" y="-28" text-anchor="middle" dominant-baseline="middle"
                           fill="#8b98a5" font-size="14" font-weight="900" font-family="ui-monospace, monospace">A</text>
                   </g>
-                  <text x="0" y="-52" text-anchor="middle" fill="#ffd54a"
+                  <text x="0" y="-52" text-anchor="middle" fill="#ff9500"
                         font-size="8" font-weight="800" font-family="ui-monospace, monospace">12 kn</text>
                 </svg>
-                <div class="overlay-title">Marca de ráfagas</div>
-                <div class="overlay-needs">Deja una flecha A fantasma con la velocidad de la racha; se desvanece en 10 s. Necesita sensor de viento.</div>
+                <div class="overlay-title" data-i18n="dash.overlay.gust.title">Gust marker</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.gust.needs">Leaves a ghost A arrow at the gust speed; fades in 10 s. Needs a wind sensor.</div>
+                <button type="button" id="dash-gust-ghost-test" class="ghost"
+                        style="margin-top:6px;padding:6px 10px;font-size:12px;align-self:flex-start"
+                        data-i18n="dash.overlay.gust.test"
+                        onclick="event.preventDefault();event.stopPropagation();">Test now</button>
               </label>
             </div>
           </div>
@@ -569,6 +641,25 @@
             <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.polar.title">POLAR PERFORMANCE</div>
             <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.polar.hint">Enable the ones you want available in the corner selectors. Requires the signalk-polar-performance-plugin.</div>
             <div id="dash-polar-toggles"></div>
+          </div>
+          <!-- Rev183 (Carlos): helm-bar source selector. Lives here in
+               the corner-config popup (no chip on the strip). Two
+               radios: R = rudder angle, E = escora. Choice persists in
+               localStorage under pypilotnewui.helmBar. -->
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
+          <div class="dash-corner-cfg" style="gap:6px">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.helmBar.title">BOTTOM BAR (indicator)</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmBar.hint">Pick what the big bar at the bottom shows: rudder angle or boat heel.</div>
+            <div class="row" style="gap:14px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                <input type="radio" name="helm-bar-src" value="heel" id="helm-bar-src-heel" />
+                <span data-i18n="dash.helmBar.heel">Heel (default)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                <input type="radio" name="helm-bar-src" value="rudder" id="helm-bar-src-rudder" />
+                <span data-i18n="dash.helmBar.rudder">Rudder angle</span>
+              </label>
+            </div>
           </div>
           <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
           <div class="dash-corner-cfg" style="gap:6px">
@@ -590,33 +681,54 @@
       <div class="controls">
         <!-- Row 1: Tack Port | Mode | Tack Starboard (3 equal columns) -->
         <div class="row-tack-mode">
-          <button class="tack-btn tack-port" id="tack-port-btn" title="Tack to port">
-            <span class="arrow">&#x2039;</span>
-            <span class="lbl" data-i18n="tack">TACK</span>
+          <button class="tack-btn tack-port" id="tack-port-btn" data-i18n-title="tack.port.title" title="Tack to port">
+            <!-- Rev243 (Carlos): viewBox 100x100 = cuadrado, escala
+                 uniforme en cualquier orientación de botón
+                 (portrait móvil o landscape desktop). Arco y
+                 número mucho más juntos. -->
+            <svg class="tack-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <path d="M 25,30 A 25 25 0 0 1 75,30" fill="none"
+                    stroke="#ff3b30" stroke-width="8" stroke-linecap="round"/>
+              <polygon points="15,27 35,27 25,44" fill="#ff3b30"/>
+              <text x="50" y="72" text-anchor="middle" dominant-baseline="middle"
+                    font-size="42" font-weight="900" fill="currentColor"
+                    class="lbl tack-angle-lbl">100</text>
+            </svg>
           </button>
           <select id="mode-select" class="mode-select" aria-label="Mode"></select>
-          <button class="tack-btn tack-star" id="tack-star-btn" title="Tack to starboard">
-            <span class="lbl" data-i18n="tack">TACK</span>
-            <span class="arrow">&#x203A;</span>
+          <button class="tack-btn tack-star" id="tack-star-btn" data-i18n-title="tack.star.title" title="Tack to starboard">
+            <svg class="tack-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <path d="M 25,30 A 25 25 0 0 1 75,30" fill="none"
+                    stroke="#4dd982" stroke-width="8" stroke-linecap="round"/>
+              <polygon points="65,27 85,27 75,44" fill="#4dd982"/>
+              <text x="50" y="72" text-anchor="middle" dominant-baseline="middle"
+                    font-size="42" font-weight="900" fill="currentColor"
+                    class="lbl tack-angle-lbl">100</text>
+            </svg>
           </button>
         </div>
 
-        <!-- Row 2: -10 | -1 | AP | +1 | +10 (5 equal columns, all same height as Tacks) -->
+        <!-- Rev226 (Carlos): 5 cells with bow-direction arrows
+             (like B&G / Raymarine). The value shown is the current
+             nudge amount from settings; direction is the side the
+             bow will swing to, independent of AP mode. The backend
+             translates that into the correct sign for compass or
+             wind target internally. -->
         <div class="row-nudge-ap">
           <button class="steer-btn nudge-big-port" data-nudge-kind="big-port">
-            <span class="lbl" id="lbl-big-port">-10</span>
+            <span class="lbl" id="lbl-big-port">&laquo; 10</span>
           </button>
           <button class="steer-btn nudge-small-port" data-nudge-kind="small-port">
-            <span class="lbl" id="lbl-small-port">-1</span>
+            <span class="lbl" id="lbl-small-port">&lang; 1</span>
           </button>
           <button id="engage-toggle" class="engage-toggle" role="button" tabindex="0" aria-pressed="false">
             AP
           </button>
           <button class="steer-btn nudge-small-star" data-nudge-kind="small-star">
-            <span class="lbl" id="lbl-small-star">+1</span>
+            <span class="lbl" id="lbl-small-star">1 &rang;</span>
           </button>
           <button class="steer-btn nudge-big-star" data-nudge-kind="big-star">
-            <span class="lbl" id="lbl-big-star">+10</span>
+            <span class="lbl" id="lbl-big-star">10 &raquo;</span>
           </button>
         </div>
 
@@ -646,10 +758,19 @@
           <div class="rudder-ticks" id="rudder-ticks"></div>
           <span class="rudder-label rudder-label-left"  id="rudder-label-left">-70</span>
           <span class="rudder-label rudder-label-right" id="rudder-label-right">+70</span>
-          <div class="rudder-marker" id="rudder-marker" style="left:50%"></div>
+          <!-- Rev183/185/190 (Carlos): marker = big glowing number framed
+               by triangles. Rev190: tap toggles the top tab bar
+               (same as the yellow #nav-toggle triangle); the source
+               picker (Escora / Timón) lives in the dash-help-pop
+               corner-config popup, not here. -->
+          <div class="rudder-marker" id="rudder-marker" style="left:50%">
+            <div class="rmk-tri rmk-tri-top">&#9660;</div>
+            <div class="rmk-num" id="rudder-marker-num">--</div>
+            <div class="rmk-tri rmk-tri-bot">&#9650;</div>
+          </div>
           <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
           <span class="swipe-hint-arrow" data-swipe-dir="prev">‹</span>
-          <button class="nav-toggle" id="nav-toggle" aria-label="Mostrar / ocultar barra de pestañas" title="Mostrar / ocultar barra de pestañas">
+          <button class="nav-toggle" id="nav-toggle" data-i18n-aria="nav.toggle.aria" data-i18n-title="nav.toggle.aria" aria-label="Show / hide tab bar" title="Show / hide tab bar">
             <span class="tri">▼</span>
           </button>
           <span class="swipe-hint-arrow" data-swipe-dir="next">›</span>
@@ -1115,6 +1236,17 @@
       <!-- Rev97: Sensor Quality panel. Polled every 3 s while the Setup
            tab is visible; each watched path shows freshness / observed
            Hz / jitter / source with a green/amber/red status pill. -->
+      <!-- Rev178 (Carlos): trips block. Lists past trips (opened by
+           navigation.state moving off "moored", closed when back to
+           moored) with quick stats per row: distance, avg SOG, avg TWS,
+           tacks, duration. Click opens the details modal. -->
+      <div class="setup-block" data-setup-order="27" data-block-key="trips">
+        <div class="section-title" data-i18n="setup.trips.title">Trips</div>
+        <div class="hint" data-i18n="setup.trips.hint">Every time you leave the marina (navigation.state moves off "moored") a trip is opened. When you return, it closes and the summary is computed. Tap one to see the detail.</div>
+        <div id="trips-status" style="font-size:12px;opacity:0.7;margin-top:6px"></div>
+        <div id="trips-list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+      </div>
+
       <div class="setup-block" data-setup-order="30" data-block-key="quality">
         <div class="section-title" data-i18n="setup.quality.title">Sensor Quality</div>
         <div class="hint" data-i18n="setup.quality.hint">Freshness and update rate of the SK paths the autopilot depends on. Green = good, amber = degraded, red = lost.</div>
@@ -1404,7 +1536,7 @@
               <li><b>Setup &rarr; Emergency</b>: save the TinyPilot SSH user + password. The <b>RESTART pypilot</b> button then reboots the remote process without leaving the browser.</li>
               <li><b>Control</b>: tap <b>AP</b> to engage the pilot on the current heading. <b>&plusmn;1 / &plusmn;10</b> nudges the target. <b>TACK &lang; / &rang;</b> tacks to port or starboard. The centre dropdown switches the mode (compass / gps / wind / true wind / nav).</li>
               <li><b>Rose</b>: N (orange) / E (green) / S (blue) / W (red) plus degree ticks every 30&deg;. Green / red wedges are hull-fixed and mark the sailing zones.</li>
-              <li><b>Gota Chain</b>: three concentric arrow pieces on the rose &mdash; cyan diamond (AP target), amber (AWA, marked <b>A</b>), sea-green (TWA, marked <b>T</b>). When target &equiv; AWA &equiv; TWA they interlock into one clean "gota" (droplet); the moment any of the three drifts, its V-notch opens and its color ring-tick reveals the exact angle.</li>
+              <li><b>Target &amp; Wind arrows</b>: three concentric arrow pieces on the rose &mdash; cyan diamond (AP target), amber (AWA, marked <b>A</b>), sea-green (TWA, marked <b>T</b>). When target &equiv; AWA &equiv; TWA they interlock into one clean droplet shape; the moment any of the three drifts, its V-notch opens and its color ring-tick reveals the exact angle.</li>
               <li><b>Overlays</b>: long-press any corner OR the boat sprite to open the 4-card selector for AWA / TWA / COG line / current vector (SOG&minus;SOW). Each card lists what data it needs.</li>
               <li><b>Corners</b>: same long-press menu picks which datum shows in each corner (HDG, wind, SOG, COG, target, depth, mode, polars&hellip;).</li>
               <li><b>Tune</b>: tick <b>Unlock settings</b> before touching. Each slider has &minus;10 / &minus;1 / slider / +1 / +10. When unlocked, the previous value is shown in orange as a reference.</li>
@@ -1421,7 +1553,7 @@
               <li><b>Setup &rarr; Emergency</b>: guarda el usuario+password SSH de la TinyPilot. Con eso el bot&oacute;n <b>REINICIAR pypilot</b> reinicia el proceso remoto sin salir del navegador.</li>
               <li><b>Control</b>: pulsa <b>AP</b> para enganchar el piloto en el rumbo actual. <b>&plusmn;1 / &plusmn;10</b> mueve el rumbo objetivo. <b>VIRAR &lang; / &rang;</b> vira por babor o estribor. El desplegable central cambia el modo (compass / gps / wind / true wind / nav).</li>
               <li><b>Rosa</b>: N (naranja) / E (verde) / S (azul) / W (rojo) y grados cada 30&deg;. Sectores verde/rojo fijos a la cruj&iacute;a marcan las zonas de amura.</li>
-              <li><b>Gota Chain</b>: tres piezas conc&eacute;ntricas en la rosa &mdash; diamante cyan (target del AP), amber (AWA, letra <b>A</b>), verde-mar (TWA, letra <b>T</b>). Cuando target &equiv; AWA &equiv; TWA se ensamblan en una "gota" limpia; en cuanto una se desalinea, su V-hembra queda hueca y su rayita de color en el aro marca el &aacute;ngulo exacto.</li>
+              <li><b>Flechas Target y Viento</b>: tres piezas conc&eacute;ntricas en la rosa &mdash; diamante cyan (target del AP), amber (AWA, letra <b>A</b>), verde-mar (TWA, letra <b>T</b>). Cuando target &equiv; AWA &equiv; TWA se ensamblan en una forma de gota limpia; en cuanto una se desalinea, su V-hembra queda hueca y su rayita de color en el aro marca el &aacute;ngulo exacto.</li>
               <li><b>Capas</b>: long-press en cualquier esquina O sobre el barco abre el selector de 4 tarjetas: AWA / TWA / l&iacute;nea COG / vector corriente (SOG&minus;SOW). Cada tarjeta indica qu&eacute; datos necesita.</li>
               <li><b>Esquinas</b>: el mismo men&uacute; long-press elige qu&eacute; dato ver en cada esquina (HDG, viento, SOG, COG, target, sonda, modo, polares&hellip;).</li>
               <li><b>Ajustes</b>: marca <b>Desbloquear ajustes</b> antes de tocar. Cada slider tiene &minus;10 / &minus;1 / slider / +1 / +10. Al desbloquear ves el valor original en naranja para saber contra qu&eacute; comparas.</li>
@@ -1430,6 +1562,160 @@
               <li><b>Swipe</b>: desliza el dedo horizontalmente en cualquier pesta&ntilde;a para cambiar a la siguiente / anterior. Bloqueado sobre sliders desbloqueados o tablas con scroll horizontal.</li>
               <li><b>Barra de pesta&ntilde;as</b>: pulsa el tri&aacute;ngulo amarillo (abajo del centro) para ocultarla y ganar espacio para la rosa.</li>
             </ol>
+          </div>
+        </div>
+
+        <!-- Full instructions -->
+        <div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">Full instructions</div>
+
+            <h5 style="margin:14px 0 4px">Control tab</h5>
+            <ul class="info-list">
+              <li><b>Engage / disengage</b>: tap the big <b>AP</b> in the centre. On engage the plugin snaps to the current heading (or AWA/TWA in wind modes) and asks for helm-manned confirmation via the safety modal.</li>
+              <li><b>Nudge &plusmn;1 / &plusmn;10</b>: fine and coarse trim on either side of AP. Step size configurable in Setup &rarr; Plugin config.</li>
+              <li><b>TACK</b>: choose port / starboard; a countdown modal appears with the maneuver kind (tack or gybe based on AWA) and the planned final heading. Cancel or nudge during arming to abort / adjust.</li>
+              <li><b>Mode selector</b>: compass, GPS, apparent wind, true wind, waypoint, and HEAD TO WIND (aproado). Wind modes pin the target to the wind angle; the diamond turns amber for AWA-lock, teal for TWA.</li>
+              <li><b>Compass rose</b>: rotates so N always points to real north; the boat outline is hull-fixed. Ticks every 30&deg; with N (orange) / E (green) / S (blue) / W (red) cardinals. Green / red hull-fixed wedges mark the sailing zones (close-hauled and no-go).</li>
+              <li><b>Overlays</b>: long-press any corner OR the boat sprite to open the 4-card selector: AWA (amber A), TWA (teal T), COG line (yellow chevrons, appears when SOG &gt; 0.15 kn), current vector (blue wavy arrow, needs SOW).</li>
+              <li><b>Gust marker</b>: optional ghost A arrow that stays at the peak wind for 10 s so you see where the last gust came from.</li>
+              <li><b>Corners</b>: same long-press menu picks the datum in each of the 4 corners &mdash; HDG, wind, SOG, COG, target, depth, mode, polars, custom SK path.</li>
+              <li><b>Bottom bar (indicator)</b>: switch between <i>heel</i> and <i>rudder angle</i> from the corner-config popup. Live big-number display with triangle markers.</li>
+              <li><b>Long-press on the boat</b>: also opens the <i>Tack history</i> log &mdash; every tack you did with SOG retention and recovery time.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Tune tab</h5>
+            <ul class="info-list">
+              <li><b>Pilot / Profile</b>: pypilot can hold multiple pilots (basic, learning) and multiple profiles inside each. Switch from the dropdowns.</li>
+              <li><b>Unlock settings</b>: locked by default. When you unlock and change a gain, the previous value is shown in orange as a reference. Auto-relocks on tab exit.</li>
+              <li><b>Gains</b>: P (react to error), I (close persistent drift), D (damp overshoot), DD (anticipate acceleration), PR (react to yaw rate), FF (feed-forward for commanded changes). Tap the ? for a plain-language explainer.</li>
+              <li><b>Servo &amp; IMU sliders</b>: max current, max slew speed, IMU heading offset (via <i>Level (boat flat)</i>), rudder range and centering.</li>
+              <li><b>Tack sliders</b>: tack angle (how many degrees to swing) and tack rate (deg / s).</li>
+              <li><b>Save changes</b>: when you leave the tab, a modal offers to keep the changes in the active profile <i>or</i> fork them into a new one (leaves the original untouched).</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Chart tab</h5>
+            <ul class="info-list">
+              <li><b>Trip Stats</b> cards for the current session: AP engaged time, distance, energy consumed, mean / RMS / p95 heading error, servo runtime, tacks / gybes count, max servo current.</li>
+              <li><b>History</b>: last hour of heading error, servo duty, wind, SOG plotted from the Pi 5 recorder (JSONL).</li>
+              <li><b>Servo Health</b>: learns a baseline for typical duty at sea, then flags <i>Recent avg</i> / <i>Peak 30 s</i> / temp / voltage deviations from that baseline &mdash; a first warning of drag, weed, or bearing wear.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Race tab</h5>
+            <ul class="info-list">
+              <li><b>T1 / T2 countdown</b> with configurable durations. TIMER starts / pauses, SYNC rounds to the nearest minute during countdown, RESET back to idle.</li>
+              <li><b>Beeps + screen flash + spoken seconds</b> the last 10 s. Runs in the background across tabs.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Paths &amp; API tab</h5>
+            <ul class="info-list">
+              <li>Live catalog of the ~110 Signal K paths this plugin publishes (state / mode / target / gains / servo / calibration / warnings / profiles / tack detail&hellip;).</li>
+              <li><b>KIP action paths</b> table with copy-to-clipboard buttons: <i>Simple Switch</i> rows (blue) for engage / nudge / tack / mode selector / profile selector; <i>Put</i> rows (green) for mode string and target radians.</li>
+              <li><b>Publish only essentials</b> toggle: keeps SK bus load light by publishing only the essentials plus the paths you explicitly enable.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Setup tab</h5>
+            <ul class="info-list">
+              <li><b>Connection</b>: LAN scan for pypilot_web, manual host+port, Absorb Autopilot Provider toggle, live connection status.</li>
+              <li><b>Autopilot Check</b> (pre-departure): aggregates every sensor / servo / voltage / connectivity signal into a single verdict (ready / caveats / do not engage). Recomputes every 3 s.</li>
+              <li><b>Alarms</b>: on / off / mute per rule; heading deviation, cruise drift, unable-to-steer, servo overcurrent, servo temp, motor temp, servo load high, low voltage, sensor lost, pypilot disconnected. Publishes canonical SK <code>notifications.*</code> for KIP / WilhelmSK, speaks the alarm out loud, and pushes a banner to the top of the app.</li>
+              <li><b>Sensor Quality</b>: freshness + update rate + jitter + source for every AP-critical SK path. Green / amber / red so you spot a stuck compass or a slow rudder in one glance. Ignore / restore per sensor.</li>
+              <li><b>Diagnostics &amp; Advice (Doctor)</b>: engage the AP, press DIAGNOSE, and the plugin records the heading error + servo response. Proposes P / I / D adjustments with a plain-English rationale. Nothing applies automatically &mdash; APPLY forks the current profile into <code>doctor-YYYYMMDD-HHMM</code> so the original stays untouched.</li>
+              <li><b>Smart Pilot</b>: three optional layers on top of pypilot &mdash; auto-select the pypilot profile by wind band, react to gusts (freeze target / boost D / heavy profile / warn), and auto-disengage on lost authority (RMS &gt; 30&deg; and duty &gt; 90%).</li>
+              <li><b>Navigation Session recorder</b>: every AP engaged run stores JSONL on the Pi 5. Tag with wind / sea / propulsion / crew, share the file with the plugin author for personalized tuning advice.</li>
+              <li><b>Log capture (Pi Zero)</b>: piCore keeps <code>/var/log</code> in RAM. Turn it ON to spool pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.</li>
+              <li><b>Debug console</b>: free-form SSH plus 14 preset buttons (logs, dmesg, top, uptime, df, free, ps, ip, iw, temp, who, ver, restart pypilot_web). BusyBox / piCore-safe fallbacks.</li>
+              <li><b>Remote Control Console (Emergency)</b>: escalated restart triad &mdash; <i>restart pypilot_web</i> (~3&ndash;5 s, AP keeps steering), <i>RESTART pypilot</i> (~10&ndash;15 s, AP drops the heading), <i>reboot Pi</i> (~35&ndash;60 s full outage). Every action asks for a <i>helm-manned</i> confirmation first.</li>
+              <li><b>Watchdog + reconnect</b> (Rev258&ndash;268): pong-based heartbeat detects a dead pypilot inside 20 s, greys out AP-affecting controls, hides the target, and speaks "Pypilot disconnected for N seconds". On reconnect: <i>Pypilot operational</i> voice + toast. If the outage lasted 20 s to 5 min, offers to restore the last target with a banner.</li>
+              <li><b>Language</b>: EN / ES / DE / FR. Stored per browser.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Info tab</h5>
+            <ul class="info-list">
+              <li><b>Visor configuration export / import</b>: your rose layout, AWA/TWA arrows, enabled polars and custom paths as a JSON. Share, download, copy or import from another device. Reset wipes visor config only &mdash; pilot settings on the TinyPilot stay put.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Gestures</h5>
+            <ul class="info-list">
+              <li><b>Swipe</b> horizontally across a tab to go to the next / previous. Blocked over unlocked sliders and horizontally-scrollable tables.</li>
+              <li><b>Long-press</b>: opens config popups. On any corner or the boat sprite &rarr; overlays + corners menu. On a slider name &rarr; raw pypilot key.</li>
+              <li><b>Yellow triangle</b> at the bottom-centre hides the tab bar to give the rose more room. Tap again to bring it back.</li>
+            </ul>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Instrucciones completas</div>
+
+            <h5 style="margin:14px 0 4px">Pesta&ntilde;a Control</h5>
+            <ul class="info-list">
+              <li><b>Enganche / desenganche</b>: pulsa el bot&oacute;n grande <b>AP</b> central. Al enganchar, el plugin fija el rumbo actual (o el &aacute;ngulo AWA/TWA en modos viento) y pide confirmaci&oacute;n de que hay alguien al tim&oacute;n.</li>
+              <li><b>Nudge &plusmn;1 / &plusmn;10</b>: correcci&oacute;n fina y gruesa a cada lado del AP. El tama&ntilde;o del paso se configura en Setup &rarr; Plugin config.</li>
+              <li><b>VIRAR</b>: elige babor / estribor; aparece un modal con cuenta atr&aacute;s indicando el tipo de maniobra (virada o trasluchada seg&uacute;n el AWA) y el rumbo final previsto. Cancela o toca un nudge durante el arming para abortar / ajustar.</li>
+              <li><b>Selector de modo</b>: compass, GPS, viento aparente, viento real, waypoint y APROADO (head-to-wind). Los modos de viento fijan el target al &aacute;ngulo de viento; el diamante se vuelve amber para AWA-lock y verde-mar para TWA.</li>
+              <li><b>Rosa de los vientos</b>: gira para que N siempre apunte al norte real; el barco est&aacute; fijo a la cruj&iacute;a. Marcas cada 30&deg; con N (naranja) / E (verde) / S (azul) / W (rojo). Sectores verde/rojo fijos al barco marcan las zonas de amura (ce&ntilde;ida y no-go).</li>
+              <li><b>Capas</b>: long-press en cualquier esquina O sobre el barco abre el selector de 4 tarjetas: AWA (amber A), TWA (verde-mar T), l&iacute;nea COG (chevrones amarillos, aparece con SOG &gt; 0,15 kn), vector corriente (flecha ondulada azul, necesita SOW).</li>
+              <li><b>Marca de r&aacute;fagas</b>: flecha A fantasma opcional que queda 10 s en el pico de la r&aacute;faga para que veas de d&oacute;nde vino.</li>
+              <li><b>Esquinas</b>: el mismo men&uacute; long-press elige el dato en cada una de las 4 esquinas &mdash; HDG, viento, SOG, COG, target, sonda, modo, polares, path SK personalizado.</li>
+              <li><b>Barra inferior (indicador)</b>: alterna entre <i>escora</i> y <i>&aacute;ngulo del tim&oacute;n</i> desde el popup de configuraci&oacute;n de esquinas. Muestra el valor en n&uacute;mero grande con marcadores triangulares.</li>
+              <li><b>Long-press sobre el barco</b>: tambi&eacute;n abre el <i>Historial de bordos</i> &mdash; cada virada con retenci&oacute;n de SOG y tiempo de recuperaci&oacute;n.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Pesta&ntilde;a Ajustes (Tune)</h5>
+            <ul class="info-list">
+              <li><b>Piloto / Perfil</b>: pypilot puede tener varios pilotos (basic, learning) y varios perfiles dentro de cada uno. C&aacute;mbialos desde los desplegables.</li>
+              <li><b>Desbloquear ajustes</b>: bloqueado por defecto. Al desbloquear y mover una ganancia, ves el valor anterior en naranja como referencia. Se relockea al salir del tab.</li>
+              <li><b>Ganancias</b>: P (reacci&oacute;n al error), I (cierra deriva persistente), D (frena el overshoot), DD (anticipa la aceleraci&oacute;n del error), PR (reacciona a la velocidad de giro), FF (feed-forward para cambios comandados). Pulsa el ? para una explicaci&oacute;n en lenguaje llano.</li>
+              <li><b>Sliders Servo / IMU</b>: corriente m&aacute;xima, velocidad m&aacute;xima del tim&oacute;n, offset del IMU (v&iacute;a <i>Nivelar (barco adrizado)</i>), rango del tim&oacute;n y centrado.</li>
+              <li><b>Sliders de virada</b>: &aacute;ngulo de la virada (cu&aacute;ntos grados girar) y velocidad (deg/s).</li>
+              <li><b>Guardar cambios</b>: al salir del tab, un modal ofrece guardar los cambios en el perfil activo <i>o</i> clonarlo en uno nuevo (deja el original intacto).</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Pesta&ntilde;a Gr&aacute;fica</h5>
+            <ul class="info-list">
+              <li><b>Estad&iacute;sticas de sesi&oacute;n</b>: tiempo con AP activo, distancia, energ&iacute;a consumida, error medio / RMS / p95 del rumbo, tiempo activo del servo, viradas / trasluchadas, corriente m&aacute;x del servo.</li>
+              <li><b>Hist&oacute;rico</b>: &uacute;ltima hora de error de rumbo, actividad del servo, viento y SOG dibujados desde el grabador del Pi 5 (JSONL).</li>
+              <li><b>Salud del servo</b>: aprende un baseline de trabajo t&iacute;pico en el mar y luego avisa de desviaciones (<i>Media reciente</i>, <i>Pico 30 s</i>, temperatura, voltaje) &mdash; primer aviso de arrastre, algas o rodamientos gastados.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Pesta&ntilde;a Regata</h5>
+            <ul class="info-list">
+              <li><b>Countdown T1 / T2</b> con duraciones configurables. TIMER arranca / pausa, SYNC redondea al minuto durante el countdown, RESET vuelve a idle.</li>
+              <li><b>Beeps + flash de pantalla + voz</b> en los &uacute;ltimos 10 s. Corre de fondo en cualquier pesta&ntilde;a.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Pesta&ntilde;a Paths &amp; API</h5>
+            <ul class="info-list">
+              <li>Cat&aacute;logo en vivo de los ~110 paths de Signal K que publica este plugin (state / mode / target / gains / servo / calibraci&oacute;n / avisos / perfiles / detalle de virada&hellip;).</li>
+              <li>Tabla <b>KIP action paths</b> con botones de copia: filas <i>Simple Switch</i> (azul) para engage / nudge / virar / selector de modo / selector de perfil; filas <i>Put</i> (verde) para modo string y target radianes.</li>
+              <li>Toggle <b>Publicar solo esenciales</b>: mantiene la carga del bus SK ligera publicando &uacute;nicamente los esenciales y los paths que actives expl&iacute;citamente.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Pesta&ntilde;a Setup</h5>
+            <ul class="info-list">
+              <li><b>Conexi&oacute;n</b>: escaneo LAN de pypilot_web, host+puerto manual, toggle Absorber Autopilot Provider, estado de conexi&oacute;n en vivo.</li>
+              <li><b>Comprobaci&oacute;n del piloto</b> (pre-departure): agrega cada sensor / servo / voltaje / conectividad en un veredicto &uacute;nico (listo / con reservas / no activar). Recalcula cada 3 s.</li>
+              <li><b>Alarmas</b>: on / off / silenciar por regla; desv&iacute;o de rumbo, deriva sostenida, sin autoridad, sobrecorriente servo, temperatura servo, temperatura motor, carga alta, tensi&oacute;n baja, sensor perdido, pypilot desconectado. Publica <code>notifications.*</code> can&oacute;nicas SK para KIP / WilhelmSK, lee la alarma en voz alta y ense&ntilde;a un banner arriba de la app.</li>
+              <li><b>Calidad de sensores</b>: frescura + frecuencia + jitter + fuente de cada path SK cr&iacute;tico para el AP. Verde / &aacute;mbar / rojo para detectar de un vistazo un comp&aacute;s congelado o un tim&oacute;n lento. Ignorar / restaurar por sensor.</li>
+              <li><b>Asesoramiento y diagn&oacute;stico (Doctor)</b>: engancha el AP, pulsa DIAGNOSTICAR y el plugin graba el error de rumbo + la respuesta del servo. Propone ajustes P / I / D con una explicaci&oacute;n en lenguaje llano. Nada se aplica autom&aacute;ticamente &mdash; APLICAR bifurca el perfil actual en <code>doctor-YYYYMMDD-HHMM</code> para dejar el original intacto.</li>
+              <li><b>Piloto Inteligente</b>: tres capas opcionales sobre pypilot &mdash; auto seleccionar el perfil pypilot por banda de viento, reaccionar a las r&aacute;fagas (congelar target / subir D / perfil pesado / avisar) y auto-desenganchar por p&eacute;rdida de autoridad (RMS &gt; 30&deg; y duty &gt; 90%).</li>
+              <li><b>Grabador de sesiones de navegaci&oacute;n</b>: cada rato de AP enganchado se guarda como JSONL en el Pi 5. Etiqu&eacute;talo con viento / mar / propulsi&oacute;n / tripulaci&oacute;n y comparte con el autor del plugin para asesoramiento de ajustes personalizado.</li>
+              <li><b>Captura de logs (Pi Zero)</b>: piCore guarda <code>/var/log</code> en RAM. Actívala para volcar los logs pypilot / pypilot_web / pypilot_hat a un archivo persistente en el Pi 5.</li>
+              <li><b>Consola de debug</b>: SSH libre + 14 botones de preset (logs, dmesg, top, uptime, df, free, ps, ip, iw, temp, who, ver, restart pypilot_web). Fallbacks compatibles con BusyBox / piCore.</li>
+              <li><b>Consola de control remoto (Emergencia)</b>: tr&iacute;ada de reinicio escalado &mdash; <i>restart pypilot_web</i> (~3&ndash;5 s, el AP sigue pilotando), <i>REINICIAR pypilot</i> (~10&ndash;15 s, el AP suelta el rumbo), <i>reboot Pi</i> (~35&ndash;60 s, corte total). Cada acci&oacute;n pide confirmaci&oacute;n <i>tim&oacute;n atendido</i> antes de ejecutar.</li>
+              <li><b>Watchdog + reconexi&oacute;n</b> (Rev258&ndash;268): heartbeat basado en pong detecta un pypilot muerto en menos de 20 s, engrisece los controles que afectan al AP, oculta el target y locuta "Pypilot desconectado desde hace N segundos". Al reconectar: voz + toast "Pypilot operativo". Si la interrupci&oacute;n dur&oacute; entre 20 s y 5 min, ofrece restaurar el &uacute;ltimo target con un banner.</li>
+              <li><b>Idioma</b>: EN / ES / DE / FR. Se guarda por navegador.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Pesta&ntilde;a Info</h5>
+            <ul class="info-list">
+              <li><b>Exportar / importar configuraci&oacute;n del visor</b>: tu layout de rosa, flechas AWA/TWA, polares habilitadas y paths personalizados como JSON. Comparte, descarga, copia o importa desde otro dispositivo. Resetear borra solo la config del visor &mdash; los ajustes del piloto en la TinyPilot quedan intactos.</li>
+            </ul>
+
+            <h5 style="margin:14px 0 4px">Gestos</h5>
+            <ul class="info-list">
+              <li><b>Swipe</b> horizontal en cualquier pesta&ntilde;a para cambiar a la siguiente / anterior. Bloqueado sobre sliders desbloqueados y tablas con scroll horizontal.</li>
+              <li><b>Long-press</b>: abre popups de configuraci&oacute;n. En cualquier esquina o sobre el barco &rarr; men&uacute; de capas + esquinas. Sobre el nombre de un slider &rarr; clave pypilot cruda.</li>
+              <li><b>Tri&aacute;ngulo amarillo</b> abajo del centro oculta la barra de pesta&ntilde;as para ganar espacio para la rosa. Otra pulsaci&oacute;n la vuelve a mostrar.</li>
+            </ul>
           </div>
         </div>
 
@@ -1676,16 +1962,23 @@
   <div class="popup-overlay" id="boat-menu-pop"
        onclick="if(event.target.id==='boat-menu-pop')this.classList.remove('open')">
     <div class="popup-box" onclick="event.stopPropagation()" style="max-width:360px">
-      <h4 style="margin:0 0 6px 0">Barco</h4>
+      <h4 style="margin:0 0 6px 0">
+        <span data-lang="en">Boat</span>
+        <span data-lang="es">Barco</span>
+      </h4>
       <button class="popup-close" onclick="document.getElementById('boat-menu-pop').classList.remove('open')">✕</button>
       <div class="popup-body" style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
         <button class="primary" id="boat-menu-corners" style="padding:16px;font-size:16px;text-align:left">
-          Cambiar esquinas
-          <span style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Elige qué dato aparece en cada corner de la rosa.</span>
+          <span data-lang="en">Change corners</span>
+          <span data-lang="es">Cambiar esquinas</span>
+          <span data-lang="en" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Pick which datum shows in each corner of the rose.</span>
+          <span data-lang="es" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Elige qué dato aparece en cada esquina de la rosa.</span>
         </button>
         <button class="primary" id="boat-menu-tacklog" style="padding:16px;font-size:16px;text-align:left">
-          Historial de bordos
-          <span style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Lista de tus últimos bordos, con retención de velocidad y tiempo de recuperación.</span>
+          <span data-lang="en">Tack history</span>
+          <span data-lang="es">Historial de bordos</span>
+          <span data-lang="en" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Your recent tacks, with speed retention and recovery time.</span>
+          <span data-lang="es" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Lista de tus últimos bordos, con retención de velocidad y tiempo de recuperación.</span>
         </button>
       </div>
     </div>
@@ -1697,17 +1990,29 @@
   <div class="popup-overlay" id="tack-log-pop"
        onclick="if(event.target.id==='tack-log-pop')this.classList.remove('open')">
     <div class="popup-box" onclick="event.stopPropagation()" style="max-width:720px">
-      <h4 style="margin:0">Historial de bordos</h4>
+      <h4 style="margin:0">
+        <span data-lang="en">Tack history</span>
+        <span data-lang="es">Historial de bordos</span>
+      </h4>
       <button class="popup-close" onclick="document.getElementById('tack-log-pop').classList.remove('open')">✕</button>
       <div class="popup-body">
         <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <button class="ghost tack-log-filter" data-days="1">Hoy</button>
+          <button class="ghost tack-log-filter" data-days="1">
+            <span data-lang="en">Today</span>
+            <span data-lang="es">Hoy</span>
+          </button>
           <button class="ghost tack-log-filter" data-days="3">3 d</button>
           <button class="ghost tack-log-filter" data-days="7">7 d</button>
           <button class="ghost tack-log-filter" data-days="30">30 d</button>
-          <button class="ghost tack-log-filter" data-days="0">Todos</button>
+          <button class="ghost tack-log-filter" data-days="0">
+            <span data-lang="en">All</span>
+            <span data-lang="es">Todos</span>
+          </button>
           <span style="flex:1"></span>
-          <button class="ghost" id="tack-log-clear" style="color:var(--danger,#ff5d5d)">Vaciar</button>
+          <button class="ghost" id="tack-log-clear" style="color:var(--danger,#ff5d5d)">
+            <span data-lang="en">Clear</span>
+            <span data-lang="es">Vaciar</span>
+          </button>
         </div>
         <div id="tack-log-stats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
         <div id="tack-log-list" style="display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto"></div>
@@ -1715,7 +2020,83 @@
     </div>
   </div>
 
+  <!-- Rev178 (Carlos): trip detail modal. Filled from
+       /trip-recorder/summary/:id, rendered as card grid. -->
+  <div class="popup-overlay" id="trip-detail-pop"
+       onclick="if(event.target.id==='trip-detail-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()" style="max-width:720px">
+      <h4 id="trip-detail-title" style="margin:0">
+        <span data-lang="en">Trip</span>
+        <span data-lang="es">Viaje</span>
+      </h4>
+      <button class="popup-close" onclick="document.getElementById('trip-detail-pop').classList.remove('open')">✕</button>
+      <div class="popup-body">
+        <!-- Rev179 (Carlos): OpenSeaMap trace. Loads Leaflet lazily the
+             first time a trip modal opens. The map renders the raw
+             positions from trip-<id>.jsonl as a polyline coloured by
+             SOG, with markers on peak wind / peak SOG / min voltage /
+             each detected tack. -->
+        <div id="trip-detail-map" style="height:300px;border-radius:8px;overflow:hidden;background:#0a1220;border:1px solid var(--border,#2b3542);margin-bottom:14px"></div>
+        <div id="trip-detail-map-legend" style="font-size:11px;opacity:0.7;margin:-8px 0 12px;display:flex;flex-wrap:wrap;gap:12px"></div>
+        <div id="trip-detail-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div>
+        <div id="trip-detail-highlights" style="margin-top:14px;display:flex;flex-direction:column;gap:6px"></div>
+        <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
+          <!-- Rev180 (Carlos): share to WhatsApp. Renders a portrait
+               PNG card with stats + trace and hands it to
+               navigator.share. Fallback to wa.me?text with the raw
+               summary when the browser has no Share API. -->
+          <button id="trip-detail-share" class="primary" style="background:#25D366;border-color:#128C7E;color:#fff">
+            <span data-lang="en">Share via WhatsApp</span>
+            <span data-lang="es">Compartir por WhatsApp</span>
+          </button>
+          <button id="trip-detail-download" class="ghost">
+            <span data-lang="en">Download JSONL</span>
+            <span data-lang="es">Descargar JSONL</span>
+          </button>
+          <button id="trip-detail-delete" class="ghost" style="color:var(--danger,#ff5d5d)">
+            <span data-lang="en">Delete</span>
+            <span data-lang="es">Eliminar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Cache-busting: bump the ?v= on every Rev to force Firefox to fetch fresh app.js -->
-  <script src="app.js?v=Rev174"></script>
+  <!-- Rev181 (Carlos): share picker. Small popup that lets the user
+       choose between three artefacts to send to WhatsApp: a rendered
+       PNG card, a screenshot of the whole modal, or plain text only. -->
+  <div class="popup-overlay" id="trip-share-pop"
+       onclick="if(event.target.id==='trip-share-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()" style="max-width:400px">
+      <h4 style="margin:0 0 6px 0">
+        <span data-lang="en">Share trip</span>
+        <span data-lang="es">Compartir viaje</span>
+      </h4>
+      <button class="popup-close" onclick="document.getElementById('trip-share-pop').classList.remove('open')">&#10006;</button>
+      <div class="popup-body" style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        <button class="primary" id="trip-share-card" style="padding:14px;font-size:14px;text-align:left;background:#25D366;border-color:#128C7E;color:#fff">
+          <span data-lang="en">Trip photo</span>
+          <span data-lang="es">Foto del viaje</span>
+          <span data-lang="en" style="display:block;font-size:11px;opacity:0.9;font-weight:400;margin-top:2px">Pretty card with stats + track. Downloads and opens WhatsApp.</span>
+          <span data-lang="es" style="display:block;font-size:11px;opacity:0.9;font-weight:400;margin-top:2px">Tarjeta con datos + trazado. Se descarga y se abre WhatsApp.</span>
+        </button>
+        <button class="primary" id="trip-share-screenshot" style="padding:14px;font-size:14px;text-align:left">
+          <span data-lang="en">Screenshot of this window</span>
+          <span data-lang="es">Captura de esta ventana</span>
+          <span data-lang="en" style="display:block;font-size:11px;opacity:0.7;font-weight:400;margin-top:2px">Full modal screenshot with map. Downloads and opens WhatsApp.</span>
+          <span data-lang="es" style="display:block;font-size:11px;opacity:0.7;font-weight:400;margin-top:2px">Screenshot del modal completo con mapa. Se descarga y se abre WhatsApp.</span>
+        </button>
+        <button class="primary" id="trip-share-text" style="padding:14px;font-size:14px;text-align:left">
+          <span data-lang="en">Text only</span>
+          <span data-lang="es">Solo texto</span>
+          <span data-lang="en" style="display:block;font-size:11px;opacity:0.7;font-weight:400;margin-top:2px">Opens WhatsApp with the written summary.</span>
+          <span data-lang="es" style="display:block;font-size:11px;opacity:0.7;font-weight:400;margin-top:2px">Abre WhatsApp con el resumen escrito.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=Rev277"></script>
 </body>
 </html>

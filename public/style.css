@@ -416,6 +416,16 @@ main {
 }
 .dash-rose .wind-chip:active { transform: translateX(-50%) scale(0.96); }
 
+/* Rev187 (Carlos): target diamond blinks during a tack maneuver so
+   the sailor keeps an eye on where the boat is heading. Applied via
+   the `tack-target-blink` class from renderTargetArrow(). */
+@keyframes tack-target-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+#rose-target-arrow.tack-target-blink {
+  animation: tack-target-blink 0.6s ease-in-out infinite;
+}
 /* Rev171 (Carlos): boat sprite glow while the post-tack stats HUD
    is visible so the skipper spots the summary panel at a glance. */
 @keyframes boat-glow-pulse {
@@ -991,6 +1001,13 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
 }
 .steer-btn:active { background: var(--accent-dim); }
 .steer-btn.center { min-width: 56px; font-size: 22px; }
+/* Rev227/230 (Carlos): "big" nudge (10) more visible than "small" (1). */
+.steer-btn.nudge-big-port .lbl,
+.steer-btn.nudge-big-star .lbl { font-size: 1.25em; font-weight: 900; }
+/* Rev230/233 (Carlos): SVG tack icon fills the button, no max-height
+   so both arrow heads (top-right / bottom-left) always render. */
+.tack-svg { width: 100%; height: 100%; display: block; }
+.tack-btn { padding: 6px; }
 
 /* Portrait phones: default. Nothing to do. */
 
@@ -1859,6 +1876,10 @@ main { touch-action: pan-y; overflow-x: hidden; }
   user-select: none;
   overflow: hidden;
 }
+/* Rev188 (Carlos): relax the strip overflow ONLY while the marker's
+   own dropdown is open, so the two option buttons can spill above the
+   strip instead of being clipped. Uses :has() (all modern browsers). */
+.swipe-hint:has(.rudder-marker.dd-open) { overflow: visible; }
 
 /* Rev65 / 2.0.2 - Rudder angle bar painted inside the swipe-hint strip.
    .rudder-track is a full-width horizontal gradient (red = port left,
@@ -1867,8 +1888,12 @@ main { touch-action: pan-y; overflow-x: hidden; }
    marker) sit above it via z-index. The nav-toggle's own yellow
    triangle visually stands in for the 0 deg reference. */
 .swipe-hint .rudder-track {
+  /* Rev186/187/188 (Carlos): 12 px inset per side. Enough to keep the
+     end label ("30" / "70") from being clipped, but tight enough to
+     actually aprovechar todo el ancho de la caja - Rev187 was too
+     conservative and left a big empty margin on either side. */
   position: absolute;
-  inset: 4px 8px;                         /* small inset from the strip edge */
+  inset: 4px 12px;
   border-radius: 8px;
   background: linear-gradient(
     90deg,
@@ -1882,67 +1907,165 @@ main { touch-action: pan-y; overflow-x: hidden; }
   pointer-events: none;
 }
 .swipe-hint .rudder-marker {
+  /* Rev183/184 (Carlos): the marker IS the value AND the menu opener.
+     Big glowing number with a triangle above and below. Position is
+     horizontal (%) driven by JS. Tapping it opens the corner config
+     popup (where the sailor picks rudder vs escora), so there is no
+     separate chip taking up space. */
   position: absolute;
-  top: 2px;
-  bottom: 2px;
-  width: 4px;
-  margin-left: -2px;                      /* center on `left` */
-  background: #ffffff;
-  border-radius: 2px;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
-  z-index: 1;
+  top: -8px;
+  bottom: -8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0px;
+  margin-left: -26px;               /* half of min-width for centering */
+  min-width: 52px;
+  z-index: 4;
   transition: left 180ms ease-out;
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* Rev184 (Carlos): the central nav-toggle triangle competes visually
+   with the new big marker. Shrink it hard and lower its opacity so it
+   is present (still tappable to hide/show the tab bar) but never
+   fights the marker for attention. When the marker sits close to the
+   centre they overlap - the marker's z-index:4 keeps it on top. */
+.swipe-hint .nav-toggle {
+  opacity: 0.28;
+  transform: scale(0.65);
+}
+.swipe-hint .nav-toggle:active { opacity: 0.85; }
+.swipe-hint .rudder-marker .rmk-tri {
+  color: #ffcf47;
+  font-size: 10px;
+  line-height: 1;
+  filter: drop-shadow(0 0 3px rgba(255,207,71,0.9));
   pointer-events: none;
+}
+.swipe-hint .rudder-marker .rmk-num {
+  /* Rev184 (Carlos): "sube tamalo a marcador, mas grande aun". 18 -> 26 */
+  color: #ffcf47;
+  font-family: ui-monospace, monospace;
+  font-weight: 900;
+  font-size: 26px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(10, 15, 24, 0.9);
+  border: 1px solid rgba(255, 207, 71, 0.55);
+  text-shadow: 0 0 8px rgba(255, 207, 71, 0.9);
+  filter: drop-shadow(0 0 8px rgba(255, 207, 71, 0.7));
+  pointer-events: none;
+  letter-spacing: -0.5px;
+}
+.swipe-hint .rudder-marker .rmk-tri {
+  font-size: 12px;
+}
+.swipe-hint .rudder-marker:active .rmk-num { transform: scale(0.95); }
+/* Rev185/189 (Carlos): local dropdown that hangs above the marker.
+   Rev189: moved to `position: fixed` so any ancestor overflow:hidden
+   cannot clip it. JS calculates .top/.left at open time from the
+   marker's bounding rect. */
+.rmk-dropdown {
+  position: fixed;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(10, 15, 24, 0.96);
+  border: 1px solid rgba(255, 207, 71, 0.55);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.55);
+  z-index: 5000;
+  min-width: 120px;
+  transform: translate(-50%, 0);
+}
+.rmk-dropdown.open { display: flex; }
+.rmk-dropdown .rmk-dd-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 207, 71, 0.35);
+  color: #ffcf47;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+.rmk-dropdown .rmk-dd-btn:hover,
+.rmk-dropdown .rmk-dd-btn.active {
+  background: rgba(255, 207, 71, 0.18);
+  border-color: rgba(255, 207, 71, 0.9);
 }
 /* Rev66 / 2.0.4 - rudder scale labels at both ends of the swipe-hint
    bar. Small dim numbers indicating the rudder range in degrees. Text
    populated by renderRudder() with the current pypilot rudder.range
    (default 70 deg). Pointer-events off so they don't block taps. */
 .swipe-hint .rudder-label {
+  /* Rev182/183/186 (Carlos): end labels ("30" / "70" etc). Same size
+     hierarchy as majors, centred over the extreme tick line instead
+     of hugged to the strip edges. */
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
-  font-size: 10px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.55);
+  transform: translate(-50%, -50%);
+  font-size: 17px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 3px #000, 0 0 6px rgba(0,0,0,0.7);
   z-index: 1;
   pointer-events: none;
-  padding: 0 6px;
   font-family: ui-monospace, monospace;
   letter-spacing: 0.5px;
 }
-.swipe-hint .rudder-label-left  { left: 6px; }
-.swipe-hint .rudder-label-right { right: 6px; }
+/* Rev186/187/188: centre the end labels on the extreme tick line.
+   Ticks container has 12 px horizontal inset. */
+.swipe-hint .rudder-label-left  { left:  12px; }
+.swipe-hint .rudder-label-right { left: auto; right: 12px; transform: translate(50%, -50%); }
 /* Rev66 / 2.0.4 - intermediate tick container. renderRudder() fills
    this with small marks every 10 deg + numeric labels every 20 deg. */
 .swipe-hint .rudder-ticks {
+  /* Rev186/187/188 (Carlos): 12 px inset, same as .rudder-track. */
   position: absolute;
-  inset: 4px 8px;
+  inset: 4px 12px;
   z-index: 0;
   pointer-events: none;
 }
 .swipe-hint .rudder-ticks .rt {
+  /* Rev186 (Carlos): "las lineas mas gruesas". 1 -> 2 for minors,
+     1 -> 3 for majors. Higher opacity too. */
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  margin-left: -0.5px;
-  background: rgba(255, 255, 255, 0.25);
-}
-.swipe-hint .rudder-ticks .rt.major {
-  width: 1px;
+  width: 2px;
+  margin-left: -1px;
   background: rgba(255, 255, 255, 0.45);
 }
+.swipe-hint .rudder-ticks .rt.major {
+  width: 3px;
+  margin-left: -1.5px;
+  background: rgba(255, 255, 255, 0.75);
+}
 .swipe-hint .rudder-ticks .rl {
+  /* Rev185 (Carlos): 3-size hierarchy, no signs. Base rules first,
+     then .rl-major and .rl-minor override the font-size. */
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-size: 9px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.55);
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 3px #000, 0 0 6px rgba(0,0,0,0.7);
   font-family: ui-monospace, monospace;
   pointer-events: none;
 }
+.swipe-hint .rudder-ticks .rl-major { font-size: 15px; }
+.swipe-hint .rudder-ticks .rl-minor { font-size: 11px; opacity: 0.85; }
+/* Rev183 (Carlos): the source selector (rudder vs escora) moved to the
+   corner-config popup so it no longer competes with the marker on the
+   tiny strip. The chip class stays defined in case it's referenced
+   from other Revs but nothing renders it anymore. */
 .swipe-hint-arrow,
 .swipe-hint .nav-toggle {
   position: relative;                     /* stack above the rudder track */
@@ -3371,3 +3494,105 @@ td.sq-action {
 }
 .setup-block-status:empty { display: none; }
 .setup-block-status b { color: var(--fg); font-weight: 700; }
+
+/* Rev260/261 (Carlos): passive feedback when pypilot is offline.
+   Body carries the class; every write-side control below reads it.
+   No pointer-events:none - a stubborn click still travels and the
+   backend's authoritative Rev254/257 guard rejects it in 503. */
+body.pypilot-offline #engage-toggle,
+body.pypilot-offline #tack-port-btn,
+body.pypilot-offline #tack-star-btn,
+body.pypilot-offline .steer-btn[data-nudge-kind],
+body.pypilot-offline #mode-select,
+body.pypilot-offline #pilot-select,
+body.pypilot-offline #profile-select,
+body.pypilot-offline #calib-unlock,
+body.pypilot-offline .cal-slider input,
+body.pypilot-offline .cal-reset-btn,
+body.pypilot-offline .gain-row input[type=range],
+body.pypilot-offline .gain-row .nudge-btn,
+body.pypilot-offline #cfg-apply,
+body.pypilot-offline .absorb-toggle,
+body.pypilot-offline .pypilot-write {
+  opacity: 0.35;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+/* Rev261 (Carlos): green transient toast when pypilot comes back. */
+.pypilot-reconnect-toast {
+  position: fixed;
+  left: 50%;
+  top: 24px;
+  transform: translateX(-50%) translateY(-40px);
+  background: #12b76a;
+  color: #fff;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.pypilot-reconnect-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Rev268 (Carlos): banner no-modal para ofrecer restaurar target
+   tras un corte de conexión con AP engaged. Aparece arriba del
+   visor sin bloquear controles; el sailor decide con contexto
+   (target antiguo + heading actual). Timeout 60 s = No. */
+.pypilot-restore-banner {
+  position: fixed;
+  left: 50%;
+  top: 78px;
+  transform: translateX(-50%) translateY(-20px);
+  background: #1a1f2e;
+  border: 2px solid #12b76a;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 90vw;
+}
+.pypilot-restore-banner.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.pypilot-restore-banner .prb-msg {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.pypilot-restore-banner .prb-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.pypilot-restore-banner .prb-yes,
+.pypilot-restore-banner .prb-no {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pypilot-restore-banner .prb-yes {
+  background: #12b76a;
+  color: #fff;
+}
+.pypilot-restore-banner .prb-no {
+  background: #4a5060;
+  color: #fff;
+}

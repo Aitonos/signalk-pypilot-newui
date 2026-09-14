@@ -93,7 +93,12 @@ export const RULE_UNABLE_DUTY_MIN = 0.7;                  // 70% duty
 export const RULE_SERVO_OVERCURR_A = 5.0;
 export const RULE_SERVO_TEMP_C     = 60;
 export const RULE_LOW_VOLTAGE_V    = 11.0;
-export const RULE_PYPILOT_DISC_SEC = 10;
+// Rev256 lowered this from 10 s to 3 s. Rev258 (Carlos): with the new
+// pong-aware `healthy` check the socket is flagged offline after ~8 s
+// of missed pings (much earlier than TCP heartbeat would), so we can
+// afford a very short sustain here. Total from real pypilot power-off
+// to alarm firing: ~8 s + 1 s = 9 s.
+export const RULE_PYPILOT_DISC_SEC = 1;
 
 export const DEFAULT_RULES: RuleDef[] = [
   {
@@ -243,6 +248,12 @@ export const DEFAULT_RULES: RuleDef[] = [
     description: "One or more critical SK paths have gone stale beyond their lost threshold.",
     evaluate: (c) => {
       if (!c.quality) return false;
+      // Rev256 (Carlos): if pypilot itself is disconnected, EVERY
+      // pypilot-fed sensor will read as "lost" too. Suppress this
+      // alarm while pypilot is down - the dedicated pypilot-disconnected
+      // alarm already tells the sailor the real cause and cascade
+      // noise only hides it.
+      if (!c.connected) return false;
       return c.quality.items.some((it) => it.level === "lost");
     },
     message: (c) => {
@@ -252,16 +263,32 @@ export const DEFAULT_RULES: RuleDef[] = [
   },
   {
     id: "pypilot-disconnected",
-    label: "pypilot disconnected",
+    label: "Pypilot desconectado",
     severity: "alarm",
     defaultEnabled: true,
     sustainSec: RULE_PYPILOT_DISC_SEC,
     description: `pypilot_web socket has been down for ${RULE_PYPILOT_DISC_SEC} seconds.`,
     evaluate: (c) => !c.connected,
     message: (c) => {
-      if (c.disconnectedSinceMs == null) return "pypilot_web disconnected";
-      const secs = Math.floor((c.nowMs - c.disconnectedSinceMs) / 1000);
-      return `pypilot_web disconnected ${secs}s`;
+      if (c.disconnectedSinceMs == null) return "Pypilot desconectado";
+      // Rev265/266 (Carlos): palabras completas ("segundos", "minutos",
+      // "horas") - las abreviaturas "s" / "min" el TTS las lee mal ("dos
+      // ese" en vez de "dos segundos"). Uso plural/singular correcto.
+      const totalSec = Math.floor((c.nowMs - c.disconnectedSinceMs) / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      const w = (n: number, sing: string, plur: string) =>
+        `${n} ${n === 1 ? sing : plur}`;
+      let tail;
+      if (h > 0) {
+        tail = `${w(h, "hora", "horas")}, ${w(m, "minuto", "minutos")} y ${w(s, "segundo", "segundos")}`;
+      } else if (m > 0) {
+        tail = `${w(m, "minuto", "minutos")} y ${w(s, "segundo", "segundos")}`;
+      } else {
+        tail = w(s, "segundo", "segundos");
+      }
+      return `Pypilot desconectado desde hace ${tail}`;
     },
   },
 ];

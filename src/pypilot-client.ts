@@ -69,7 +69,22 @@ export class PypilotClient extends EventEmitter {
   private watches: Record<string, true | number> = {};
   private pingTimer: NodeJS.Timeout | null = null;
   private pingStartMs = 0;
+  // Rev257 (Carlos): timestamp of last received pong. socket.connected
+  // stays true for the ~5-10 s it takes socket.io's TCP heartbeat to
+  // notice a dead peer, and any set() during that window writes into
+  // the void yet succeeds. Track the last real pong and use it as a
+  // stricter liveness check in set().
+  private lastPongMs: number | null = null;
   private closed = false;
+  // Rev271 (audit R03): pypilot_web can stay alive with the core dead
+  // (`pypilot_disconnect` event). Track it as sticky state — only a
+  // positive signal from the core clears it. A fresh pong from
+  // pypilot_web alone does NOT confirm the core is back.
+  private coreOffline = false;
+  // Rev271 (audit R05): single gate honoured by set(). Provider,
+  // action handlers and momentary switches all route their writes
+  // through here, so this covers them all.
+  private allowWrites = true;
 
   constructor(opts: PypilotClientOpts) {
     super();
@@ -83,6 +98,32 @@ export class PypilotClient extends EventEmitter {
 
   get connected(): boolean {
     return !!this.socket && this.socket.connected;
+  }
+
+  /**
+   * Rev258 (Carlos): stricter than `connected`. Same guard set() uses.
+   * `socket.connected` remains true for the ~5-10 s that TCP heartbeat
+   * takes to notice a dead peer; during that window the peer is dead
+   * for practical purposes but naive checks say "healthy". This
+   * getter returns FALSE as soon as we have gone > 8 s without a pong.
+   */
+  get healthy(): boolean {
+    if (!this.socket || !this.socket.connected) return false;
+    // Rev271 (audit R03): pong from pypilot_web is not proof the core
+    // is alive; the sticky coreOffline flag must clear first.
+    if (this.coreOffline) return false;
+    if (this.lastPongMs == null) return true;   // still in grace window
+    // Rev277 (Carlos QA): tighter pong window (5 s, was 8 s) so a
+    // dead pypilot socket flips false in half the previous time. Two
+    // missed 2 s ping cycles are enough to raise the flag.
+    return Date.now() - this.lastPongMs <= 5000;
+  }
+
+  // Rev271 (audit R05): honoured by set(). sendWatch (subscription
+  // control) is not gated because subscriptions are read-only from
+  // pypilot's perspective.
+  setAllowWrites(v: boolean): void {
+    this.allowWrites = !!v;
   }
 
   getCatalog(): PypilotCatalog {
@@ -122,7 +163,21 @@ export class PypilotClient extends EventEmitter {
     });
     this.socket.on("connect", () => {
       this.opts.log("info", `[pypilot] socket.io connected id=${this.socket?.id}`);
+      // Rev257: give the freshly-connected socket a grace window
+      // before the pong-based liveness check can reject writes.
+      this.lastPongMs = Date.now();
       this.emit("connect");
+      // Rev277 (Carlos QA): fire an active ping immediately on the
+      // freshly-established socket rather than waiting for the next
+      // interval tick (~2 s). A live pypilot_web pongs back in
+      // milliseconds; that pong lands as a value-carrying `pypilot`
+      // event soon after (subscriptions re-armed below), which is the
+      // fastest way to clear coreOffline. Shaves ~2-3 s off the "back
+      // online" transition Carlos reported.
+      try {
+        this.pingStartMs = Date.now();
+        this.socket?.emit("ping");
+      } catch { /* defensive */ }
       // Re-apply watches after reconnect so subscriptions survive drops.
       for (const [name, period] of Object.entries(this.watches)) {
         this.sendWatch(name, period);
@@ -141,6 +196,13 @@ export class PypilotClient extends EventEmitter {
       try {
         const raw = typeof msg === "string" ? JSON.parse(msg) : msg;
         const incoming = raw as PypilotCatalog;
+        // Rev271 (audit R03): catalog arrival is positive evidence the
+        // core is talking. Clear the sticky offline flag.
+        if (incoming && Object.keys(incoming).length > 0 && this.coreOffline) {
+          this.coreOffline = false;
+          this.opts.log("info", "[pypilot] core back online (catalog received)");
+          this.emit("pypilot_online");
+        }
         const hadKeys = Object.keys(this.catalog).length;
         // Rev63 / 2.0.0 (issue #2, Sean D'Epagnier): merge instead of
         // replace. Second and subsequent `pypilot_values` deliveries carry
@@ -165,6 +227,13 @@ export class PypilotClient extends EventEmitter {
       try {
         const dict = typeof msg === "string" ? JSON.parse(msg) : msg;
         if (!dict || typeof dict !== "object") return;
+        // Rev271 (audit R03): live updates from the core are also
+        // positive evidence it is online. Clear sticky offline.
+        if (this.coreOffline && Object.keys(dict).length > 0) {
+          this.coreOffline = false;
+          this.opts.log("info", "[pypilot] core back online (values received)");
+          this.emit("pypilot_online");
+        }
         for (const [name, value] of Object.entries(dict)) {
           this.lastValues[name] = value;
           this.emit("value", name, value);
@@ -175,10 +244,17 @@ export class PypilotClient extends EventEmitter {
     });
     this.socket.on("pypilot_disconnect", () => {
       this.opts.log("warn", "[pypilot] pypilot core reported offline");
+      // Rev271 (audit R03): sticky. Cleared only by catalog/values
+      // arriving from the core — never by socket pings alone.
+      this.coreOffline = true;
       this.emit("pypilot_offline");
     });
     this.socket.on("pong", () => {
-      const latency = Date.now() - this.pingStartMs;
+      const now = Date.now();
+      const latency = now - this.pingStartMs;
+      // Rev257: record the timestamp so set() can reject writes on a
+      // socket where socket.connected still lies "true".
+      this.lastPongMs = now;
       this.emit("pong", latency);
     });
   }
@@ -241,14 +317,53 @@ export class PypilotClient extends EventEmitter {
   /**
    * Write a value. Value is JSON-stringified per pypilot protocol.
    * The pypilot server accepts scalars, arrays, and dicts.
+   *
+   * Rev254 (Carlos audit): returns TRUE only if the socket is
+   * actually connected at emit time. Callers used to swallow the
+   * missing-socket case silently which let the visor report a
+   * successful order that never left the browser side. False means
+   * "not delivered - do not update optimistic state, do not report
+   * success to the sailor".
    */
-  set(name: string, value: unknown): void {
-    if (!this.socket) return;
+  set(name: string, value: unknown): boolean {
+    // Rev271 (audit R05): single gate for the whole plugin.
+    if (!this.allowWrites) {
+      this.opts.log("warn", `[pypilot] set '${name}' skipped: writes disabled by plugin config`);
+      return false;
+    }
+    // Rev271 (audit R03): pypilot core reported offline and hasn't
+    // confirmed it is back. Refuse writes — a socket pong from
+    // pypilot_web means nothing while the core is dead.
+    if (this.coreOffline) {
+      this.opts.log("warn", `[pypilot] set '${name}' skipped: pypilot core offline`);
+      return false;
+    }
+    if (!this.socket || !this.socket.connected) {
+      this.opts.log("warn", `[pypilot] set '${name}' skipped: socket offline`);
+      return false;
+    }
+    // Rev257 (Carlos): socket.io keeps `.connected === true` for
+    // ~5-10 s after the peer dies (until TCP heartbeat expires). The
+    // last pong is a stricter liveness signal - if none arrived in
+    // over 8 s (roughly two ping cycles) the socket is a zombie and
+    // this emit would land in the void, so reject the write BEFORE
+    // the provider updates its optimistic state and tells the visor
+    // "engaged". Fresh sockets get 8 s of grace (see connect handler).
+    // Rev277 (Carlos QA): match the tighter 5 s pong window used by
+    // the healthy getter — the plugin config already grants the fresh
+    // socket a lastPongMs=now on connect, so the 5 s only bites when
+    // the peer has actually stopped ponging.
+    if (this.lastPongMs != null && Date.now() - this.lastPongMs > 5000) {
+      this.opts.log("warn", `[pypilot] set '${name}' skipped: no pong for ${Math.floor((Date.now() - this.lastPongMs)/1000)}s`);
+      return false;
+    }
     try {
       const payload = `${name}=${JSON.stringify(value)}`;
       this.socket.emit("pypilot", payload);
+      return true;
     } catch (e: any) {
       this.opts.log("warn", `[pypilot] set failed for ${name}: ${e?.message || e}`);
+      return false;
     }
   }
 
@@ -265,13 +380,18 @@ export class PypilotClient extends EventEmitter {
 
   private startPing(): void {
     this.stopPing();
+    // Rev277 (Carlos QA): tighter ping cadence (2 s, was 5 s) so a
+    // dead pypilot socket is caught by the 5 s pong window after two
+    // consecutive missed cycles. Half a dozen extra pings per minute
+    // is negligible on the Pi Zero W (roughly 60 bytes each) and
+    // shaves ~5 s off the "offline" detection latency.
     this.pingTimer = setInterval(() => {
       if (!this.socket || !this.socket.connected) return;
       this.pingStartMs = Date.now();
       try {
         this.socket.emit("ping");
       } catch { /* defensive */ }
-    }, 5000);
+    }, 2000);
   }
 
   private stopPing(): void {

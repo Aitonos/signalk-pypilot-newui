@@ -24,11 +24,21 @@ const TARGET_PENDING_MS = 2500;
 // rounding on the wire.
 const TARGET_ECHO_TOL_RAD = 2 * DEG_TO_RAD;
 
+// Rev272 (audit R07): bounded-cost normalisation. The previous while
+// loop could spin forever on pathological inputs (e.g. |a-b| >= 1e15
+// where 2π is below the mantissa's precision, so subtracting a full
+// turn does not change the number). Every call boundary now also
+// validates finiteness, but a defensive modular reduction here means
+// even a value that slipped through returns in O(1).
 function shortestArcRad(a: number, b: number): number {
-  let d = a - b;
-  while (d > Math.PI) d -= 2 * Math.PI;
-  while (d <= -Math.PI) d += 2 * Math.PI;
-  return d;
+  const d = a - b;
+  if (!Number.isFinite(d)) return 0;
+  const twoPi = 2 * Math.PI;
+  // Map d to (-π, π] via a single modulo. JavaScript's % keeps the
+  // sign of the dividend, so we shift by +π before reducing so the
+  // result lands in [0, 2π), then shift back.
+  let r = ((d + Math.PI) % twoPi + twoPi) % twoPi;
+  return r - Math.PI;
 }
 
 export type ApState = "enabled" | "disabled" | "off-line" | "standby" | "auto";
@@ -75,6 +85,19 @@ export class AutopilotProvider {
 
   private pypilotModes: string[] = [];
   private allowDodge = false;
+  // Rev271 (audit R01+R04): monotonic counter bumped on every
+  // engage/disengage intent. Retries that were queued under an older
+  // generation abort silently instead of pushing a stale enable/disable
+  // to pypilot after a newer one has already landed. Also cancels the
+  // 500 ms NAV-mode setTimeout that setNavMode arms, so a disengage
+  // during that window cannot be undone by the timer waking up.
+  private engageGen = 0;
+  private navPendingTimer: NodeJS.Timeout | null = null;
+  // Rev272 (audit R06): adjustTarget reads data.target BEFORE awaiting
+  // the write, so two concurrent +Δ calls could both start from the
+  // same base and lose one increment. Chain them through a single
+  // promise so the second call reads the base written by the first.
+  private _adjustChain: Promise<unknown> = Promise.resolve();
   // Rev68: echo cancellation for local target writes. See setTarget /
   // adjustTarget / receiveValue.
   private pendingTarget: { value: number; until: number } | null = null;
@@ -200,6 +223,44 @@ export class AutopilotProvider {
 
   // ---- write path ----
 
+  // Rev255 (Carlos): _setWithRetry tolerates a transient socket
+  // hiccup - a socket.io reconnect can drop `.connected` for a few
+  // hundred ms. Try the emit up to 3 times with 250 ms + 750 ms
+  // backoff before giving up. Total worst-case latency added to a
+  // successful order: ~1 s (only when the socket was actually flapping).
+  // If all three attempts fail the socket really is offline; the
+  // caller then throws so the visor learns the truth instead of
+  // reporting a false success.
+  private async _setWithRetry(
+    name: string,
+    value: unknown,
+    isStale?: () => boolean,
+  ): Promise<boolean> {
+    if (this.client.set(name, value)) return true;
+    if (isStale && isStale()) return false;
+    await new Promise((r) => setTimeout(r, 250));
+    if (isStale && isStale()) return false;
+    if (this.client.set(name, value)) return true;
+    if (isStale && isStale()) return false;
+    await new Promise((r) => setTimeout(r, 750));
+    if (isStale && isStale()) return false;
+    return this.client.set(name, value);
+  }
+
+  // Rev271 (audit R01+R04): every engage/disengage intent bumps a
+  // generation counter and cancels any pending NAV-mode timer. The
+  // async _setWithRetry checks isStale() before each retry, so a
+  // disengage that lands during a hanging engage retry (or vice versa)
+  // prevents the older order from ever reaching pypilot.
+  private _bumpEngageGen(): number {
+    this.engageGen += 1;
+    if (this.navPendingTimer) {
+      clearTimeout(this.navPendingTimer);
+      this.navPendingTimer = null;
+    }
+    return this.engageGen;
+  }
+
   private async setState(state: string): Promise<boolean> {
     const st = this.data.options.states.find((s) => s.name === state);
     if (!st) throw new Error(`Invalid state: ${state}`);
@@ -209,11 +270,31 @@ export class AutopilotProvider {
     // echoes while pending.
     const eng = st.engaged;
     const apSt: ApState = eng ? "enabled" : "disabled";
+    // Rev271 (audit R01+R04): bump generation and cancel any NAV
+    // pending timer. If this call is superseded before we make it past
+    // the retry backoff, the stale isStale() check aborts the retry
+    // and we throw without mutating optimistic state.
+    const gen = this._bumpEngageGen();
+    // Rev254 (Carlos audit): reject the write BEFORE mutating optimistic
+    // state if the pypilot socket is offline. Previously the visor was
+    // told the order succeeded even though nothing left the plugin.
+    // Rev255: retry with backoff to tolerate socket.io reconnects.
+    if (!(await this._setWithRetry("ap.enabled", eng, () => this.engageGen !== gen))) {
+      if (this.engageGen !== gen) {
+        throw new Error("engage/disengage superseded by newer order");
+      }
+      throw new Error("pypilot offline: engage/disengage not delivered");
+    }
+    // Rev271: last-check after the successful set - a newer bump could
+    // have won the race between the emit and this line. Do not mutate
+    // optimistic state in that case; the winner's own setState will.
+    if (this.engageGen !== gen) {
+      throw new Error("engage/disengage superseded after write");
+    }
     this.data.state = apSt;
     this.data.engaged = eng;
     this.pendingEngaged = { value: eng, until: Date.now() + TARGET_PENDING_MS };
     this.recomputeActions();
-    this.client.set("ap.enabled", eng);
     // Rev84: publish ONLY the engaged/state/actions delta - do NOT
     // include target. If setTarget was called in parallel, its own
     // notifyChanged("target") will publish the new target value
@@ -231,44 +312,109 @@ export class AutopilotProvider {
     ) {
       throw new Error(`Invalid mode: ${mode}`);
     }
-    this.client.set("ap.mode", mode);
+    // Rev254 (Carlos audit): fail explicit when pypilot offline.
+    // Rev255: retry with backoff.
+    if (!(await this._setWithRetry("ap.mode", mode))) {
+      throw new Error("pypilot offline: mode change not delivered");
+    }
   }
 
   private async setTarget(rad: number): Promise<void> {
+    // Rev272 (audit R07): reject at the boundary. Downstream callers
+    // (pypilot, echo cancellation, shortestArcRad) all assume a finite
+    // radian value in a sane range. An integration accidentally
+    // handing us Infinity, NaN or an astronomically large radian
+    // must fail loud instead of poisoning state.
+    if (!Number.isFinite(rad) || Math.abs(rad) > 100) {
+      throw new Error(`Invalid target rad: ${rad}`);
+    }
     const deg = rad * RAD_TO_DEG;
-    // Rev68: optimistic + echo-cancellation. Assign our authoritative value
-    // immediately so downstream SK deltas (and every subscribed UI) snap to
-    // the ordered target in the same tick as the write; mark a pending
-    // window during which receiveValue() filters stale pypilot echoes.
+    // Rev199 (Carlos): trace the values so we can tell whether SK
+    // Autopilot API normalises rad to [-pi, pi] BEFORE it reaches us
+    // (we ship unnormalised to force pypilot to honour the sailor's
+    // side).
+    // eslint-disable-next-line no-console
+    console.log(`[apProvider.setTarget] rad=${rad.toFixed(4)} deg=${deg.toFixed(2)}`);
+    // Rev254 (Carlos audit): reject BEFORE mutating optimistic target.
+    // Rev255: retry with backoff.
+    if (!(await this._setWithRetry("ap.heading_command", deg))) {
+      throw new Error("pypilot offline: target not delivered");
+    }
     this.data.target = rad;
     this.pendingTarget = { value: rad, until: Date.now() + TARGET_PENDING_MS };
-    this.client.set("ap.heading_command", deg);
-    // Rev84: publish ONLY the target delta - see setState notes.
     this.notifyChanged("target");
   }
 
   private async adjustTarget(rad: number): Promise<void> {
-    if (this.data.engaged) {
-      const base = typeof this.data.target === "number" ? this.data.target : 0;
-      const newRad = base + rad;
-      this.data.target = newRad;
-      this.pendingTarget = { value: newRad, until: Date.now() + TARGET_PENDING_MS };
-      this.client.set("ap.heading_command", newRad * RAD_TO_DEG);
-      // Rev84: publish ONLY the target delta.
-      this.notifyChanged("target");
-    } else if (this.allowDodge) {
-      await this.dodge(rad);
-    } else {
-      throw new Error("Adjust while disengaged requires allowDirectServo");
+    // Rev272 (audit R07): reject non-finite deltas at the boundary.
+    if (!Number.isFinite(rad) || Math.abs(rad) > 10) {
+      throw new Error(`Invalid adjust rad: ${rad}`);
     }
+    // Rev272 (audit R06): serialise on the shared chain. base must be
+    // read AFTER any pending adjust has committed data.target,
+    // otherwise two concurrent +Δ calls both start from the same
+    // stale base and collapse into one increment. The chain never
+    // rejects (errors are surfaced through the returned promise), so
+    // one caller's throw does not poison the next caller's turn.
+    const run = async (): Promise<void> => {
+      if (this.data.engaged) {
+        const base = typeof this.data.target === "number" ? this.data.target : 0;
+        const newRad = base + rad;
+        // Rev254 (Carlos audit): same reject-before-optimistic guard.
+        // Rev255: retry with backoff.
+        if (!(await this._setWithRetry("ap.heading_command", newRad * RAD_TO_DEG))) {
+          throw new Error("pypilot offline: target adjust not delivered");
+        }
+        this.data.target = newRad;
+        this.pendingTarget = { value: newRad, until: Date.now() + TARGET_PENDING_MS };
+        // Rev84: publish ONLY the target delta.
+        this.notifyChanged("target");
+      } else if (this.allowDodge) {
+        await this.dodge(rad);
+      } else {
+        throw new Error("Adjust while disengaged requires allowDirectServo");
+      }
+    };
+    const next = this._adjustChain.then(run, run);
+    // Swallow rejection on the chain slot so the next queued caller
+    // still runs. The returned promise (`next`) still rejects for
+    // this caller as expected.
+    this._adjustChain = next.catch(() => undefined);
+    return next;
   }
 
   private async tack(direction: "port" | "starboard"): Promise<void> {
-    // The upstream provider only writes ap.tack.direction and lets pypilot
-    // auto-begin. We explicitly send begin too so the tack starts even on
-    // pypilot versions that require it.
-    this.client.set("ap.tack.direction", direction);
-    this.client.set("ap.tack.state", "begin");
+    // Rev192 (Carlos): synthetic tack. In sea trial on Tunatunes (2026-09-10)
+    // pypilot 0.x on the Pi Zero received `ap.tack.state=begin` and looped
+    // it straight back to "none" without ever rotating heading_command
+    // (traced via journalctl: heading_command stayed at 291.7 deg across
+    // three consecutive tack POSTs). Instead of relying on pypilot's own
+    // tack primitive, we rotate the target ourselves:
+    //   - compass / GPS modes: shift heading_command by tackAngle (default
+    //     100 deg from `ap.tack.angle`, capped 30..170), sign per direction.
+    //   - wind / true wind modes: flip AWA/TWA sign (target -> -target).
+    // The frontend already provides the pre-tack countdown UI + circle-tap
+    // cancel, so we do not need pypilot's own delay/state machine.
+    if (!this.data.engaged || this.data.target == null) return;
+    const values = (this.client as any).getValues?.() || {};
+    const rawAngle = values["ap.tack.angle"];
+    const tackAngleDeg = (typeof rawAngle === "number" && rawAngle >= 30 && rawAngle <= 170)
+      ? rawAngle
+      : 100;
+    const modeStr = String(this.data.mode || "").toLowerCase();
+    const isWind = modeStr.includes("wind");
+    let newRad: number;
+    if (isWind) {
+      newRad = -this.data.target;
+    } else {
+      const sign = direction === "port" ? -1 : 1;
+      newRad = this.data.target + sign * tackAngleDeg * DEG_TO_RAD;
+      while (newRad > Math.PI)  newRad -= 2 * Math.PI;
+      while (newRad < -Math.PI) newRad += 2 * Math.PI;
+    }
+    // eslint-disable-next-line no-console
+    console.log(`[apProvider.tack] dir=${direction} mode=${modeStr} angle=${tackAngleDeg} tgt ${this.data.target.toFixed(3)} -> ${newRad.toFixed(3)} rad`);
+    await this.setTarget(newRad);
   }
 
   private async engage(): Promise<void> {
@@ -290,7 +436,20 @@ export class AutopilotProvider {
       this.getAvailableActionIds().includes("courseCurrentPoint")
     ) {
       await this.setMode("nav");
-      setTimeout(() => this.setState("enabled").catch(() => {}), 500);
+      // Rev271 (audit R04): snapshot the generation at the moment we
+      // arm the delayed engage. A disengage or other setState between
+      // now and the timer firing will have bumped the counter, and the
+      // timer will simply exit. Cancelling the timer directly (in
+      // _bumpEngageGen) is the primary defence; this second check
+      // covers the tiny window where the bump happens after our
+      // clearTimeout would have fired.
+      const gen = this.engageGen;
+      if (this.navPendingTimer) clearTimeout(this.navPendingTimer);
+      this.navPendingTimer = setTimeout(() => {
+        this.navPendingTimer = null;
+        if (this.engageGen !== gen) return; // superseded, do nothing
+        this.setState("enabled").catch(() => {});
+      }, 500);
     } else {
       throw new Error("Nav mode is not available");
     }

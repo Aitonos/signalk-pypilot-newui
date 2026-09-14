@@ -84,6 +84,21 @@ Write-Host "  from: $here" -ForegroundColor Magenta
 Write-Host "================================================================" -ForegroundColor Magenta
 Write-Host ""
 
+# --- Sync cache-bust query in public/index.html (Rev200+, Carlos):
+#     Firefox / Chrome cache app.js aggressively. When the sailor Ctrl+F5s
+#     the HTML gets a fresh copy but the linked app.js still comes from
+#     cache unless the query string changes. Rewriting the tag with the
+#     current PLUGIN_REVISION on every deploy guarantees a fresh JS.
+$htmlPath = Join-Path $here "public\index.html"
+if ((Test-Path $htmlPath) -and ($revShipping -ne "?")) {
+    $html = Get-Content -Path $htmlPath -Raw -Encoding UTF8
+    $newHtml = [regex]::Replace($html, 'app\.js\?v=Rev\d+', "app.js?v=$revShipping")
+    if ($newHtml -ne $html) {
+        Set-Content -Path $htmlPath -Value $newHtml -Encoding UTF8 -NoNewline
+        Write-Host ">> Updated app.js?v= in public/index.html to $revShipping" -ForegroundColor Cyan
+    }
+}
+
 # --- Pre-flight ---
 Write-Host ">> Pre-flight: ping $piHost..." -ForegroundColor Cyan
 Test-Connection -ComputerName "100.127.222.27" -Count 1 -Quiet -ErrorAction SilentlyContinue | Out-Null

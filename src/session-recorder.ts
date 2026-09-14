@@ -88,6 +88,65 @@ export class SessionRecorder {
     // and again inside start() so a long uptime with many sessions
     // does not grow unbounded either.
     try { this.pruneToBudget(); } catch { /* silent */ }
+    // Rev176 (Carlos): purge "short session" files left over by earlier
+    // Revs. Before Rev176 the recorder opened a JSONL on every
+    // engage->disengage transition without debouncing. External clients
+    // (KIP widgets, our own visor's reconnect logic, pypilot_web
+    // watchdogs) toggling ap.enabled fast filled the directory with
+    // files carrying 1..2 samples. Sweep them here so the retro noise
+    // does not linger forever.
+    try { this.pruneShortSessions(); } catch { /* silent */ }
+  }
+
+  // Rev176 (Carlos): delete every closed session with less than
+  // `minSamples` samples OR less than `minMs` of duration. Only touches
+  // finished files - the one currently being written (this.currentFile)
+  // is always skipped. Cheap: one readdir + a fast peek at last line
+  // for each file.
+  pruneShortSessions(minSamples = 30, minMs = 30_000): { deleted: number } {
+    let deleted = 0;
+    let names: string[] = [];
+    try {
+      names = fs.readdirSync(this.dir).filter((f) => f.startsWith("session-") && f.endsWith(".jsonl"));
+    } catch { return { deleted }; }
+    for (const name of names) {
+      const full = path.join(this.dir, name);
+      if (this.currentFile && full === this.currentFile) continue;
+      try {
+        const st = fs.statSync(full);
+        // Fast heuristic first: files < 2 KB have almost certainly less
+        // than 30 samples, so skip reading them and delete.
+        if (st.size < 2 * 1024) {
+          fs.unlinkSync(full);
+          deleted += 1;
+          continue;
+        }
+        // Otherwise read and count samples + span. Cheap for the sizes
+        // we care about (< 100 KB); the big navigation files skip past
+        // this in the size guard below.
+        if (st.size > 100 * 1024) continue;
+        const txt = fs.readFileSync(full, "utf8");
+        let samples = 0, first = 0, last = 0;
+        for (const l of txt.split("\n")) {
+          if (!l) continue;
+          try {
+            const j = JSON.parse(l);
+            if (j.type === "sample") {
+              samples += 1;
+              if (first === 0) first = j.ts;
+              last = j.ts;
+            }
+          } catch { /* skip malformed line */ }
+        }
+        const span = last - first;
+        if (samples < minSamples || (span > 0 && span < minMs)) {
+          fs.unlinkSync(full);
+          deleted += 1;
+        }
+      } catch { /* skip */ }
+    }
+    if (deleted > 0) this.log("info", `[session] pruned ${deleted} short sessions (< ${minSamples} samples OR < ${minMs / 1000}s)`);
+    return { deleted };
   }
 
   // Rev159: FIFO cap on the sessions directory. Enforce a soft
@@ -201,6 +260,29 @@ export class SessionRecorder {
   stop(): void {
     if (!this.currentFile) return;
     const endTs = Date.now();
+    // Rev176 (Carlos): if this session is trivially short (< 30 samples
+    // OR < 30 s), discard it instead of flushing to disk. Pre-Rev176
+    // recorders wrote a JSONL on every engage flicker so the directory
+    // filled with 1-sample noise; the debounce upstream already blocks
+    // most flickers, but this belt-and-suspenders drops anything that
+    // still sneaks through (a legit disengage 10 s after engage).
+    const durMs = this.startTs ? endTs - this.startTs : 0;
+    const shouldDiscard = this.sampleCount < 30 || durMs < 30_000;
+    if (shouldDiscard) {
+      if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
+      const file = this.currentFile;
+      // Wipe in-flight buffer (nothing else will consume it).
+      this.buffer = [];
+      // Flush already-written content on disk gets unlinked in one shot.
+      try { fs.unlinkSync(file); } catch { /* file may not exist yet if we never flushed */ }
+      this.log("info", `[session] discarded ${this.currentId} (only ${this.sampleCount} samples in ${(durMs / 1000).toFixed(1)}s - bounce or short reset)`);
+      this.currentFile = null;
+      this.currentId = null;
+      this.startTs = null;
+      this.sampleCount = 0;
+      this.tags = {};
+      return;
+    }
     this.buffer.push(JSON.stringify({
       type: "end",
       endTs,

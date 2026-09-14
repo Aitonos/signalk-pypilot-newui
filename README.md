@@ -218,11 +218,11 @@ in-session Revs on top of the 2.1.0 visual foundation. Highlights:
   other) with the same look as the Tune tab, a lock checkbox with
   the padlock emoji, a frozen "before:" baseline that never moves
   as you drag, and a per-slider ↺ restore button.
-- **Gota Chain shape swap** — after iterations with skippers using
-  the plugin: the AMBER "A" arrow (apparent wind) is now the LARGE
-  piece and the TEAL "T" arrow (true wind) the SMALL outer one.
-  Colors and letters kept their canonical meaning; only the SVG
-  paths moved so the amber piece is visually the dominant one.
+- **Target/wind arrows shape swap** — after iterations with skippers
+  using the plugin: the AMBER "A" arrow (apparent wind) is now the
+  LARGE piece and the TEAL "T" arrow (true wind) the SMALL outer
+  one. Colors and letters kept their canonical meaning; only the
+  SVG paths moved so the amber piece is visually the dominant one.
 - **Full i18n audit** across EN / ES / FR / DE — every hard-coded
   English string in the non-EN bundles purged, alarm messages and
   Doctor suggestion reason / effect exposed as i18n keys + args so
@@ -258,9 +258,9 @@ pypilot version, restart pypilot_web).
 - Compass rose with HDG readout, colour-coded cardinals (N orange, E green,
   S blue, W red) + degree ticks, hull-fixed green/red sailing wedges, and 4
   configurable corner tiles (long-press to reconfigure).
-- **Gota Chain** overlay: three concentric arrow pieces on the rose — cyan
+- **Concentric target & wind arrows**: three arrow pieces on the rose — cyan
   target diamond, amber `A` (AWA), sea-green `T` (TWA). Interlock into one
-  clean droplet when all three angles coincide; the V-hembra of any piece
+  clean droplet when all three angles coincide; the V-notch of any piece
   that drifts opens up as a visible hollow, and a colour ring-tick marks
   the exact angle on the compass. Optional **COG line** from the bow
   (yellow chevrons) and **current vector** (SOG − SOW, blue wavy arrow)

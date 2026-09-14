@@ -1,6 +1,6 @@
 {
   "name": "signalk-pypilot-newui",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "Signal K friendly UI for the pypilot autopilot, with the capability to spread its functions and buttons to other programs like KIP, WilhelmSK and freeboard. Touch-first mobile visor + full pypilot data (servo, gains, calibration, tack, warnings) as first-class Signal K paths and Simple Switches. Coexists with pypilot-autopilot-provider.",
   "main": "./dist/index.js",
   "scripts": {
@@ -42,7 +42,7 @@
     "displayName": "PyPilot New-UI + SK Paths",
     "webapp": "./public",
     "screenshots": [
-      { "src": "./public/screenshots/01-control-rose.jpg",        "title": "Control - compass rose with Gota Chain (amber A = apparent wind, teal T = true wind), sailing wedges, 4 configurable corner tiles, big-touch AP button and heading trim buttons" },
+      { "src": "./public/screenshots/01-control-rose.jpg",        "title": "Control - compass rose with concentric target and wind arrows (amber A = apparent wind, teal T = true wind), sailing wedges, 4 configurable corner tiles, big-touch AP button and heading trim buttons" },
       { "src": "./public/screenshots/02-chart-trip-stats.jpg",    "title": "Chart - Trip Stats cards (engaged time, distance, energy, RMS/p95 heading error, servo runtime, tacks/gybes, max servo A) plus live Servo Health baseline" },
       { "src": "./public/screenshots/03-tune-gains.jpg",          "title": "Tune - PID gain sliders per pilot/profile, locked-by-default with orange 'was:' baseline, ±10/±1 fine-tune buttons" },
       { "src": "./public/screenshots/04-setup-launcher.jpg",      "title": "Setup - launcher grid with live-summary tiles for Autopilot Check, Diagnostics & Advice (Pypilot Doctor), Sensor Quality, Alarms, Connection, Calibration, Signal K Sentences, Language and Remote Control Console" },

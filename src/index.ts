@@ -17,10 +17,11 @@ import { AlarmEngine } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
+import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev174";
+const PLUGIN_REVISION = "Rev277";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -184,6 +185,20 @@ module.exports = function (app: any) {
   const AUTHORITY_LOST_COOLDOWN_MS  = 60_000;   // after auto-disengage, block re-arm 60 s
   let _authorityLostSinceMs: number | null = null;
   let _authorityLastAutoDisengageTs: number | null = null;
+  // Rev176 (Carlos): debounce the raw `engaged` flag so a rebound
+  // caused by a competing client (pypilot_web on another device, a KIP
+  // widget cycling, socket races) does not open+close a JSONL every 5 s.
+  // Only accept a new stable state once it has held for ENGAGED_DEBOUNCE_MS.
+  // Also count how many rebounds we filter so the status endpoint can
+  // surface it - handy for spotting a rogue client from the diagnostics
+  // page.
+  const ENGAGED_DEBOUNCE_MS = 8_000;
+  let _engagedRaw: boolean | null = null;      // last raw value we saw
+  let _engagedRawSince: number = 0;             // when that raw flipped
+  let _engagedStable: boolean = false;           // debounced value (what session recorder sees)
+  let _engagedBouncesFiltered: number = 0;      // running counter
+  let _engagedLastFilteredMs: number = 0;
+  let _engagedLastFilteredDetails: string | null = null;
   // Rev100: Alarm engine + pypilot disconnect timestamp used by the
   // pypilot-disconnected rule.
   let alarms: AlarmEngine | null = null;
@@ -195,6 +210,12 @@ module.exports = function (app: any) {
   // them offline and inject boat-specific tuning heuristics in a
   // future Rev. See src/session-recorder.ts.
   let sessionRecorder: SessionRecorder | null = null;
+  // Rev178 (Carlos): trip recorder. Fires on autostate transitions
+  // (moored <-> underway/sailing/anchored...) instead of on AP engage,
+  // so it also covers motor legs and tender rides. Independent of the
+  // session recorder.
+  let tripRecorder: TripRecorder | null = null;
+  let lastNavState: string | null = null;
   let sessionSampleTimer: NodeJS.Timeout | null = null;
   let lastEngagedState = false;
   // Rev138 (Carlos): Pi Zero log capture runtime state.
@@ -206,6 +227,39 @@ module.exports = function (app: any) {
   const LOG_CAPTURE_TAIL_MAX = 400;   // lines of preview kept in RAM
   // per-source last-seen line hash for dedupe across polls.
   const logCaptureLastLineHash: Record<string, string> = {};
+  // Rev176 (Carlos): persist the per-source last-line hash to disk so a
+  // plugin restart does NOT re-inject the entire tail of every pypilot
+  // log into the aggregated file. Before Rev176 every start() reset
+  // this map, so the first poll after a `-Restart` deploy always saw
+  // "no known lastHash" and appended the whole tail again - the same
+  // block ended up in the file 32+ times, matching what showed up in
+  // pizero-20260908.log ("32 events per burst window").
+  const _lcStatePath = (): string => {
+    const dataDir = (app.getDataDirPath ? app.getDataDirPath() : ".");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require("path");
+    return p.join(dataDir, "pizero-log-state.json");
+  };
+  const _lcLoadState = (): void => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require("fs");
+      const raw = fs.readFileSync(_lcStatePath(), "utf8");
+      const j = JSON.parse(raw);
+      if (j && typeof j === "object") {
+        for (const k of Object.keys(j)) {
+          if (typeof j[k] === "string") logCaptureLastLineHash[k] = j[k];
+        }
+      }
+    } catch { /* first run / no state yet */ }
+  };
+  const _lcSaveState = (): void => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require("fs");
+      fs.writeFileSync(_lcStatePath(), JSON.stringify(logCaptureLastLineHash));
+    } catch { /* silent */ }
+  };
 
   const plugin = {
     id: PLUGIN_ID,
@@ -355,6 +409,12 @@ module.exports = function (app: any) {
           else app.debug(msg);
         },
       });
+      // Rev271 (audit R05): propagate the allowWrites gate to the
+      // single write path in PypilotClient.set(). Every route to a
+      // pypilot write — provider interface, PUT handlers on action
+      // paths, momentary switches — goes through set(), so this
+      // check covers them all.
+      client.setAllowWrites(props.allowWrites !== false);
 
       client.on("connect", () => {
         lastConnectAt = Date.now();
@@ -377,6 +437,27 @@ module.exports = function (app: any) {
 
       client.on("pong", (latency: number) => {
         lastPingLatencyMs = latency;
+      });
+
+      // Rev271 (audit R03): pypilot_web can stay alive while the core
+      // died; propagate the sticky offline flag so alarms + status +
+      // AP provider all know. The PypilotClient itself refuses set()
+      // while coreOffline is true, but this makes the UI reflect it
+      // and gives KIP/WilhelmSK an accurate autopilot state.
+      client.on("pypilot_offline", () => {
+        app.error("[pypilot-newui] pypilot core reported offline");
+        if (apProvider) apProvider.markOffline();
+        pushAutopilotUpdate();
+        app.setPluginStatus(
+          `${PLUGIN_REVISION} - pypilot core offline (web socket still up)`
+        );
+      });
+      client.on("pypilot_online", () => {
+        app.debug("[pypilot-newui] pypilot core back online");
+        pushAutopilotUpdate();
+        app.setPluginStatus(
+          `${PLUGIN_REVISION} - connected to ${props.host}:${props.port}${apProvider ? " (AutopilotProvider active)" : ""}`
+        );
       });
 
       client.on("catalog", (catalog: PypilotCatalog, info?: { isDelta: boolean; newKeys: string[] }) => {
@@ -533,6 +614,11 @@ module.exports = function (app: any) {
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
       });
+      // Rev178 (Carlos): trip recorder. Same data dir, own subfolder.
+      tripRecorder = new TripRecorder({
+        dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
+        log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
+      });
       historian.start(() => {
         const s = collectSample();
         // Update session counters BEFORE the sample lands in the buffer -
@@ -546,6 +632,9 @@ module.exports = function (app: any) {
         // when the AP is engaged. Engage/disengage transitions open
         // and close a JSONL file.
         if (props.sessionRecorderEnabled) { try { _sessionTick(s); } catch { /* silent */ } }
+        // Rev178 (Carlos): trip recorder tick, driven by navigation.state
+        // instead of engage. Cheap even when idle.
+        try { _tripTick(s); } catch { /* silent */ }
         // Rev164/165/166: supervisor layer. Each helper is cheap and
         // returns immediately when its feature is disabled.
         try { _supervisorTick(s); } catch (e: any) { app.debug?.(`[supervisor] tick: ${e?.message || e}`); }
@@ -629,6 +718,12 @@ module.exports = function (app: any) {
         try { sessionRecorder.stop(); } catch {}
         sessionRecorder = null;
       }
+      // Rev178 (Carlos): close any open trip on plugin stop so the
+      // summary lands on disk before the process exits.
+      if (tripRecorder) {
+        try { tripRecorder.stop(); } catch {}
+        tripRecorder = null;
+      }
       if (sessionSampleTimer) {
         try { clearInterval(sessionSampleTimer); } catch {}
         sessionSampleTimer = null;
@@ -674,6 +769,10 @@ module.exports = function (app: any) {
           host: props.host,
           port: props.port,
           connected: client?.connected ?? false,
+          // Rev260 (Carlos): stricter pong-aware liveness. The visor
+          // uses this to grey out engage/nudge/tack BEFORE the sailor
+          // can fire a write that would end up rejected with a 500.
+          healthy: client?.healthy ?? false,
           lastConnectAt,
           lastDisconnectReason,
           catalogSize: Object.keys(lastCatalog).length,
@@ -1379,12 +1478,20 @@ module.exports = function (app: any) {
           logCaptureLastRunTs = Date.now();
           logCaptureLastAppendedBytes = appended;
           logCaptureLastError = null;
+          // Rev176 (Carlos): persist the per-source lastHash map every
+          // successful poll so a plugin restart resumes from the same
+          // cursor instead of re-injecting the entire tail.
+          _lcSaveState();
         } catch (e: any) {
           logCaptureLastError = e?.message || String(e);
         }
       }
       function _lcStart(): void {
         if (logCaptureTimer) return;
+        // Rev176 (Carlos): restore the persisted dedupe cursors first so
+        // the first tick after a restart already knows where the last
+        // run left off.
+        _lcLoadState();
         const intervalSec = Math.max(30, Number(props.logCaptureIntervalSec) || 60);
         // Fire once immediately (best-effort) then on a cadence.
         _lcTick().catch(() => {});
@@ -1424,7 +1531,7 @@ module.exports = function (app: any) {
           // that read it under the old name. Prefer the "gust" block
           // below for the full strategy state.
           gustDetector: {
-            enabled: (props.gustStrategy ?? "warn") !== "off",
+            enabled: (props.gustStrategy ?? "off") !== "off",
             windowSec: Math.floor(GUST_WINDOW_MS / 1000),
             minJumpKn: GUST_MIN_JUMP_KN,
             lastAlertTs: _gustLastAlertTs || null,
@@ -1439,7 +1546,7 @@ module.exports = function (app: any) {
           },
           // Rev167: gust strategy runtime state.
           gust: {
-            strategy: props.gustStrategy ?? "warn",
+            strategy: props.gustStrategy ?? "off",
             lastAlertTs: _gustLastAlertTs || null,
             freezeActive: _gustFreezeUntilMs != null,
             freezeRemainingSec: _gustFreezeUntilMs ? Math.max(0, Math.floor((_gustFreezeUntilMs - Date.now()) / 1000)) : null,
@@ -1460,7 +1567,7 @@ module.exports = function (app: any) {
           autoProfileLight:  props.autoProfileLight  || "",
           autoProfileMedium: props.autoProfileMedium || "",
           autoProfileHeavy:  props.autoProfileHeavy  || "",
-          gustStrategy: props.gustStrategy ?? "warn",
+          gustStrategy: props.gustStrategy ?? "off",
           autoDisengageOnLostAuthority: !!props.autoDisengageOnLostAuthority,
         });
       });
@@ -1560,7 +1667,19 @@ module.exports = function (app: any) {
           startTs: sessionRecorder ? sessionRecorder.currentStartTs() : null,
           samples: sessionRecorder ? sessionRecorder.currentSampleCount() : 0,
           tags: sessionRecorder ? sessionRecorder.currentTags() : {},
+          // Rev176 (Carlos): expose the debounce counters so the
+          // diagnostics page can flag a rogue engage/disengage source.
+          bouncesFiltered: _engagedBouncesFiltered,
+          lastBounceMs: _engagedLastFilteredMs || null,
+          lastBounceDetails: _engagedLastFilteredDetails,
         });
+      });
+      // Rev176 (Carlos): manual purge endpoint - lets the user clear
+      // legacy short-session noise on demand from Setup.
+      router.post("/session-recorder/purge-short", (_req: any, res: any) => {
+        if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        const r = sessionRecorder.pruneShortSessions();
+        res.json({ ok: true, ...r });
       });
       router.post("/session-recorder/tags", (req: any, res: any) => {
         if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
@@ -1603,6 +1722,53 @@ module.exports = function (app: any) {
         const ok = sessionRecorder.deleteSession(id);
         // Also drop advice tied to this session if present.
         try { _sessionDeleteAdvice(id); } catch { /* silent */ }
+        res.json({ ok });
+      });
+
+      // ============================================================
+      // Rev178 (Carlos): trip recorder endpoints
+      // ============================================================
+      router.get("/trip-recorder/status", (_req: any, res: any) => {
+        res.json({
+          recording: tripRecorder ? tripRecorder.isRecording() : false,
+          tripId: tripRecorder ? tripRecorder.currentTripId() : null,
+          startTs: tripRecorder ? tripRecorder.currentStartTs() : null,
+          samples: tripRecorder ? tripRecorder.currentSampleCount() : 0,
+          navState: lastNavState,
+        });
+      });
+      router.get("/trip-recorder/list", (_req: any, res: any) => {
+        if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        // Return list + attach summary for each so the visor can render
+        // the card grid with one call.
+        const rows = tripRecorder.list().map((r) => ({
+          ...r,
+          summary: tripRecorder!.summary(r.id),
+        }));
+        res.json({ trips: rows });
+      });
+      router.get("/trip-recorder/summary/:id", (req: any, res: any) => {
+        if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        const sum = tripRecorder.summary(id);
+        if (!sum) return res.status(404).json({ error: "not found" });
+        res.json(sum);
+      });
+      router.get("/trip-recorder/download/:id", (req: any, res: any) => {
+        if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs");
+        const file = tripRecorder.jsonlPath(id);
+        if (!fs.existsSync(file)) return res.status(404).json({ error: "not found" });
+        res.setHeader("Content-Disposition", `attachment; filename="trip-${id}.jsonl"`);
+        res.type("application/x-ndjson").sendFile(file);
+      });
+      router.delete("/trip-recorder/trip/:id", (req: any, res: any) => {
+        if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        const ok = tripRecorder.deleteTrip(id);
         res.json({ ok });
       });
       // Advice files land here from an off-boat analysis. The visor
@@ -1700,6 +1866,13 @@ module.exports = function (app: any) {
       router.post("/watch/focus", (req: any, res: any) => {
         const body = req.body || {};
         const keysReq = Array.isArray(body.keys) ? body.keys : [];
+        // Rev251 (audit fix 10): scope each focus by owner id so a
+        // second visor cannot inadvertently retract our subscriptions.
+        // Missing owner => "default" (older visors); still isolated
+        // from any owner that DID identify itself.
+        const owner = typeof body.owner === "string" && body.owner.length > 0
+          ? body.owner.slice(0, 128)
+          : "default";
         const period = Math.max(
           WATCH_FOCUS_MIN_PERIOD_S,
           Number(body.periodSec) > 0 ? Number(body.periodSec) : 1
@@ -1716,31 +1889,59 @@ module.exports = function (app: any) {
           // Rev141: reserved keys can also be focused (see _applyWatches
           // comment). Reserved means "do not republish", not "do not
           // subscribe".
-          _focusWatches.set(k, { period, expireTs });
+          let ownersForKey = _focusWatches.get(k);
+          if (!ownersForKey) {
+            ownersForKey = new Map();
+            _focusWatches.set(k, ownersForKey);
+          }
+          ownersForKey.set(owner, { period, expireTs });
         }
         if (client) {
           try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
         }
-        res.json({ ok: true, focused: keys.length, periodSec: period, ttlSec: ttl });
+        res.json({ ok: true, focused: keys.length, periodSec: period, ttlSec: ttl, owner });
       });
       router.post("/watch/release", (req: any, res: any) => {
         const body = req.body || {};
+        const owner = typeof body.owner === "string" && body.owner.length > 0
+          ? body.owner.slice(0, 128)
+          : "default";
         const keys: string[] = Array.isArray(body.keys) ? body.keys : [];
-        if (keys.length === 0) {
-          _focusWatches.clear();
-        } else {
-          for (const k of keys) _focusWatches.delete(k);
+        // Rev251 (audit fix 10): a release only affects THIS owner's
+        // entries. Empty keys => release everything WE requested (not
+        // everyone's). Other owners' subscriptions stay intact.
+        const targetKeys = keys.length === 0
+          ? Array.from(_focusWatches.keys())
+          : keys;
+        for (const k of targetKeys) {
+          const ownersForKey = _focusWatches.get(k);
+          if (!ownersForKey) continue;
+          ownersForKey.delete(owner);
+          if (ownersForKey.size === 0) _focusWatches.delete(k);
         }
         if (client) {
           try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
         }
-        res.json({ ok: true, remaining: _focusWatches.size });
+        res.json({ ok: true, remaining: _focusWatches.size, owner });
       });
       router.get("/watch/status", (_req: any, res: any) => {
         const now = Date.now();
-        const focus: Array<{ key: string; periodSec: number; expiresInSec: number }> = [];
-        for (const [key, e] of _focusWatches.entries()) {
-          focus.push({ key, periodSec: e.period, expiresInSec: Math.max(0, Math.floor((e.expireTs - now) / 1000)) });
+        const focus: Array<{ key: string; periodSec: number; expiresInSec: number; owners: number }> = [];
+        for (const [key, owners] of _focusWatches.entries()) {
+          let minPeriod = Infinity;
+          let maxExpire = 0;
+          for (const e of owners.values()) {
+            if (e.period < minPeriod) minPeriod = e.period;
+            if (e.expireTs > maxExpire) maxExpire = e.expireTs;
+          }
+          if (owners.size > 0) {
+            focus.push({
+              key,
+              periodSec: minPeriod,
+              expiresInSec: Math.max(0, Math.floor((maxExpire - now) / 1000)),
+              owners: owners.size,
+            });
+          }
         }
         res.json({
           totalWatched: Object.keys(_lastAppliedWatches).length,
@@ -1868,19 +2069,14 @@ module.exports = function (app: any) {
         }
       });
 
-      // Rev66 / 2.0.4: reconnection watchdog. If the socket has been
-      // disconnected for > 90 s (much longer than any legitimate
-      // pypilot_web restart), force a pause+resume to kick socket.io out
-      // of whatever state it got stuck in. Anti-loop: at most 3 forced
-      // reconnects in a rolling 15-min window - after that we stop
-      // trying automatically so a permanently-dead pypilot_web does
-      // not turn into a local DDoS.
-      // Rev66 / 2.0.4: watchdog tick every 60 s (was 30 s). The Pi Zero
-      // running pypilot is fragile so we minimise every recurring
-      // operation - a check that took 30 s worth of wakeups now takes 60 s.
-      // Combined with the >90 s "down" threshold, the watchdog only ever
-      // acts when the socket has been dead for a while, not on transient
-      // Tailscale hiccups.
+      // Rev66 / 2.0.4 / Rev255: reconnection watchdog. Rev255 (Carlos):
+      // Carlos hit a case where cycling pypilot power left the socket
+      // in a "closed forever" state despite the socket.io infinite
+      // reconnect setting, and the visor could not engage for 90 s.
+      // Threshold lowered from 90 s to 20 s and tick from 60 s to 15 s,
+      // so a cycle-pypilot round-trip clears in under half a minute
+      // instead of a minute and a half. Anti-loop stays at 3 forced
+      // reconnects per 15-min window - Pi Zero is still fragile.
       let _wdogDisconnectSince: number | null = null;
       let _wdogForcedAttempts: number[] = [];   // timestamps of forced reconnects
       const _wdogTimer = setInterval(() => {
@@ -1894,7 +2090,7 @@ module.exports = function (app: any) {
             return;
           }
           const downMs = Date.now() - _wdogDisconnectSince;
-          if (downMs < 90_000) return;
+          if (downMs < 20_000) return;
           // Prune attempts older than 15 min.
           const cutoff = Date.now() - 15 * 60_000;
           _wdogForcedAttempts = _wdogForcedAttempts.filter((t) => t > cutoff);
@@ -1904,7 +2100,7 @@ module.exports = function (app: any) {
           app.debug(`[watchdog] socket down ${(downMs/1000)|0}s - forcing pause+resume (attempt ${_wdogForcedAttempts.length}/3 in 15 min)`);
           doReconnect();
         } catch { /* silent */ }
-      }, 60_000);
+      }, 15_000);
       // Store on `app` so plugin.stop() can clear it (defensive - the
       // registerWithRouter closure does not have a stop hook here).
       (app as any)._pypilotNewuiWatchdogTimer = _wdogTimer;
@@ -1956,8 +2152,16 @@ module.exports = function (app: any) {
       autoProfileLight:   typeof options.autoProfileLight  === "string" ? options.autoProfileLight.trim()  : "",
       autoProfileMedium:  typeof options.autoProfileMedium === "string" ? options.autoProfileMedium.trim() : "",
       autoProfileHeavy:   typeof options.autoProfileHeavy  === "string" ? options.autoProfileHeavy.trim()  : "",
+      // Rev177 (Carlos): default flipped from "warn" to "off". Real
+      // sea trial showed that "warn" alone was fine but the moment the
+      // sailor bumped up to "freeze-target" / "boost-D" / "temp-heavy",
+      // the pilot could get "pillado" (freeze without restore) when
+      // gust exit conditions were ambiguous. Until we harden the
+      // watchdog + restore path, the safe default is disabled. The
+      // opt-in strategy stays wired for the user to choose from
+      // Smart Pilot card.
       gustStrategy: (["off","warn","freeze-target","boost-D","temp-heavy"] as const)
-        .includes(options.gustStrategy as any) ? options.gustStrategy : "warn",
+        .includes(options.gustStrategy as any) ? options.gustStrategy : "off",
       autoDisengageOnLostAuthority: options.autoDisengageOnLostAuthority === true,
     };
   }
@@ -2049,9 +2253,99 @@ module.exports = function (app: any) {
   // transitions open/close a JSONL file. Off-boat analysis reads the
   // file to produce a "corpus navegante" - future Revs will inject
   // heuristics learned from this corpus back into the Doctor.
+  // Rev178 (Carlos): trip recorder tick. Reads navigation.state and
+  // opens/closes trips on moored <-> !moored transitions. Cheap: one
+  // getSelfPath call per tick, one JSONL line while a trip is open.
+  function _tripTick(s: Sample): void {
+    if (!tripRecorder) return;
+    const stateRaw = app.getSelfPath ? app.getSelfPath("navigation.state.value") : null;
+    const navState = typeof stateRaw === "string" ? stateRaw : "moored";
+    // Transitions.
+    if (navState !== "moored" && lastNavState === "moored") {
+      // Opening. Snapshot the current pypilot gains so the trip header
+      // records how the pilot was tuned when the boat left the dock.
+      const pv = (client && client.connected) ? client.getValues() : {};
+      const pilotName = typeof pv["ap.pilot"] === "string" ? (pv["ap.pilot"] as string) : null;
+      const gains: Record<string, number> = {};
+      if (pilotName) {
+        for (const k of Object.keys(pv)) {
+          if (k.startsWith(`ap.pilot.${pilotName}.`) && typeof pv[k] === "number") {
+            const short = k.split(".").slice(3).join(".");
+            gains[short] = pv[k] as number;
+          }
+        }
+      }
+      tripRecorder.start({
+        navStateAtStart: navState,
+        gainsAtStart: Object.keys(gains).length > 0 ? gains : null,
+        revision: PLUGIN_REVISION,
+      });
+    } else if (navState === "moored" && lastNavState !== null && lastNavState !== "moored") {
+      // Closing. Compute + write summary.
+      try { tripRecorder.stop(); } catch { /* silent */ }
+    }
+    lastNavState = navState;
+    if (tripRecorder.isRecording()) {
+      const lat = app.getSelfPath ? app.getSelfPath("navigation.position.value.latitude") : null;
+      const lon = app.getSelfPath ? app.getSelfPath("navigation.position.value.longitude") : null;
+      const heel = app.getSelfPath ? app.getSelfPath("navigation.attitude.value.roll") : null;
+      const depth = app.getSelfPath ? app.getSelfPath("environment.depth.belowTransducer.value") : null;
+      const twa = app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null;
+      const sample: TripSample = {
+        ts: s.ts,
+        lat: typeof lat === "number" ? lat : null,
+        lon: typeof lon === "number" ? lon : null,
+        sog: typeof s.sog === "number" ? s.sog : null,
+        cog: null,
+        heading: typeof s.headingActual === "number" ? s.headingActual : null,
+        tws: typeof s.tws === "number" ? s.tws : null,
+        twa: typeof twa === "number" ? twa : null,
+        aws: typeof s.aws === "number" ? s.aws : null,
+        awa: typeof s.awa === "number" ? s.awa : null,
+        heel: typeof heel === "number" ? heel : (typeof s.heel === "number" ? s.heel : null),
+        rudder: typeof s.rudder === "number" ? s.rudder : null,
+        depth: typeof depth === "number" ? depth : null,
+        servoCur: typeof s.servoCurrent === "number" ? s.servoCurrent : null,
+        servoVolt: typeof s.servoVoltage === "number" ? s.servoVoltage : null,
+        engaged: !!s.engaged,
+        mode: s.mode,
+        state: navState,
+      };
+      tripRecorder.sample(sample);
+    }
+  }
+
   function _sessionTick(s: Sample): void {
     if (!sessionRecorder) return;
-    const engagedNow = !!s.engaged;
+    const now = Date.now();
+    const engagedRawNow = !!s.engaged;
+    // Rev176 debounce: only propagate a change once the new raw state
+    // has held for ENGAGED_DEBOUNCE_MS. Everything else is a bounce and
+    // gets logged so we can spot rogue clients later.
+    if (_engagedRaw === null) {
+      _engagedRaw = engagedRawNow;
+      _engagedRawSince = now;
+      _engagedStable = engagedRawNow;
+    } else if (engagedRawNow !== _engagedRaw) {
+      // Raw value flipped. If the previous run was < DEBOUNCE, we call
+      // it a bounce and record it, then track the new raw value.
+      const heldMs = now - _engagedRawSince;
+      if (heldMs < ENGAGED_DEBOUNCE_MS) {
+        _engagedBouncesFiltered += 1;
+        _engagedLastFilteredMs = now;
+        _engagedLastFilteredDetails = `engaged ${_engagedRaw ? "true" : "false"}->${engagedRawNow ? "true" : "false"} held only ${heldMs}ms`;
+        try { app.debug?.(`[bounce] ${_engagedLastFilteredDetails}`); } catch { /* silent */ }
+      }
+      _engagedRaw = engagedRawNow;
+      _engagedRawSince = now;
+    } else {
+      // Same raw value as last tick. If it has held long enough AND
+      // differs from the current stable state, promote it.
+      if (engagedRawNow !== _engagedStable && (now - _engagedRawSince) >= ENGAGED_DEBOUNCE_MS) {
+        _engagedStable = engagedRawNow;
+      }
+    }
+    const engagedNow = _engagedStable;
     if (engagedNow && !lastEngagedState) {
       // Engaging: start a new session with the pilot / profile / gains
       // snapshot the visor is currently using.
@@ -2081,9 +2375,30 @@ module.exports = function (app: any) {
     lastEngagedState = engagedNow;
     if (engagedNow && sessionRecorder.isRecording()) {
       const pv = (client && client.connected) ? client.getValues() : {};
-      const hdgErr = (typeof s.headingCmd === "number" && typeof s.headingActual === "number")
-        ? _wrapPi(s.headingCmd - s.headingActual)
+      // Rev146: TWA comes from angleTrueWater in most SK setups
+      // (derived-data emits that, not the legacy angleTrue).
+      const twaRad = (typeof (app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null) === "number")
+        ? app.getSelfPath("environment.wind.angleTrueWater.value") as number
         : null;
+      // Rev176 (Carlos): hdgErr now depends on the AP mode. Pre-Rev176
+      // we always stored `headingCmd - headingActual`, which is correct
+      // only in compass/gps/nav modes where the target and the actual
+      // are both boat headings. In `wind` mode `heading_command` is the
+      // apparent-wind-angle setpoint and must be compared with AWA. In
+      // `true wind` mode it's the true-wind-angle setpoint compared
+      // with TWA. Storing the wrong error made every wind-mode session
+      // look catastrophic on the offline analyser.
+      const modeStr = String(s.mode || "").toLowerCase();
+      let hdgErr: number | null = null;
+      if (typeof s.headingCmd === "number") {
+        if (modeStr.includes("true") && modeStr.includes("wind")) {
+          if (typeof twaRad === "number") hdgErr = _wrapPi(s.headingCmd - twaRad);
+        } else if (modeStr.includes("wind")) {
+          if (typeof s.awa === "number") hdgErr = _wrapPi(s.headingCmd - s.awa);
+        } else if (typeof s.headingActual === "number") {
+          hdgErr = _wrapPi(s.headingCmd - s.headingActual);
+        }
+      }
       const sample: SessionSample = {
         ts: s.ts,
         hdgCmd: s.headingCmd,
@@ -2098,11 +2413,7 @@ module.exports = function (app: any) {
         engaged: engagedNow,
         mode: s.mode,
         tws: s.tws,
-        // Rev146: TWA comes from angleTrueWater in most SK setups
-        // (derived-data emits that, not the legacy angleTrue).
-        twa: (typeof (app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null) === "number")
-          ? app.getSelfPath("environment.wind.angleTrueWater.value") as number
-          : null,
+        twa: twaRad,
         aws: s.aws,
         awa: s.awa,
         sog: s.sog,
@@ -2127,7 +2438,7 @@ module.exports = function (app: any) {
     // new gust. Guarantees restore-first even if a follow-on gust
     // lands during the window.
     _releaseGustStrategiesIfExpired(now);
-    const strat = props.gustStrategy ?? "warn";
+    const strat = props.gustStrategy ?? "off";
     if (strat !== "off") {
       const awsKn = typeof s.aws === "number" ? s.aws * 1.94384 : null;
       if (awsKn != null) {
@@ -2427,12 +2738,24 @@ module.exports = function (app: any) {
   // client honour them out of the box.
   function evaluateAndPublishAlarms(sample: Sample): void {
     if (!alarms) return;
+    // Rev258 (Carlos): use `client.healthy` (pong-aware) instead of
+    // `client.connected` so alarms see the peer as down as soon as
+    // pings stop returning, not 5-10 s later when TCP heartbeat gives
+    // up. Also seed `disconnectedSinceMs` from that stricter check so
+    // pypilot-disconnected sustain does not wait for the socket-io
+    // disconnect event.
+    const isHealthy = !!(client && client.healthy);
+    if (!isHealthy && disconnectedSinceMs == null) {
+      disconnectedSinceMs = Date.now();
+    } else if (isHealthy && disconnectedSinceMs != null) {
+      disconnectedSinceMs = null;
+    }
     const ctx = {
       sample,
       kpis: kpis ? kpis.snapshot() : null,
       quality: sensorQuality ? sensorQuality.snapshot() : null,
       servoHealth: servoHealth ? servoHealth.snapshot() : null,
-      connected: !!(client && client.connected),
+      connected: isHealthy,
       disconnectedSinceMs,
       nowMs: Date.now(),
     };
@@ -2655,7 +2978,13 @@ module.exports = function (app: any) {
   // The visor bumps a small set of keys to 1-2 Hz only while a tab
   // that shows them is open, and lets the TTL expire when the tab
   // is left. Everything else stays either unwatched or at WATCH_LOW.
-  const _focusWatches = new Map<string, { period: number; expireTs: number }>();
+  // Rev251 (audit fix 10): each focus entry is now scoped by the
+  // requesting client's owner id. Previously the map was flat and
+  // /watch/release without keys wiped every visor's subscriptions
+  // (tab switch on device A could deafen device B). Structure:
+  //   Map<pypilot key, Map<owner id, { period, expireTs }>>
+  // At apply time the smallest period across owners wins.
+  const _focusWatches = new Map<string, Map<string, { period: number; expireTs: number }>>();
   let _lastAppliedWatches: Record<string, number> = {};
   function _corePeriodFor(name: string, catalog: PypilotCatalog): number | null {
     // Highest-priority state paths - drive the AP status indicator
@@ -2664,6 +2993,16 @@ module.exports = function (app: any) {
     if (name === "ap.mode") return WATCH_HIGH;
     if (name === "ap.heading_command") return WATCH_HIGH;
     if (name === "servo.engaged") return WATCH_HIGH;
+    // Rev191 (Carlos): tack.* paths MUST be watched core. Without a
+    // subscribe pypilot never emits them, so the visor never sees the
+    // "port|starboard|none" state machine after POST /tack/{dir}. The
+    // countdown then hangs at "0 deg" because state.target and heading
+    // are still identical - pypilot did (or did not) execute but we
+    // have no way to tell. tack.state/direction at 1 Hz is enough for
+    // renderTackButton to react; tack.delay/angle are near-static so
+    // WATCH_LOW is plenty (visor reads them once via _tackFetchDelaySec).
+    if (name === "ap.tack.state" || name === "ap.tack.direction") return WATCH_HIGH;
+    if (name === "ap.tack.delay" || name === "ap.tack.angle") return WATCH_LOW;
     // Mid-priority telemetry watched permanently so alarms/servo-health
     // KPIs never see a gap - kept at 1 Hz so the load is modest.
     if (
@@ -2698,9 +3037,13 @@ module.exports = function (app: any) {
   function _applyWatches(c: PypilotClient, catalog: PypilotCatalog): void {
     const now = Date.now();
     const desired: Record<string, number> = {};
-    // Sweep expired focuses first.
-    for (const [name, entry] of _focusWatches.entries()) {
-      if (entry.expireTs <= now) _focusWatches.delete(name);
+    // Rev251 (audit fix 10): sweep expired entries PER OWNER, and drop
+    // a key entirely once every owner's entry has expired.
+    for (const [name, owners] of _focusWatches.entries()) {
+      for (const [ownerId, entry] of owners.entries()) {
+        if (entry.expireTs <= now) owners.delete(ownerId);
+      }
+      if (owners.size === 0) _focusWatches.delete(name);
     }
     // Core paths applied to every catalog member. Rev141 fix: do NOT
     // skip RESERVED_PYPILOT_KEYS here - those are reserved from
@@ -2711,10 +3054,17 @@ module.exports = function (app: any) {
       const p = _corePeriodFor(name, catalog);
       if (p != null) desired[name] = p;
     }
-    // Focus wins over core (finer period, i.e. smaller number).
-    for (const [name, entry] of _focusWatches.entries()) {
+    // Focus wins over core (finer period, i.e. smaller number). With
+    // multiple owners on the same key, pick the smallest requested
+    // period so the strictest client is honoured.
+    for (const [name, owners] of _focusWatches.entries()) {
+      let minPeriod = Infinity;
+      for (const e of owners.values()) {
+        if (e.period < minPeriod) minPeriod = e.period;
+      }
+      if (!Number.isFinite(minPeriod)) continue;
       const cur = desired[name];
-      if (cur == null || entry.period < cur) desired[name] = entry.period;
+      if (cur == null || minPeriod < cur) desired[name] = minPeriod;
     }
     // Reconcile against last applied set: watch new/changed, unwatch dropped.
     for (const [name, period] of Object.entries(desired)) {
@@ -2878,6 +3228,11 @@ module.exports = function (app: any) {
     const ok = { state: "COMPLETED", statusCode: 200 };
     const bad = (msg: string) => ({ state: "COMPLETED", statusCode: 400, message: msg });
     const noConn = () => ({ state: "COMPLETED", statusCode: 503, message: "not connected" });
+    // Rev271 (audit R05): writes gate. The single PypilotClient.set()
+    // check already refuses the emit, but returning 403 here gives KIP
+    // / WilhelmSK / freeboard a legible reason instead of a silent
+    // no-op.
+    const writesOff = () => ({ state: "COMPLETED", statusCode: 403, message: "allowWrites disabled" });
 
     // Rev29: KIP (and OpenPlotter switches) send booleans as 1/0 int or "on"/"off"
     // string, not true/false. Ewelink plugin accepts all of them. We do the same.
@@ -2898,6 +3253,7 @@ module.exports = function (app: any) {
     // ENGAGE - bool. true=engage, false=disengage.
     try {
       app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.engage`, (_c: string, _p: string, value: unknown) => {
+        if (!props.allowWrites) return writesOff();
         const b = coerceBool(value);
         if (b === null) return bad("value must be boolean-like (true/false/1/0/on/off)");
         if (!client?.connected) return noConn();
@@ -2916,6 +3272,7 @@ module.exports = function (app: any) {
     // NUDGE - number, degrees. Adds this delta to the current target.
     try {
       app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.nudge`, (_c: string, _p: string, value: unknown) => {
+        if (!props.allowWrites) return writesOff();
         const delta = coerceNum(value);
         if (delta === null) return bad("value must be a number in degrees");
         if (!client?.connected) return noConn();
@@ -2937,6 +3294,7 @@ module.exports = function (app: any) {
     // TACK - string "port" | "starboard" | "cancel".
     try {
       app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.tack`, (_c: string, _p: string, value: unknown) => {
+        if (!props.allowWrites) return writesOff();
         if (typeof value !== "string") return bad("value must be a string");
         if (!client?.connected) return noConn();
         if (value === "cancel") {
@@ -2999,6 +3357,7 @@ module.exports = function (app: any) {
     //   tackInt:   PUT 1 to tack port, 2 to tack starboard, 0 to cancel
     try {
       app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.engageInt`, (_c: string, _p: string, value: unknown) => {
+        if (!props.allowWrites) return writesOff();
         const n = coerceNum(value);
         if (n === null) return bad("value must be 1 (engage) or 0 (disengage)");
         const b = n >= 1;
@@ -3017,6 +3376,7 @@ module.exports = function (app: any) {
 
     try {
       app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.tackInt`, (_c: string, _p: string, value: unknown) => {
+        if (!props.allowWrites) return writesOff();
         const n = coerceNum(value);
         if (n === null) return bad("value must be 1 (port) / 2 (starboard) / 0 (cancel)");
         if (!client?.connected) return noConn();
@@ -3068,6 +3428,7 @@ module.exports = function (app: any) {
     const SW_ENGAGE = "electrical.switches.pypilot.ap.state";
     try {
       app.registerPutHandler("vessels.self", SW_ENGAGE, (_c: string, _p: string, value: unknown) => {
+        if (!props.allowWrites) return writesOff();
         const b = coerceBool(value);
         if (b === null) return bad("value must be boolean-like");
         if (!client?.connected) return noConn();
@@ -3121,6 +3482,7 @@ module.exports = function (app: any) {
     const registerMomentaryBool = (skPath: string, displayName: string, action: () => void) => {
       try {
         app.registerPutHandler("vessels.self", skPath, (_c: string, _p: string, value: unknown) => {
+          if (!props.allowWrites) return writesOff();
           const b = coerceBool(value);
           if (b === null) return bad("value must be boolean-like");
           if (!client?.connected) return noConn();
@@ -3239,6 +3601,7 @@ module.exports = function (app: any) {
       const skPath = swModePathOf(m.key);
       try {
         app.registerPutHandler("vessels.self", skPath, (_c: string, _p: string, value: unknown) => {
+          if (!props.allowWrites) return writesOff();
           const b = coerceBool(value);
           if (b === null) return bad("value must be boolean-like");
           if (!client?.connected) return noConn();
@@ -3310,6 +3673,7 @@ module.exports = function (app: any) {
       if (registeredProfileSwitches.has(skPath) || putHandlersRegistered.has(skPath)) return;
       try {
         app.registerPutHandler("vessels.self", skPath, (_c: string, _p: string, value: unknown) => {
+          if (!props.allowWrites) return writesOff();
           const b = coerceBool(value);
           if (b === null) return bad("value must be boolean-like");
           if (!client?.connected) return noConn();

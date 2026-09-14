@@ -1,5 +1,534 @@
 # Changelog
 
+## 2.7.0 — 2026-09-14 — Rev246..Rev277: connection resilience + audit follow-up + full i18n audit
+
+**Rev277 QA fix (latency of detection)**:
+
+- **Faster offline detection**: ping cadence 5 s → 2 s, pong window
+  8 s → 5 s. Two consecutive missed pings now raise `healthy=false`
+  in roughly half the previous time — ~5-6 s worst case instead of
+  ~10-14 s. 30 pings/min is a rounding error next to pypilot_web's
+  own ~20 Hz value stream, so no measurable extra load on the
+  Pi Zero W.
+- **Active ping on reconnect**: instead of waiting for the next 2 s
+  tick, the fresh socket emits a `ping` the moment the `connect`
+  event fires. A live pypilot_web pongs in milliseconds, and the
+  first value stream that follows clears `coreOffline` immediately.
+  Trims another ~2-3 s off the "back online" transition Carlos
+  observed on Rev276.
+
+**Rev276 QA fix**:
+
+- **Snapshot survives a failed restore**. Previously the disconnect
+  snapshot was consumed the moment `_pypilotMaybeOfferRestore`
+  read it — so if the user pressed "Yes" and the restore failed
+  (e.g. `POST /engage` returned HTTP 500 because pypilot dropped
+  again mid-flow), the next reconnection had no snap to re-offer
+  and the sailor silently lost the chance to restore. Now: the
+  snap is purged only on **success**, on explicit **No**, or on
+  the 60 s timeout. On failure it is kept.
+- **Snapshot capture no longer clobbers a valid pending snap**. If
+  pypilot disconnects again while we still hold an unACKed snap
+  from an earlier outage, the current call keeps the older
+  snapshot (with the original disconnect timestamp) rather than
+  overwriting it with a fresh one that may carry
+  `engaged=false` from the failed restore.
+- **Micro-hiccups (<20 s) no longer purge the snap**. Previously
+  any reconnection swallowed the snapshot; now sub-20 s recoveries
+  leave it available so if a longer outage follows the sailor
+  still gets the banner.
+
+**Rev275 QA fix**:
+
+- **Restore banner no longer stuck on success**. `verdict("ok")`
+  only spoke "Target restaurado" and forgot to close the
+  "Restaurando..." banner — sticky until the next reload. Now the
+  banner briefly turns green with the success message and
+  auto-hides in 3 s.
+
+**Rev274 QA fix (Carlos re-test)**:
+
+- **Restore verdict window widened from 3 s to 10 s with polling**.
+  On Rev273 the 3 s deadline still cleared before `pypilotHealthy`
+  could flip false (pong window is ~8 s), so the visor still
+  spoke "target restaurado" a few seconds before spotting the
+  disconnect. Now: after the three HTTP writes succeed, the banner
+  shows "Restaurando... esperando confirmación pypilot" and the
+  code polls every 500 ms up to 10 s. Any negative evidence
+  (`pypilotHealthy=false` or `engaged=false`) aborts to failure
+  immediately with a specific reason; success voice only fires if
+  both survive the whole window.
+
+**Rev273 QA fix**:
+
+- **Restore banner no longer lies "restaurado" on 200 without
+  confirmation** (Carlos QA on Rev272). SK Autopilot API v2 returns
+  200 as soon as the request reaches the provider, before pypilot
+  has had a chance to confirm. The success verdict is deferred and
+  gated on `state.pypilotHealthy !== false` +
+  `state.engaged === true` — otherwise the failure banner + voice
+  fire with a specific reason.
+
+**Rev270..Rev271 delta on top of Rev269**:
+
+- **i18n audit follow-up** (Rev270): every dynamic string that leaked
+  through the previous pass moved to the dictionary — the tack log
+  modal (empty state, chip labels, badge tags, recovery line,
+  confirm), the maneuver HUD verdicts (VIRADA / TRASLUCHADA), the
+  Trips card in Setup + its list rows + status line + WhatsApp
+  caption + KPI grid + highlights + map legend + all detail modal
+  cards + the PNG report card header/footer + share picker labels +
+  restore banner. Renamed variable clash in the trip loop where
+  `t` shadowed the i18n helper. Fixed accidental "AnchorWatch Pro"
+  reference in the trip caption (memory `feedback_no_commercial_refs`).
+- **Second external audit closed** (Rev271): the follow-up report
+  raised 7 findings against Rev270. Five are landed here as small
+  targeted fixes; two (concurrent adjustTarget race, angular
+  normalisation defence for out-of-range inputs) are deferred to
+  Rev272 with rationale in the commit log.
+
+**Rev271 fixes**:
+
+- **Core-offline sticky flag** (audit R03). `PypilotClient` now
+  distinguishes between "the socket to pypilot_web is up" and "the
+  pypilot core is alive". A `pypilot_disconnect` event from the web
+  server sets a sticky `coreOffline` that only clears when the core
+  actually starts talking again — a fresh catalog delivery or a live
+  `pypilot` value. `healthy` and `set()` both consume this flag, so
+  a socket that keeps ponging while the core is dead can no longer
+  report success on writes. New events `pypilot_offline` /
+  `pypilot_online` are wired into `index.ts` to update plugin status
+  and mark the AP provider offline.
+- **`allowWrites` gate is now global** (audit R05). Previously only
+  the plugin's own HTTP routes honoured it — the Autopilot API v2
+  provider interface, the KIP action PUT handlers and the momentary
+  switches all bypassed it. The check now lives in
+  `PypilotClient.set()` (single point every writer routes through)
+  plus a `writesOff()` 403 response on every PUT handler so
+  KIP/WilhelmSK/freeboard see a legible reason instead of a silent
+  no-op.
+- **Generation counter cancels stale engage retries** (audit
+  R01+R04). `AutopilotProvider` bumps `engageGen` on every
+  `setState` call and cancels any pending NAV-mode 500 ms timer.
+  `_setWithRetry` accepts an `isStale()` callback that aborts the
+  backoff between attempts. A disengage landing mid-retry now
+  invalidates the still-pending engage, and vice versa; the delayed
+  NAV activation can no longer wake up after a disengage.
+- **Restore banner sequenced with hard-fail** (audit R02). The "yes,
+  restore" path now runs mode → target → engage in that order, each
+  step guarded by `throwIfNotOk(res, op)` that treats both an
+  absent response and any HTTP >=400 as a stop condition. Target
+  is prepared before engage so the AP does not latch on the current
+  heading first and then jerk. Failure is spoken ("Restore failed"
+  / "Restauración fallida") and shown as a red line in the banner
+  instead of the previous silent `catch`.
+- **Access-request precedence bug** (audit T09). Fixed `j.href ||
+  j.requestId ? ... : null` operator precedence that was building
+  `/requests/undefined` when the server returned an explicit
+  `href`. Now `j.href || (j.requestId ? ... : null)`.
+
+**Rev272 fixes** (close the remaining two audit points):
+
+- **`adjustTarget` serialisation** (audit R06). Two concurrent
+  `+Δ` calls used to read the same base from `data.target` before
+  awaiting the write and both wrote `base+Δ`, losing one increment.
+  A single `_adjustChain` promise now serialises adjusts through
+  the provider so the second call reads the base written by the
+  first. Errors on one call do not poison the next caller's turn.
+- **`shortestArcRad` bounded + finite guards** (audit R07). The
+  angular normalisation loop is now a single modulo (constant cost)
+  and returns 0 on a non-finite delta. `setTarget` and
+  `adjustTarget` also reject `NaN` / `Infinity` / astronomically
+  large radians at the boundary with a clear error, so a
+  misbehaving integration cannot poison provider state.
+
+---
+
+## 2.7.0 headline — Rev246..Rev269: connection resilience + reliability + full i18n audit
+
+Sea-trial-driven release. After several sessions of **intensive
+sailing and beta testing** on Tunatunes we surfaced (and closed) a
+long list of connection-resilience holes, TTS gaps, i18n drifts and
+UX rough edges that only show up when the boat is under way, the
+TinyPilot resets, or the link flakes. The whole batch was audited
+twice by an external LLM auditor between iterations before being
+folded back in.
+
+### English
+
+**Added**
+
+- **Full "Pypilot down" UX cycle**: passive UI reflection tied to a
+  pong-based heartbeat. When the socket goes silent for &gt; 8 s the
+  target diamond and TGT chip hide immediately, AP-affecting
+  controls grey out with a `.pypilot-offline` class, and the
+  alarm rule `pypilot-disconnected` fires with a spoken message
+  ("Pypilot desconectado desde hace N segundos") whose h / min / s
+  units are read as full words instead of abbreviations. On
+  reconnect: green "Pypilot operativo" toast + voice announcement
+  + controls reactivate.
+- **Three-tier outage handler**: on reconnect the visor compares
+  the outage length against the last known target. &lt; 20 s: no
+  action (probably a hiccup). 20 s – 5 min: banner offers to
+  restore the previous target with S&iacute; / No buttons. &gt; 5 min:
+  nothing (too long, sailor most likely wants a fresh engage).
+- **Optimistic write-then-throw pattern** with `client.set()`
+  returning `boolean`. `apEngage / apDisengage / apSetMode /
+  apSetTargetRad / apTack` reject BEFORE mutating optimistic state,
+  so a phantom command against an offline TinyPilot cannot leave
+  the UI stuck in "engaged" waiting for a delta that will never
+  arrive.
+- **`_setWithRetry` helper** (250 ms + 750 ms backoff) around the
+  autopilot-provider adapter for transient socket blips.
+- **Watchdog + pong heartbeat** in `pypilot-client.ts`: `healthy`
+  getter combines `socket.connected` with `lastPongMs &lt;= 8 s`.
+  Alarm engine consumes `client.healthy` (not `.connected`) so
+  the network layer and the alarm engine agree on liveness. Alarm
+  ordering also reworked so `sensor-lost` no longer fires _before_
+  `pypilot-disconnected` when the whole socket dies.
+- **Multi-tab session isolation**: owner keys now live in
+  `sessionStorage` (per-tab) not `localStorage`, so two visor tabs
+  do not race to release focus watches.
+- **Signed-delta rotation counter** (Rev247) for the HUD progress
+  during tack maneuvers: accumulates the SIGNED angular delta so
+  IMU / compass jitter cancels around zero and the counter no
+  longer drifts to "0&deg; remaining" with the boat still 100&deg;
+  short. The 0.5&deg; threshold that produced the false report
+  was removed entirely.
+- **Full i18n audit** across EN / ES / DE / FR: purged mixed
+  Spanish text from EN-only modals (Boat menu, Tack log, Trip
+  detail, Trip share, Gust marker overlay, Bottom-bar picker,
+  nav-toggle aria-label), added `data-lang` variants, moved the
+  bottom-bar strings to i18n keys, added `data-i18n-title` on the
+  tack buttons. Rebrand "Gota Chain" (which "nobody understood",
+  per Carlos) as **"Target &amp; Wind arrows"** / "Flechas
+  Target y Viento" everywhere it is public-facing (README, Info
+  modal, NPM screenshot title).
+- **Spanish orthography pass**: `"COMPAS"` &rarr; `"COMP&Aacute;S"`
+  in the ES mode label, `<code>compas / gps / viento / real</code>`
+  &rarr; the literal `<code>compass / gps / wind / true</code>`
+  string (they are pypilot enum values, not translatable words).
+- **Full instructions section** in the Info modal (EN + ES)
+  covering every tab now that Chart / Race / Doctor / Smart Pilot
+  / Alarms / Sensor Quality / Session recorder / Log capture /
+  Debug console / Remote Control Console / Watchdog have all
+  landed.
+- **Health status endpoint** (`/status`) now returns
+  `healthy: boolean` alongside `connected`.
+- **Focus-watch owner map**: `_focusWatches` moved to
+  `Map<key, Map<owner, entry>>` so a stale owner from a crashed
+  tab does not hold a watch alive.
+
+**Fixed**
+
+- **Phantom writes on offline socket**: `client.set()` no longer
+  returns a silent success when the socket has no live pong. Every
+  API-level writer either resolves after the retry succeeds or
+  throws with `"pypilot offline: <path>"`. Fixes a class of "the
+  UI says engaged but the boat is going straight" reports.
+- **Slow reconnect after power-cycling pypilot**: watchdog interval
+  reduced to 15 s with a 20 s liveness threshold, and the ap
+  provider now reconciles state on the reconnect delta so the
+  visor picks up the fresh mode / target immediately.
+- **`refreshPypilotValues` merge bug**: pilot / profile switch was
+  masked by the "don't overwrite existing keys" heuristic. Delta
+  handlers for `ap.pilot` and `profile` now pass `{replace: true}`.
+- **`gainReady` exit too early**: the readiness gate was leaving
+  as soon as any gain from any pilot arrived. Now scoped to
+  `state.pilot` so a stale pilot's gains cannot short-circuit the
+  boot pull for the active one.
+- **Tack pill "executing" missing target**: the pill fell back to
+  `null` after the arming phase closed. Now falls back through
+  `_tackPendingFinalTargetRad ?? _countdownPlannedTargetRad ??
+  state.target`.
+- **TGT stays visible with AP engaged + connection lost**: no
+  disengage delta arrives when the pypilot vanishes, so the
+  target was staying pinned. Now the formatter and
+  `renderTargetArrow` bail on `state.pypilotHealthy === false`;
+  `scheduleRenderControl()` and `renderTargetArrow()` are also
+  kicked on every healthy transition.
+- **Voice not heard on reconnect** (Rev264): added
+  `_alSpeak("Pypilot operativo")` to
+  `_pypilotShowReconnectedToast` so the sailor gets the audible
+  confirmation and does not have to look at the screen.
+
+**Architecture**
+
+- Rejected an active-ping-before-write pattern proposed mid-sprint:
+  it is a TOCTOU (time-of-check-to-time-of-use) anti-pattern that
+  adds latency to every write without giving a real safety
+  guarantee. Kept the passive-reflection approach instead. Design
+  discussion preserved in the commit log.
+
+### Espa&ntilde;ol
+
+**A&ntilde;adido**
+
+- **Ciclo UX completo "Pypilot ca&iacute;do"**: la UI refleja el
+  estado real de la conexi&oacute;n de forma pasiva a partir de un
+  heartbeat pong. Cuando el socket lleva &gt; 8 s en silencio, el
+  diamante del target y el chip TGT desaparecen inmediatamente,
+  los controles que afectan al AP se atenúan con la clase
+  `.pypilot-offline`, y la regla `pypilot-disconnected` dispara
+  con voz en palabras completas ("Pypilot desconectado desde hace
+  N segundos") en lugar de abreviaturas. Al reconectar: toast
+  verde "Pypilot operativo" + voz + controles activos otra vez.
+- **Gestor de outage en 3 tramos**: al reconectar el visor compara
+  la duraci&oacute;n de la ca&iacute;da contra el &uacute;ltimo
+  target conocido. &lt; 20 s: no hace nada (probable microcorte).
+  20 s – 5 min: banner con S&iacute; / No para restaurar el
+  target anterior. &gt; 5 min: nada (demasiado tiempo, el
+  navegante querr&aacute; enganchar de cero).
+- **Patr&oacute;n optimistic write-then-throw** con `client.set()`
+  devolviendo `boolean`. `apEngage / apDisengage / apSetMode /
+  apSetTargetRad / apTack` rechazan ANTES de tocar el estado
+  optimista, para que un comando fantasma contra una TinyPilot
+  ca&iacute;da no deje la UI "enganchada" esperando un delta que
+  no va a llegar.
+- **`_setWithRetry`** (250 ms + 750 ms backoff) alrededor del
+  autopilot-provider adapter para blips transitorios del socket.
+- **Watchdog + heartbeat pong** en `pypilot-client.ts`: el getter
+  `healthy` combina `socket.connected` con `lastPongMs &lt;= 8 s`.
+  El motor de alarmas usa `client.healthy` (no `.connected`) para
+  que la red y las alarmas est&eacute;n de acuerdo sobre la
+  vitalidad. El orden de alarmas tambi&eacute;n se rehizo para
+  que `sensor-lost` no salte _antes_ que `pypilot-disconnected`
+  cuando cae el socket entero.
+- **Aislamiento multi-pesta&ntilde;a**: las claves de owner van
+  ahora en `sessionStorage` (por pesta&ntilde;a) en lugar de
+  `localStorage`, para que dos visores abiertos no compitan por
+  soltar los focus watches.
+- **Contador con delta con signo** (Rev247) para el HUD del
+  countdown de virada: acumula el delta angular CON SIGNO para
+  que el jitter del IMU / compass se cancele en torno a cero y el
+  contador no acabe en "0&deg; restantes" con el barco todav&iacute;a
+  a 100&deg; del rumbo final. El threshold de 0.5&deg; que
+  produc&iacute;a el falso reporte se elimin&oacute; por completo.
+- **Auditor&iacute;a i18n completa** en EN / ES / DE / FR: se
+  purg&oacute; el espa&ntilde;ol en modales que se ven en cualquier
+  idioma (men&uacute; Barco, Historial de bordos, Detalle de viaje,
+  Compartir viaje, capa Marca de r&aacute;fagas, selector barra
+  inferior, aria del nav-toggle), se a&ntilde;adieron variantes
+  `data-lang`, las strings de la barra inferior pasaron a claves
+  i18n y se a&ntilde;adi&oacute; `data-i18n-title` en los botones
+  de virada. Se renombr&oacute; "Gota Chain" (que "no lo entiende
+  ni Claude", palabras de Carlos) a **"Flechas Target y Viento"**
+  / "Target &amp; Wind arrows" en todo lo que se ve fuera del
+  c&oacute;digo (README, modal Info, t&iacute;tulo de screenshot
+  NPM).
+- **Pase de ortograf&iacute;a espa&ntilde;ola**: `"COMPAS"` &rarr;
+  `"COMP&Aacute;S"` en el label de modo ES, y el bloque
+  `<code>compas / gps / viento / real</code>` pas&oacute; a la
+  string literal `<code>compass / gps / wind / true</code>`
+  (son valores del enum de pypilot, no palabras traducibles).
+- **Secci&oacute;n de Instrucciones completas** en el modal Info
+  (EN + ES) cubriendo todas las pesta&ntilde;as ahora que Chart /
+  Race / Doctor / Piloto Inteligente / Alarmas / Calidad de
+  sensores / Grabador de sesiones / Captura de logs / Consola de
+  debug / Consola de control remoto / Watchdog est&aacute;n todas
+  en su sitio.
+- **Endpoint `/status`** ahora devuelve `healthy: boolean` junto
+  con `connected`.
+- **Focus-watch owner map**: `_focusWatches` pas&oacute; a ser
+  `Map<key, Map<owner, entry>>` para que un owner colgado de una
+  pesta&ntilde;a muerta no mantenga vivo un watch.
+
+**Corregido**
+
+- **Escrituras fantasma con el socket ca&iacute;do**: `client.set()`
+  ya no devuelve un &eacute;xito silencioso cuando el socket no
+  tiene pong vivo. Cada writer de nivel API o bien resuelve tras
+  el retry o bien lanza `"pypilot offline: <path>"`. Cierra la
+  clase de reportes "la UI dice enganchado pero el barco va recto".
+- **Reconexi&oacute;n lenta tras cortar y encender pypilot**: el
+  watchdog baja a 15 s de intervalo con umbral de vivacidad de
+  20 s, y el provider reconcilia estado en el delta de reconexi&oacute;n
+  para que el visor recoja el modo / target frescos al instante.
+- **Bug de merge en `refreshPypilotValues`**: el cambio de piloto /
+  perfil quedaba enmascarado por la heur&iacute;stica de "no
+  sobreescribir claves existentes". Los delta handlers de
+  `ap.pilot` y `profile` ahora pasan `{replace: true}`.
+- **`gainReady` sal&iacute;a antes de tiempo**: la puerta de
+  readiness se abr&iacute;a al llegar cualquier gain de cualquier
+  piloto. Ahora est&aacute; limitada al `state.pilot` activo,
+  para que los gains de un piloto stale no cortocircuiten el
+  pull de boot del activo.
+- **Pill de virada "ejecutando" sin target**: la pill acababa en
+  `null` al cerrar la fase de arming. Ahora hace fallback por
+  `_tackPendingFinalTargetRad ?? _countdownPlannedTargetRad ??
+  state.target`.
+- **TGT visible con AP enganchado + conexi&oacute;n ca&iacute;da**:
+  no llega delta de desenganche cuando pypilot se va, as&iacute;
+  que el target se quedaba clavado. El formateador y
+  `renderTargetArrow` ahora respetan `state.pypilotHealthy ===
+  false`; adem&aacute;s se disparan `scheduleRenderControl()` y
+  `renderTargetArrow()` en cada cambio de healthy.
+- **Voz muda al reconectar** (Rev264): se a&ntilde;adi&oacute;
+  `_alSpeak("Pypilot operativo")` en
+  `_pypilotShowReconnectedToast` para que el navegante tenga
+  confirmaci&oacute;n audible sin mirar la pantalla.
+
+**Arquitectura**
+
+- Se rechaz&oacute; un patr&oacute;n de ping-antes-de-escribir
+  propuesto a mitad de sprint: es un anti-patr&oacute;n TOCTOU
+  (time-of-check-to-time-of-use) que a&ntilde;ade latencia a cada
+  escritura sin dar una garant&iacute;a real de seguridad. Se
+  mantuvo la reflexi&oacute;n pasiva. La discusi&oacute;n queda en
+  el log de commits para futura referencia.
+
+## 2.6.0 — 2026-09-10 — Rev178..Rev180: Trip Report sprint (still experimental)
+
+Big feature bundle. Every trip you take (from the moment
+`navigation.state` leaves "moored" until you're moored again) is
+recorded in the background and turned into a shareable report card.
+
+### English
+
+**Added**
+
+- **Trip recorder** (new module `trip-recorder.ts`): auto-starts when
+  `signalk-autostate` (or any plugin publishing `navigation.state`)
+  moves the vessel off "moored". Closes and computes a summary when
+  the vessel is back to "moored". Trips < 60 s or with < 60 samples
+  are discarded automatically.
+- **Live-accumulated KPIs** so summary computation is O(1) even on
+  Pi 4: distance (haversine), TWS/AWS avg + max, SOG avg + max, heel
+  avg + max, tack count, points-of-sail split (upwind / reach /
+  downwind), battery voltage min + sag count, mode share, engaged
+  percentage. Highlights (peak wind, peak SOG, min voltage) carry
+  their timestamps so the map can pin them.
+- **"Viajes" card in Setup** (order 27) with live trip status + list
+  of past trips. Each row: date, distance, duration, avg SOG, avg
+  TWS, tack count.
+- **Trip detail modal** with a 17-KPI grid + emoji-tagged highlight
+  strip (⛵ ráfaga, 🌀 vel max, 🔋 volt bajo).
+- **OpenSeaMap trace on the map**: Leaflet lazy-loaded from CDN on
+  first modal open, OSM base + OpenSeaMap seamark overlay, polyline
+  coloured by SOG bucket (< 2 / 2-4 / 4-6 / > 6 kn), markers at
+  start (green), end (red), peak wind, peak SOG, min voltage, and
+  each detected tack. Auto-fit to the trace bounding box.
+- **"Compartir por WhatsApp" button**: renders a portrait 900×1400
+  PNG report card (title, 10 KPI cards, mini trace with the same
+  colour buckets, endpoints and highlight emojis, footer). Uses the
+  Web Share API when available so the sailor picks any target app;
+  falls back to a download + prefilled `wa.me?text=` link on
+  platforms without file share.
+- **HTTP endpoints**: `/trip-recorder/status`, `/list`,
+  `/summary/:id`, `/download/:id`, `DELETE /trip/:id`.
+
+**Fixed (Rev177 carry-over)**
+
+- Tack countdown never closes: added AWA-sign / heading-rotation
+  detection so the maneuver auto-completes in visor even when
+  pypilot never publishes `ap.tack.state="none"`.
+- Gust ghost: fade 15 s (was 10), cooldown 15 s (was 20), thresholds
+  lowered (jump ≥ 3 kn, ratio ≥ 1.25, shift ≥ 18°). In true-wind
+  mode the ghost now keys off TWS/TWA and is drawn in the teal T
+  palette instead of the amber A. Fixes the "aparece poco / no
+  atiende a rafagas / en modo real deberia mirar real" feedback.
+- `gustStrategy` default flipped from "warn" to "off" so the
+  supervisor cannot freeze the target / boost D / temp-heavy the
+  pilot without the sailor explicitly opting in. On the last sea
+  trial one of these strategies latched and the AP "se quedo
+  pillado, yendose orzada sin buscar rumbo".
+- Reload race: after the plugin catalog lands we re-run
+  `refreshPypilotValues()` so gain / calibration sliders that
+  rendered before the catalog was known reposition themselves at
+  the real pypilot values. Fixes "al recargar la pagina muchas
+  veces no carga los valores de sliders o de modo".
+
+**Known limits (still experimental)**
+
+- Trasluchar (jibe): pypilot's tack primitive only crosses the wind
+  by proa. A jibe needs a different primitive (aproado-style). Not
+  implemented yet.
+- Trip report card renders as a static PNG. The interactive map is
+  only visible inside the visor.
+- CDN load of Leaflet needs internet. On a boat with no data link
+  the trace panel just says "sin conexion a los tiles del mapa" and
+  the modal still shows all the KPIs.
+
+## 2.5.2 — 2026-09-10 — Rev176: session-recorder containment
+
+Follow-up patch on 2.5.0. After analysing the on-water sessions
+Carlos captured with Rev175 we found a pile of 1-sample JSONL
+files caused by an external HTTP client (likely a KIP dashboard
+tab, an idle visor tab, or a competing pypilot_web instance)
+cycling `POST /engage` -> `POST /disengage` every 5-6 s. Every
+flicker opened and closed a session file. This tranche contains
+the damage and fixes several analysis blind spots.
+
+### English
+
+**Fixed**
+
+- **Engaged debounce (8 s)** in the historian tick. A new
+  engage/disengage transition is only propagated to the session
+  recorder after the raw value has held for 8 s. This filters
+  the rebounds that were opening one JSONL every ~5 s during the
+  test window on 2026-09-08.
+- **Bounce diagnostics**: filtered flips are counted and exposed
+  through `/session-recorder/status` (`bouncesFiltered`,
+  `lastBounceMs`, `lastBounceDetails`), plus a `[bounce]` line
+  in `app.debug` so the next culprit can be traced without
+  waiting for a repeat.
+- **Discard short sessions on close**: if a session has less
+  than 30 samples OR less than 30 s of duration when the AP
+  disengages, the JSONL is unlinked instead of being flushed
+  and kept. Belt-and-suspenders on top of the debounce.
+- **Retroactive purge**: on plugin start the recorder sweeps
+  `nav-sessions/` and deletes every closed file that meets the
+  same criterion. The tester's 54-file directory came down to 7
+  useful sessions after Rev176 booted.
+- **Manual purge endpoint**: `POST /plugins/signalk-pypilot-newui/session-recorder/purge-short`
+  triggers the sweep on demand.
+- **hdgErr per AP mode**: the recorder stored
+  `headingCmd - headingActual` regardless of mode, which was
+  garbage in `wind` / `true wind` where `headingCmd` is a wind
+  angle, not a heading. Now compass-family modes still store the
+  heading delta, `wind` mode stores `headingCmd - AWA`, and
+  `true wind` mode stores `headingCmd - TWA`. Offline analysers
+  finally get a real number for wind modes.
+- **Pi Zero log-capture no longer re-injects the tail on
+  restart**: the per-source `lastLineHash` map is now persisted
+  to `pizero-log-state.json` and reloaded on plugin start. The
+  file used to grow 32x on the tester's setup because every
+  `-Restart` deploy reset the in-memory cursor and re-appended
+  the entire tail.
+
+**Changed**
+
+- **Gust ghost arrow recoloured to orange** so it stands out
+  from the live amber A arrow when the two land near the same
+  angle. The overlay-card preview matches.
+- **Gust ghost detection thresholds lowered** (Rev175 carry-
+  over): AWS jump 4 kn / ratio 1.35, AWA shift 20 deg, baseline
+  min 2 kn, cooldown 20 s. Tuned against 2 h of real navigation
+  data (~18 potential fires for a 14 kn-avg sail).
+
+**Investigation notes (for the curious)**
+
+The 71-second racimo on 2026-09-08 19:01-02 (Rev166 that day)
+shows the pattern:
+
+    engage -> PUT target -> PUT mode -> disengage -> engage -> ...
+
+repeating every 5-6 s at the SK Autopilot API v2 endpoint. Not
+manual: too regular. Culprit unidentified with the logs at
+hand - the SK journal does not record client IP/UA. Suspects
+still alive:
+
+- A custom KIP dashboard widget that toggles engage on a tick.
+- Two open visor tabs where one has a stale state machine and
+  re-issues engage on each SSE reconnect.
+- A feedback loop through `signalk-pypilot` mirroring an incoming
+  bus delta as an outgoing SK write.
+
+pypilot_web on the KIP tablet was cleared as a suspect - the
+captured pypilot log shows its socket.io connections spaced
+minutes apart, not seconds.
+
 ## 2.5.1 — 2026-09-09 — README bilingual
 
 Docs-only patch. The EXPERIMENTAL banner in README and CHANGELOG
