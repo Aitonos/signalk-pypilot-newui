@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.7.3 — 2026-09-14 — Spanish accents restored
+
+The Spanish translation now carries the accents it always should have
+had. About 140 previously plain-ASCII words in the ES dictionary and
+a handful of hard-coded strings in the Info modal placeholders now
+render as `Configuración`, `Conexión`, `Timón`, `Ángulo`, `Sesión`,
+`Grabador de sesiones de navegación`, `Versión pypilot` and so on.
+No functional change.
+
 ## 2.7.2 — 2026-09-14 — Registry score bump
 
 No code change vs 2.7.1. Adds a smoke test suite (Node built-in test
