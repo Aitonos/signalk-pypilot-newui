@@ -1,235 +1,151 @@
 # signalk-pypilot-newui
 
-> ### ⚠️ 2.5.0 ships new features that have not been tested at sea yet
->
-> The day we cut this release there was not enough wind to validate
-> the tack countdown, the post-tack stats, the tack log, the gust
-> marker, or the "auto brain" that switches profiles and reacts to
-> gusts for you. **Your feedback is GOLD:** install it, try it, and if
-> anything looks off, tell us at
-> https://github.com/Aitonos/signalk-pypilot-newui/issues
-> That is how we tune the thresholds before we sign these features
-> off as stable.
->
-> ### ⚠️ 2.5.0 trae funciones que aun no hemos probado en el mar
->
-> El dia de sacarla no habia viento suficiente para validar el
-> contador de virada, el resumen post-virada, el historial de bordos,
-> la marca de rafagas ni el "cerebro auto" que gestiona perfiles y
-> rafagas por ti. **Nos vale ORO tu feedback:** instalala, usala y si
-> algo va raro cuentanoslo en
-> https://github.com/Aitonos/signalk-pypilot-newui/issues
-> Con eso tuneamos los limites antes de dar todo por bueno.
-
-**PyPilot New-UI + SK Paths** — a modern, touch-first control panel for the
-open-source [pypilot](https://github.com/pypilot/pypilot) autopilot, plus every
-pypilot value exposed as a first-class Signal K path so tools like
-[KIP](https://kip.signalk.org), WilhelmSK and freeboard can build custom gauges
-and switches out of the box.
+**This plugin enhances and extends the magic of [pypilot](https://github.com/pypilot/pypilot)**,
+Sean D'Epagnier's open-source autopilot, with more functions, a modern
+touch-first user experience on tablets and phones, first-class
+**Signal K integration** so tools like [KIP](https://kip.signalk.org),
+WilhelmSK and freeboard can drive and monitor the autopilot out of the
+box, and a strong focus on **reliability, ease of use and ease of
+tuning**: the plugin itself watches how your autopilot is behaving and
+quietly suggests how to sharpen its settings, so you spend more time
+sailing and less time guessing which slider to move.
 
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
 
 ## Screenshots
 
-| Control | Chart |
+![Control - compass rose with concentric target + wind arrows](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
+
+| Chart · Trip Stats | Tune · gain sliders |
 |---|---|
-| ![Control tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg) | ![Chart tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chart-trip-stats.jpg) |
+| ![Chart tab - Trip Stats + Servo Health](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chart-trip-stats.jpg) | ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-tune-gains.jpg) |
 
-| Tune | Setup |
+| Setup · Trips | Chart · hover freeze |
 |---|---|
-| ![Tune tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-tune-gains.jpg) | ![Setup tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-setup-launcher.jpg) |
+| ![Setup - Trips card](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-setup-launcher.jpg) | ![Chart - hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) |
 
-| Race | Info |
-|---|---|
-| ![Race tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) | ![Info tab](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-info.jpg) |
+![Tack history - persistent per-tack log](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-info.jpg)
 
-## What's new in 2.4.0
+## What this plugin adds on top of pypilot
 
-Feature release. The plugin has learnt to behave itself around the Pi
-Zero and now speaks the sailor's language instead of pilot-programmer
-jargon. The rework was driven by direct feedback from **Sean D'Epagnier**
-(pypilot author) on how his `pypilot_web` handles a firehose of
-subscriptions, and by field observations from Carlos on Tunatunes.
+### Visor (touch UI) — 10 new added functions
 
-- **Dynamic watch focus (per Sean D'Epagnier's advice)** — before, the
-  plugin permanently subscribed ~170 pypilot values, which pressured
-  `pypilot_web` on the Pi Zero W and eventually locked its socket
-  buffer. Now the backend keeps a minimal always-on "core" set (~15
-  paths) and accepts short-lived `focus` requests from the visor: the
-  Tune tab bumps its gain paths to 2 Hz only while it is on screen,
-  same for the Calibration sliders in Setup. When the tab closes the
-  TTL expires and the rate drops back. New endpoints
-  `/watch/focus`, `/watch/release` and `/watch/status`, a live
-  inspector in Setup → Remote Control Console, plus a `Restart
-  pypilot_web` button that runs `sv restart pypilot_web` via SSH.
-- **Navigation session recorder + shared-advice loop** — every engaged
-  AP session is now saved as JSONL to
-  `~/.signalk/plugin-config-data/signalk-pypilot-newui/nav-sessions/`.
-  Users label conditions (wind, sea state, propulsion, point of sail,
-  crew) from a modal in Setup → Doctor, share the file via WhatsApp
-  or email, receive an "advice" JSON back and upload it to the visor,
-  where it renders as "Consejos recibidos". First step towards an
-  AI-tuned Doctor: the plugin does not run any AI at runtime - all
-  the learning happens off-boat and gets injected into future Revs as
-  plain heuristics.
-- **Pi Zero log capture** — piCore keeps `/var/log` in tmpfs, so a
-  hang wipes the logs the moment the user hits the hard reset relay.
-  A new opt-in poller SSHes into the Pi Zero on a configurable
-  cadence, tails `/var/log/pypilot/*` and appends the new lines to a
-  persistent daily file on the Pi 5. Toggle + downloader live in the
-  Remote Control Console.
-- **Plain-language help for every gain** — every P / I / D / DD / PR
-  / FF slider in Tune and every documented RangeSetting slider in
-  Setup → Calibration now carries a short "what it does" line plus a
-  `?` button that expands into "when to raise, when to lower". EN /
-  ES / DE / FR. Directly inspired by Sean's own suggestion in the
-  pypilot forum.
-- **Alarm engine and Doctor speak the user's language** — the seven
-  built-in alarm rules and the Doctor findings + summary now render
-  in the active language (EN / ES / DE / FR); the backend still ships
-  English strings on `notifications.autopilot.*` for KIP / WilhelmSK
-  compatibility.
-- **Mode selector proper i18n and uppercase tabs** — pypilot mode
-  strings (`compass`, `wind`, `true wind`, `nav`) plus the plugin's
-  own `aproado` pseudo-mode all render as translated UPPERCASE labels
-  ("COMPAS", "VIENTO APARENTE", "APROADO", ...). Sailing tab labels
-  are UPPERCASE too so accents remain optional per RAE convention.
-- **Doctor UX polish** — every suggestion carries a Hide/Discard
-  button that stays visible even after the suggestion has been
-  applied, so stale advice never sticks in the list; the Setup tile
-  chip mirrors the visible count.
-- **Setup launcher — live status chips on every tile** — pypilot
-  host+port, active language, last calibration adjustment timestamp
-  (with a Reset button), count of active SK sentences vs the total
-  catalogue (all 181 keys), and an SSH-configured pill on Remote
-  Control Console. Sensor Quality gains a per-row Ignore / Restore
-  button so a rudder feedback that does not exist on this boat stops
-  turning the chip red.
-- **Chart tab — hover freeze + per-band Y-axis** — touch or hover
-  over the timeline to freeze the auto-refresh and read the exact
-  value at that point for every band. Min / mid / max ticks appear
-  inside the right gutter of each band.
-- **Tune — per-slider ↺ restore and profile-fork prompt** — every
-  gain gets a ↺ that snaps back to the frozen "was:" baseline. The
-  first change per unlock triggers a Doctor-style modal to keep the
-  tweaks in the current profile, save them in a new
-  `tune-YYYYMMDD-HHMM` fork, or Cancel and revert.
-- **Nav bar slide-down gesture** — swipe from the top of the visor
-  to bring the tab bar back (counterpart to the existing slide-up
-  hide).
+1. **Compass rose** with colour-coded cardinals, hull-fixed sailing
+   wedges, and 4 corner tiles configurable via long-press.
+2. **Concentric Target + Wind arrows** — cyan target diamond, amber
+   `A` (apparent wind), teal `T` (true wind). Interlock into a
+   droplet when the three align; open into V-notches with a colour
+   tick when they drift.
+3. **Gust marker overlay** — leaves a ghost `A` at the peak wind for
+   10 s.
+4. **COG line + Current vector** overlays, toggled from the same
+   long-press menu.
+5. **Custom Signal K path** bindable to any corner tile.
+6. **Signal K polar-performance** integration on corner tiles.
+7. **Bottom bar switcheable** rudder angle or boat heel, from the
+   corner-config popup.
+8. **Race timer T1/T2** with beeps, screen flash and spoken
+   countdown, background-persistent across tabs.
+9. **Swipe navigation** between tabs with vertical-axis lock so
+   scrolling never triggers a stray tab flip.
+10. **Multi-language** EN / ES / DE / FR, auto-detected from the
+    browser.
 
-## What's new in 2.3.0
+### Autopilot enhancements — 12 new added functions
 
-Feature batch on top of 2.2.x:
+11. **Pypilot Doctor** — records an engaged AP session, detects
+    bias / oscillation / low authority / noise, and proposes P/I/D
+    adjustments with plain-language rationale. Applying forks the
+    current pypilot profile into `doctor-YYYYMMDD-HHMM` so the
+    original stays one tap away.
+12. **Smart Pilot — auto profile by wind** — switches the pypilot
+    profile between Light / Medium / Heavy according to the averaged
+    TWS.
+13. **Smart Pilot — gust strategy** — freeze target, boost D +20%
+    for 20 s, temporarily switch to the Heavy profile for 30 s, or
+    just warn.
+14. **Auto-disengage on lost authority** — RMS heading error > 30°
+    with servo duty > 90% sustained 10 s.
+15. **Pre-departure Autopilot Check** — a single READY / CAVEATS /
+    DO-NOT-ENGAGE verdict aggregating every sensor, servo, voltage
+    and link signal.
+16. **Sensor Quality** — freshness, update rate, jitter and source
+    per AP-critical Signal K path, with per-row Ignore / Restore.
+17. **Servo Health** — learns a baseline for typical servo duty at
+    sea and flags recent, peak, temperature or voltage deviations
+    from that baseline.
+18. **Alarm engine — 9 rules** — heading deviation, cruise drift,
+    unable-to-steer, servo overcurrent, servo temp, motor temp, high
+    AP load, low voltage, sensor lost, pypilot disconnected — all
+    published as canonical `notifications.autopilot.*` for KIP /
+    WilhelmSK.
+19. **Head-to-wind pseudo-mode** — a "raise the sails" mode not
+    present in pypilot, with countdown and bow / stern swing
+    selection.
+20. **Synthetic tack** and **tack countdown UI** with planned final
+    target and single-tap cancel on the circle.
+21. **Watchdog with core-alive detection** — distinguishes a live
+    `pypilot_web` with a dead pypilot core, so writes never leave to
+    the void while the visor claims success.
+22. **Reconnect Restore banner** — snapshot of target and mode on
+    outage, Yes / No offer to re-engage the same target when pypilot
+    is back within 20 s to 5 min.
 
-- **Chart tab — interactive hover** — freeze the auto-refresh and
-  read the exact value of every band at any point in the history
-  window by hovering the graph. Y-axis ticks (min / mid / max) now
-  sit inside the right gutter for each band.
-- **Tune tab — per-slider restore + profile fork prompt** — every
-  gain slider gets a ↺ button that snaps back to the frozen
-  baseline captured when you unlocked the panel. On the first
-  change of an unlock session a modal asks whether to keep the
-  tweaks in the current profile, save them in a new
-  `tune-YYYYMMDD-HHMM` fork (mirroring the Doctor pattern), or
-  Cancel and revert.
-- **Setup launcher — live status chips on every tile** — Pypilot
-  Connection shows `host:port`, Language shows the active locale,
-  Calibration shows the timestamp of the last slider adjustment
-  (with a `Reset historial` button on the card), Signal K Sentences
-  shows the count of published SK paths, and Remote Control Console
-  says whether SSH creds are stored. Sensor Quality now counts
-  missing sensors into the failure tally and each row gains an
-  Ignore / Restore button so a sensor you don't have on this boat
-  (rudder without a rudder feedback, temp probe absent, ...) stops
-  turning the chip red.
-- **Nav bar slide-down gesture** — the counterpart to the existing
-  slide-up hide; drag from the top of the visor to bring the tab
-  bar back.
-- **Doctor tab — Hide / Discard on every suggestion** — the
-  Descartar / Ocultar button stays visible even after a suggestion
-  has been applied so you can clear stale advice from the list.
-  Hidden suggestions also drop off the tile chip's counter so the
-  card goes back to `sano` once you've cleared everything. Backend
-  now emits i18n keys + args for findings and summary so the whole
-  Doctor panel reads in the active language.
-- **Alarm engine i18n** — the seven built-in alarm rules
-  (heading-deviation, unable-to-steer, servo-overcurrent, etc.) now
-  render banners and speak the message in the active language
-  (EN / ES / DE / FR). The backend still publishes the English
-  notification message on `notifications.autopilot.*` for
-  KIP / WilhelmSK compatibility.
-- **Better DE / FR coverage** — Setup tile titles, calibration
-  strings, Tune fork modal and Info tab now translate in Deutsch
-  and Français instead of falling back to English.
-- **Remote Control Console defaults** — the tile no longer wears
-  its emergency red frame; the SSH user field is pre-filled with
-  the TinyPilot default (`tc`) and a hint spells out that the
-  default password is `tc` too, so the setup is a two-click job on
-  a stock TinyPilot.
+### Data & reporting — 6 new added functions
 
-## What's new in 2.2.0
+23. **Trip Recorder** — auto-records every outing via
+    `navigation.state`. Summary of 17 KPIs (distance, duration,
+    SOG / TWS / AWS averages and peaks, heel, tacks, points-of-sail
+    split, min voltage, AP-engaged %), OpenSeaMap trace coloured by
+    SOG with markers on peak gust, peak SOG, min voltage and every
+    detected tack. Share as portrait PNG report card or as WhatsApp
+    text.
+24. **Chart tab** — 9 live Trip Stats cards, history with
+    30 s / 2 min / 10 min windows and hover-freeze, plus a Servo
+    Health card.
+25. **Persistent tack history** with pre / post TWS, AWA, SOG and
+    recovery time to 95% of pre-tack speed, filterable by day range.
+26. **Post-tack HUD stats** — before / after values plus SOG-loss
+    verdict.
+27. **Navigation session recorder** — every engaged AP session
+    stored as JSONL with tags (wind, sea state, propulsion, point of
+    sail, crew), shareable for advice.
+28. **Full Signal K path catalog viewer** in the visor with
+    copy-to-clipboard for KIP.
 
-2.2.0 turns the plugin into an **intelligence layer over pypilot**. Forty
-in-session Revs on top of the 2.1.0 visual foundation. Highlights:
+### Signal K integration — 8 new added functions
 
-- **Aproado pseudo-mode** — a new "raise the sails" AP mode not in
-  pypilot upstream. Pick BY BOW / BY STERN via a 5 s modal, the
-  plugin switches pypilot to wind mode with target 0° (head to
-  wind), and a floating HUD over the boat shows elapsed time,
-  straight-line distance from the start and the compass heading
-  captured at activation. SALIR restores the previous mode + target
-  + engaged state. BY STERN forces a stern-through swing by walking
-  a chain of intermediate targets 60° apart so pypilot cannot
-  shortcut through the bow.
-- **Telemetry historian + Chart tab** — RAM ring buffer at 1 Hz for
-  the last 30 min (backend, Pi 5 friendly). Nine Trip Stats cards
-  (AP engaged time, distance, energy, mean / RMS / p95 heading
-  error, servo runtime, tacks / gybes, peak servo A) fed live via
-  SK paths, plus a canvas with 30 s / 2 min / 10 min windows.
-- **Sensor Quality + Servo Health + Alarm engine + Pre-departure
-  check** — new backend modules that grade every SK path the AP
-  depends on, learn a baseline servo current and flag anomalies,
-  evaluate seven alarm rules that publish canonical
-  `notifications.autopilot.*`, and roll everything into a single
-  READY / READY-WITH-CAVEATS / DO-NOT-ENGAGE verdict.
-- **Pypilot Doctor** — press DIAGNOSE, the plugin records 2-3 min
-  with the AP engaged, runs heuristic rules on the heading error
-  stream (bias / oscillation / low authority) and proposes P / I /
-  D adjustments with a plain explanation. Nothing is applied
-  automatically. The first Apply of a session **forks the current
-  pypilot profile** into a new `doctor-YYYYMMDD-HHMM` profile so
-  the previous gains stay one profile-select away.
-- **Setup as a launcher grid** — every setup block is now a square
-  tile in a 2 / 3 / 4-column grid. Tap opens fullscreen with a
-  small X to close and ESC support. Live summary pill on every
-  tile. Connection consolidated (status + LAN scan + manual host +
-  Autopilot Provider in one card). "Emergency" renamed to "Remote
-  Control Console".
-- **Interactive SSH console** — free-form command input with
-  on-screen arrow buttons for mobile history navigation,
-  accumulative output textarea, clipboard fallback for HTTP LAN,
-  and 14 preset buttons with plain human labels (Memory / IP
-  table / WiFi / Temperature / Who is connected / ...). BusyBox /
-  piCore-safe fallbacks for every command.
-- **Full RangeSetting sliders in Calibration** — every pypilot
-  `RangeSetting` grouped by category (rudder / servo / imu / ap /
-  other) with the same look as the Tune tab, a lock checkbox with
-  the padlock emoji, a frozen "before:" baseline that never moves
-  as you drag, and a per-slider ↺ restore button.
-- **Target/wind arrows shape swap** — after iterations with skippers
-  using the plugin: the AMBER "A" arrow (apparent wind) is now the
-  LARGE piece and the TEAL "T" arrow (true wind) the SMALL outer
-  one. Colors and letters kept their canonical meaning; only the
-  SVG paths moved so the amber piece is visually the dominant one.
-- **Full i18n audit** across EN / ES / FR / DE — every hard-coded
-  English string in the non-EN bundles purged, alarm messages and
-  Doctor suggestion reason / effect exposed as i18n keys + args so
-  the frontend renders in the user's language.
+29. **~110 Signal K paths** under `steering.autopilot.pypilot.*`,
+    opt-in per path so you never flood the bus.
+30. **Autopilot API v2 provider** (absorbable) — WilhelmSK,
+    freeboard and KIP talk to this plugin as the canonical
+    autopilot.
+31. **KIP action paths** — Simple Switch for engage, nudge, tack,
+    mode selector, profile selector.
+32. **9 momentary switches** — nudge ±10 / ±1, tack port / starboard
+    / cancel — as KIP boolean paths.
+33. **Radio switches** — mode and profile groups as KIP radio switch
+    sets.
+34. **Publish-only-essentials toggle** — keeps the SK bus light on
+    modest servers.
+35. **Config export / import** — Web Share API (email / WhatsApp /
+    AirDrop) or plain `.json`.
+36. **Live status endpoint** — connection state, core-alive flag,
+    catalog counters for external monitoring.
 
-See [`CHANGELOG.md`](./CHANGELOG.md) for the full detailed list in
-four languages.
+**36 concrete new functions** layered on top of pypilot: a full touch
+UI + intelligence + observability + Signal K bridge.
+
+> **Reliable by design, easy to tune** — the built-in **Pypilot
+> Doctor** records a real session, tells you in plain language what
+> is off (bias / oscillation / weak authority / noise) and proposes
+> P / I / D changes you can accept with one tap. **Smart Pilot** goes
+> one step further: it picks the right pilot profile for the wind
+> you're in and reacts to gusts on its own.
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for the release-by-release
+history.
 
 ## Upgrading from 1.0.0 to 2.0.0
 
