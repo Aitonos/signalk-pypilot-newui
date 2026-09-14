@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.7.5 — 2026-09-15 — Hotfix on 2.7.4 (visor did not load)
+
+**Deprecates 2.7.4.** The restore verdict fix that landed in 2.7.4
+declared `const wantMode` twice in the same block scope
+(`SyntaxError: redeclaration of const wantMode`) which prevented
+`app.js` from loading. This release removes the duplicate and keeps
+everything else in 2.7.4 unchanged. If you installed 2.7.4, please
+update to 2.7.5.
+
 ## 2.7.4 — 2026-09-15 — Async control tightening + uppercase accents
 
 Closes three findings from the external Rev277 review and finishes

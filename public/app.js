@@ -2968,7 +2968,6 @@
           const started = Date.now();
           const maxMs = 10000;
           const TOL_RAD = 3 * Math.PI / 180;
-          const wantMode = snap.mode ? String(snap.mode).toLowerCase() : null;
           const wantTarget = typeof snap.target === "number" ? snap.target : null;
           const tick = () => {
             if (state.pypilotHealthy === false) {
