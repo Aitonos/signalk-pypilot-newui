@@ -43,12 +43,19 @@ import {
   CONDITIONS as PROFILE_CONDITIONS,
   type ProfileMetadata,
 } from "./profile-metadata";
+import {
+  computeApbTarget,
+  apbDivergence,
+  isApbSource,
+  type ApbSource,
+  type CourseData,
+} from "./nav-bearing";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev291";
+const PLUGIN_REVISION = "Rev292";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -157,6 +164,13 @@ interface PluginProps {
   alarmLowVoltageV?: number;
   alarmServoTempC?: number;
   alarmServoMotorTempC?: number;
+  // Rev291 (F1): NAV mode target source preference. "auto" (default)
+  // uses steerTo when the plotter provides it, bearingTrue otherwise.
+  // Currently READ-ONLY: the plugin exposes the computed target under
+  // /nav/apb-preview but does NOT push it to pypilot yet — pypilot's
+  // own nav mode still runs the show. A future Rev may switch to
+  // plugin-side NAV once we can validate at sea.
+  apbSource?: "auto" | "steerTo" | "bearing";
   // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
   // gustDetectorEnabled; now the user picks what to do when a gust
   // lands:
@@ -1828,6 +1842,7 @@ module.exports = function (app: any) {
           alarmLowVoltageV: props.alarmLowVoltageV ?? 11.0,
           alarmServoTempC: props.alarmServoTempC ?? 60,
           alarmServoMotorTempC: props.alarmServoMotorTempC ?? 70,
+          apbSource: props.apbSource ?? "auto",
         });
       });
       router.post("/supervisor/config", (req: any, res: any) => {
@@ -1879,6 +1894,11 @@ module.exports = function (app: any) {
         if (typeof b.alarmServoMotorTempC === "number") {
           patch.alarmServoMotorTempC = clampNumber(b.alarmServoMotorTempC, 40, 90, 70);
         }
+        // Rev291 (F1): APB source preference (read-only side, no
+        // pypilot write yet).
+        if (isApbSource(b.apbSource)) {
+          patch.apbSource = b.apbSource;
+        }
         Object.assign(props, patch);
         // Rev282: hot-apply Roll FF options so the sailor sees the
         // effect on the sample tick without a plugin restart.
@@ -1918,6 +1938,43 @@ module.exports = function (app: any) {
           return res.status(500).json({ error: e?.message || String(e) });
         }
         res.json({ ok: true, applied: patch });
+      });
+
+      // Rev291 (F1): APB target preview. Reads the current SK course
+      // data via app.getCourse and returns what the AP *would* steer to
+      // if the plugin drove NAV directly. Diagnostic only — pypilot's
+      // own nav mode is still the one commanding the pilot.
+      router.get("/nav/apb-preview", async (_req: any, res: any) => {
+        try {
+          const cdata = (app.getCourse ? await app.getCourse() : null) as CourseData | null;
+          const pref: ApbSource = (props.apbSource as ApbSource) || "auto";
+          const target = computeApbTarget(cdata, pref);
+          const divergence = apbDivergence(cdata);
+          const targetDeg = target.targetRad != null
+            ? (target.targetRad * 180 / Math.PI + 360) % 360
+            : null;
+          res.json({
+            preference: pref,
+            hasWaypoint: !!cdata?.nextPoint,
+            target: {
+              rad: target.targetRad,
+              deg: targetDeg,
+              source: target.source,
+              fallback: target.fallback,
+            },
+            xteM: target.xteM,
+            distanceM: target.distanceM,
+            divergence: {
+              bothPresent: divergence.bothPresent,
+              rad: divergence.divergenceRad,
+              deg: divergence.divergenceRad != null ? divergence.divergenceRad * 180 / Math.PI : null,
+            },
+            appliedToAp: false,
+            note: "This value is computed and displayed but NOT written to pypilot. The pilot's own nav mode remains the authoritative source.",
+          });
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
       });
 
       // Rev289 (B5): profile metadata store.
@@ -2721,6 +2778,8 @@ module.exports = function (app: any) {
       alarmLowVoltageV: clampNumber(options.alarmLowVoltageV, 8, 14, 11.0),
       alarmServoTempC: clampNumber(options.alarmServoTempC, 40, 85, 60),
       alarmServoMotorTempC: clampNumber(options.alarmServoMotorTempC, 40, 90, 70),
+      apbSource: (["auto","steerTo","bearing"] as const).includes(options.apbSource as any)
+        ? options.apbSource : "auto",
     };
   }
 
