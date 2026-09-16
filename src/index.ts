@@ -34,12 +34,13 @@ import {
   type TuningKnobs,
   type GainSet,
 } from "./tuning-knobs";
+import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev286";
+const PLUGIN_REVISION = "Rev287";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -130,6 +131,14 @@ interface PluginProps {
   rollFfGain?: number;
   rollFfTauSec?: number;
   rollFfTwaGateDeg?: number;
+  // Rev286 (B2): profile advisor. Watches window1m KPIs and emits a
+  // notification when the sailor should consider a profile change.
+  // Never applies anything. On by default; can be silenced from the
+  // Smart Pilot card.
+  profileAdvisorEnabled?: boolean;
+  profileAdvisorRmsHighDeg?: number;
+  profileAdvisorRmsLowDeg?: number;
+  profileAdvisorSustainSec?: number;
   // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
   // gustDetectorEnabled; now the user picks what to do when a gust
   // lands:
@@ -262,6 +271,12 @@ module.exports = function (app: any) {
   // every off→on transition of a servo-* alarm rule and remembers the
   // 30 s pre-fault window from the historian.
   let servoErrorLog: ServoErrorLog | null = null;
+  // Rev286 (B2): profile advisor + last-published state for the SK
+  // notification path. Idempotent publish: only sends a delta when
+  // the state changes to avoid flooding subscribers.
+  let profileAdvisor: ProfileAdvisor | null = null;
+  let _profileAdvisorLastPubKind: string | null = null; // "normal" | AdvisoryKind
+  let _profileAdvisorMetaSent = false;
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -683,6 +698,12 @@ module.exports = function (app: any) {
         log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
         getRecentSamples: (windowMs) => (historian ? historian.slice(windowMs) as Sample[] : []),
       });
+      // Rev286 (B2): profile advisor. Off unless props.profileAdvisorEnabled.
+      profileAdvisor = new ProfileAdvisor({
+        rmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
+        rmsLowDeg:  props.profileAdvisorRmsLowDeg  ?? 1,
+        sustainSec: props.profileAdvisorSustainSec ?? 60,
+      });
       // Rev143: session recorder wired into the historian tick so we
       // share the same 1 Hz cadence and the same collectSample() call.
       sessionRecorder = new SessionRecorder({
@@ -730,6 +751,10 @@ module.exports = function (app: any) {
         // Rev100: run the alarm engine last so it has every input up to
         // date. Changed rules trigger SK notification deltas.
         try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
+        // Rev286 (B2): profile advisor. Watches window1m and emits an
+        // advisory notification when tracking has been sustainedly bad
+        // or over-tight. Never applies anything.
+        try { tickProfileAdvisor(s.ts); } catch { /* silent */ }
         return s;
       });
       kpiPublishTimer = setInterval(() => {
@@ -831,6 +856,11 @@ module.exports = function (app: any) {
       _lastRollFfDeltaRad = 0;
       // Rev283: drop the servo error log (persisted state stays on disk).
       servoErrorLog = null;
+      // Rev286: drop advisor + reset dedup markers so a re-enable
+      // sends fresh SK notification state.
+      profileAdvisor = null;
+      _profileAdvisorLastPubKind = null;
+      _profileAdvisorMetaSent = false;
       // Clear the action-paths keep-alive interval registered on the app.
       const ka = (app as any)._pypilotNewuiKeepAlive;
       if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
@@ -1769,6 +1799,10 @@ module.exports = function (app: any) {
           rollFfGain: props.rollFfGain ?? 0,
           rollFfTauSec: props.rollFfTauSec ?? 3,
           rollFfTwaGateDeg: props.rollFfTwaGateDeg ?? 90,
+          profileAdvisorEnabled: props.profileAdvisorEnabled !== false,
+          profileAdvisorRmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
+          profileAdvisorRmsLowDeg: props.profileAdvisorRmsLowDeg ?? 1,
+          profileAdvisorSustainSec: props.profileAdvisorSustainSec ?? 60,
         });
       });
       router.post("/supervisor/config", (req: any, res: any) => {
@@ -1797,6 +1831,19 @@ module.exports = function (app: any) {
         if (typeof b.rollFfTwaGateDeg === "number") {
           patch.rollFfTwaGateDeg = clampNumber(b.rollFfTwaGateDeg, 30, 179, 90);
         }
+        // Rev286 (B2) knobs.
+        if (typeof b.profileAdvisorEnabled === "boolean") {
+          patch.profileAdvisorEnabled = b.profileAdvisorEnabled;
+        }
+        if (typeof b.profileAdvisorRmsHighDeg === "number") {
+          patch.profileAdvisorRmsHighDeg = clampNumber(b.profileAdvisorRmsHighDeg, 3, 45, 10);
+        }
+        if (typeof b.profileAdvisorRmsLowDeg === "number") {
+          patch.profileAdvisorRmsLowDeg = clampNumber(b.profileAdvisorRmsLowDeg, 0.1, 5, 1);
+        }
+        if (typeof b.profileAdvisorSustainSec === "number") {
+          patch.profileAdvisorSustainSec = clampNumber(b.profileAdvisorSustainSec, 15, 600, 60);
+        }
         Object.assign(props, patch);
         // Rev282: hot-apply Roll FF options so the sailor sees the
         // effect on the sample tick without a plugin restart.
@@ -1809,12 +1856,43 @@ module.exports = function (app: any) {
             });
           } catch { /* silent */ }
         }
+        // Rev286 (B2): hot-apply advisor thresholds; also reset its
+        // sustain timers if the sailor disabled the feature outright,
+        // so a later re-enable starts clean.
+        if (profileAdvisor && (
+          patch.profileAdvisorRmsHighDeg !== undefined ||
+          patch.profileAdvisorRmsLowDeg !== undefined ||
+          patch.profileAdvisorSustainSec !== undefined ||
+          patch.profileAdvisorEnabled !== undefined
+        )) {
+          try {
+            profileAdvisor.update({
+              rmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
+              rmsLowDeg:  props.profileAdvisorRmsLowDeg  ?? 1,
+              sustainSec: props.profileAdvisorSustainSec ?? 60,
+            });
+            if (patch.profileAdvisorEnabled === false) {
+              profileAdvisor.reset();
+              publishProfileAdvisorNormal();
+            }
+          } catch { /* silent */ }
+        }
         try {
           app.savePluginOptions?.(props, () => { /* noop */ });
         } catch (e: any) {
           return res.status(500).json({ error: e?.message || String(e) });
         }
         res.json({ ok: true, applied: patch });
+      });
+
+      // Rev286 (B2): profile advisor state for the Smart Pilot card.
+      router.get("/advisor/status", (_req: any, res: any) => {
+        if (!profileAdvisor) { res.status(503).json({ error: "not initialised" }); return; }
+        const st = profileAdvisor.status();
+        res.json({
+          enabled: !!props.profileAdvisorEnabled,
+          ...st,
+        });
       });
 
       // Rev283: persistent servo error log (C1).
@@ -2542,6 +2620,10 @@ module.exports = function (app: any) {
       rollFfGain: clampNumber(options.rollFfGain, 0, 2, 0),
       rollFfTauSec: clampNumber(options.rollFfTauSec, 0.5, 30, 3),
       rollFfTwaGateDeg: clampNumber(options.rollFfTwaGateDeg, 30, 179, 90),
+      profileAdvisorEnabled: options.profileAdvisorEnabled !== false,
+      profileAdvisorRmsHighDeg: clampNumber(options.profileAdvisorRmsHighDeg, 3, 45, 10),
+      profileAdvisorRmsLowDeg: clampNumber(options.profileAdvisorRmsLowDeg, 0.1, 5, 1),
+      profileAdvisorSustainSec: clampNumber(options.profileAdvisorSustainSec, 15, 600, 60),
     };
   }
 
@@ -3363,6 +3445,79 @@ module.exports = function (app: any) {
     } catch (e: any) {
       app.debug(`[kpis] publish failed: ${e?.message || e}`);
     }
+  }
+
+  // Rev286 (B2): drive the profile advisor from the sampler tick.
+  // Publishes a SK notification only on state transitions to avoid
+  // flooding — the same idempotency the AlarmEngine uses.
+  function tickProfileAdvisor(nowMs: number): void {
+    if (!profileAdvisor || !kpis || !props.profileAdvisorEnabled) return;
+    const snap = kpis.snapshot();
+    const ev: AdvisoryEvent | null = profileAdvisor.onTick(nowMs, {
+      rmsErrorRad:   snap.window1m.rmsErrorRad,
+      servoDutyPct:  snap.window1m.servoDutyPct,
+      engagedSamples: snap.window1m.engagedSamples,
+    });
+    if (ev) {
+      publishProfileAdvisorNotification(ev);
+    } else {
+      // No new event — but if we previously published an advisory and
+      // the cooldown has expired, revert the notification to normal so
+      // KIP / WilhelmSK stop showing the banner.
+      const st = profileAdvisor.status(nowMs);
+      if (_profileAdvisorLastPubKind && _profileAdvisorLastPubKind !== "normal" && st.cooldownRemainingMs === 0) {
+        publishProfileAdvisorNormal();
+      }
+    }
+  }
+
+  function publishProfileAdvisorNotification(ev: AdvisoryEvent): void {
+    if (_profileAdvisorLastPubKind === ev.kind) return;
+    _profileAdvisorLastPubKind = ev.kind;
+    const nowIso = new Date().toISOString();
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: nowIso,
+          values: [{
+            path: "notifications.autopilot.pypilot.profileAdvisor",
+            value: {
+              state: "alert",
+              method: ["visual"],
+              message: ev.message,
+              messageKey: ev.messageKey,
+              messageArgs: ev.messageArgs,
+              metric: ev.metric,
+              kind: ev.kind,
+            },
+          }],
+        }],
+      });
+    } catch (e: any) {
+      app.debug?.(`[advisor] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  function publishProfileAdvisorNormal(): void {
+    if (_profileAdvisorLastPubKind === "normal") return;
+    _profileAdvisorLastPubKind = "normal";
+    const nowIso = new Date().toISOString();
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: nowIso,
+          values: [{
+            path: "notifications.autopilot.pypilot.profileAdvisor",
+            value: { state: "normal", method: [], message: "" },
+          }],
+        }],
+      });
+    } catch { /* silent */ }
+    _profileAdvisorMetaSent = _profileAdvisorMetaSent; // keep flag warm
   }
 
   // Rev282: publish Roll FF diagnostic paths so KIP / freeboard widgets
