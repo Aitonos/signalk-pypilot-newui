@@ -93,6 +93,11 @@ export const RULE_UNABLE_DUTY_MIN = 0.7;                  // 70% duty
 export const RULE_SERVO_OVERCURR_A = 5.0;
 export const RULE_SERVO_TEMP_C     = 60;
 export const RULE_LOW_VOLTAGE_V    = 11.0;
+// Rev287 (E1): trim warnings fire BEFORE the corresponding fault
+// so the sailor sees the drift toward the limit and can trim sails
+// or ease pressure before the fault-severity rule kicks in.
+export const RULE_SERVO_TRIM_FRAC   = 0.75;               // 75% of overcurrent
+export const RULE_RUDDER_TRIM_RAD   = 40 * Math.PI / 180; // 40 deg absolute
 // Rev256 lowered this from 10 s to 3 s. Rev258 (Carlos): with the new
 // pong-aware `healthy` check the socket is flagged offline after ~8 s
 // of missed pings (much earlier than TCP heartbeat would), so we can
@@ -173,6 +178,48 @@ export const DEFAULT_RULES: RuleDef[] = [
       return c.sample.servoCurrent > RULE_SERVO_OVERCURR_A;
     },
     message: (c) => `Servo overcurrent ${(c.sample?.servoCurrent ?? 0).toFixed(1)} A`,
+  },
+  {
+    // Rev287 (E1): pre-fault trim warning. Fires when the servo has
+    // been drawing >75% of the overcurrent limit sustained a few
+    // seconds. Info severity - it precedes the fault-severity rule
+    // above by design so the sailor has time to react.
+    id: "servo-current-trim",
+    label: "Servo current approaching limit",
+    severity: "info",
+    defaultEnabled: true,
+    sustainSec: 5,
+    description: `Servo drawing over ${(RULE_SERVO_TRIM_FRAC * 100).toFixed(0)}% of the overcurrent limit — ease pressure or trim sails.`,
+    evaluate: (c) => {
+      if (!c.sample || typeof c.sample.servoCurrent !== "number") return false;
+      const thr = RULE_SERVO_OVERCURR_A * RULE_SERVO_TRIM_FRAC;
+      const a = c.sample.servoCurrent;
+      // Don't double-fire with the fault-severity rule; back off when
+      // already in the overcurrent band.
+      if (a > RULE_SERVO_OVERCURR_A) return false;
+      return a > thr;
+    },
+    message: (c) => `Servo current ${(c.sample?.servoCurrent ?? 0).toFixed(1)} A (limit ${RULE_SERVO_OVERCURR_A.toFixed(1)} A)`,
+  },
+  {
+    // Rev287 (E1): rudder pre-fault trim warning. Fires when the rudder
+    // has been sustainedly close to its stop, which usually precedes a
+    // servo out-of-range fault. Info severity.
+    id: "rudder-range-trim",
+    label: "Rudder near limit",
+    severity: "info",
+    defaultEnabled: true,
+    sustainSec: 3,
+    description: `Rudder deflection above ${(RULE_RUDDER_TRIM_RAD * 180 / Math.PI).toFixed(0)}° — servo is near its end of travel.`,
+    evaluate: (c) => {
+      if (!c.sample || typeof c.sample.rudder !== "number") return false;
+      return Math.abs(c.sample.rudder) > RULE_RUDDER_TRIM_RAD;
+    },
+    message: (c) => {
+      const r = (c.sample?.rudder ?? 0) * 180 / Math.PI;
+      const side = r >= 0 ? "stbd" : "port";
+      return `Rudder ${Math.abs(r).toFixed(0)}° ${side} (limit ${(RULE_RUDDER_TRIM_RAD * 180 / Math.PI).toFixed(0)}°)`;
+    },
   },
   {
     id: "servo-temp-high",
