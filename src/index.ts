@@ -23,12 +23,13 @@ import {
   applyBundleToPypilot,
   ConfigBundle,
 } from "./config-backup";
+import { RollFeedForward } from "./roll-ff";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev282";
+const PLUGIN_REVISION = "Rev283";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -110,6 +111,15 @@ interface PluginProps {
   autoProfileLight?: string;    // profile name for TWS < 8 kn
   autoProfileMedium?: string;   // profile name for TWS 8-16 kn
   autoProfileHeavy?: string;    // profile name for TWS > 16 kn
+  // Rev282: roll feed-forward. Off by default. When > 0 the plugin
+  // computes a small pre-emptive shift of the commanded heading based
+  // on the dynamic component of the boat's roll. Only active downwind
+  // (|TWA| > rollFfTwaGateDeg). Output is currently PUBLISHED only,
+  // not applied to the AP - a later Rev flips the switch after sea
+  // trial.
+  rollFfGain?: number;
+  rollFfTauSec?: number;
+  rollFfTwaGateDeg?: number;
   // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
   // gustDetectorEnabled; now the user picks what to do when a gust
   // lands:
@@ -225,6 +235,10 @@ module.exports = function (app: any) {
   // quality-band gauge and by the Doctor as ground truth for tuning
   // advice.
   let episodes: EpisodeDetector | null = null;
+  // Rev282: roll feed-forward computer. Idle unless props.rollFfGain > 0.
+  // Currently PUBLISHES its output only, does not apply it to the AP.
+  let rollFf: RollFeedForward | null = null;
+  let _lastRollFfDeltaRad = 0;
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -630,6 +644,12 @@ module.exports = function (app: any) {
       doctor = new DoctorEngine(historian, client);
       // Rev281: episode detector idles until the sampler feeds it.
       episodes = new EpisodeDetector();
+      // Rev282: roll feed-forward, off unless the user turned it on.
+      rollFf = new RollFeedForward({
+        gain: props.rollFfGain ?? 0,
+        tauSec: props.rollFfTauSec ?? 3,
+        twaGateDeg: props.rollFfTwaGateDeg ?? 90,
+      });
       // Rev143: session recorder wired into the historian tick so we
       // share the same 1 Hz cadence and the same collectSample() call.
       sessionRecorder = new SessionRecorder({
@@ -648,6 +668,19 @@ module.exports = function (app: any) {
         if (kpis) { try { kpis.onSample(s); } catch { /* silent */ } }
         if (servoHealth) { try { servoHealth.onSample(s); } catch { /* silent */ } }
         if (episodes) { try { episodes.onSample(s); } catch { /* silent */ } }
+        // Rev282: roll feed-forward tick. Output goes to _lastRollFfDeltaRad
+        // and is published under steering.autopilot.pypilot.tuning.rollFf.*
+        // by the KPI publisher interval. NOT applied to the AP yet.
+        if (rollFf) {
+          try {
+            _lastRollFfDeltaRad = rollFf.compute({
+              ts: s.ts,
+              heel: s.heel,
+              twa: s.twa,
+              engaged: s.engaged,
+            });
+          } catch { _lastRollFfDeltaRad = 0; }
+        }
         // Rev97: also feed the quality monitor. Reading each watched
         // path costs one getSelfPath() call, cheap on Pi 4.
         if (sensorQuality) { try { feedSensorQuality(); } catch { /* silent */ } }
@@ -669,6 +702,7 @@ module.exports = function (app: any) {
       kpiPublishTimer = setInterval(() => {
         try { publishKpiPaths(); } catch { /* silent */ }
         try { publishServoHealthPaths(); } catch { /* silent */ }
+        try { publishRollFfPaths(); } catch { /* silent */ }
       }, 1000);
       if (typeof (kpiPublishTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
         (kpiPublishTimer as NodeJS.Timeout & { unref: () => void }).unref();
@@ -694,6 +728,7 @@ module.exports = function (app: any) {
       }
       kpis = null;
       kpiMetaSent = false;
+      rollFfMetaSent = false;
       // Rev97: drop the sensor quality monitor (its ring buffers go with it).
       sensorQuality = null;
       // Rev99: drop the servo health monitor (its EWMA baseline resets
@@ -758,6 +793,9 @@ module.exports = function (app: any) {
       // Rev281: drop the episode detector so its history is not stale
       // across a Disable+Enable cycle.
       episodes = null;
+      // Rev282: drop the roll feed-forward computer.
+      rollFf = null;
+      _lastRollFfDeltaRad = 0;
       // Clear the action-paths keep-alive interval registered on the app.
       const ka = (app as any)._pypilotNewuiKeepAlive;
       if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
@@ -1689,6 +1727,9 @@ module.exports = function (app: any) {
           autoProfileHeavy:  props.autoProfileHeavy  || "",
           gustStrategy: props.gustStrategy ?? "off",
           autoDisengageOnLostAuthority: !!props.autoDisengageOnLostAuthority,
+          rollFfGain: props.rollFfGain ?? 0,
+          rollFfTauSec: props.rollFfTauSec ?? 3,
+          rollFfTwaGateDeg: props.rollFfTwaGateDeg ?? 90,
         });
       });
       router.post("/supervisor/config", (req: any, res: any) => {
@@ -1705,13 +1746,54 @@ module.exports = function (app: any) {
         if (typeof b.autoDisengageOnLostAuthority === "boolean") {
           patch.autoDisengageOnLostAuthority = b.autoDisengageOnLostAuthority;
         }
+        // Rev282: Roll FF live-tunable knobs. Clamped in normalizeProps
+        // on plugin restart; also clamped here to keep an out-of-range
+        // POST from taking hold.
+        if (typeof b.rollFfGain === "number") {
+          patch.rollFfGain = clampNumber(b.rollFfGain, 0, 2, 0);
+        }
+        if (typeof b.rollFfTauSec === "number") {
+          patch.rollFfTauSec = clampNumber(b.rollFfTauSec, 0.5, 30, 3);
+        }
+        if (typeof b.rollFfTwaGateDeg === "number") {
+          patch.rollFfTwaGateDeg = clampNumber(b.rollFfTwaGateDeg, 30, 179, 90);
+        }
         Object.assign(props, patch);
+        // Rev282: hot-apply Roll FF options so the sailor sees the
+        // effect on the sample tick without a plugin restart.
+        if (rollFf && (patch.rollFfGain !== undefined || patch.rollFfTauSec !== undefined || patch.rollFfTwaGateDeg !== undefined)) {
+          try {
+            rollFf.update({
+              gain: props.rollFfGain ?? 0,
+              tauSec: props.rollFfTauSec ?? 3,
+              twaGateDeg: props.rollFfTwaGateDeg ?? 90,
+            });
+          } catch { /* silent */ }
+        }
         try {
           app.savePluginOptions?.(props, () => { /* noop */ });
         } catch (e: any) {
           return res.status(500).json({ error: e?.message || String(e) });
         }
         res.json({ ok: true, applied: patch });
+      });
+
+      // Rev282: Roll FF diagnostic snapshot for the visor.
+      router.get("/roll-ff/status", (_req: any, res: any) => {
+        if (!rollFf) { res.status(503).json({ error: "not initialised" }); return; }
+        const st = rollFf.getState();
+        const o = rollFf.getOptions();
+        res.json({
+          gain: o.gain,
+          tauSec: o.tauSec,
+          twaGateDeg: o.twaGateDeg,
+          maxDeltaRad: o.maxDeltaRad,
+          rollHpRad: st.rollHpRad,
+          hasSample: st.hasSample,
+          lastDeltaRad: _lastRollFfDeltaRad,
+          appliedToAp: false,
+          note: "Delta is computed and published under steering.autopilot.pypilot.tuning.rollFf.* but NOT applied to the pilot yet. Sea trial gates the enable switch.",
+        });
       });
 
       router.get("/log-capture/status", (_req: any, res: any) => {
@@ -2313,7 +2395,17 @@ module.exports = function (app: any) {
       gustStrategy: (["off","warn","freeze-target","boost-D","temp-heavy"] as const)
         .includes(options.gustStrategy as any) ? options.gustStrategy : "off",
       autoDisengageOnLostAuthority: options.autoDisengageOnLostAuthority === true,
+      rollFfGain: clampNumber(options.rollFfGain, 0, 2, 0),
+      rollFfTauSec: clampNumber(options.rollFfTauSec, 0.5, 30, 3),
+      rollFfTwaGateDeg: clampNumber(options.rollFfTwaGateDeg, 30, 179, 90),
     };
+  }
+
+  function clampNumber(v: unknown, min: number, max: number, fallback: number): number {
+    if (typeof v !== "number" || !isFinite(v)) return fallback;
+    if (v < min) return min;
+    if (v > max) return max;
+    return v;
   }
 
   function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
@@ -3094,6 +3186,46 @@ module.exports = function (app: any) {
       });
     } catch (e: any) {
       app.debug(`[kpis] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  // Rev282: publish Roll FF diagnostic paths so KIP / freeboard widgets
+  // can watch the term without polling the /roll-ff/status endpoint.
+  // gain=0 (off) still publishes as 0 so the path is discoverable.
+  let rollFfMetaSent = false;
+  function publishRollFfPaths(): void {
+    if (!rollFf) return;
+    const st = rollFf.getState();
+    const o = rollFf.getOptions();
+    const values = [
+      { path: "steering.autopilot.pypilot.tuning.rollFf.gain",         value: o.gain },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.tauSec",       value: o.tauSec },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.twaGateDeg",   value: o.twaGateDeg },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.rollHpRad",    value: st.rollHpRad },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.deltaRad",     value: _lastRollFfDeltaRad },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.appliedToAp",  value: false },
+    ];
+    const nowIso = new Date().toISOString();
+    try {
+      if (!rollFfMetaSent) {
+        const meta = [
+          { path: "steering.autopilot.pypilot.tuning.rollFf.gain",       value: { description: "Roll FF gain (unitless, output = -gain*rollHp). 0 = off." } },
+          { path: "steering.autopilot.pypilot.tuning.rollFf.rollHpRad",  value: { units: "rad", description: "High-pass filtered roll (dynamic component only)." } },
+          { path: "steering.autopilot.pypilot.tuning.rollFf.deltaRad",   value: { units: "rad", description: "Feed-forward heading delta this tick. Computed even when disabled — but only non-zero when gain>0, AP engaged, and |TWA| above the gate." } },
+          { path: "steering.autopilot.pypilot.tuning.rollFf.appliedToAp",value: { description: "False until a later Rev flips the enable switch after sea trial." } },
+        ];
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, meta }],
+        });
+        rollFfMetaSent = true;
+      }
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
+      });
+    } catch (e: any) {
+      app.debug(`[roll-ff] publish failed: ${e?.message || e}`);
     }
   }
 
