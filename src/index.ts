@@ -25,12 +25,21 @@ import {
 } from "./config-backup";
 import { RollFeedForward } from "./roll-ff";
 import { ServoErrorLog } from "./servo-error-log";
+import {
+  computeGains,
+  roundGains,
+  validateKnobs,
+  validateBaseline,
+  NEUTRAL_KNOBS,
+  type TuningKnobs,
+  type GainSet,
+} from "./tuning-knobs";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev285";
+const PLUGIN_REVISION = "Rev286";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1825,6 +1834,94 @@ module.exports = function (app: any) {
         res.json({ ok: true });
       });
 
+      // Rev285 (A1): high-level tuning knobs. Three sliders that map
+      // onto pypilot's raw P/I/D/DD via the pure module tuning-knobs.ts.
+      //
+      //   GET  /tuning/knobs           - describe the currently-active
+      //                                  pilot: its id, its available
+      //                                  gains from the catalog, and
+      //                                  the neutral knob positions.
+      //                                  Frontend uses this to prime the
+      //                                  panel.
+      //   POST /tuning/knobs           - compute (and optionally apply)
+      //                                  gains for a given knob triple.
+      //                                  Body: {
+      //                                    pilotId?: string,
+      //                                    baseline: { P,I,D,DD },
+      //                                    knobs:    { aggressivity, understeerOversteer, balanceHeadingRate },
+      //                                    apply?: boolean (default false)
+      //                                  }
+      //                                  Response: { computed, applied,
+      //                                              applyErrors: string[] }.
+      router.get("/tuning/knobs", (_req: any, res: any) => {
+        if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
+        const values = client.getValues();
+        const activePilot = typeof values["ap.pilot"] === "string" ? String(values["ap.pilot"]) : "basic";
+        const current: GainSet = {
+          P:  numberOr0(values[`ap.pilot.${activePilot}.P`]),
+          I:  numberOr0(values[`ap.pilot.${activePilot}.I`]),
+          D:  numberOr0(values[`ap.pilot.${activePilot}.D`]),
+          DD: numberOr0(values[`ap.pilot.${activePilot}.DD`]),
+        };
+        // Enumerate available pilots from the catalog (any key
+        // ap.pilots.<name> matches). Keeps ordering stable.
+        const pilots = new Set<string>();
+        for (const k of Object.keys(client.getCatalog())) {
+          const m = /^ap\.pilots\.([^.]+)\./.exec(k);
+          if (m) pilots.add(m[1]);
+        }
+        res.json({
+          activePilot,
+          availablePilots: Array.from(pilots).sort(),
+          currentGains: current,
+          neutralKnobs: NEUTRAL_KNOBS,
+        });
+      });
+      router.post("/tuning/knobs", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        if (!client) return res.status(503).json({ error: "pypilot client not connected" });
+        const body = req.body || {};
+        const knobsErr = validateKnobs(body.knobs);
+        if (knobsErr) return res.status(400).json({ error: knobsErr });
+        const baseErr = validateBaseline(body.baseline);
+        if (baseErr) return res.status(400).json({ error: baseErr });
+        const values = client.getValues();
+        const activePilot = typeof values["ap.pilot"] === "string" ? String(values["ap.pilot"]) : "basic";
+        const pilotId = typeof body.pilotId === "string" && body.pilotId.length > 0
+          ? String(body.pilotId) : activePilot;
+        const baseline = body.baseline as GainSet;
+        const knobs = body.knobs as TuningKnobs;
+        const apply = body.apply === true;
+        const computed = roundGains(computeGains(baseline, knobs));
+        // Guard: refuse to apply if the pilotId is not one we know from
+        // the catalog. Otherwise a typo could set values under a bogus
+        // path that pypilot silently ignores or, worse, creates.
+        const catalog = client.getCatalog();
+        const pilotKnown = Object.keys(catalog).some(k => k.startsWith(`ap.pilots.${pilotId}.`));
+        if (apply && !pilotKnown) {
+          return res.status(400).json({ error: `pilotId '${pilotId}' not present in pypilot catalog`, computed });
+        }
+        let applied = false;
+        const applyErrors: string[] = [];
+        if (apply) {
+          for (const gainKey of ["P", "I", "D", "DD"] as const) {
+            const target = `ap.pilot.${pilotId}.${gainKey}`;
+            const value = computed[gainKey];
+            try { client.set(target, value); }
+            catch (e: any) { applyErrors.push(`${target}: ${e?.message || e}`); }
+          }
+          applied = applyErrors.length === 0;
+        }
+        res.json({
+          pilotId,
+          baseline,
+          knobs,
+          computed,
+          applied,
+          applyErrors,
+        });
+      });
+
       // Rev282: Roll FF diagnostic snapshot for the visor.
       router.get("/roll-ff/status", (_req: any, res: any) => {
         if (!rollFf) { res.status(503).json({ error: "not initialised" }); return; }
@@ -2453,6 +2550,10 @@ module.exports = function (app: any) {
     if (v < min) return min;
     if (v > max) return max;
     return v;
+  }
+
+  function numberOr0(v: unknown): number {
+    return typeof v === "number" && isFinite(v) ? v : 0;
   }
 
   function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
