@@ -5502,7 +5502,15 @@
       catch (e) { console.warn("aproado stern: step PUT failed", e); }
       const ok = await _waitForAWANear(nextDeg, STEP_TOL_DEG, STEP_TIMEOUT_MS, apr);
       if (!ok && state.aproado === apr && apr.phase === "transit") {
-        console.warn(`aproado stern: step timeout at target=${nextDeg.toFixed(0)}`);
+        // Rev280 (audit T13): before, a step timeout only logged a
+        // warn and the loop kept marching through every remaining
+        // 60° step even though no rotation was happening. That
+        // meant a stuck boat still received the whole target chain,
+        // which pypilot would then chase individually. Bail out now:
+        // one timeout = abort the stern chain and let the sailor
+        // decide what to do.
+        console.warn(`aproado stern: step timeout at target=${nextDeg.toFixed(0)} — aborting chain`);
+        break;
       }
     }
     // Final: commit target = 0 and unlock the achieved check.
@@ -5729,6 +5737,13 @@
       lastStepHdg: state.heading,
     };
     _stepTackNextLongArc();
+    // Rev280 (audit T23): if the first step already finished the
+    // manoeuvre (heading was close enough to the final target on the
+    // requested side), _stepTackNextLongArc calls _stopTackStepper
+    // which clears _tackStepperState. Do NOT create a fresh interval
+    // in that case — before this guard we left an orphan setInterval
+    // firing every 500 ms with no work to do until the next tack.
+    if (_tackStepperState == null) return;
     if (_tackStepperTimer) clearInterval(_tackStepperTimer);
     _tackStepperTimer = setInterval(_stepTackTickLongArc, 500);
   }

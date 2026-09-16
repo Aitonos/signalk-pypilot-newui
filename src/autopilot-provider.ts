@@ -18,11 +18,13 @@ const RAD_TO_DEG = 180 / Math.PI;
 // match, for up to this many ms. 2 s covers the worst RTT + pypilot apply
 // latency observed on Tunatunes (~500-800 ms). See receiveValue for why.
 const TARGET_PENDING_MS = 2500;
-// Tolerance for treating an echoed heading_command as "the value we asked
-// for" vs "stale echo of the previous value". Pypilot stores heading_command
-// as float and echoes verbatim in practice, but allow a small margin for
-// rounding on the wire.
-const TARGET_ECHO_TOL_RAD = 2 * DEG_TO_RAD;
+// Rev280 (audit T02): tightened from 2° to 0.1°. Pypilot echoes
+// `heading_command` verbatim; the previous 2° window was wide enough
+// that a stale echo of the previous value (e.g. 100°) matched a fresh
+// request of 101°, so the visor kept snapping the target back to the
+// value the user had just replaced. 0.1° covers float32 → double
+// rounding on the wire without accidentally consuming a stale echo.
+const TARGET_ECHO_TOL_RAD = 0.1 * DEG_TO_RAD;
 
 // Rev272 (audit R07): bounded-cost normalisation. The previous while
 // loop could spin forever on pathological inputs (e.g. |a-b| >= 1e15
@@ -187,6 +189,15 @@ export class AutopilotProvider {
         if (Array.isArray(value)) {
           this.pypilotModes = value.map(String);
           this.data.options.modes = [...this.pypilotModes];
+          // Rev280 (audit T16): the "courseCurrentPoint" action's
+          // availability depends on pypilotModes.includes("nav"), so
+          // a late-arriving ap.modes payload (typical: pypilot
+          // publishes it once its config loader has finished, a few
+          // seconds after the initial catalog) must trigger a fresh
+          // recomputeActions and a delta push. Previously the action
+          // stayed unavailable until the next engage/disengage.
+          this.recomputeActions();
+          changed = true;
         }
         break;
       case "ap.enabled": {

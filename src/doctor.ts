@@ -524,8 +524,22 @@ export class DoctorEngine {
     const applied: string[] = [];
     const failed: { id: string; message: string }[] = [];
     if (!this.result) return { ok: false, applied, failed };
-    // Priority order: bias > authority > oscillation > noise. Same as
-    // pypilot forum guidance - fix the biggest-error direction first.
+    // Rev280 (audit T08): the previous version told the visor
+    // `mustRunFreshSession=true` when suggestions remained, but the
+    // engine did NOT enforce it — a second applyAll call before
+    // running a fresh session happily applied the next suggestion.
+    // Now the result is locked with `awaitingFreshSession` after any
+    // partial apply; further applyAll calls are refused until the
+    // next `record(...)` clears the flag.
+    if ((this.result as any).awaitingFreshSession) {
+      return {
+        ok: false,
+        applied,
+        failed: [{ id: "*", message: "Run a fresh Doctor session before applying the next suggestion." }],
+        mustRunFreshSession: true,
+        remaining: this.result.suggestions.filter((s) => !s.applied && !s.dismissed).length,
+      };
+    }
     const priority: Record<string, number> = { bias: 0, authority: 1, oscillation: 2, noise: 3 };
     const pending = this.result.suggestions
       .filter((s) => !s.applied && !s.dismissed)
@@ -537,12 +551,19 @@ export class DoctorEngine {
     const r = this.applySuggestion(first.id);
     if (r.ok) applied.push(first.id);
     else failed.push({ id: first.id, message: r.message });
+    const remaining = pending.length - 1;
+    const mustRun = remaining > 0;
+    if (mustRun) {
+      // Lock so a second applyAll call cannot bypass the fresh-session
+      // requirement.
+      (this.result as any).awaitingFreshSession = true;
+    }
     return {
       ok: failed.length === 0,
       applied,
       failed,
-      mustRunFreshSession: pending.length > 1,
-      remaining: pending.length - 1,
+      mustRunFreshSession: mustRun,
+      remaining,
     };
   }
 

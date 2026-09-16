@@ -223,9 +223,26 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
   const passCount = items.filter((i) => i.status === "pass").length;
   const warnCount = items.filter((i) => i.status === "warn").length;
   const failCount = items.filter((i) => i.status === "fail").length;
+  const unknownCount = items.filter((i) => i.status === "unknown").length;
+  // Rev280 (audit T14): a critical source in `unknown` state (heading,
+  // IMU attitude, GPS position, autopilot provider) MUST be treated as
+  // fail. Previously the verdict was pass/warn/fail-only, so a boot
+  // where five critical sensors were unknown and only one check
+  // (pypilot-connect) had produced a "pass" still reported READY,
+  // which is worse than saying the truth ("we don't know yet").
+  const CRITICAL_IDS = new Set<string>([
+    "pypilot-connect",
+    "ap-provider",
+    "navigation.headingMagnetic",
+    "navigation.attitude",
+    "navigation.position",
+  ]);
+  const criticalUnknowns = items.filter(
+    (i) => i.status === "unknown" && CRITICAL_IDS.has(i.id)
+  ).length;
   let overall: OverallVerdict;
-  if (failCount > 0) overall = "do-not-engage";
-  else if (warnCount > 0) overall = "ready-with-caveats";
+  if (failCount > 0 || criticalUnknowns > 0) overall = "do-not-engage";
+  else if (warnCount > 0 || unknownCount > 0) overall = "ready-with-caveats";
   else if (passCount > 0) overall = "ready";
   else overall = "unknown";
 

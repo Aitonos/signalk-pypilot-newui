@@ -151,6 +151,16 @@ export class ServoHealthMonitor {
 
   snapshot(): ServoHealthSnapshot {
     const now = Date.now();
+    // Rev280 (audit T15): purge expired samples on READ, not only on
+    // sample push. Previously, if the AP disengaged or the servo went
+    // idle, `recent` kept its last entries indefinitely because
+    // onSample returned early. A stale reading from 120 s ago then
+    // showed up as "recent avg" and could tip status to "high" long
+    // after the actual load ended.
+    const readCutoff = now - this.recentWindowMs;
+    while (this.recent.length > 0 && this.recent[0].ts < readCutoff) {
+      this.recent.shift();
+    }
     // Recent average + peak from the rolling window.
     let recentAvg: number | null = null;
     let peak: number | null = null;

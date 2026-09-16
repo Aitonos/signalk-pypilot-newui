@@ -399,6 +399,14 @@ export class TripRecorder {
   }
 
   deleteTrip(id: string): boolean {
+    // Rev280 (audit T17): refuse to delete a trip that is currently
+    // recording. Before, unlinking the active JSONL file left the
+    // recorder with `currentId` still pointing at it; the next
+    // sample recreated the file WITHOUT a header line, so the trip
+    // was corrupted (no navStateAtStart, no gains, no revision).
+    // Callers must first stop() the active trip if they really want
+    // to remove it.
+    if (this.currentId === id) return false;
     try { fs.unlinkSync(path.join(this.dir, `trip-${id}.jsonl`)); } catch { /* file may be missing */ }
     try { fs.unlinkSync(path.join(this.dir, `trip-${id}.summary.json`)); } catch { /* silent */ }
     return true;

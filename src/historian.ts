@@ -28,6 +28,11 @@ export interface Sample {
   servoVoltage:  number | null;  // V - Rev99: needed by the Servo Health card
   awa:           number | null;  // rad - environment.wind.angleApparent
   aws:           number | null;  // m/s - environment.wind.speedApparent
+  // Rev280 (audit T04): true wind angle. Without this the KPI error
+  // computation was forced to use AWA even in "true wind" mode, so
+  // Chart / Doctor reported a ~40° fake error whenever AWA and TWA
+  // diverged. Populated from environment.wind.angleTrue.
+  twa:           number | null;  // rad - environment.wind.angleTrue
   tws:           number | null;  // m/s - environment.wind.speedTrue
   sog:           number | null;  // m/s
   heel:          number | null;  // rad - navigation.attitude.roll (positive stbd)

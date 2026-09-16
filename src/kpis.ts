@@ -235,13 +235,28 @@ export class KPIComputer {
   }
 }
 
-/** Heading error for a single sample. Compass / gps modes compare to
- *  headingActual; wind modes compare to awa. Result wrapped to
- *  [-pi, +pi]. Null if either operand is missing. */
+/** Heading error for a single sample. Compass / gps / nav modes
+ *  compare to headingActual; apparent-wind mode compares to AWA; true
+ *  wind mode compares to TWA. Result wrapped to [-pi, +pi]. Null if
+ *  either operand is missing.
+ *
+ *  Rev280 (audit T04): before, any mode whose name contained "wind"
+ *  used AWA — so "true wind" mode computed the error against AWA and
+ *  reported a ~40° fake error whenever AWA and TWA diverged (typical
+ *  when boat speed is significant). Now TWA is used when the mode is
+ *  a true-wind mode; falls back to AWA if TWA is missing so an
+ *  installation without the derived-data plugin still gets a value. */
 export function errorRad(s: Sample): number | null {
   if (s.headingCmd == null) return null;
   const mode = (s.mode || "").toLowerCase();
-  const actual = mode.includes("wind") ? s.awa : s.headingActual;
+  let actual: number | null;
+  if (mode.includes("true") && mode.includes("wind")) {
+    actual = s.twa != null ? s.twa : s.awa;
+  } else if (mode.includes("wind")) {
+    actual = s.awa;
+  } else {
+    actual = s.headingActual;
+  }
   if (actual == null) return null;
   let e = s.headingCmd - actual;
   while (e > Math.PI) e -= 2 * Math.PI;

@@ -21,7 +21,7 @@ import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev279";
+const PLUGIN_REVISION = "Rev280";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -50,6 +50,13 @@ const WATCH_LOW: number = 10;     // 0.1 Hz - resting rate for RangeSettings the
 const WATCH_FOCUS_MAX_TTL_S: number = 300;   // cap the requested TTL so a leaked focus dies within 5 min
 const WATCH_FOCUS_MIN_PERIOD_S: number = 0.5; // client cannot ask faster than 2 Hz
 const WATCH_FOCUS_MAX_KEYS: number = 80;      // per-request key cap
+// Rev280 (audit T21): global cap across all requests. Ten calls of
+// 80 fresh keys used to add up to 800 focus entries and pin
+// pypilot_web on the Pi Zero W. Sean D'Epagnier's advice was to
+// keep the total subscription count comfortably under 40; a 200-key
+// budget covers the whole visor (gains, calibration sliders, the
+// tack countdown paths) with headroom.
+const WATCH_FOCUS_MAX_GLOBAL_KEYS: number = 200;
 
 interface PluginProps {
   host: string;
@@ -1067,8 +1074,16 @@ module.exports = function (app: any) {
         if (typeof name !== "string") {
           return res.status(400).json({ error: "missing 'name' string" });
         }
-        if (!props.allowDirectServo && name === "servo.command") {
-          return res.status(403).json({ error: "servo.command requires allowDirectServo" });
+        // Rev280 (audit T22): previously only `servo.command` was
+        // guarded, so a PUT with name="servo.position" or any other
+        // direct-servo pypilot key slipped through and moved the rudder
+        // without the sailor having enabled allowDirectServo. Any
+        // `servo.*` key that pypilot itself treats as a direct
+        // steering command must go behind that flag; the gains under
+        // `ap.pilot.*.servo.*` are unaffected because they do not
+        // share this prefix.
+        if (!props.allowDirectServo && /^servo\.(command|position|raw|rawcommand|raw_command|velocity|torque|watts|amps|voltage_command|controller_command|pwm|duty)$/i.test(name)) {
+          return res.status(403).json({ error: `${name} requires allowDirectServo` });
         }
         client.set(name, value);
         res.json({ ok: true, name, value });
@@ -1163,6 +1178,10 @@ module.exports = function (app: any) {
 
       router.post("/pause", (_req: any, res: any) => {
         try {
+          // Rev280 (audit T24): mark the intent so the reconnect
+          // watchdog does not immediately undo a deliberate pause.
+          // Cleared by /resume and by a plugin restart.
+          (app as any)._pypilotNewuiPausedByUser = true;
           client?.pause();
           app.setPluginStatus(`${PLUGIN_REVISION} - paused (manual)`);
           res.json({ ok: true, state: "paused" });
@@ -1172,6 +1191,7 @@ module.exports = function (app: any) {
       });
       router.post("/resume", (_req: any, res: any) => {
         try {
+          (app as any)._pypilotNewuiPausedByUser = false;
           client?.resume();
           res.json({ ok: true, state: "resuming" });
         } catch (e: any) {
@@ -1884,7 +1904,29 @@ module.exports = function (app: any) {
         const keys: string[] = keysReq
           .filter((k: any) => typeof k === "string" && k.length > 0)
           .slice(0, WATCH_FOCUS_MAX_KEYS);
-        const expireTs = Date.now() + ttl * 1000;
+        // Rev280 (audit T21): purge expired entries BEFORE enforcing
+        // the global budget so a wave of expiring old requests does
+        // not starve fresh legitimate ones.
+        const nowMs = Date.now();
+        for (const [k, owners] of _focusWatches.entries()) {
+          for (const [ownerId, entry] of owners.entries()) {
+            if (entry.expireTs <= nowMs) owners.delete(ownerId);
+          }
+          if (owners.size === 0) _focusWatches.delete(k);
+        }
+        // Reject the request if it would push the total over the
+        // budget. Existing keys we already track are free (updating
+        // period/ttl); only genuinely new keys count.
+        const trulyNew = keys.filter((k) => !_focusWatches.has(k));
+        if (_focusWatches.size + trulyNew.length > WATCH_FOCUS_MAX_GLOBAL_KEYS) {
+          return res.status(429).json({
+            error: "focus budget exhausted",
+            used: _focusWatches.size,
+            requested: trulyNew.length,
+            cap: WATCH_FOCUS_MAX_GLOBAL_KEYS,
+          });
+        }
+        const expireTs = nowMs + ttl * 1000;
         for (const k of keys) {
           // Rev141: reserved keys can also be focused (see _applyWatches
           // comment). Reserved means "do not republish", not "do not
@@ -2081,6 +2123,14 @@ module.exports = function (app: any) {
       let _wdogForcedAttempts: number[] = [];   // timestamps of forced reconnects
       const _wdogTimer = setInterval(() => {
         try {
+          // Rev280 (audit T24): honour a manual /pause. Without this
+          // guard the 20 s reconnect watchdog immediately undid a
+          // deliberate pause, so the user could not actually silence
+          // the plugin's socket to pypilot_web.
+          if ((app as any)._pypilotNewuiPausedByUser) {
+            _wdogDisconnectSince = null;
+            return;
+          }
           if (client?.connected) {
             _wdogDisconnectSince = null;
             return;
@@ -2261,7 +2311,13 @@ module.exports = function (app: any) {
     const stateRaw = app.getSelfPath ? app.getSelfPath("navigation.state.value") : null;
     const navState = typeof stateRaw === "string" ? stateRaw : "moored";
     // Transitions.
-    if (navState !== "moored" && lastNavState === "moored") {
+    // Rev280 (audit T10): also open a trip when the plugin boots
+    // with the vessel already off "moored". Previously the "start"
+    // path only fired on a moored → sailing transition, so restarting
+    // Signal K mid-outing missed the entire session and stored zero
+    // trips. Treat lastNavState==null (boot) the same as coming from
+    // "moored" for the purpose of opening a new trip.
+    if (navState !== "moored" && (lastNavState === "moored" || lastNavState === null) && !tripRecorder.isRecording()) {
       // Opening. Snapshot the current pypilot gains so the trip header
       // records how the pilot was tuned when the boat left the dock.
       const pv = (client && client.connected) ? client.getValues() : {};
@@ -2719,6 +2775,12 @@ module.exports = function (app: any) {
       servoVoltage:  servoV,
       awa:           skNum("environment.wind.angleApparent"),
       aws:           skNum("environment.wind.speedApparent"),
+      // Rev280 (audit T04): TWA used by the KPI error computation in
+      // true-wind mode. Fall back to angleTrueWater / angleTrueGround
+      // if the canonical `angleTrue` is not published.
+      twa:           skNum("environment.wind.angleTrue")
+                     ?? skNum("environment.wind.angleTrueWater")
+                     ?? skNum("environment.wind.angleTrueGround"),
       // Rev146 (Carlos): signalk-derived-data does not emit
       // environment.wind.speedTrue - it publishes speedOverGround
       // instead. Try the canonical path first (some setups still
