@@ -24,12 +24,13 @@ import {
   ConfigBundle,
 } from "./config-backup";
 import { RollFeedForward } from "./roll-ff";
+import { ServoErrorLog } from "./servo-error-log";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev283";
+const PLUGIN_REVISION = "Rev284";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -248,6 +249,10 @@ module.exports = function (app: any) {
   // Currently PUBLISHES its output only, does not apply it to the AP.
   let rollFf: RollFeedForward | null = null;
   let _lastRollFfDeltaRad = 0;
+  // Rev283: persistent servo error log. Writes JSONL to dataDir on
+  // every off→on transition of a servo-* alarm rule and remembers the
+  // 30 s pre-fault window from the historian.
+  let servoErrorLog: ServoErrorLog | null = null;
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -659,6 +664,14 @@ module.exports = function (app: any) {
         tauSec: props.rollFfTauSec ?? 3,
         twaGateDeg: props.rollFfTwaGateDeg ?? 90,
       });
+      // Rev283: servo error log. Shares dataDir with the session and
+      // trip recorders. On startup loads recent history from disk so
+      // the visor has continuity across a Pi restart.
+      servoErrorLog = new ServoErrorLog({
+        dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
+        log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
+        getRecentSamples: (windowMs) => (historian ? historian.slice(windowMs) as Sample[] : []),
+      });
       // Rev143: session recorder wired into the historian tick so we
       // share the same 1 Hz cadence and the same collectSample() call.
       sessionRecorder = new SessionRecorder({
@@ -805,6 +818,8 @@ module.exports = function (app: any) {
       // Rev282: drop the roll feed-forward computer.
       rollFf = null;
       _lastRollFfDeltaRad = 0;
+      // Rev283: drop the servo error log (persisted state stays on disk).
+      servoErrorLog = null;
       // Clear the action-paths keep-alive interval registered on the app.
       const ka = (app as any)._pypilotNewuiKeepAlive;
       if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
@@ -1789,6 +1804,23 @@ module.exports = function (app: any) {
           return res.status(500).json({ error: e?.message || String(e) });
         }
         res.json({ ok: true, applied: patch });
+      });
+
+      // Rev283: persistent servo error log (C1).
+      //   GET  /servo-error-log         - list every recorded fault (newest last)
+      //                                   plus a peak summary of the 30 s
+      //                                   pre-fault telemetry window.
+      //   POST /servo-error-log/clear   - wipe RAM + delete the JSONL file.
+      //                                   Requires allowWrites.
+      router.get("/servo-error-log", (_req: any, res: any) => {
+        if (!servoErrorLog) { res.status(503).json({ error: "not initialised" }); return; }
+        res.json({ entries: servoErrorLog.entries() });
+      });
+      router.post("/servo-error-log/clear", (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        if (!servoErrorLog) return res.status(503).json({ error: "not initialised" });
+        servoErrorLog.clear();
+        res.json({ ok: true });
       });
 
       // Rev282: Roll FF diagnostic snapshot for the visor.
@@ -3048,6 +3080,13 @@ module.exports = function (app: any) {
       nowMs: Date.now(),
     };
     const changed = alarms.tick(ctx);
+    // Rev283: feed the servo error log AFTER the tick so its snapshot
+    // reflects the just-evaluated state. Runs unconditionally (cheap)
+    // - the log itself decides whether the transition is worth
+    // recording.
+    if (servoErrorLog) {
+      try { servoErrorLog.observeAlarms(alarms.snapshot()); } catch { /* silent */ }
+    }
     if (changed.length === 0) return;
     const nowIso = new Date().toISOString();
     const values: { path: string; value: unknown }[] = [];
