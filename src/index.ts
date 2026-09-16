@@ -17,12 +17,18 @@ import { AlarmEngine } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
 import { EpisodeDetector } from "./episodes";
+import {
+  captureBundle,
+  validateBundle,
+  applyBundleToPypilot,
+  ConfigBundle,
+} from "./config-backup";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev281";
+const PLUGIN_REVISION = "Rev282";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -850,6 +856,71 @@ module.exports = function (app: any) {
 
       router.get("/catalog", (_req: any, res: any) => {
         res.json(lastCatalog);
+      });
+
+      // Rev281 (D3): config backup + restore.
+      //   GET  /config/export           - download a JSON bundle of plugin
+      //                                   options + persistent pypilot
+      //                                   settings. Runtime telemetry is
+      //                                   filtered out.
+      //   POST /config/import           - accept a bundle previously
+      //                                   downloaded from /config/export
+      //                                   (or a copy from another boat)
+      //                                   and apply it. Returns an audit
+      //                                   list with per-key status. The
+      //                                   plugin restart to pick up the
+      //                                   new pluginOptions is triggered
+      //                                   asynchronously - the client
+      //                                   should reconnect after ~2 s.
+      router.get("/config/export", (_req: any, res: any) => {
+        if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
+        try {
+          const bundle = captureBundle({
+            revision: PLUGIN_REVISION,
+            props: props as unknown as Record<string, unknown>,
+            catalog: client.getCatalog() as unknown as Record<string, { info?: { persistent?: boolean } }>,
+            values: client.getValues(),
+          });
+          const stamp = new Date(bundle.capturedTs).toISOString().replace(/[:.]/g, "-");
+          res.setHeader("Content-Disposition",
+            `attachment; filename="pypilot-newui-config-${stamp}.json"`);
+          res.setHeader("Content-Type", "application/json");
+          res.send(JSON.stringify(bundle, null, 2));
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
+      });
+      router.post("/config/import", (req: any, res: any) => {
+        if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
+        const bundle = req.body as ConfigBundle;
+        const err = validateBundle(bundle);
+        if (err) { res.status(400).json({ error: err }); return; }
+        try {
+          const audit = applyBundleToPypilot(
+            bundle,
+            client.getCatalog() as unknown as Record<string, unknown>,
+            (k, v) => { client!.set(k, v); },
+          );
+          // Persist plugin-side options too if available.
+          let pluginOptionsSaved = false;
+          const anyApp = app as any;
+          if (bundle.pluginOptions && typeof anyApp.savePluginOptions === "function") {
+            try {
+              const merged = { ...props, ...bundle.pluginOptions };
+              anyApp.savePluginOptions(merged, (_e: any) => { /* silent */ });
+              pluginOptionsSaved = true;
+            } catch { /* silent */ }
+          }
+          res.json({
+            ok: true,
+            capturedTs: bundle.capturedTs,
+            revision: bundle.revision,
+            pluginOptionsSaved,
+            audit,
+          });
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
       });
 
       // Rev93: telemetry history slice for the Chart tab. Query params:
