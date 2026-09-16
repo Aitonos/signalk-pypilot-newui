@@ -116,15 +116,27 @@ export class DoctorEngine {
   // present, analyze() runs step-response rules on top of the existing
   // window statistics.
   private episodes: EpisodeDetector | null;
+  // Rev288 (Rule 6): live-read a slice of plugin state (currently
+  // rollFfGain, potentially more later). The accessor is a function
+  // so the caller does not need to keep it in sync with option
+  // changes — Doctor re-reads it right before each analysis.
+  private getPluginState: (() => { rollFfGain: number }) | null;
 
-  constructor(historian: Historian, client: PypilotClient | null, episodes: EpisodeDetector | null = null) {
+  constructor(
+    historian: Historian,
+    client: PypilotClient | null,
+    episodes: EpisodeDetector | null = null,
+    getPluginState: (() => { rollFfGain: number }) | null = null,
+  ) {
     this.historian = historian;
     this.client = client;
     this.episodes = episodes;
+    this.getPluginState = getPluginState;
   }
 
   setClient(client: PypilotClient | null): void { this.client = client; }
   setEpisodes(episodes: EpisodeDetector | null): void { this.episodes = episodes; }
+  setPluginStateAccessor(fn: (() => { rollFfGain: number }) | null): void { this.getPluginState = fn; }
 
   status(): DoctorStatus {
     const now = Date.now();
@@ -469,6 +481,40 @@ export class DoctorEngine {
             messageKey: "doctor.finding.stepTimeout",
             messageArgs: { fail: String(timedOutCount), total: String(eps.length) },
           });
+        }
+      }
+    }
+
+    // ---- Rule 6 (Rev288): downwind roll advisory.
+    // If the sailor spent enough time downwind (|TWA| > 90°) with a
+    // dynamic roll RMS above 5° AND the Roll FF slider is at 0, hint
+    // that activating it may reduce serpenteo. Never a suggestion —
+    // Roll FF is not a pypilot gain, it's a plugin-side term. So this
+    // rule emits only a finding.
+    if (this.getPluginState) {
+      const st = this.getPluginState();
+      if (st.rollFfGain === 0) {
+        let heelSumSq = 0;
+        let n = 0;
+        for (const s of engaged) {
+          if (typeof s.heel !== "number") continue;
+          if (typeof s.twa !== "number") continue;
+          if (Math.abs(s.twa) < Math.PI / 2) continue; // upwind: skip
+          heelSumSq += s.heel * s.heel;
+          n += 1;
+        }
+        if (n >= 30) {
+          const heelRmsDeg = Math.sqrt(heelSumSq / n) * 180 / Math.PI;
+          if (heelRmsDeg > 5) {
+            findings.push({
+              category: "downwind-roll",
+              severity: "info",
+              message: `Downwind roll RMS ${heelRmsDeg.toFixed(1)}° over ${n} samples with Roll feed-forward disabled. Consider raising the Roll FF slider in Setup to reduce downwind serpenteo.`,
+              metric: `heelRms=${heelRmsDeg.toFixed(1)}° n=${n} twaGate=90°`,
+              messageKey: "doctor.finding.downwindRoll",
+              messageArgs: { heelRms: heelRmsDeg.toFixed(1), n: String(n) },
+            });
+          }
         }
       }
     }

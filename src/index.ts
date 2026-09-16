@@ -40,7 +40,7 @@ import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev288";
+const PLUGIN_REVISION = "Rev289";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -680,10 +680,14 @@ module.exports = function (app: any) {
       // Rev281: episode detector idles until the sampler feeds it.
       episodes = new EpisodeDetector();
       // Rev103: Pypilot Doctor engine. Starts an idle instance;
-      // sessions are triggered on demand via /doctor/start. Rev284:
-      // Doctor now consumes step-response episodes on top of raw
-      // heading statistics.
-      doctor = new DoctorEngine(historian, client, episodes);
+      // sessions are triggered on demand via /doctor/start.
+      // Rev284: Doctor now consumes step-response episodes on top of
+      // raw heading statistics.
+      // Rev288: Doctor also reads the current Roll FF setting so
+      // Rule 6 can flag downwind roll when the FF slider is at 0.
+      doctor = new DoctorEngine(historian, client, episodes, () => ({
+        rollFfGain: props.rollFfGain ?? 0,
+      }));
       // Rev282: roll feed-forward, off unless the user turned it on.
       rollFf = new RollFeedForward({
         gain: props.rollFfGain ?? 0,
