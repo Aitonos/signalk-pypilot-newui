@@ -36,7 +36,24 @@ export interface EvalContext {
   connected: boolean;                 // pypilot_web socket state
   disconnectedSinceMs: number | null; // wall-clock ms of last disconnect
   nowMs: number;
+  // Rev290 (E2/E3): per-install thresholds. When present, rules use
+  // these instead of the module-level RULE_* defaults. Undefined
+  // fields fall back to the defaults so partial overrides work.
+  thresholds?: AlarmThresholds;
 }
+
+/** Per-install threshold overrides. Any field left undefined keeps
+ *  the corresponding RULE_* default. Kept intentionally small: only
+ *  the numbers the sailor is likely to want boat-specific. */
+export interface AlarmThresholds {
+  lowVoltageV?: number;
+  servoTempC?: number;
+  servoMotorTempC?: number;
+}
+
+/** Canonical defaults, exposed for the /alarms/thresholds GET and for
+ *  the visor to know the safe range. */
+export const DEFAULT_MOTOR_TEMP_C = 70;
 
 export interface RuleDef {
   id: string;
@@ -227,12 +244,16 @@ export const DEFAULT_RULES: RuleDef[] = [
     severity: "warn",
     defaultEnabled: true,
     sustainSec: 10,
-    description: `Servo controller temperature above ${RULE_SERVO_TEMP_C} °C.`,
+    description: `Servo controller temperature above the configured threshold (default ${RULE_SERVO_TEMP_C} °C).`,
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.servoTemp !== "number") return false;
-      return c.sample.servoTemp > RULE_SERVO_TEMP_C;
+      const thr = c.thresholds?.servoTempC ?? RULE_SERVO_TEMP_C;
+      return c.sample.servoTemp > thr;
     },
-    message: (c) => `Servo temp ${(c.sample?.servoTemp ?? 0).toFixed(0)} °C`,
+    message: (c) => {
+      const thr = c.thresholds?.servoTempC ?? RULE_SERVO_TEMP_C;
+      return `Servo temp ${(c.sample?.servoTemp ?? 0).toFixed(0)} °C (limit ${thr} °C)`;
+    },
   },
   {
     // Rev156 (Carlos): coil temperature complements servo-temp-high,
@@ -244,12 +265,16 @@ export const DEFAULT_RULES: RuleDef[] = [
     severity: "warn",
     defaultEnabled: true,
     sustainSec: 15,
-    description: "Motor coil temperature above 70 C.",
+    description: `Motor coil temperature above the configured threshold (default ${DEFAULT_MOTOR_TEMP_C} °C).`,
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.servoMotorTemp !== "number") return false;
-      return c.sample.servoMotorTemp > 70;
+      const thr = c.thresholds?.servoMotorTempC ?? DEFAULT_MOTOR_TEMP_C;
+      return c.sample.servoMotorTemp > thr;
     },
-    message: (c) => `Servo motor temp ${(c.sample?.servoMotorTemp ?? 0).toFixed(0)} °C`,
+    message: (c) => {
+      const thr = c.thresholds?.servoMotorTempC ?? DEFAULT_MOTOR_TEMP_C;
+      return `Servo motor temp ${(c.sample?.servoMotorTemp ?? 0).toFixed(0)} °C (limit ${thr} °C)`;
+    },
   },
   {
     // Rev156 (Carlos): ServoHealth already grades the drive as
@@ -279,12 +304,16 @@ export const DEFAULT_RULES: RuleDef[] = [
     severity: "warn",
     defaultEnabled: true,
     sustainSec: 10,
-    description: `Servo battery voltage below ${RULE_LOW_VOLTAGE_V} V.`,
+    description: `Servo battery voltage below the configured threshold (default ${RULE_LOW_VOLTAGE_V} V).`,
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.servoVoltage !== "number") return false;
-      return c.sample.servoVoltage < RULE_LOW_VOLTAGE_V;
+      const thr = c.thresholds?.lowVoltageV ?? RULE_LOW_VOLTAGE_V;
+      return c.sample.servoVoltage < thr;
     },
-    message: (c) => `Low voltage ${(c.sample?.servoVoltage ?? 0).toFixed(1)} V`,
+    message: (c) => {
+      const thr = c.thresholds?.lowVoltageV ?? RULE_LOW_VOLTAGE_V;
+      return `Low voltage ${(c.sample?.servoVoltage ?? 0).toFixed(1)} V (limit ${thr} V)`;
+    },
   },
   {
     id: "sensor-lost",

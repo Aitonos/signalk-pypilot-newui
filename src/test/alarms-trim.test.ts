@@ -7,6 +7,9 @@ import {
   RULE_SERVO_OVERCURR_A,
   RULE_SERVO_TRIM_FRAC,
   RULE_RUDDER_TRIM_RAD,
+  RULE_LOW_VOLTAGE_V,
+  RULE_SERVO_TEMP_C,
+  DEFAULT_MOTOR_TEMP_C,
   type EvalContext,
 } from "../alarms";
 import type { Sample } from "../historian";
@@ -110,6 +113,74 @@ describe("E1 trim warnings — rudder-range-trim", () => {
     const msgPort = rule.message(ctx({ sample: sample({ rudder: -(RULE_RUDDER_TRIM_RAD + 0.1) }) }));
     assert.ok(msgStbd.toLowerCase().includes("stbd"));
     assert.ok(msgPort.toLowerCase().includes("port"));
+  });
+});
+
+describe("E2/E3 configurable thresholds", () => {
+  const lowVoltage = findRule("low-voltage");
+  const servoTemp = findRule("servo-temp-high");
+  const motorTemp = findRule("servo-motor-temp");
+
+  it("low-voltage uses default when no override present", () => {
+    const c = ctx({ sample: sample({ servoVoltage: RULE_LOW_VOLTAGE_V - 0.1 }) });
+    assert.equal(lowVoltage.evaluate(c), true);
+  });
+
+  it("low-voltage honours a per-install override (higher trip point)", () => {
+    // Boat with lithium bank might set 12.5V trip; 11.9V should fire.
+    const c = ctx({
+      sample: sample({ servoVoltage: 11.9 }),
+      thresholds: { lowVoltageV: 12.5 },
+    });
+    assert.equal(lowVoltage.evaluate(c), true);
+    // With the same voltage but default threshold, no fire.
+    const c2 = ctx({ sample: sample({ servoVoltage: 11.9 }) });
+    assert.equal(lowVoltage.evaluate(c2), false);
+  });
+
+  it("low-voltage honours a lower trip point (deep-cycle bank)", () => {
+    const c = ctx({
+      sample: sample({ servoVoltage: 10.5 }),
+      thresholds: { lowVoltageV: 10.0 },
+    });
+    assert.equal(lowVoltage.evaluate(c), false);
+  });
+
+  it("servo-temp-high uses default when no override", () => {
+    const c = ctx({ sample: sample({ servoTemp: RULE_SERVO_TEMP_C + 1 }) });
+    assert.equal(servoTemp.evaluate(c), true);
+  });
+
+  it("servo-temp-high honours a stricter per-install threshold", () => {
+    const c = ctx({
+      sample: sample({ servoTemp: 55 }),
+      thresholds: { servoTempC: 50 },
+    });
+    assert.equal(servoTemp.evaluate(c), true);
+  });
+
+  it("servo-motor-temp default is DEFAULT_MOTOR_TEMP_C", () => {
+    const c = ctx({ sample: sample({ servoMotorTemp: DEFAULT_MOTOR_TEMP_C + 1 }) });
+    assert.equal(motorTemp.evaluate(c), true);
+    const c2 = ctx({ sample: sample({ servoMotorTemp: DEFAULT_MOTOR_TEMP_C - 1 }) });
+    assert.equal(motorTemp.evaluate(c2), false);
+  });
+
+  it("servo-motor-temp honours override", () => {
+    const c = ctx({
+      sample: sample({ servoMotorTemp: 65 }),
+      thresholds: { servoMotorTempC: 60 },
+    });
+    assert.equal(motorTemp.evaluate(c), true);
+  });
+
+  it("messages include the effective threshold value", () => {
+    const c = ctx({
+      sample: sample({ servoVoltage: 11.9 }),
+      thresholds: { lowVoltageV: 12.5 },
+    });
+    const msg = lowVoltage.message(c);
+    assert.ok(msg.includes("12.5"), `expected msg to include effective threshold; got: ${msg}`);
   });
 });
 

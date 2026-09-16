@@ -48,7 +48,7 @@ import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev290";
+const PLUGIN_REVISION = "Rev291";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -151,6 +151,12 @@ interface PluginProps {
   // keyed by pypilot profile name. Visor renders it as chips; future
   // auto-profile-by-condition may read from it.
   profileMetadata?: ProfileMetadata;
+  // Rev290 (E2/E3): per-install alarm thresholds. Overrides the
+  // module-level RULE_* defaults in alarms.ts. Undefined fields fall
+  // back to the defaults.
+  alarmLowVoltageV?: number;
+  alarmServoTempC?: number;
+  alarmServoMotorTempC?: number;
   // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
   // gustDetectorEnabled; now the user picks what to do when a gust
   // lands:
@@ -1819,6 +1825,9 @@ module.exports = function (app: any) {
           profileAdvisorRmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
           profileAdvisorRmsLowDeg: props.profileAdvisorRmsLowDeg ?? 1,
           profileAdvisorSustainSec: props.profileAdvisorSustainSec ?? 60,
+          alarmLowVoltageV: props.alarmLowVoltageV ?? 11.0,
+          alarmServoTempC: props.alarmServoTempC ?? 60,
+          alarmServoMotorTempC: props.alarmServoMotorTempC ?? 70,
         });
       });
       router.post("/supervisor/config", (req: any, res: any) => {
@@ -1859,6 +1868,16 @@ module.exports = function (app: any) {
         }
         if (typeof b.profileAdvisorSustainSec === "number") {
           patch.profileAdvisorSustainSec = clampNumber(b.profileAdvisorSustainSec, 15, 600, 60);
+        }
+        // Rev290 (E2/E3) knobs.
+        if (typeof b.alarmLowVoltageV === "number") {
+          patch.alarmLowVoltageV = clampNumber(b.alarmLowVoltageV, 8, 14, 11.0);
+        }
+        if (typeof b.alarmServoTempC === "number") {
+          patch.alarmServoTempC = clampNumber(b.alarmServoTempC, 40, 85, 60);
+        }
+        if (typeof b.alarmServoMotorTempC === "number") {
+          patch.alarmServoMotorTempC = clampNumber(b.alarmServoMotorTempC, 40, 90, 70);
         }
         Object.assign(props, patch);
         // Rev282: hot-apply Roll FF options so the sailor sees the
@@ -2698,6 +2717,10 @@ module.exports = function (app: any) {
       // schema — a plugin downgrade could otherwise leave stray rows
       // with unknown conditions.
       profileMetadata: loadMetadata(options.profileMetadata),
+      // Rev290 (E2/E3): threshold overrides, clamped to sane ranges.
+      alarmLowVoltageV: clampNumber(options.alarmLowVoltageV, 8, 14, 11.0),
+      alarmServoTempC: clampNumber(options.alarmServoTempC, 40, 85, 60),
+      alarmServoMotorTempC: clampNumber(options.alarmServoMotorTempC, 40, 90, 70),
     };
   }
 
@@ -3337,6 +3360,14 @@ module.exports = function (app: any) {
       connected: isHealthy,
       disconnectedSinceMs,
       nowMs: Date.now(),
+      // Rev290 (E2/E3): pass per-install threshold overrides so the
+      // rules read from props instead of the module-level RULE_*
+      // constants. Fields left undefined fall back to defaults.
+      thresholds: {
+        lowVoltageV:     props.alarmLowVoltageV,
+        servoTempC:      props.alarmServoTempC,
+        servoMotorTempC: props.alarmServoMotorTempC,
+      },
     };
     const changed = alarms.tick(ctx);
     // Rev283: feed the servo error log AFTER the tick so its snapshot
