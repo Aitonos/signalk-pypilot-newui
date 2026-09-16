@@ -35,12 +35,20 @@ import {
   type GainSet,
 } from "./tuning-knobs";
 import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
+import {
+  loadMetadata,
+  upsert as pmUpsert,
+  remove as pmRemove,
+  validateUpsert as pmValidateUpsert,
+  CONDITIONS as PROFILE_CONDITIONS,
+  type ProfileMetadata,
+} from "./profile-metadata";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev289";
+const PLUGIN_REVISION = "Rev290";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -139,6 +147,10 @@ interface PluginProps {
   profileAdvisorRmsHighDeg?: number;
   profileAdvisorRmsLowDeg?: number;
   profileAdvisorSustainSec?: number;
+  // Rev289 (B5): per-profile tags {condition, notes}. Persistent map,
+  // keyed by pypilot profile name. Visor renders it as chips; future
+  // auto-profile-by-condition may read from it.
+  profileMetadata?: ProfileMetadata;
   // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
   // gustDetectorEnabled; now the user picks what to do when a gust
   // lands:
@@ -1889,6 +1901,60 @@ module.exports = function (app: any) {
         res.json({ ok: true, applied: patch });
       });
 
+      // Rev289 (B5): profile metadata store.
+      //   GET    /profiles/metadata          - full map + activePilot + availablePilots + CONDITIONS
+      //   PUT    /profiles/metadata/:name    - upsert one entry {condition?, notes?}
+      //   DELETE /profiles/metadata/:name    - remove one entry
+      router.get("/profiles/metadata", (_req: any, res: any) => {
+        const store = props.profileMetadata ?? {};
+        let activePilot: string | null = null;
+        const pilots = new Set<string>();
+        if (client) {
+          const values = client.getValues();
+          activePilot = typeof values["ap.pilot"] === "string" ? String(values["ap.pilot"]) : null;
+          for (const k of Object.keys(client.getCatalog())) {
+            const m = /^ap\.pilots\.([^.]+)\./.exec(k);
+            if (m) pilots.add(m[1]);
+          }
+        }
+        res.json({
+          activePilot,
+          availablePilots: Array.from(pilots).sort(),
+          metadata: store,
+          conditions: PROFILE_CONDITIONS,
+        });
+      });
+      router.put("/profiles/metadata/:name", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const name = String(req.params?.name || "").trim();
+        if (!name) return res.status(400).json({ error: "profile name required in path" });
+        const err = pmValidateUpsert(req.body);
+        if (err) return res.status(400).json({ error: err });
+        const store: ProfileMetadata = props.profileMetadata ?? {};
+        const entry = pmUpsert(store, name, req.body || {}, Date.now());
+        props.profileMetadata = store;
+        try {
+          app.savePluginOptions?.(props, () => { /* silent */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: String(e?.message || e) });
+        }
+        res.json({ ok: true, name, entry });
+      });
+      router.delete("/profiles/metadata/:name", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const name = String(req.params?.name || "").trim();
+        if (!name) return res.status(400).json({ error: "profile name required in path" });
+        const store: ProfileMetadata = props.profileMetadata ?? {};
+        const existed = pmRemove(store, name);
+        props.profileMetadata = store;
+        try {
+          app.savePluginOptions?.(props, () => { /* silent */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: String(e?.message || e) });
+        }
+        res.json({ ok: true, name, existed });
+      });
+
       // Rev286 (B2): profile advisor state for the Smart Pilot card.
       router.get("/advisor/status", (_req: any, res: any) => {
         if (!profileAdvisor) { res.status(503).json({ error: "not initialised" }); return; }
@@ -2628,6 +2694,10 @@ module.exports = function (app: any) {
       profileAdvisorRmsHighDeg: clampNumber(options.profileAdvisorRmsHighDeg, 3, 45, 10),
       profileAdvisorRmsLowDeg: clampNumber(options.profileAdvisorRmsLowDeg, 0.1, 5, 1),
       profileAdvisorSustainSec: clampNumber(options.profileAdvisorSustainSec, 15, 600, 60),
+      // Rev289 (B5): sanitise the persisted metadata against the current
+      // schema — a plugin downgrade could otherwise leave stray rows
+      // with unknown conditions.
+      profileMetadata: loadMetadata(options.profileMetadata),
     };
   }
 
