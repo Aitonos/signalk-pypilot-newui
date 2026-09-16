@@ -16,12 +16,13 @@ import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
 import { AlarmEngine } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
+import { EpisodeDetector } from "./episodes";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev280";
+const PLUGIN_REVISION = "Rev281";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -212,6 +213,12 @@ module.exports = function (app: any) {
   let disconnectedSinceMs: number | null = null;
   // Rev103: Doctor engine (holds one active diagnostic session at a time).
   let doctor: DoctorEngine | null = null;
+  // Rev281: correction episode detector. Watches headingCmd for step
+  // changes and reports classic step-response metrics (rise / overshoot
+  // / settling / SSE) per correction. Consumed by the Chart tab as a
+  // quality-band gauge and by the Doctor as ground truth for tuning
+  // advice.
+  let episodes: EpisodeDetector | null = null;
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -615,6 +622,8 @@ module.exports = function (app: any) {
       // Rev103: Pypilot Doctor engine. Starts an idle instance;
       // sessions are triggered on demand via /doctor/start.
       doctor = new DoctorEngine(historian, client);
+      // Rev281: episode detector idles until the sampler feeds it.
+      episodes = new EpisodeDetector();
       // Rev143: session recorder wired into the historian tick so we
       // share the same 1 Hz cadence and the same collectSample() call.
       sessionRecorder = new SessionRecorder({
@@ -632,6 +641,7 @@ module.exports = function (app: any) {
         // KPIComputer.onSample is O(1) so this stays cheap on Pi 4.
         if (kpis) { try { kpis.onSample(s); } catch { /* silent */ } }
         if (servoHealth) { try { servoHealth.onSample(s); } catch { /* silent */ } }
+        if (episodes) { try { episodes.onSample(s); } catch { /* silent */ } }
         // Rev97: also feed the quality monitor. Reading each watched
         // path costs one getSelfPath() call, cheap on Pi 4.
         if (sensorQuality) { try { feedSensorQuality(); } catch { /* silent */ } }
@@ -739,6 +749,9 @@ module.exports = function (app: any) {
       // Rev103: cancel any in-flight diagnostic session and drop the doctor.
       if (doctor) { try { doctor.cancel(); } catch { /* silent */ } }
       doctor = null;
+      // Rev281: drop the episode detector so its history is not stale
+      // across a Disable+Enable cycle.
+      episodes = null;
       // Clear the action-paths keep-alive interval registered on the app.
       const ka = (app as any)._pypilotNewuiKeepAlive;
       if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
@@ -882,6 +895,22 @@ module.exports = function (app: any) {
           return;
         }
         res.json(sensorQuality.snapshot());
+      });
+
+      // Rev281: step-response metrics per correction episode. Cheap
+      // (returns a fixed-capacity ring buffer, currently up to 20).
+      router.get("/episodes", (_req: any, res: any) => {
+        if (!episodes) { res.status(503).json({ error: "episodes not initialised" }); return; }
+        try {
+          const { rateEpisode } = require("./episodes");
+          const history = episodes.snapshot().map((ep: any) => ({
+            ...ep,
+            rating: rateEpisode(ep),
+          }));
+          res.json({ current: episodes.current(), history });
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
       });
 
       // Rev99: Servo Health snapshot. Same idea - O(1) read of the

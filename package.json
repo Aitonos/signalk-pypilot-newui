@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
-    "test": "tsc && node --test dist/test/plugin.test.js",
+    "test": "tsc && node --test \"dist/test/*.test.js\"",
     "prepack": "npm run build"
   },
   "keywords": [
