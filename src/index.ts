@@ -183,12 +183,21 @@ module.exports = function (app: any) {
   // Rev167: gust supervisor. Rolling ring of AWS samples with timestamps.
   const GUST_WINDOW_MS    = 5000;     // look-back for rate-of-change
   const GUST_MIN_JUMP_KN  = 5;        // AWS jump >= 5 kn = "gust"
+  // Rev283: second signal to confirm a real gust vs a sensor spike.
+  // If heel data is available on both the min-AWS and max-AWS ends of
+  // the window, require the heel to have changed at least this many
+  // degrees during the same interval. Without heel data the check
+  // fails open (legacy Rev167 behaviour).
+  const GUST_HEEL_CONFIRM_DEG = 2;
   const GUST_COOLDOWN_MS  = 60_000;   // do not re-alert / re-strategy for 60 s
   const GUST_FREEZE_SEC   = 12;       // pin target for 12 s after detection
   const GUST_BOOST_SEC    = 20;       // damp D for 20 s after detection
   const GUST_HEAVY_SEC    = 30;       // temp heavy profile for 30 s
-  const _gustAwsBuffer: Array<{ ts: number; ktts: number }> = [];
+  const _gustAwsBuffer: Array<{ ts: number; ktts: number; heelRad: number | null }> = [];
   let _gustLastAlertTs = 0;
+  // Rev283: last suppressed-by-heel event for observability.
+  let _gustLastSuppressedTs: number | null = null;
+  let _gustLastSuppressReason: string | null = null;
   // Runtime state for the "freeze-target" strategy so the visor +
   // /supervisor/status can show why the target has stopped following
   // the wind for a few seconds.
@@ -1706,6 +1715,10 @@ module.exports = function (app: any) {
           gust: {
             strategy: props.gustStrategy ?? "off",
             lastAlertTs: _gustLastAlertTs || null,
+            // Rev283: observability of the heel-confirm gate.
+            lastSuppressedTs: _gustLastSuppressedTs,
+            lastSuppressReason: _gustLastSuppressReason,
+            heelConfirmDeg: GUST_HEEL_CONFIRM_DEG,
             freezeActive: _gustFreezeUntilMs != null,
             freezeRemainingSec: _gustFreezeUntilMs ? Math.max(0, Math.floor((_gustFreezeUntilMs - Date.now()) / 1000)) : null,
             boostActive: _gustBoostUntilMs != null,
@@ -2690,19 +2703,40 @@ module.exports = function (app: any) {
     if (strat !== "off") {
       const awsKn = typeof s.aws === "number" ? s.aws * 1.94384 : null;
       if (awsKn != null) {
-        _gustAwsBuffer.push({ ts: s.ts, ktts: awsKn });
+        _gustAwsBuffer.push({
+          ts: s.ts,
+          ktts: awsKn,
+          heelRad: typeof s.heel === "number" ? s.heel : null,
+        });
         const cutoff = s.ts - GUST_WINDOW_MS;
         while (_gustAwsBuffer.length > 0 && _gustAwsBuffer[0].ts < cutoff) _gustAwsBuffer.shift();
         if (_gustAwsBuffer.length >= 3 && now - _gustLastAlertTs > GUST_COOLDOWN_MS) {
           let minKn = Infinity, maxKn = -Infinity;
+          let minEntry = _gustAwsBuffer[0], maxEntry = _gustAwsBuffer[0];
           for (const e of _gustAwsBuffer) {
-            if (e.ktts < minKn) minKn = e.ktts;
-            if (e.ktts > maxKn) maxKn = e.ktts;
+            if (e.ktts < minKn) { minKn = e.ktts; minEntry = e; }
+            if (e.ktts > maxKn) { maxKn = e.ktts; maxEntry = e; }
           }
           const jump = maxKn - minKn;
           if (jump >= GUST_MIN_JUMP_KN && maxKn === awsKn) {
-            _gustLastAlertTs = now;
-            _applyGustStrategy(strat, minKn, maxKn, s, now);
+            // Rev283: heel confirmation. When both endpoints of the AWS
+            // window have heel data, require the heel to have changed
+            // >= GUST_HEEL_CONFIRM_DEG. This filters sensor spikes that
+            // did not physically load the boat. Fails open if either
+            // heel sample is missing (legacy behaviour).
+            let heelConfirmed = true;
+            let heelDeltaDeg: number | null = null;
+            if (minEntry.heelRad != null && maxEntry.heelRad != null) {
+              heelDeltaDeg = Math.abs(maxEntry.heelRad - minEntry.heelRad) * 180 / Math.PI;
+              heelConfirmed = heelDeltaDeg >= GUST_HEEL_CONFIRM_DEG;
+            }
+            if (heelConfirmed) {
+              _gustLastAlertTs = now;
+              _applyGustStrategy(strat, minKn, maxKn, s, now);
+            } else {
+              _gustLastSuppressedTs = now;
+              _gustLastSuppressReason = `heel delta ${heelDeltaDeg?.toFixed(1)}deg < ${GUST_HEEL_CONFIRM_DEG}deg (AWS jump ${jump.toFixed(1)}kn looks like a sensor spike)`;
+            }
           }
         }
       }
