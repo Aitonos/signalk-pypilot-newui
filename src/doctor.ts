@@ -566,6 +566,14 @@ export class DoctorEngine {
   // so the previous gains stay one profile-select click away. Every
   // subsequent apply in the SAME session writes into the same new
   // profile (no per-suggestion fork storm).
+  /** Rev296 (bug D): optional hook to attribute the "profile" write
+   *  that the Doctor's fork step performs. When set, called just
+   *  before client.set("profile", forkName). */
+  private profileWriteHook: ((name: string, reason: string) => void) | null = null;
+  setProfileWriteHook(cb: ((name: string, reason: string) => void) | null): void {
+    this.profileWriteHook = cb;
+  }
+
   private ensureForkedProfile(): string | null {
     if (!this.result) return null;
     if (this.result.newProfileName) return this.result.newProfileName;
@@ -577,6 +585,8 @@ export class DoctorEngine {
     try {
       // pypilot: writing to `profile` with a name that does NOT exist
       // creates it as a copy of the currently-active profile.
+      try { this.profileWriteHook?.(name, `Doctor forked from ${this.result.originalProfile ?? "?"}`); }
+      catch { /* silent */ }
       this.client.set("profile", name);
       this.result.newProfileName = name;
       return name;

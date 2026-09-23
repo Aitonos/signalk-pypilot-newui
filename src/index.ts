@@ -35,6 +35,7 @@ import {
   type GainSet,
 } from "./tuning-knobs";
 import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
+import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log";
 import {
   loadMetadata,
   upsert as pmUpsert,
@@ -55,7 +56,7 @@ import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev296";
+const PLUGIN_REVISION = "Rev297";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -314,6 +315,12 @@ module.exports = function (app: any) {
   let profileAdvisor: ProfileAdvisor | null = null;
   let _profileAdvisorLastPubKind: string | null = null; // "normal" | AdvisoryKind
   let _profileAdvisorMetaSent = false;
+  // Rev296 (Carlos, navigating - bug D): audit trail of every profile
+  // change with source attribution. Every plugin-initiated set() marks
+  // a planned write; the pypilot 'profile' delta hook correlates and
+  // credits the source, or records "external" for changes we did not
+  // initiate.
+  const profileChangeLog = new ProfileChangeLog();
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -730,6 +737,11 @@ module.exports = function (app: any) {
       doctor = new DoctorEngine(historian, client, episodes, () => ({
         rollFfGain: props.rollFfGain ?? 0,
       }));
+      // Rev296 (bug D): Doctor fork writes go through the change log.
+      doctor.setProfileWriteHook((name, reason) => {
+        try { profileChangeLog.markPlannedWrite(name, "doctor", reason); }
+        catch { /* silent */ }
+      });
       // Rev282: roll feed-forward, off unless the user turned it on.
       rollFf = new RollFeedForward({
         gain: props.rollFfGain ?? 0,
@@ -1333,6 +1345,13 @@ module.exports = function (app: any) {
         // share this prefix.
         if (!props.allowDirectServo && /^servo\.(command|position|raw|rawcommand|raw_command|velocity|torque|watts|amps|voltage_command|controller_command|pwm|duty)$/i.test(name)) {
           return res.status(403).json({ error: `${name} requires allowDirectServo` });
+        }
+        // Rev296 (bug D): mark profile writes coming through /raw as
+        // "user" so the change log credits them correctly. Any other
+        // key falls through unmodified.
+        if (name === "profile" && typeof value === "string") {
+          try { profileChangeLog.markPlannedWrite(value, "user", "PUT /raw"); }
+          catch { /* silent */ }
         }
         client.set(name, value);
         res.json({ ok: true, name, value });
@@ -1995,6 +2014,18 @@ module.exports = function (app: any) {
         } catch (e: any) {
           res.status(500).json({ error: String(e?.message || e) });
         }
+      });
+
+      // Rev296 (Carlos, navigating - bug D): audit trail of profile
+      // switches. Answers "who cargó default?" — shows the last N
+      // changes with source attribution (user / auto-profile /
+      // gust-heavy / doctor / external / etc).
+      router.get("/profile-change-log", (_req: any, res: any) => {
+        res.json({
+          current: profileChangeLog.current(),
+          summary: profileChangeLog.summary(),
+          entries: profileChangeLog.entries(),
+        });
       });
 
       // Rev289 (B5): profile metadata store.
@@ -3196,9 +3227,12 @@ module.exports = function (app: any) {
         if (!targetProfile) { _autoProfilePendingSince = null; return; }
         const currentProfile = client.getValues()["profile"];
         if (currentProfile !== targetProfile) {
-          try { client.set("profile", targetProfile); } catch { /* silent */ }
-          _autoProfileLastSwitchTs = now;
           _autoProfileLastReason = `TWS avg ${avgKn.toFixed(1)} kn → band ${targetBand} → profile ${targetProfile}`;
+          try {
+            profileChangeLog.markPlannedWrite(targetProfile, "auto-profile", _autoProfileLastReason);
+            client.set("profile", targetProfile);
+          } catch { /* silent */ }
+          _autoProfileLastSwitchTs = now;
           _emitAdvisoryNotification("auto-profile-switch", _autoProfileLastReason);
         }
         _autoProfileCurrentBand = targetBand;
@@ -3271,9 +3305,12 @@ module.exports = function (app: any) {
       if (currentProfile === heavy) return;   // already there
       _gustHeavyUntilMs = now + GUST_HEAVY_SEC * 1000;
       _gustHeavyRestoreProfile = currentProfile;
-      try { client.set("profile", heavy); } catch { /* silent */ }
-      _emitAdvisoryNotification("gust-heavy-profile",
-        `Gust ${summary}: profile ${currentProfile ?? "?"} -> ${heavy} for ${GUST_HEAVY_SEC} s`);
+      const gustReason = `Gust ${summary}: profile ${currentProfile ?? "?"} -> ${heavy} for ${GUST_HEAVY_SEC} s`;
+      try {
+        profileChangeLog.markPlannedWrite(heavy, "gust-heavy", gustReason);
+        client.set("profile", heavy);
+      } catch { /* silent */ }
+      _emitAdvisoryNotification("gust-heavy-profile", gustReason);
       return;
     }
     // Unknown strategy - do nothing.
@@ -3305,11 +3342,31 @@ module.exports = function (app: any) {
     }
     if (_gustHeavyUntilMs != null && now >= _gustHeavyUntilMs) {
       if (client && _gustHeavyRestoreProfile != null) {
-        try { client.set("profile", _gustHeavyRestoreProfile); } catch { /* silent */ }
+        // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
+        // respect a manual profile change the sailor made DURING the
+        // temp-heavy window. If the currently-active profile is
+        // neither the heavy target nor the pre-gust one, someone
+        // (sailor, KIP, another visor) picked a third option and we
+        // must not stomp on that decision.
+        const heavy = props.autoProfileHeavy || "";
+        const currentNow = typeof client.getValues()["profile"] === "string"
+          ? client.getValues()["profile"] as string : null;
+        const sailorOverrode = currentNow != null
+          && currentNow !== heavy
+          && currentNow !== _gustHeavyRestoreProfile;
+        if (sailorOverrode) {
+          _emitAdvisoryNotification("gust-heavy-profile",
+            `Manual profile change (${currentNow}) detected during gust heavy - not restoring`);
+        } else {
+          try {
+            profileChangeLog.markPlannedWrite(_gustHeavyRestoreProfile, "gust-heavy-restore", "gust window expired");
+            client.set("profile", _gustHeavyRestoreProfile);
+          } catch { /* silent */ }
+          _emitAdvisoryNotification("gust-heavy-profile", "Profile restored to pre-gust value");
+        }
       }
       _gustHeavyUntilMs = null;
       _gustHeavyRestoreProfile = null;
-      _emitAdvisoryNotification("gust-heavy-profile", "Profile restored to pre-gust value");
     }
   }
 
@@ -4493,6 +4550,8 @@ module.exports = function (app: any) {
           if (!profilesList.includes(profileName)) {
             return bad(`profile "${profileName}" no longer exists`);
           }
+          try { profileChangeLog.markPlannedWrite(profileName, "user", "SK PUT handler (radio switch)"); }
+          catch { /* silent */ }
           client.set("profile", profileName);
           // Optimistic radio flip; the confirmation delta will re-emit
           // authoritatively when pypilot echoes the new 'profile' value.
@@ -4527,6 +4586,8 @@ module.exports = function (app: any) {
         for (const p of next) ensureProfileSwitchHandler(p);
         emitProfileSwitches();
       } else if (name === "profile" && typeof value === "string") {
+        // Rev296 (bug D): log the change with attribution.
+        try { profileChangeLog.observeDelta(value); } catch { /* silent */ }
         activeProfile = value;
         // If pypilot revealed a profile name we did not yet know about,
         // register it lazily so KIP still sees the switch immediately.

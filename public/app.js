@@ -2052,6 +2052,14 @@
           const prev = state.profile;
           state.profile = value;
           setSelect("#profile-select", value);
+          // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
+          // primed=true once we have received an authoritative profile
+          // value from the backend. The change-listener refuses to
+          // POST anything until primed, so opening the visor on a new
+          // device cannot fire a "default" write while the <select>
+          // is still showing the DOM-default option before the real
+          // delta lands.
+          window._profileSelectPrimed = true;
           // Rev38: when the active profile changes, pypilot swaps in that
           // profile's stored gains. Force a values refresh so the Ajustes
           // sliders reflect the new gains instead of the old ones. The
@@ -6432,7 +6440,21 @@
       pluginRaw("ap.pilot", e.target.value);
     });
     $("#profile-select").addEventListener("change", (e) => {
-      pluginRaw("profile", e.target.value);
+      // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
+      // ignore change events fired before we have received an
+      // authoritative profile value from the backend. Opening the
+      // visor on a fresh device previously let the DOM-default first
+      // option fire a "change" that overwrote the real active profile
+      // on pypilot with "default". Also skip identity writes (value
+      // already matches state.profile) — those are no-ops for pypilot
+      // and would only cost a round-trip.
+      if (!window._profileSelectPrimed) {
+        console.log("[profile] ignoring change before profile delta received");
+        return;
+      }
+      const v = e.target.value;
+      if (v === state.profile) return;
+      pluginRaw("profile", v);
     });
     $("#profile-add").addEventListener("click", async () => {
       const name = prompt(t("prompt.profileName"));
