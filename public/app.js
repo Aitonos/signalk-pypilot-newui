@@ -5839,14 +5839,23 @@
         state.lastNudgeTs = now;
         // Rev226/230 (Carlos): botones = "swing the bow to the
         // labelled side". kindToDelta ya carga el signo del lado
-        // (port -, stbd +). En wind el signo del delta de target
-        // depende del signo del AWA - modeSign = -sign(AWA).
-        let modeSign = 1;
-        if (String(state.mode || "").includes("wind")) {
-          const awa = state.windAngle;
-          modeSign = (typeof awa === "number" && Math.abs(awa) > 0.02)
-            ? -Math.sign(awa) : -1;
-        }
+        // (port -, stbd +).
+        //
+        // Rev292 (Carlos, navigating): en wind mode el modeSign es
+        // SIEMPRE -1, no `-sign(AWA)` como estaba antes. Physical
+        // reasoning: en Signal K AWA es positivo cuando el viento
+        // viene por stbd. Al girar la proa +10° a stbd, si el AWA
+        // target se congelara, el AWA medido caería 10° — por tanto
+        // el AWA target debe caer 10° para compensar y que la proa
+        // acabe efectivamente girando 10° a stbd. Esto es
+        // INDEPENDIENTE del signo del AWA actual:
+        //   AWA=+45 (ceñida stbd), +10 (bow→stbd, orzar): target 45→35 → delta=-10 → modeSign=-1
+        //   AWA=-45 (ceñida port), +10 (bow→stbd, arribar): target -45→-55 → delta=-10 → modeSign=-1
+        // El código anterior hacía `-sign(AWA)`, que invertía el signo
+        // en ceñida port y provocaba "los botones no coinciden con el
+        // lado de giro de la proa" reportado en navegación.
+        const isWindMode = String(state.mode || "").includes("wind");
+        const modeSign = isWindMode ? -1 : 1;
         const newTargetRad = (state.localTargetRad ?? 0) + modeSign * nudge * DEG2RAD;
         state.localTargetRad = newTargetRad;
         // Rev66 / 2.0.4: also update state.target optimistically so the
