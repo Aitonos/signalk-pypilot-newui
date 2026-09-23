@@ -1957,6 +1957,24 @@
           _modeChangePendingUntil = 0;
           _modeChangeChosen = null;
         }
+        // Rev295 (Carlos, navigating - bug C reinforcement): when the
+        // mode crosses the compass ↔ wind boundary, the backend
+        // provider re-anchors ap.heading_command to the current
+        // measurement in the destination space. During the ~200-800 ms
+        // it takes for the new target delta to arrive, the visor would
+        // otherwise keep showing the OLD target diamond and the sailor
+        // sees a stale value. Invalidate the local target so the
+        // diamond hides during the anchor gap; the next fresh
+        // steering.autopilot.target delta will repopulate it.
+        try {
+          const oldWind = String(state.mode || "").toLowerCase().includes("wind");
+          const newWind = String(value || "").toLowerCase().includes("wind");
+          if (oldWind !== newWind) {
+            state.target = null;
+            state.localTargetRad = null;
+            if (typeof renderTargetArrow === "function") renderTargetArrow();
+          }
+        } catch { /* silent */ }
         state.mode = value;
         if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
           setSelect("#mode-select", "aproado");

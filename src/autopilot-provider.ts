@@ -10,6 +10,7 @@
 // single socket to pypilot_web. See NOTICE + CHANGELOG for attribution.
 
 import { PypilotClient } from "./pypilot-client";
+import { decideReAnchor } from "./mode-reanchor";
 
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
@@ -381,41 +382,20 @@ export class AutopilotProvider {
   /** Rev292: after a compass↔wind (or vice-versa) mode change, force
    *  heading_command to the current measurement in the destination
    *  space so pypilot never starts a mode with a target that meant
-   *  something else in the previous mode. Safe no-op inside the same
-   *  target-space (compass↔gps↔nav or wind↔true wind). */
+   *  something else in the previous mode. Rev295: decision extracted
+   *  to src/mode-reanchor.ts (pure, unit-tested). This method only
+   *  glues that decision to the pypilot socket. */
   private _reAnchorTargetAfterModeChange(oldMode: string, newMode: string): void {
-    const isWind = (m: string) => m.includes("wind");
-    const oldWind = isWind(oldMode);
-    const newWind = isWind(newMode);
-    if (oldWind === newWind) return; // same target space, no re-anchor
     const values = (this.client as any).getValues?.() || {};
-    let newTargetDeg: number | null = null;
-    if (newWind) {
-      // Going compass → wind: anchor to the current AWA (or TWA for
-      // true-wind mode). pypilot exposes them under `wind.direction`
-      // and `wind.true_direction`; if neither is present we bail
-      // (safer than guessing) and let the sailor nudge.
-      const isTrue = newMode.includes("true");
-      const key = isTrue ? "wind.true_direction" : "wind.direction";
-      const v = values[key];
-      if (typeof v === "number" && isFinite(v)) newTargetDeg = v;
-    } else {
-      // Going wind → compass/gps/nav: anchor to current heading.
-      const v = values["ap.heading"];
-      if (typeof v === "number" && isFinite(v)) newTargetDeg = v;
-    }
-    if (newTargetDeg == null) {
-      // eslint-disable-next-line no-console
-      console.log(`[apProvider.setMode] re-anchor skipped: no measurement for ${newMode}`);
-      return;
-    }
+    const d = decideReAnchor(oldMode, newMode, values);
+    // eslint-disable-next-line no-console
+    console.log(`[apProvider.setMode] re-anchor: ${d.reason}`);
+    if (!d.shouldReAnchor || d.valueDeg == null) return;
     // Push directly to pypilot without going through setTarget() —
     // setTarget bumps targetGen and could race with the modeGen we
     // just claimed. Also bypass echo cancellation: the anchor value is
     // what we WANT to see, so the echo does match.
-    // eslint-disable-next-line no-console
-    console.log(`[apProvider.setMode] re-anchor ${oldMode}→${newMode}: heading_command=${newTargetDeg.toFixed(2)}°`);
-    try { this.client.set("ap.heading_command", newTargetDeg); }
+    try { this.client.set("ap.heading_command", d.valueDeg); }
     catch (e: any) {
       // eslint-disable-next-line no-console
       console.log(`[apProvider.setMode] re-anchor write failed: ${e?.message || e}`);
