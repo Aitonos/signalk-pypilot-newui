@@ -1,12 +1,12 @@
 {
   "name": "signalk-pypilot-newui",
-  "version": "2.7.5",
+  "version": "2.8.0",
   "description": "Signal K friendly UI for the pypilot autopilot, with the capability to spread its functions and buttons to other programs like KIP, WilhelmSK and freeboard. Touch-first mobile visor + full pypilot data (servo, gains, calibration, tack, warnings) as first-class Signal K paths and Simple Switches. Coexists with pypilot-autopilot-provider.",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
-    "test": "tsc && node --test dist/test/plugin.test.js",
+    "test": "tsc && node --test \"dist/test/*.test.js\"",
     "prepack": "npm run build"
   },
   "keywords": [

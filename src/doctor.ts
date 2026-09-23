@@ -17,12 +17,13 @@ import { Historian, Sample } from "./historian";
 import { errorRad } from "./kpis";
 import { PypilotClient } from "./pypilot-client";
 import { SERVO_ON_MIN_A } from "./constants";
+import { EpisodeDetector } from "./episodes";
 
 export type DoctorState = "idle" | "running" | "analyzing" | "completed" | "cancelled";
 
 export interface Suggestion {
   id: string;
-  category: "bias" | "oscillation" | "authority" | "noise";
+  category: "bias" | "oscillation" | "authority" | "noise" | "step-overshoot";
   pilotId: string;
   gainKey: string;     // "P" | "I" | "D" | "DD" | "PR" | "FF"
   path: string;        // pypilot path e.g. "ap.pilot.basic.I"
@@ -111,13 +112,31 @@ export class DoctorEngine {
   private timer: NodeJS.Timeout | null = null;
   private readonly historian: Historian;
   private client: PypilotClient | null;
+  // Rev284: episode detector fed by the plugin's sampler tick. When
+  // present, analyze() runs step-response rules on top of the existing
+  // window statistics.
+  private episodes: EpisodeDetector | null;
+  // Rev288 (Rule 6): live-read a slice of plugin state (currently
+  // rollFfGain, potentially more later). The accessor is a function
+  // so the caller does not need to keep it in sync with option
+  // changes — Doctor re-reads it right before each analysis.
+  private getPluginState: (() => { rollFfGain: number }) | null;
 
-  constructor(historian: Historian, client: PypilotClient | null) {
+  constructor(
+    historian: Historian,
+    client: PypilotClient | null,
+    episodes: EpisodeDetector | null = null,
+    getPluginState: (() => { rollFfGain: number }) | null = null,
+  ) {
     this.historian = historian;
     this.client = client;
+    this.episodes = episodes;
+    this.getPluginState = getPluginState;
   }
 
   setClient(client: PypilotClient | null): void { this.client = client; }
+  setEpisodes(episodes: EpisodeDetector | null): void { this.episodes = episodes; }
+  setPluginStateAccessor(fn: (() => { rollFfGain: number }) | null): void { this.getPluginState = fn; }
 
   status(): DoctorStatus {
     const now = Date.now();
@@ -406,6 +425,100 @@ export class DoctorEngine {
       // No P/I/D suggestion - chatter is usually a deadband issue.
     }
 
+    // ---- Rule 5 (Rev284): step-response metrics from EpisodeDetector.
+    // Only fires when at least 3 correction episodes closed during this
+    // Doctor session's window. Complements Rule 2 (raw oscillation) with
+    // per-correction Rise/Overshoot/Settling.
+    if (this.episodes) {
+      const eps = this.episodes.snapshot().filter(e => e.endedTs >= session.startedTs && e.endedTs <= now);
+      if (eps.length >= 3) {
+        let overshootSum = 0, overshootN = 0;
+        let timedOutCount = 0;
+        for (const e of eps) {
+          if (e.overshoot != null) { overshootSum += e.overshoot; overshootN += 1; }
+          if (e.timedOut) timedOutCount += 1;
+        }
+        const meanOvershoot = overshootN > 0 ? overshootSum / overshootN : null;
+        // High overshoot → more D
+        if (meanOvershoot != null && meanOvershoot > 0.20) {
+          findings.push({
+            category: "step-overshoot",
+            severity: meanOvershoot > 0.35 ? "critical" : "warn",
+            message: `Corrections overshoot ${(meanOvershoot * 100).toFixed(0)}% on average across ${eps.length} episodes. Boat consistently blows past the target.`,
+            metric: `overshoot=${(meanOvershoot * 100).toFixed(0)}% n=${eps.length}`,
+            messageKey: "doctor.finding.stepOvershoot",
+            messageArgs: { overshoot: (meanOvershoot * 100).toFixed(0), n: String(eps.length) },
+          });
+          const D = session.initialGains["D"];
+          if (typeof D === "number" && D > 0) {
+            const factor = meanOvershoot > 0.35 ? 1.25 : 1.15;
+            suggestions.push({
+              id: "sug-D-step-overshoot",
+              category: "step-overshoot",
+              pilotId: session.pilotId,
+              gainKey: "D",
+              path: `ap.pilot.${session.pilotId}.D`,
+              currentValue: D,
+              suggestedValue: round5(D * factor),
+              deltaPct: (factor - 1) * 100,
+              reason: `Persistent overshoot (${(meanOvershoot * 100).toFixed(0)}%) on step responses. More derivative damping should reduce it.`,
+              expectedEffect: "Less overshoot, slightly slower settling. Watch RMS after applying.",
+              reasonKey: "doctor.reason.stepOvershoot",
+              reasonArgs: { overshoot: (meanOvershoot * 100).toFixed(0) },
+              effectKey: "doctor.effect.stepOvershoot",
+              confidence: eps.length >= 5 ? "high" : "medium",
+              applied: false, appliedTs: null,
+            });
+          }
+        }
+        // Many timeouts → authority is not enough to reach the target.
+        if (timedOutCount >= 2 && timedOutCount / eps.length > 0.3) {
+          findings.push({
+            category: "step-timeout",
+            severity: "critical",
+            message: `${timedOutCount} of ${eps.length} corrections never settled within the timeout. AP is not reaching the target.`,
+            metric: `timeouts=${timedOutCount}/${eps.length}`,
+            messageKey: "doctor.finding.stepTimeout",
+            messageArgs: { fail: String(timedOutCount), total: String(eps.length) },
+          });
+        }
+      }
+    }
+
+    // ---- Rule 6 (Rev288): downwind roll advisory.
+    // If the sailor spent enough time downwind (|TWA| > 90°) with a
+    // dynamic roll RMS above 5° AND the Roll FF slider is at 0, hint
+    // that activating it may reduce serpenteo. Never a suggestion —
+    // Roll FF is not a pypilot gain, it's a plugin-side term. So this
+    // rule emits only a finding.
+    if (this.getPluginState) {
+      const st = this.getPluginState();
+      if (st.rollFfGain === 0) {
+        let heelSumSq = 0;
+        let n = 0;
+        for (const s of engaged) {
+          if (typeof s.heel !== "number") continue;
+          if (typeof s.twa !== "number") continue;
+          if (Math.abs(s.twa) < Math.PI / 2) continue; // upwind: skip
+          heelSumSq += s.heel * s.heel;
+          n += 1;
+        }
+        if (n >= 30) {
+          const heelRmsDeg = Math.sqrt(heelSumSq / n) * 180 / Math.PI;
+          if (heelRmsDeg > 5) {
+            findings.push({
+              category: "downwind-roll",
+              severity: "info",
+              message: `Downwind roll RMS ${heelRmsDeg.toFixed(1)}° over ${n} samples with Roll feed-forward disabled. Consider raising the Roll FF slider in Setup to reduce downwind serpenteo.`,
+              metric: `heelRms=${heelRmsDeg.toFixed(1)}° n=${n} twaGate=90°`,
+              messageKey: "doctor.finding.downwindRoll",
+              messageArgs: { heelRms: heelRmsDeg.toFixed(1), n: String(n) },
+            });
+          }
+        }
+      }
+    }
+
     return this.buildResult(session, now, samples, engaged, findings, suggestions);
   }
 
@@ -453,6 +566,14 @@ export class DoctorEngine {
   // so the previous gains stay one profile-select click away. Every
   // subsequent apply in the SAME session writes into the same new
   // profile (no per-suggestion fork storm).
+  /** Rev296 (bug D): optional hook to attribute the "profile" write
+   *  that the Doctor's fork step performs. When set, called just
+   *  before client.set("profile", forkName). */
+  private profileWriteHook: ((name: string, reason: string) => void) | null = null;
+  setProfileWriteHook(cb: ((name: string, reason: string) => void) | null): void {
+    this.profileWriteHook = cb;
+  }
+
   private ensureForkedProfile(): string | null {
     if (!this.result) return null;
     if (this.result.newProfileName) return this.result.newProfileName;
@@ -464,6 +585,8 @@ export class DoctorEngine {
     try {
       // pypilot: writing to `profile` with a name that does NOT exist
       // creates it as a copy of the currently-active profile.
+      try { this.profileWriteHook?.(name, `Doctor forked from ${this.result.originalProfile ?? "?"}`); }
+      catch { /* silent */ }
       this.client.set("profile", name);
       this.result.newProfileName = name;
       return name;

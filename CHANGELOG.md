@@ -1,5 +1,151 @@
 # Changelog
 
+## 2.8.0 — 2026-09-23 — Sea-trial critical fixes + intelligence layer
+
+### Fixed (critical, from real sea trial)
+
+- **pypilot-disconnected alarm no longer panics on a 1 s hiccup.**
+  The banner used to fire after just 1 second of socket silence at
+  "alarm" severity (audio channel forced). In a marine environment
+  where a 4G router routinely blips for a few seconds on the SIM,
+  this generated constant false positives with unavoidable sound.
+  New default: **15 s sustain, "warn" severity** (silent banner). The
+  window is now runtime-configurable via
+  `POST /supervisor/config` field `alarmPypilotDiscSec` (range
+  3..300 s). Applies to `notifications.autopilot.pypilot-disconnected`.
+
+- **Wind-mode nudge buttons now steer the bow to the labelled side,
+  independent of AWA sign.** Before, `modeSign = -Math.sign(AWA)`
+  meant a `+10` on port-side ceñida (AWA=-45°) inverted the sign and
+  moved the target the wrong way, so the bow swung to the opposite
+  side of the button label. Fixed to `modeSign = -1` always in wind
+  mode; the four cases (AWA±45 × button±10) now all match the
+  physical expectation of "swing the bow to the labelled side".
+
+- **Mode change compass↔wind no longer strands `heading_command` in
+  the previous space.** pypilot's `ap.heading_command` lives in
+  different value spaces per mode (compass=heading, wind=AWA,
+  true wind=TWA). Before, changing modes left the target number
+  unchanged, so a `heading_command=90°` in compass became a 90° AWA
+  target in wind mode and the pilot swung hard to reach it. The
+  provider now **re-anchors** `heading_command` to the current
+  measurement in the destination space (`wind.direction` /
+  `wind.true_direction` / `ap.heading`) right after the mode delta
+  is confirmed. Same-space transitions (compass↔gps↔nav,
+  wind↔true wind) skip the re-anchor. Decision extracted to
+  `src/mode-reanchor.ts` with 24 unit tests.
+
+- **Profile selection cannot be overwritten to "default" when opening
+  the visor on a fresh device.** The `<select id="profile-select">`
+  starts with the DOM-default first option ("default") until the
+  authoritative delta lands. A stray change event fired during that
+  gap could write "default" to pypilot, overriding the sailor's
+  active profile. The visor now refuses to send profile changes
+  until it has received at least one authoritative `profile` delta
+  from the backend, and skips identity writes.
+
+- **Gust temp-heavy strategy respects manual profile changes.** If
+  the sailor picks a different profile during the 30 s temp-heavy
+  window, the automatic restore no longer overwrites that choice.
+  It fires an advisory notification instead.
+
+- **Runaway pilot defence.** `adjustTarget` clamp tightened from
+  573° to 90°. A single adjustTarget above 90° is either a caller
+  bug or a corrupt payload; refused at the boundary before it
+  becomes an untraceable pypilot sweep. Nudges (max 100° per press)
+  and tacks (go through `setTarget` absolute) are unaffected.
+
+### New — Doctor rule set
+
+- **Rule 5: step-response episode analysis.** When ≥3 correction
+  episodes closed during the Doctor session's window, high average
+  overshoot suggests raising D (+15% or +25% if overshoot > 35%),
+  and repeated timeouts flag "AP cannot reach the target — hardware
+  authority".
+- **Rule 6: downwind roll advisory.** With Roll FF disabled and a
+  heel RMS > 5° on downwind engaged samples, Doctor suggests
+  activating the Roll feed-forward slider.
+
+### New — Tuning & profiles
+
+- **Three-slider tuning panel (backend).** New endpoints
+  `GET/POST /tuning/knobs` map Aggressivity + Understeer/Oversteer +
+  Balance-Heading/Rate onto raw P/I/D/DD via `src/tuning-knobs.ts`.
+  Identity at (50, 0, 0); all factors clamped to [0.3×, 3.0×]
+  baseline. 26 unit tests.
+- **Profile metadata.** `GET /profiles/metadata` + `PUT/DELETE
+  /profiles/metadata/:name` for tagging each pypilot profile with a
+  condition (light/medium/heavy/motor/custom) and free-text notes.
+  Persisted via `savePluginOptions`.
+- **Profile advisor.** Watches the 1 min KPI window and notifies
+  when the boat has been tracking sustainedly badly ("consider a
+  more aggressive profile") or over-tightly with high servo duty
+  ("consider a less aggressive profile"). Never applies anything;
+  emits a `notifications.autopilot.pypilot.profileAdvisor` visual
+  banner with 5 min cooldown.
+- **Profile change audit log.** New endpoint
+  `GET /profile-change-log` shows the last 50 profile transitions
+  with attributed source (user / auto-profile / gust-heavy /
+  gust-heavy-restore / doctor / external). Answers "who changed my
+  profile?" for surprise switches.
+
+### New — Correction episodes + config backup
+
+- **Correction episode metrics.** `src/episodes.ts` detects each
+  target-step correction and records step-response metrics
+  (rise time, overshoot %, settling time, steady-state error).
+  Exposed at `GET /episodes` with a good/acceptable/poor quality
+  band. Feeds Rule 5 of the Doctor.
+- **Config backup / restore.** `GET /config/export` downloads a
+  JSON bundle of plugin options + persistent pypilot settings
+  (P/I/D/DD, tack params, servo max_current, etc.). `POST
+  /config/import` accepts a bundle and applies it, filtering runtime
+  telemetry keys defensively.
+
+### New — Physical control terms
+
+- **Roll feed-forward (off by default).** `src/roll-ff.ts` filters
+  the dynamic component of `navigation.attitude.roll` and computes a
+  small pre-emptive shift of the commanded heading, gated to
+  |TWA|>90°. Currently PUBLISHED at
+  `steering.autopilot.pypilot.tuning.rollFf.*` for observation; not
+  applied to the pilot yet — a later Rev flips that switch after sea
+  trial validates the term. Slider lives at `POST
+  /supervisor/config` field `rollFfGain` (0..2).
+- **Gust heel-confirmation gate.** The Rev167 gust supervisor now
+  cross-checks the AWS jump against a >2° heel change during the
+  same 5 s window. A sensor spike that did not physically load the
+  boat is suppressed. Falls open when heel data is absent.
+
+### New — Alarms & telemetry
+
+- **Persistent servo error log.** JSONL under the plugin dataDir
+  records every servo-* alarm transition with a 30 s peak summary
+  of pre-fault telemetry (max A, max °C, min V, max heading error).
+  Exposed at `GET /servo-error-log`.
+- **Pre-fault trim warnings.** New "info"-severity rules
+  `servo-current-trim` (>75% of overcurrent limit) and
+  `rudder-range-trim` (>40° absolute) fire *before* the fault-severity
+  rules to give the sailor time to trim.
+- **Configurable alarm thresholds.** `alarmLowVoltageV` (8..14 V),
+  `alarmServoTempC` (40..85 °C), `alarmServoMotorTempC` (40..90 °C)
+  now exposed via `/supervisor/config` and threaded through the
+  alarm rules per install.
+
+### New — NAV mode observability
+
+- **APB source preview.** `GET /nav/apb-preview` shows the current
+  active-waypoint bearing computed both ways — direct `bearingTrue`
+  and plotter-provided `steerTo` — plus their divergence. Read-only
+  for now; a later Rev may switch to plugin-side NAV mode after sea
+  trial validates the preference.
+
+### Under the hood
+
+- 8 new source modules with 177 unit tests (up from 5). All
+  additive — no existing endpoint or SK path changed contract.
+- Rev sequence 281..297 on branch `feat/blind-batch-sep16`.
+
 ## 2.7.5 — 2026-09-15 — Hotfix on 2.7.4 (visor did not load)
 
 **Deprecates 2.7.4.** The restore verdict fix that landed in 2.7.4

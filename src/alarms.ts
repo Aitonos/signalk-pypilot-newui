@@ -36,7 +36,24 @@ export interface EvalContext {
   connected: boolean;                 // pypilot_web socket state
   disconnectedSinceMs: number | null; // wall-clock ms of last disconnect
   nowMs: number;
+  // Rev290 (E2/E3): per-install thresholds. When present, rules use
+  // these instead of the module-level RULE_* defaults. Undefined
+  // fields fall back to the defaults so partial overrides work.
+  thresholds?: AlarmThresholds;
 }
+
+/** Per-install threshold overrides. Any field left undefined keeps
+ *  the corresponding RULE_* default. Kept intentionally small: only
+ *  the numbers the sailor is likely to want boat-specific. */
+export interface AlarmThresholds {
+  lowVoltageV?: number;
+  servoTempC?: number;
+  servoMotorTempC?: number;
+}
+
+/** Canonical defaults, exposed for the /alarms/thresholds GET and for
+ *  the visor to know the safe range. */
+export const DEFAULT_MOTOR_TEMP_C = 70;
 
 export interface RuleDef {
   id: string;
@@ -93,12 +110,20 @@ export const RULE_UNABLE_DUTY_MIN = 0.7;                  // 70% duty
 export const RULE_SERVO_OVERCURR_A = 5.0;
 export const RULE_SERVO_TEMP_C     = 60;
 export const RULE_LOW_VOLTAGE_V    = 11.0;
-// Rev256 lowered this from 10 s to 3 s. Rev258 (Carlos): with the new
-// pong-aware `healthy` check the socket is flagged offline after ~8 s
-// of missed pings (much earlier than TCP heartbeat would), so we can
-// afford a very short sustain here. Total from real pypilot power-off
-// to alarm firing: ~8 s + 1 s = 9 s.
-export const RULE_PYPILOT_DISC_SEC = 1;
+// Rev287 (E1): trim warnings fire BEFORE the corresponding fault
+// so the sailor sees the drift toward the limit and can trim sails
+// or ease pressure before the fault-severity rule kicks in.
+export const RULE_SERVO_TRIM_FRAC   = 0.75;               // 75% of overcurrent
+export const RULE_RUDDER_TRIM_RAD   = 40 * Math.PI / 180; // 40 deg absolute
+// Rev292 (Carlos, navigating): the previous 1 s default was too eager
+// in a marine environment where a 4G router routinely blips for a few
+// seconds on the SIM. The severity was also cranked to "alarm" which
+// forced the audio channel and made the pop-up unavoidable. New
+// default: 15 s sustain (comfortable with the 8 s pong-aware healthy
+// check → total ~23 s to fire) and "warn" severity so the visor banner
+// shows but does not force sound. Sailors who want stricter behaviour
+// can drop sustainSec via /supervisor/config.
+export const RULE_PYPILOT_DISC_SEC = 15;
 
 export const DEFAULT_RULES: RuleDef[] = [
   {
@@ -175,17 +200,63 @@ export const DEFAULT_RULES: RuleDef[] = [
     message: (c) => `Servo overcurrent ${(c.sample?.servoCurrent ?? 0).toFixed(1)} A`,
   },
   {
+    // Rev287 (E1): pre-fault trim warning. Fires when the servo has
+    // been drawing >75% of the overcurrent limit sustained a few
+    // seconds. Info severity - it precedes the fault-severity rule
+    // above by design so the sailor has time to react.
+    id: "servo-current-trim",
+    label: "Servo current approaching limit",
+    severity: "info",
+    defaultEnabled: true,
+    sustainSec: 5,
+    description: `Servo drawing over ${(RULE_SERVO_TRIM_FRAC * 100).toFixed(0)}% of the overcurrent limit — ease pressure or trim sails.`,
+    evaluate: (c) => {
+      if (!c.sample || typeof c.sample.servoCurrent !== "number") return false;
+      const thr = RULE_SERVO_OVERCURR_A * RULE_SERVO_TRIM_FRAC;
+      const a = c.sample.servoCurrent;
+      // Don't double-fire with the fault-severity rule; back off when
+      // already in the overcurrent band.
+      if (a > RULE_SERVO_OVERCURR_A) return false;
+      return a > thr;
+    },
+    message: (c) => `Servo current ${(c.sample?.servoCurrent ?? 0).toFixed(1)} A (limit ${RULE_SERVO_OVERCURR_A.toFixed(1)} A)`,
+  },
+  {
+    // Rev287 (E1): rudder pre-fault trim warning. Fires when the rudder
+    // has been sustainedly close to its stop, which usually precedes a
+    // servo out-of-range fault. Info severity.
+    id: "rudder-range-trim",
+    label: "Rudder near limit",
+    severity: "info",
+    defaultEnabled: true,
+    sustainSec: 3,
+    description: `Rudder deflection above ${(RULE_RUDDER_TRIM_RAD * 180 / Math.PI).toFixed(0)}° — servo is near its end of travel.`,
+    evaluate: (c) => {
+      if (!c.sample || typeof c.sample.rudder !== "number") return false;
+      return Math.abs(c.sample.rudder) > RULE_RUDDER_TRIM_RAD;
+    },
+    message: (c) => {
+      const r = (c.sample?.rudder ?? 0) * 180 / Math.PI;
+      const side = r >= 0 ? "stbd" : "port";
+      return `Rudder ${Math.abs(r).toFixed(0)}° ${side} (limit ${(RULE_RUDDER_TRIM_RAD * 180 / Math.PI).toFixed(0)}°)`;
+    },
+  },
+  {
     id: "servo-temp-high",
     label: "Servo temperature high",
     severity: "warn",
     defaultEnabled: true,
     sustainSec: 10,
-    description: `Servo controller temperature above ${RULE_SERVO_TEMP_C} °C.`,
+    description: `Servo controller temperature above the configured threshold (default ${RULE_SERVO_TEMP_C} °C).`,
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.servoTemp !== "number") return false;
-      return c.sample.servoTemp > RULE_SERVO_TEMP_C;
+      const thr = c.thresholds?.servoTempC ?? RULE_SERVO_TEMP_C;
+      return c.sample.servoTemp > thr;
     },
-    message: (c) => `Servo temp ${(c.sample?.servoTemp ?? 0).toFixed(0)} °C`,
+    message: (c) => {
+      const thr = c.thresholds?.servoTempC ?? RULE_SERVO_TEMP_C;
+      return `Servo temp ${(c.sample?.servoTemp ?? 0).toFixed(0)} °C (limit ${thr} °C)`;
+    },
   },
   {
     // Rev156 (Carlos): coil temperature complements servo-temp-high,
@@ -197,12 +268,16 @@ export const DEFAULT_RULES: RuleDef[] = [
     severity: "warn",
     defaultEnabled: true,
     sustainSec: 15,
-    description: "Motor coil temperature above 70 C.",
+    description: `Motor coil temperature above the configured threshold (default ${DEFAULT_MOTOR_TEMP_C} °C).`,
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.servoMotorTemp !== "number") return false;
-      return c.sample.servoMotorTemp > 70;
+      const thr = c.thresholds?.servoMotorTempC ?? DEFAULT_MOTOR_TEMP_C;
+      return c.sample.servoMotorTemp > thr;
     },
-    message: (c) => `Servo motor temp ${(c.sample?.servoMotorTemp ?? 0).toFixed(0)} °C`,
+    message: (c) => {
+      const thr = c.thresholds?.servoMotorTempC ?? DEFAULT_MOTOR_TEMP_C;
+      return `Servo motor temp ${(c.sample?.servoMotorTemp ?? 0).toFixed(0)} °C (limit ${thr} °C)`;
+    },
   },
   {
     // Rev156 (Carlos): ServoHealth already grades the drive as
@@ -232,12 +307,16 @@ export const DEFAULT_RULES: RuleDef[] = [
     severity: "warn",
     defaultEnabled: true,
     sustainSec: 10,
-    description: `Servo battery voltage below ${RULE_LOW_VOLTAGE_V} V.`,
+    description: `Servo battery voltage below the configured threshold (default ${RULE_LOW_VOLTAGE_V} V).`,
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.servoVoltage !== "number") return false;
-      return c.sample.servoVoltage < RULE_LOW_VOLTAGE_V;
+      const thr = c.thresholds?.lowVoltageV ?? RULE_LOW_VOLTAGE_V;
+      return c.sample.servoVoltage < thr;
     },
-    message: (c) => `Low voltage ${(c.sample?.servoVoltage ?? 0).toFixed(1)} V`,
+    message: (c) => {
+      const thr = c.thresholds?.lowVoltageV ?? RULE_LOW_VOLTAGE_V;
+      return `Low voltage ${(c.sample?.servoVoltage ?? 0).toFixed(1)} V (limit ${thr} V)`;
+    },
   },
   {
     id: "sensor-lost",
@@ -264,10 +343,21 @@ export const DEFAULT_RULES: RuleDef[] = [
   {
     id: "pypilot-disconnected",
     label: "Pypilot desconectado",
-    severity: "alarm",
+    // Rev292 (Carlos, navigating): dropped from "alarm" to "warn". A
+    // pypilot socket that stops sending pings does NOT put the boat in
+    // immediate danger — the sailor can still steer manually while the
+    // sailors's phone / router / SIM recovers. Reserve "alarm" (audio
+    // channel) for rules that actually mean "act now" (unable-to-steer,
+    // servo-overcurrent).
+    severity: "warn",
     defaultEnabled: true,
+    // sustainSec is now dynamic: threshold override wins; falls back
+    // to the module default (15 s in Rev292+). We keep the field here
+    // for the description; the actual sustain used is stateful because
+    // AlarmEngine reads it once at register time — see the sustain
+    // override handled by evalWithSustainOverride below.
     sustainSec: RULE_PYPILOT_DISC_SEC,
-    description: `pypilot_web socket has been down for ${RULE_PYPILOT_DISC_SEC} seconds.`,
+    description: `pypilot_web socket has been down for the configured window (default ${RULE_PYPILOT_DISC_SEC} s).`,
     evaluate: (c) => !c.connected,
     message: (c) => {
       if (c.disconnectedSinceMs == null) return "Pypilot desconectado";
@@ -369,6 +459,21 @@ export class AlarmEngine {
       }
     }
     return changed;
+  }
+
+  /** Rev292: change the sustain window of one rule at runtime, e.g.
+   *  when the sailor updates alarmPypilotDiscSec in /supervisor/config.
+   *  Returns true on success, false if the rule id is unknown. Values
+   *  outside a sane band are clamped, never rejected. */
+  setRuleSustain(ruleId: string, sec: number): boolean {
+    const rule = this.rules.get(ruleId);
+    if (!rule) return false;
+    const clamped = Math.max(1, Math.min(600, Math.floor(sec)));
+    // Mutate the RuleDef in place. The RuleDef object was captured by
+    // reference in this.rules.set(), so subsequent ticks pick up the
+    // new value on their next evaluate.
+    (rule as any).sustainSec = clamped;
+    return true;
   }
 
   private fire(s: RuleRuntimeState, rule: RuleDef, ctx: EvalContext): void {

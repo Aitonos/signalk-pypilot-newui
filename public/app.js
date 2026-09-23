@@ -1957,6 +1957,24 @@
           _modeChangePendingUntil = 0;
           _modeChangeChosen = null;
         }
+        // Rev295 (Carlos, navigating - bug C reinforcement): when the
+        // mode crosses the compass ↔ wind boundary, the backend
+        // provider re-anchors ap.heading_command to the current
+        // measurement in the destination space. During the ~200-800 ms
+        // it takes for the new target delta to arrive, the visor would
+        // otherwise keep showing the OLD target diamond and the sailor
+        // sees a stale value. Invalidate the local target so the
+        // diamond hides during the anchor gap; the next fresh
+        // steering.autopilot.target delta will repopulate it.
+        try {
+          const oldWind = String(state.mode || "").toLowerCase().includes("wind");
+          const newWind = String(value || "").toLowerCase().includes("wind");
+          if (oldWind !== newWind) {
+            state.target = null;
+            state.localTargetRad = null;
+            if (typeof renderTargetArrow === "function") renderTargetArrow();
+          }
+        } catch { /* silent */ }
         state.mode = value;
         if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
           setSelect("#mode-select", "aproado");
@@ -2034,6 +2052,14 @@
           const prev = state.profile;
           state.profile = value;
           setSelect("#profile-select", value);
+          // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
+          // primed=true once we have received an authoritative profile
+          // value from the backend. The change-listener refuses to
+          // POST anything until primed, so opening the visor on a new
+          // device cannot fire a "default" write while the <select>
+          // is still showing the DOM-default option before the real
+          // delta lands.
+          window._profileSelectPrimed = true;
           // Rev38: when the active profile changes, pypilot swaps in that
           // profile's stored gains. Force a values refresh so the Ajustes
           // sliders reflect the new gains instead of the old ones. The
@@ -5839,14 +5865,23 @@
         state.lastNudgeTs = now;
         // Rev226/230 (Carlos): botones = "swing the bow to the
         // labelled side". kindToDelta ya carga el signo del lado
-        // (port -, stbd +). En wind el signo del delta de target
-        // depende del signo del AWA - modeSign = -sign(AWA).
-        let modeSign = 1;
-        if (String(state.mode || "").includes("wind")) {
-          const awa = state.windAngle;
-          modeSign = (typeof awa === "number" && Math.abs(awa) > 0.02)
-            ? -Math.sign(awa) : -1;
-        }
+        // (port -, stbd +).
+        //
+        // Rev292 (Carlos, navigating): en wind mode el modeSign es
+        // SIEMPRE -1, no `-sign(AWA)` como estaba antes. Physical
+        // reasoning: en Signal K AWA es positivo cuando el viento
+        // viene por stbd. Al girar la proa +10° a stbd, si el AWA
+        // target se congelara, el AWA medido caería 10° — por tanto
+        // el AWA target debe caer 10° para compensar y que la proa
+        // acabe efectivamente girando 10° a stbd. Esto es
+        // INDEPENDIENTE del signo del AWA actual:
+        //   AWA=+45 (ceñida stbd), +10 (bow→stbd, orzar): target 45→35 → delta=-10 → modeSign=-1
+        //   AWA=-45 (ceñida port), +10 (bow→stbd, arribar): target -45→-55 → delta=-10 → modeSign=-1
+        // El código anterior hacía `-sign(AWA)`, que invertía el signo
+        // en ceñida port y provocaba "los botones no coinciden con el
+        // lado de giro de la proa" reportado en navegación.
+        const isWindMode = String(state.mode || "").includes("wind");
+        const modeSign = isWindMode ? -1 : 1;
         const newTargetRad = (state.localTargetRad ?? 0) + modeSign * nudge * DEG2RAD;
         state.localTargetRad = newTargetRad;
         // Rev66 / 2.0.4: also update state.target optimistically so the
@@ -6405,7 +6440,21 @@
       pluginRaw("ap.pilot", e.target.value);
     });
     $("#profile-select").addEventListener("change", (e) => {
-      pluginRaw("profile", e.target.value);
+      // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
+      // ignore change events fired before we have received an
+      // authoritative profile value from the backend. Opening the
+      // visor on a fresh device previously let the DOM-default first
+      // option fire a "change" that overwrote the real active profile
+      // on pypilot with "default". Also skip identity writes (value
+      // already matches state.profile) — those are no-ops for pypilot
+      // and would only cost a round-trip.
+      if (!window._profileSelectPrimed) {
+        console.log("[profile] ignoring change before profile delta received");
+        return;
+      }
+      const v = e.target.value;
+      if (v === state.profile) return;
+      pluginRaw("profile", v);
     });
     $("#profile-add").addEventListener("click", async () => {
       const name = prompt(t("prompt.profileName"));

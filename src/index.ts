@@ -16,12 +16,47 @@ import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
 import { AlarmEngine } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
+import { EpisodeDetector } from "./episodes";
+import {
+  captureBundle,
+  validateBundle,
+  applyBundleToPypilot,
+  ConfigBundle,
+} from "./config-backup";
+import { RollFeedForward } from "./roll-ff";
+import { ServoErrorLog } from "./servo-error-log";
+import {
+  computeGains,
+  roundGains,
+  validateKnobs,
+  validateBaseline,
+  NEUTRAL_KNOBS,
+  type TuningKnobs,
+  type GainSet,
+} from "./tuning-knobs";
+import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
+import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log";
+import {
+  loadMetadata,
+  upsert as pmUpsert,
+  remove as pmRemove,
+  validateUpsert as pmValidateUpsert,
+  CONDITIONS as PROFILE_CONDITIONS,
+  type ProfileMetadata,
+} from "./profile-metadata";
+import {
+  computeApbTarget,
+  apbDivergence,
+  isApbSource,
+  type ApbSource,
+  type CourseData,
+} from "./nav-bearing";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev280";
+const PLUGIN_REVISION = "Rev297";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -103,6 +138,45 @@ interface PluginProps {
   autoProfileLight?: string;    // profile name for TWS < 8 kn
   autoProfileMedium?: string;   // profile name for TWS 8-16 kn
   autoProfileHeavy?: string;    // profile name for TWS > 16 kn
+  // Rev282: roll feed-forward. Off by default. When > 0 the plugin
+  // computes a small pre-emptive shift of the commanded heading based
+  // on the dynamic component of the boat's roll. Only active downwind
+  // (|TWA| > rollFfTwaGateDeg). Output is currently PUBLISHED only,
+  // not applied to the AP - a later Rev flips the switch after sea
+  // trial.
+  rollFfGain?: number;
+  rollFfTauSec?: number;
+  rollFfTwaGateDeg?: number;
+  // Rev286 (B2): profile advisor. Watches window1m KPIs and emits a
+  // notification when the sailor should consider a profile change.
+  // Never applies anything. On by default; can be silenced from the
+  // Smart Pilot card.
+  profileAdvisorEnabled?: boolean;
+  profileAdvisorRmsHighDeg?: number;
+  profileAdvisorRmsLowDeg?: number;
+  profileAdvisorSustainSec?: number;
+  // Rev289 (B5): per-profile tags {condition, notes}. Persistent map,
+  // keyed by pypilot profile name. Visor renders it as chips; future
+  // auto-profile-by-condition may read from it.
+  profileMetadata?: ProfileMetadata;
+  // Rev290 (E2/E3): per-install alarm thresholds. Overrides the
+  // module-level RULE_* defaults in alarms.ts. Undefined fields fall
+  // back to the defaults.
+  alarmLowVoltageV?: number;
+  alarmServoTempC?: number;
+  alarmServoMotorTempC?: number;
+  // Rev292 (Carlos, navigating): sustain window before the pypilot-
+  // disconnected banner fires. Was hardcoded at 1 s (too eager in a
+  // marine SIM/4G environment). Default 15 s; sailors on a stable LAN
+  // can shorten it, sailors on lossy 4G can extend it.
+  alarmPypilotDiscSec?: number;
+  // Rev291 (F1): NAV mode target source preference. "auto" (default)
+  // uses steerTo when the plotter provides it, bearingTrue otherwise.
+  // Currently READ-ONLY: the plugin exposes the computed target under
+  // /nav/apb-preview but does NOT push it to pypilot yet — pypilot's
+  // own nav mode still runs the show. A future Rev may switch to
+  // plugin-side NAV once we can validate at sea.
+  apbSource?: "auto" | "steerTo" | "bearing";
   // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
   // gustDetectorEnabled; now the user picks what to do when a gust
   // lands:
@@ -166,12 +240,21 @@ module.exports = function (app: any) {
   // Rev167: gust supervisor. Rolling ring of AWS samples with timestamps.
   const GUST_WINDOW_MS    = 5000;     // look-back for rate-of-change
   const GUST_MIN_JUMP_KN  = 5;        // AWS jump >= 5 kn = "gust"
+  // Rev283: second signal to confirm a real gust vs a sensor spike.
+  // If heel data is available on both the min-AWS and max-AWS ends of
+  // the window, require the heel to have changed at least this many
+  // degrees during the same interval. Without heel data the check
+  // fails open (legacy Rev167 behaviour).
+  const GUST_HEEL_CONFIRM_DEG = 2;
   const GUST_COOLDOWN_MS  = 60_000;   // do not re-alert / re-strategy for 60 s
   const GUST_FREEZE_SEC   = 12;       // pin target for 12 s after detection
   const GUST_BOOST_SEC    = 20;       // damp D for 20 s after detection
   const GUST_HEAVY_SEC    = 30;       // temp heavy profile for 30 s
-  const _gustAwsBuffer: Array<{ ts: number; ktts: number }> = [];
+  const _gustAwsBuffer: Array<{ ts: number; ktts: number; heelRad: number | null }> = [];
   let _gustLastAlertTs = 0;
+  // Rev283: last suppressed-by-heel event for observability.
+  let _gustLastSuppressedTs: number | null = null;
+  let _gustLastSuppressReason: string | null = null;
   // Runtime state for the "freeze-target" strategy so the visor +
   // /supervisor/status can show why the target has stopped following
   // the wind for a few seconds.
@@ -212,6 +295,32 @@ module.exports = function (app: any) {
   let disconnectedSinceMs: number | null = null;
   // Rev103: Doctor engine (holds one active diagnostic session at a time).
   let doctor: DoctorEngine | null = null;
+  // Rev281: correction episode detector. Watches headingCmd for step
+  // changes and reports classic step-response metrics (rise / overshoot
+  // / settling / SSE) per correction. Consumed by the Chart tab as a
+  // quality-band gauge and by the Doctor as ground truth for tuning
+  // advice.
+  let episodes: EpisodeDetector | null = null;
+  // Rev282: roll feed-forward computer. Idle unless props.rollFfGain > 0.
+  // Currently PUBLISHES its output only, does not apply it to the AP.
+  let rollFf: RollFeedForward | null = null;
+  let _lastRollFfDeltaRad = 0;
+  // Rev283: persistent servo error log. Writes JSONL to dataDir on
+  // every off→on transition of a servo-* alarm rule and remembers the
+  // 30 s pre-fault window from the historian.
+  let servoErrorLog: ServoErrorLog | null = null;
+  // Rev286 (B2): profile advisor + last-published state for the SK
+  // notification path. Idempotent publish: only sends a delta when
+  // the state changes to avoid flooding subscribers.
+  let profileAdvisor: ProfileAdvisor | null = null;
+  let _profileAdvisorLastPubKind: string | null = null; // "normal" | AdvisoryKind
+  let _profileAdvisorMetaSent = false;
+  // Rev296 (Carlos, navigating - bug D): audit trail of every profile
+  // change with source attribution. Every plugin-initiated set() marks
+  // a planned write; the pypilot 'profile' delta hook correlates and
+  // credits the source, or records "external" for changes we did not
+  // initiate.
+  const profileChangeLog = new ProfileChangeLog();
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -612,9 +721,47 @@ module.exports = function (app: any) {
       // Health. Rules that fire publish canonical SK notifications and
       // land in /alarms/state for the visor banner.
       alarms = new AlarmEngine();
+      // Rev292 (Carlos, navigating): apply the user's chosen pypilot-
+      // disconnect sustain window on start-up, in case pluginOptions
+      // already carries a value.
+      try { alarms.setRuleSustain("pypilot-disconnected", props.alarmPypilotDiscSec ?? 15); }
+      catch { /* silent */ }
+      // Rev281: episode detector idles until the sampler feeds it.
+      episodes = new EpisodeDetector();
       // Rev103: Pypilot Doctor engine. Starts an idle instance;
       // sessions are triggered on demand via /doctor/start.
-      doctor = new DoctorEngine(historian, client);
+      // Rev284: Doctor now consumes step-response episodes on top of
+      // raw heading statistics.
+      // Rev288: Doctor also reads the current Roll FF setting so
+      // Rule 6 can flag downwind roll when the FF slider is at 0.
+      doctor = new DoctorEngine(historian, client, episodes, () => ({
+        rollFfGain: props.rollFfGain ?? 0,
+      }));
+      // Rev296 (bug D): Doctor fork writes go through the change log.
+      doctor.setProfileWriteHook((name, reason) => {
+        try { profileChangeLog.markPlannedWrite(name, "doctor", reason); }
+        catch { /* silent */ }
+      });
+      // Rev282: roll feed-forward, off unless the user turned it on.
+      rollFf = new RollFeedForward({
+        gain: props.rollFfGain ?? 0,
+        tauSec: props.rollFfTauSec ?? 3,
+        twaGateDeg: props.rollFfTwaGateDeg ?? 90,
+      });
+      // Rev283: servo error log. Shares dataDir with the session and
+      // trip recorders. On startup loads recent history from disk so
+      // the visor has continuity across a Pi restart.
+      servoErrorLog = new ServoErrorLog({
+        dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
+        log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
+        getRecentSamples: (windowMs) => (historian ? historian.slice(windowMs) as Sample[] : []),
+      });
+      // Rev286 (B2): profile advisor. Off unless props.profileAdvisorEnabled.
+      profileAdvisor = new ProfileAdvisor({
+        rmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
+        rmsLowDeg:  props.profileAdvisorRmsLowDeg  ?? 1,
+        sustainSec: props.profileAdvisorSustainSec ?? 60,
+      });
       // Rev143: session recorder wired into the historian tick so we
       // share the same 1 Hz cadence and the same collectSample() call.
       sessionRecorder = new SessionRecorder({
@@ -632,6 +779,20 @@ module.exports = function (app: any) {
         // KPIComputer.onSample is O(1) so this stays cheap on Pi 4.
         if (kpis) { try { kpis.onSample(s); } catch { /* silent */ } }
         if (servoHealth) { try { servoHealth.onSample(s); } catch { /* silent */ } }
+        if (episodes) { try { episodes.onSample(s); } catch { /* silent */ } }
+        // Rev282: roll feed-forward tick. Output goes to _lastRollFfDeltaRad
+        // and is published under steering.autopilot.pypilot.tuning.rollFf.*
+        // by the KPI publisher interval. NOT applied to the AP yet.
+        if (rollFf) {
+          try {
+            _lastRollFfDeltaRad = rollFf.compute({
+              ts: s.ts,
+              heel: s.heel,
+              twa: s.twa,
+              engaged: s.engaged,
+            });
+          } catch { _lastRollFfDeltaRad = 0; }
+        }
         // Rev97: also feed the quality monitor. Reading each watched
         // path costs one getSelfPath() call, cheap on Pi 4.
         if (sensorQuality) { try { feedSensorQuality(); } catch { /* silent */ } }
@@ -648,11 +809,16 @@ module.exports = function (app: any) {
         // Rev100: run the alarm engine last so it has every input up to
         // date. Changed rules trigger SK notification deltas.
         try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
+        // Rev286 (B2): profile advisor. Watches window1m and emits an
+        // advisory notification when tracking has been sustainedly bad
+        // or over-tight. Never applies anything.
+        try { tickProfileAdvisor(s.ts); } catch { /* silent */ }
         return s;
       });
       kpiPublishTimer = setInterval(() => {
         try { publishKpiPaths(); } catch { /* silent */ }
         try { publishServoHealthPaths(); } catch { /* silent */ }
+        try { publishRollFfPaths(); } catch { /* silent */ }
       }, 1000);
       if (typeof (kpiPublishTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
         (kpiPublishTimer as NodeJS.Timeout & { unref: () => void }).unref();
@@ -678,6 +844,7 @@ module.exports = function (app: any) {
       }
       kpis = null;
       kpiMetaSent = false;
+      rollFfMetaSent = false;
       // Rev97: drop the sensor quality monitor (its ring buffers go with it).
       sensorQuality = null;
       // Rev99: drop the servo health monitor (its EWMA baseline resets
@@ -739,6 +906,19 @@ module.exports = function (app: any) {
       // Rev103: cancel any in-flight diagnostic session and drop the doctor.
       if (doctor) { try { doctor.cancel(); } catch { /* silent */ } }
       doctor = null;
+      // Rev281: drop the episode detector so its history is not stale
+      // across a Disable+Enable cycle.
+      episodes = null;
+      // Rev282: drop the roll feed-forward computer.
+      rollFf = null;
+      _lastRollFfDeltaRad = 0;
+      // Rev283: drop the servo error log (persisted state stays on disk).
+      servoErrorLog = null;
+      // Rev286: drop advisor + reset dedup markers so a re-enable
+      // sends fresh SK notification state.
+      profileAdvisor = null;
+      _profileAdvisorLastPubKind = null;
+      _profileAdvisorMetaSent = false;
       // Clear the action-paths keep-alive interval registered on the app.
       const ka = (app as any)._pypilotNewuiKeepAlive;
       if (ka) { try { clearInterval(ka); } catch { /* defensive */ } (app as any)._pypilotNewuiKeepAlive = null; }
@@ -839,6 +1019,71 @@ module.exports = function (app: any) {
         res.json(lastCatalog);
       });
 
+      // Rev281 (D3): config backup + restore.
+      //   GET  /config/export           - download a JSON bundle of plugin
+      //                                   options + persistent pypilot
+      //                                   settings. Runtime telemetry is
+      //                                   filtered out.
+      //   POST /config/import           - accept a bundle previously
+      //                                   downloaded from /config/export
+      //                                   (or a copy from another boat)
+      //                                   and apply it. Returns an audit
+      //                                   list with per-key status. The
+      //                                   plugin restart to pick up the
+      //                                   new pluginOptions is triggered
+      //                                   asynchronously - the client
+      //                                   should reconnect after ~2 s.
+      router.get("/config/export", (_req: any, res: any) => {
+        if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
+        try {
+          const bundle = captureBundle({
+            revision: PLUGIN_REVISION,
+            props: props as unknown as Record<string, unknown>,
+            catalog: client.getCatalog() as unknown as Record<string, { info?: { persistent?: boolean } }>,
+            values: client.getValues(),
+          });
+          const stamp = new Date(bundle.capturedTs).toISOString().replace(/[:.]/g, "-");
+          res.setHeader("Content-Disposition",
+            `attachment; filename="pypilot-newui-config-${stamp}.json"`);
+          res.setHeader("Content-Type", "application/json");
+          res.send(JSON.stringify(bundle, null, 2));
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
+      });
+      router.post("/config/import", (req: any, res: any) => {
+        if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
+        const bundle = req.body as ConfigBundle;
+        const err = validateBundle(bundle);
+        if (err) { res.status(400).json({ error: err }); return; }
+        try {
+          const audit = applyBundleToPypilot(
+            bundle,
+            client.getCatalog() as unknown as Record<string, unknown>,
+            (k, v) => { client!.set(k, v); },
+          );
+          // Persist plugin-side options too if available.
+          let pluginOptionsSaved = false;
+          const anyApp = app as any;
+          if (bundle.pluginOptions && typeof anyApp.savePluginOptions === "function") {
+            try {
+              const merged = { ...props, ...bundle.pluginOptions };
+              anyApp.savePluginOptions(merged, (_e: any) => { /* silent */ });
+              pluginOptionsSaved = true;
+            } catch { /* silent */ }
+          }
+          res.json({
+            ok: true,
+            capturedTs: bundle.capturedTs,
+            revision: bundle.revision,
+            pluginOptionsSaved,
+            audit,
+          });
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
+      });
+
       // Rev93: telemetry history slice for the Chart tab. Query params:
       //   window=30s | 2m | 10m | 90000    (default 30s, capped at 60m)
       //   paths=headingCmd,rudder,...      (default: all)
@@ -882,6 +1127,22 @@ module.exports = function (app: any) {
           return;
         }
         res.json(sensorQuality.snapshot());
+      });
+
+      // Rev281: step-response metrics per correction episode. Cheap
+      // (returns a fixed-capacity ring buffer, currently up to 20).
+      router.get("/episodes", (_req: any, res: any) => {
+        if (!episodes) { res.status(503).json({ error: "episodes not initialised" }); return; }
+        try {
+          const { rateEpisode } = require("./episodes");
+          const history = episodes.snapshot().map((ep: any) => ({
+            ...ep,
+            rating: rateEpisode(ep),
+          }));
+          res.json({ current: episodes.current(), history });
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
       });
 
       // Rev99: Servo Health snapshot. Same idea - O(1) read of the
@@ -1084,6 +1345,13 @@ module.exports = function (app: any) {
         // share this prefix.
         if (!props.allowDirectServo && /^servo\.(command|position|raw|rawcommand|raw_command|velocity|torque|watts|amps|voltage_command|controller_command|pwm|duty)$/i.test(name)) {
           return res.status(403).json({ error: `${name} requires allowDirectServo` });
+        }
+        // Rev296 (bug D): mark profile writes coming through /raw as
+        // "user" so the change log credits them correctly. Any other
+        // key falls through unmodified.
+        if (name === "profile" && typeof value === "string") {
+          try { profileChangeLog.markPlannedWrite(value, "user", "PUT /raw"); }
+          catch { /* silent */ }
         }
         client.set(name, value);
         res.json({ ok: true, name, value });
@@ -1568,6 +1836,10 @@ module.exports = function (app: any) {
           gust: {
             strategy: props.gustStrategy ?? "off",
             lastAlertTs: _gustLastAlertTs || null,
+            // Rev283: observability of the heel-confirm gate.
+            lastSuppressedTs: _gustLastSuppressedTs,
+            lastSuppressReason: _gustLastSuppressReason,
+            heelConfirmDeg: GUST_HEEL_CONFIRM_DEG,
             freezeActive: _gustFreezeUntilMs != null,
             freezeRemainingSec: _gustFreezeUntilMs ? Math.max(0, Math.floor((_gustFreezeUntilMs - Date.now()) / 1000)) : null,
             boostActive: _gustBoostUntilMs != null,
@@ -1589,6 +1861,18 @@ module.exports = function (app: any) {
           autoProfileHeavy:  props.autoProfileHeavy  || "",
           gustStrategy: props.gustStrategy ?? "off",
           autoDisengageOnLostAuthority: !!props.autoDisengageOnLostAuthority,
+          rollFfGain: props.rollFfGain ?? 0,
+          rollFfTauSec: props.rollFfTauSec ?? 3,
+          rollFfTwaGateDeg: props.rollFfTwaGateDeg ?? 90,
+          profileAdvisorEnabled: props.profileAdvisorEnabled !== false,
+          profileAdvisorRmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
+          profileAdvisorRmsLowDeg: props.profileAdvisorRmsLowDeg ?? 1,
+          profileAdvisorSustainSec: props.profileAdvisorSustainSec ?? 60,
+          alarmLowVoltageV: props.alarmLowVoltageV ?? 11.0,
+          alarmServoTempC: props.alarmServoTempC ?? 60,
+          alarmServoMotorTempC: props.alarmServoMotorTempC ?? 70,
+          alarmPypilotDiscSec: props.alarmPypilotDiscSec ?? 15,
+          apbSource: props.apbSource ?? "auto",
         });
       });
       router.post("/supervisor/config", (req: any, res: any) => {
@@ -1605,13 +1889,330 @@ module.exports = function (app: any) {
         if (typeof b.autoDisengageOnLostAuthority === "boolean") {
           patch.autoDisengageOnLostAuthority = b.autoDisengageOnLostAuthority;
         }
+        // Rev282: Roll FF live-tunable knobs. Clamped in normalizeProps
+        // on plugin restart; also clamped here to keep an out-of-range
+        // POST from taking hold.
+        if (typeof b.rollFfGain === "number") {
+          patch.rollFfGain = clampNumber(b.rollFfGain, 0, 2, 0);
+        }
+        if (typeof b.rollFfTauSec === "number") {
+          patch.rollFfTauSec = clampNumber(b.rollFfTauSec, 0.5, 30, 3);
+        }
+        if (typeof b.rollFfTwaGateDeg === "number") {
+          patch.rollFfTwaGateDeg = clampNumber(b.rollFfTwaGateDeg, 30, 179, 90);
+        }
+        // Rev286 (B2) knobs.
+        if (typeof b.profileAdvisorEnabled === "boolean") {
+          patch.profileAdvisorEnabled = b.profileAdvisorEnabled;
+        }
+        if (typeof b.profileAdvisorRmsHighDeg === "number") {
+          patch.profileAdvisorRmsHighDeg = clampNumber(b.profileAdvisorRmsHighDeg, 3, 45, 10);
+        }
+        if (typeof b.profileAdvisorRmsLowDeg === "number") {
+          patch.profileAdvisorRmsLowDeg = clampNumber(b.profileAdvisorRmsLowDeg, 0.1, 5, 1);
+        }
+        if (typeof b.profileAdvisorSustainSec === "number") {
+          patch.profileAdvisorSustainSec = clampNumber(b.profileAdvisorSustainSec, 15, 600, 60);
+        }
+        // Rev290 (E2/E3) knobs.
+        if (typeof b.alarmLowVoltageV === "number") {
+          patch.alarmLowVoltageV = clampNumber(b.alarmLowVoltageV, 8, 14, 11.0);
+        }
+        if (typeof b.alarmServoTempC === "number") {
+          patch.alarmServoTempC = clampNumber(b.alarmServoTempC, 40, 85, 60);
+        }
+        if (typeof b.alarmServoMotorTempC === "number") {
+          patch.alarmServoMotorTempC = clampNumber(b.alarmServoMotorTempC, 40, 90, 70);
+        }
+        if (typeof b.alarmPypilotDiscSec === "number") {
+          patch.alarmPypilotDiscSec = clampNumber(b.alarmPypilotDiscSec, 3, 300, 15);
+        }
+        // Rev291 (F1): APB source preference (read-only side, no
+        // pypilot write yet).
+        if (isApbSource(b.apbSource)) {
+          patch.apbSource = b.apbSource;
+        }
         Object.assign(props, patch);
+        // Rev292 (bug A): hot-apply the pypilot-disconnect sustain
+        // window so the sailor sees the change without a plugin restart.
+        if (typeof patch.alarmPypilotDiscSec === "number" && alarms) {
+          try { alarms.setRuleSustain("pypilot-disconnected", patch.alarmPypilotDiscSec); }
+          catch { /* silent */ }
+        }
+        // Rev282: hot-apply Roll FF options so the sailor sees the
+        // effect on the sample tick without a plugin restart.
+        if (rollFf && (patch.rollFfGain !== undefined || patch.rollFfTauSec !== undefined || patch.rollFfTwaGateDeg !== undefined)) {
+          try {
+            rollFf.update({
+              gain: props.rollFfGain ?? 0,
+              tauSec: props.rollFfTauSec ?? 3,
+              twaGateDeg: props.rollFfTwaGateDeg ?? 90,
+            });
+          } catch { /* silent */ }
+        }
+        // Rev286 (B2): hot-apply advisor thresholds; also reset its
+        // sustain timers if the sailor disabled the feature outright,
+        // so a later re-enable starts clean.
+        if (profileAdvisor && (
+          patch.profileAdvisorRmsHighDeg !== undefined ||
+          patch.profileAdvisorRmsLowDeg !== undefined ||
+          patch.profileAdvisorSustainSec !== undefined ||
+          patch.profileAdvisorEnabled !== undefined
+        )) {
+          try {
+            profileAdvisor.update({
+              rmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
+              rmsLowDeg:  props.profileAdvisorRmsLowDeg  ?? 1,
+              sustainSec: props.profileAdvisorSustainSec ?? 60,
+            });
+            if (patch.profileAdvisorEnabled === false) {
+              profileAdvisor.reset();
+              publishProfileAdvisorNormal();
+            }
+          } catch { /* silent */ }
+        }
         try {
           app.savePluginOptions?.(props, () => { /* noop */ });
         } catch (e: any) {
           return res.status(500).json({ error: e?.message || String(e) });
         }
         res.json({ ok: true, applied: patch });
+      });
+
+      // Rev291 (F1): APB target preview. Reads the current SK course
+      // data via app.getCourse and returns what the AP *would* steer to
+      // if the plugin drove NAV directly. Diagnostic only — pypilot's
+      // own nav mode is still the one commanding the pilot.
+      router.get("/nav/apb-preview", async (_req: any, res: any) => {
+        try {
+          const cdata = (app.getCourse ? await app.getCourse() : null) as CourseData | null;
+          const pref: ApbSource = (props.apbSource as ApbSource) || "auto";
+          const target = computeApbTarget(cdata, pref);
+          const divergence = apbDivergence(cdata);
+          const targetDeg = target.targetRad != null
+            ? (target.targetRad * 180 / Math.PI + 360) % 360
+            : null;
+          res.json({
+            preference: pref,
+            hasWaypoint: !!cdata?.nextPoint,
+            target: {
+              rad: target.targetRad,
+              deg: targetDeg,
+              source: target.source,
+              fallback: target.fallback,
+            },
+            xteM: target.xteM,
+            distanceM: target.distanceM,
+            divergence: {
+              bothPresent: divergence.bothPresent,
+              rad: divergence.divergenceRad,
+              deg: divergence.divergenceRad != null ? divergence.divergenceRad * 180 / Math.PI : null,
+            },
+            appliedToAp: false,
+            note: "This value is computed and displayed but NOT written to pypilot. The pilot's own nav mode remains the authoritative source.",
+          });
+        } catch (e: any) {
+          res.status(500).json({ error: String(e?.message || e) });
+        }
+      });
+
+      // Rev296 (Carlos, navigating - bug D): audit trail of profile
+      // switches. Answers "who cargó default?" — shows the last N
+      // changes with source attribution (user / auto-profile /
+      // gust-heavy / doctor / external / etc).
+      router.get("/profile-change-log", (_req: any, res: any) => {
+        res.json({
+          current: profileChangeLog.current(),
+          summary: profileChangeLog.summary(),
+          entries: profileChangeLog.entries(),
+        });
+      });
+
+      // Rev289 (B5): profile metadata store.
+      //   GET    /profiles/metadata          - full map + activePilot + availablePilots + CONDITIONS
+      //   PUT    /profiles/metadata/:name    - upsert one entry {condition?, notes?}
+      //   DELETE /profiles/metadata/:name    - remove one entry
+      router.get("/profiles/metadata", (_req: any, res: any) => {
+        const store = props.profileMetadata ?? {};
+        let activePilot: string | null = null;
+        const pilots = new Set<string>();
+        if (client) {
+          const values = client.getValues();
+          activePilot = typeof values["ap.pilot"] === "string" ? String(values["ap.pilot"]) : null;
+          for (const k of Object.keys(client.getCatalog())) {
+            const m = /^ap\.pilots\.([^.]+)\./.exec(k);
+            if (m) pilots.add(m[1]);
+          }
+        }
+        res.json({
+          activePilot,
+          availablePilots: Array.from(pilots).sort(),
+          metadata: store,
+          conditions: PROFILE_CONDITIONS,
+        });
+      });
+      router.put("/profiles/metadata/:name", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const name = String(req.params?.name || "").trim();
+        if (!name) return res.status(400).json({ error: "profile name required in path" });
+        const err = pmValidateUpsert(req.body);
+        if (err) return res.status(400).json({ error: err });
+        const store: ProfileMetadata = props.profileMetadata ?? {};
+        const entry = pmUpsert(store, name, req.body || {}, Date.now());
+        props.profileMetadata = store;
+        try {
+          app.savePluginOptions?.(props, () => { /* silent */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: String(e?.message || e) });
+        }
+        res.json({ ok: true, name, entry });
+      });
+      router.delete("/profiles/metadata/:name", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const name = String(req.params?.name || "").trim();
+        if (!name) return res.status(400).json({ error: "profile name required in path" });
+        const store: ProfileMetadata = props.profileMetadata ?? {};
+        const existed = pmRemove(store, name);
+        props.profileMetadata = store;
+        try {
+          app.savePluginOptions?.(props, () => { /* silent */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: String(e?.message || e) });
+        }
+        res.json({ ok: true, name, existed });
+      });
+
+      // Rev286 (B2): profile advisor state for the Smart Pilot card.
+      router.get("/advisor/status", (_req: any, res: any) => {
+        if (!profileAdvisor) { res.status(503).json({ error: "not initialised" }); return; }
+        const st = profileAdvisor.status();
+        res.json({
+          enabled: !!props.profileAdvisorEnabled,
+          ...st,
+        });
+      });
+
+      // Rev283: persistent servo error log (C1).
+      //   GET  /servo-error-log         - list every recorded fault (newest last)
+      //                                   plus a peak summary of the 30 s
+      //                                   pre-fault telemetry window.
+      //   POST /servo-error-log/clear   - wipe RAM + delete the JSONL file.
+      //                                   Requires allowWrites.
+      router.get("/servo-error-log", (_req: any, res: any) => {
+        if (!servoErrorLog) { res.status(503).json({ error: "not initialised" }); return; }
+        res.json({ entries: servoErrorLog.entries() });
+      });
+      router.post("/servo-error-log/clear", (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        if (!servoErrorLog) return res.status(503).json({ error: "not initialised" });
+        servoErrorLog.clear();
+        res.json({ ok: true });
+      });
+
+      // Rev285 (A1): high-level tuning knobs. Three sliders that map
+      // onto pypilot's raw P/I/D/DD via the pure module tuning-knobs.ts.
+      //
+      //   GET  /tuning/knobs           - describe the currently-active
+      //                                  pilot: its id, its available
+      //                                  gains from the catalog, and
+      //                                  the neutral knob positions.
+      //                                  Frontend uses this to prime the
+      //                                  panel.
+      //   POST /tuning/knobs           - compute (and optionally apply)
+      //                                  gains for a given knob triple.
+      //                                  Body: {
+      //                                    pilotId?: string,
+      //                                    baseline: { P,I,D,DD },
+      //                                    knobs:    { aggressivity, understeerOversteer, balanceHeadingRate },
+      //                                    apply?: boolean (default false)
+      //                                  }
+      //                                  Response: { computed, applied,
+      //                                              applyErrors: string[] }.
+      router.get("/tuning/knobs", (_req: any, res: any) => {
+        if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
+        const values = client.getValues();
+        const activePilot = typeof values["ap.pilot"] === "string" ? String(values["ap.pilot"]) : "basic";
+        const current: GainSet = {
+          P:  numberOr0(values[`ap.pilot.${activePilot}.P`]),
+          I:  numberOr0(values[`ap.pilot.${activePilot}.I`]),
+          D:  numberOr0(values[`ap.pilot.${activePilot}.D`]),
+          DD: numberOr0(values[`ap.pilot.${activePilot}.DD`]),
+        };
+        // Enumerate available pilots from the catalog (any key
+        // ap.pilots.<name> matches). Keeps ordering stable.
+        const pilots = new Set<string>();
+        for (const k of Object.keys(client.getCatalog())) {
+          const m = /^ap\.pilots\.([^.]+)\./.exec(k);
+          if (m) pilots.add(m[1]);
+        }
+        res.json({
+          activePilot,
+          availablePilots: Array.from(pilots).sort(),
+          currentGains: current,
+          neutralKnobs: NEUTRAL_KNOBS,
+        });
+      });
+      router.post("/tuning/knobs", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        if (!client) return res.status(503).json({ error: "pypilot client not connected" });
+        const body = req.body || {};
+        const knobsErr = validateKnobs(body.knobs);
+        if (knobsErr) return res.status(400).json({ error: knobsErr });
+        const baseErr = validateBaseline(body.baseline);
+        if (baseErr) return res.status(400).json({ error: baseErr });
+        const values = client.getValues();
+        const activePilot = typeof values["ap.pilot"] === "string" ? String(values["ap.pilot"]) : "basic";
+        const pilotId = typeof body.pilotId === "string" && body.pilotId.length > 0
+          ? String(body.pilotId) : activePilot;
+        const baseline = body.baseline as GainSet;
+        const knobs = body.knobs as TuningKnobs;
+        const apply = body.apply === true;
+        const computed = roundGains(computeGains(baseline, knobs));
+        // Guard: refuse to apply if the pilotId is not one we know from
+        // the catalog. Otherwise a typo could set values under a bogus
+        // path that pypilot silently ignores or, worse, creates.
+        const catalog = client.getCatalog();
+        const pilotKnown = Object.keys(catalog).some(k => k.startsWith(`ap.pilots.${pilotId}.`));
+        if (apply && !pilotKnown) {
+          return res.status(400).json({ error: `pilotId '${pilotId}' not present in pypilot catalog`, computed });
+        }
+        let applied = false;
+        const applyErrors: string[] = [];
+        if (apply) {
+          for (const gainKey of ["P", "I", "D", "DD"] as const) {
+            const target = `ap.pilot.${pilotId}.${gainKey}`;
+            const value = computed[gainKey];
+            try { client.set(target, value); }
+            catch (e: any) { applyErrors.push(`${target}: ${e?.message || e}`); }
+          }
+          applied = applyErrors.length === 0;
+        }
+        res.json({
+          pilotId,
+          baseline,
+          knobs,
+          computed,
+          applied,
+          applyErrors,
+        });
+      });
+
+      // Rev282: Roll FF diagnostic snapshot for the visor.
+      router.get("/roll-ff/status", (_req: any, res: any) => {
+        if (!rollFf) { res.status(503).json({ error: "not initialised" }); return; }
+        const st = rollFf.getState();
+        const o = rollFf.getOptions();
+        res.json({
+          gain: o.gain,
+          tauSec: o.tauSec,
+          twaGateDeg: o.twaGateDeg,
+          maxDeltaRad: o.maxDeltaRad,
+          rollHpRad: st.rollHpRad,
+          hasSample: st.hasSample,
+          lastDeltaRad: _lastRollFfDeltaRad,
+          appliedToAp: false,
+          note: "Delta is computed and published under steering.autopilot.pypilot.tuning.rollFf.* but NOT applied to the pilot yet. Sea trial gates the enable switch.",
+        });
       });
 
       router.get("/log-capture/status", (_req: any, res: any) => {
@@ -2213,7 +2814,36 @@ module.exports = function (app: any) {
       gustStrategy: (["off","warn","freeze-target","boost-D","temp-heavy"] as const)
         .includes(options.gustStrategy as any) ? options.gustStrategy : "off",
       autoDisengageOnLostAuthority: options.autoDisengageOnLostAuthority === true,
+      rollFfGain: clampNumber(options.rollFfGain, 0, 2, 0),
+      rollFfTauSec: clampNumber(options.rollFfTauSec, 0.5, 30, 3),
+      rollFfTwaGateDeg: clampNumber(options.rollFfTwaGateDeg, 30, 179, 90),
+      profileAdvisorEnabled: options.profileAdvisorEnabled !== false,
+      profileAdvisorRmsHighDeg: clampNumber(options.profileAdvisorRmsHighDeg, 3, 45, 10),
+      profileAdvisorRmsLowDeg: clampNumber(options.profileAdvisorRmsLowDeg, 0.1, 5, 1),
+      profileAdvisorSustainSec: clampNumber(options.profileAdvisorSustainSec, 15, 600, 60),
+      // Rev289 (B5): sanitise the persisted metadata against the current
+      // schema — a plugin downgrade could otherwise leave stray rows
+      // with unknown conditions.
+      profileMetadata: loadMetadata(options.profileMetadata),
+      // Rev290 (E2/E3): threshold overrides, clamped to sane ranges.
+      alarmLowVoltageV: clampNumber(options.alarmLowVoltageV, 8, 14, 11.0),
+      alarmServoTempC: clampNumber(options.alarmServoTempC, 40, 85, 60),
+      alarmServoMotorTempC: clampNumber(options.alarmServoMotorTempC, 40, 90, 70),
+      alarmPypilotDiscSec: clampNumber(options.alarmPypilotDiscSec, 3, 300, 15),
+      apbSource: (["auto","steerTo","bearing"] as const).includes(options.apbSource as any)
+        ? options.apbSource : "auto",
     };
+  }
+
+  function clampNumber(v: unknown, min: number, max: number, fallback: number): number {
+    if (typeof v !== "number" || !isFinite(v)) return fallback;
+    if (v < min) return min;
+    if (v > max) return max;
+    return v;
+  }
+
+  function numberOr0(v: unknown): number {
+    return typeof v === "number" && isFinite(v) ? v : 0;
   }
 
   function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
@@ -2498,19 +3128,40 @@ module.exports = function (app: any) {
     if (strat !== "off") {
       const awsKn = typeof s.aws === "number" ? s.aws * 1.94384 : null;
       if (awsKn != null) {
-        _gustAwsBuffer.push({ ts: s.ts, ktts: awsKn });
+        _gustAwsBuffer.push({
+          ts: s.ts,
+          ktts: awsKn,
+          heelRad: typeof s.heel === "number" ? s.heel : null,
+        });
         const cutoff = s.ts - GUST_WINDOW_MS;
         while (_gustAwsBuffer.length > 0 && _gustAwsBuffer[0].ts < cutoff) _gustAwsBuffer.shift();
         if (_gustAwsBuffer.length >= 3 && now - _gustLastAlertTs > GUST_COOLDOWN_MS) {
           let minKn = Infinity, maxKn = -Infinity;
+          let minEntry = _gustAwsBuffer[0], maxEntry = _gustAwsBuffer[0];
           for (const e of _gustAwsBuffer) {
-            if (e.ktts < minKn) minKn = e.ktts;
-            if (e.ktts > maxKn) maxKn = e.ktts;
+            if (e.ktts < minKn) { minKn = e.ktts; minEntry = e; }
+            if (e.ktts > maxKn) { maxKn = e.ktts; maxEntry = e; }
           }
           const jump = maxKn - minKn;
           if (jump >= GUST_MIN_JUMP_KN && maxKn === awsKn) {
-            _gustLastAlertTs = now;
-            _applyGustStrategy(strat, minKn, maxKn, s, now);
+            // Rev283: heel confirmation. When both endpoints of the AWS
+            // window have heel data, require the heel to have changed
+            // >= GUST_HEEL_CONFIRM_DEG. This filters sensor spikes that
+            // did not physically load the boat. Fails open if either
+            // heel sample is missing (legacy behaviour).
+            let heelConfirmed = true;
+            let heelDeltaDeg: number | null = null;
+            if (minEntry.heelRad != null && maxEntry.heelRad != null) {
+              heelDeltaDeg = Math.abs(maxEntry.heelRad - minEntry.heelRad) * 180 / Math.PI;
+              heelConfirmed = heelDeltaDeg >= GUST_HEEL_CONFIRM_DEG;
+            }
+            if (heelConfirmed) {
+              _gustLastAlertTs = now;
+              _applyGustStrategy(strat, minKn, maxKn, s, now);
+            } else {
+              _gustLastSuppressedTs = now;
+              _gustLastSuppressReason = `heel delta ${heelDeltaDeg?.toFixed(1)}deg < ${GUST_HEEL_CONFIRM_DEG}deg (AWS jump ${jump.toFixed(1)}kn looks like a sensor spike)`;
+            }
           }
         }
       }
@@ -2576,9 +3227,12 @@ module.exports = function (app: any) {
         if (!targetProfile) { _autoProfilePendingSince = null; return; }
         const currentProfile = client.getValues()["profile"];
         if (currentProfile !== targetProfile) {
-          try { client.set("profile", targetProfile); } catch { /* silent */ }
-          _autoProfileLastSwitchTs = now;
           _autoProfileLastReason = `TWS avg ${avgKn.toFixed(1)} kn → band ${targetBand} → profile ${targetProfile}`;
+          try {
+            profileChangeLog.markPlannedWrite(targetProfile, "auto-profile", _autoProfileLastReason);
+            client.set("profile", targetProfile);
+          } catch { /* silent */ }
+          _autoProfileLastSwitchTs = now;
           _emitAdvisoryNotification("auto-profile-switch", _autoProfileLastReason);
         }
         _autoProfileCurrentBand = targetBand;
@@ -2651,9 +3305,12 @@ module.exports = function (app: any) {
       if (currentProfile === heavy) return;   // already there
       _gustHeavyUntilMs = now + GUST_HEAVY_SEC * 1000;
       _gustHeavyRestoreProfile = currentProfile;
-      try { client.set("profile", heavy); } catch { /* silent */ }
-      _emitAdvisoryNotification("gust-heavy-profile",
-        `Gust ${summary}: profile ${currentProfile ?? "?"} -> ${heavy} for ${GUST_HEAVY_SEC} s`);
+      const gustReason = `Gust ${summary}: profile ${currentProfile ?? "?"} -> ${heavy} for ${GUST_HEAVY_SEC} s`;
+      try {
+        profileChangeLog.markPlannedWrite(heavy, "gust-heavy", gustReason);
+        client.set("profile", heavy);
+      } catch { /* silent */ }
+      _emitAdvisoryNotification("gust-heavy-profile", gustReason);
       return;
     }
     // Unknown strategy - do nothing.
@@ -2685,11 +3342,31 @@ module.exports = function (app: any) {
     }
     if (_gustHeavyUntilMs != null && now >= _gustHeavyUntilMs) {
       if (client && _gustHeavyRestoreProfile != null) {
-        try { client.set("profile", _gustHeavyRestoreProfile); } catch { /* silent */ }
+        // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
+        // respect a manual profile change the sailor made DURING the
+        // temp-heavy window. If the currently-active profile is
+        // neither the heavy target nor the pre-gust one, someone
+        // (sailor, KIP, another visor) picked a third option and we
+        // must not stomp on that decision.
+        const heavy = props.autoProfileHeavy || "";
+        const currentNow = typeof client.getValues()["profile"] === "string"
+          ? client.getValues()["profile"] as string : null;
+        const sailorOverrode = currentNow != null
+          && currentNow !== heavy
+          && currentNow !== _gustHeavyRestoreProfile;
+        if (sailorOverrode) {
+          _emitAdvisoryNotification("gust-heavy-profile",
+            `Manual profile change (${currentNow}) detected during gust heavy - not restoring`);
+        } else {
+          try {
+            profileChangeLog.markPlannedWrite(_gustHeavyRestoreProfile, "gust-heavy-restore", "gust window expired");
+            client.set("profile", _gustHeavyRestoreProfile);
+          } catch { /* silent */ }
+          _emitAdvisoryNotification("gust-heavy-profile", "Profile restored to pre-gust value");
+        }
       }
       _gustHeavyUntilMs = null;
       _gustHeavyRestoreProfile = null;
-      _emitAdvisoryNotification("gust-heavy-profile", "Profile restored to pre-gust value");
     }
   }
 
@@ -2820,8 +3497,23 @@ module.exports = function (app: any) {
       connected: isHealthy,
       disconnectedSinceMs,
       nowMs: Date.now(),
+      // Rev290 (E2/E3): pass per-install threshold overrides so the
+      // rules read from props instead of the module-level RULE_*
+      // constants. Fields left undefined fall back to defaults.
+      thresholds: {
+        lowVoltageV:     props.alarmLowVoltageV,
+        servoTempC:      props.alarmServoTempC,
+        servoMotorTempC: props.alarmServoMotorTempC,
+      },
     };
     const changed = alarms.tick(ctx);
+    // Rev283: feed the servo error log AFTER the tick so its snapshot
+    // reflects the just-evaluated state. Runs unconditionally (cheap)
+    // - the log itself decides whether the transition is worth
+    // recording.
+    if (servoErrorLog) {
+      try { servoErrorLog.observeAlarms(alarms.snapshot()); } catch { /* silent */ }
+    }
     if (changed.length === 0) return;
     const nowIso = new Date().toISOString();
     const values: { path: string; value: unknown }[] = [];
@@ -2994,6 +3686,119 @@ module.exports = function (app: any) {
       });
     } catch (e: any) {
       app.debug(`[kpis] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  // Rev286 (B2): drive the profile advisor from the sampler tick.
+  // Publishes a SK notification only on state transitions to avoid
+  // flooding — the same idempotency the AlarmEngine uses.
+  function tickProfileAdvisor(nowMs: number): void {
+    if (!profileAdvisor || !kpis || !props.profileAdvisorEnabled) return;
+    const snap = kpis.snapshot();
+    const ev: AdvisoryEvent | null = profileAdvisor.onTick(nowMs, {
+      rmsErrorRad:   snap.window1m.rmsErrorRad,
+      servoDutyPct:  snap.window1m.servoDutyPct,
+      engagedSamples: snap.window1m.engagedSamples,
+    });
+    if (ev) {
+      publishProfileAdvisorNotification(ev);
+    } else {
+      // No new event — but if we previously published an advisory and
+      // the cooldown has expired, revert the notification to normal so
+      // KIP / WilhelmSK stop showing the banner.
+      const st = profileAdvisor.status(nowMs);
+      if (_profileAdvisorLastPubKind && _profileAdvisorLastPubKind !== "normal" && st.cooldownRemainingMs === 0) {
+        publishProfileAdvisorNormal();
+      }
+    }
+  }
+
+  function publishProfileAdvisorNotification(ev: AdvisoryEvent): void {
+    if (_profileAdvisorLastPubKind === ev.kind) return;
+    _profileAdvisorLastPubKind = ev.kind;
+    const nowIso = new Date().toISOString();
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: nowIso,
+          values: [{
+            path: "notifications.autopilot.pypilot.profileAdvisor",
+            value: {
+              state: "alert",
+              method: ["visual"],
+              message: ev.message,
+              messageKey: ev.messageKey,
+              messageArgs: ev.messageArgs,
+              metric: ev.metric,
+              kind: ev.kind,
+            },
+          }],
+        }],
+      });
+    } catch (e: any) {
+      app.debug?.(`[advisor] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  function publishProfileAdvisorNormal(): void {
+    if (_profileAdvisorLastPubKind === "normal") return;
+    _profileAdvisorLastPubKind = "normal";
+    const nowIso = new Date().toISOString();
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: nowIso,
+          values: [{
+            path: "notifications.autopilot.pypilot.profileAdvisor",
+            value: { state: "normal", method: [], message: "" },
+          }],
+        }],
+      });
+    } catch { /* silent */ }
+    _profileAdvisorMetaSent = _profileAdvisorMetaSent; // keep flag warm
+  }
+
+  // Rev282: publish Roll FF diagnostic paths so KIP / freeboard widgets
+  // can watch the term without polling the /roll-ff/status endpoint.
+  // gain=0 (off) still publishes as 0 so the path is discoverable.
+  let rollFfMetaSent = false;
+  function publishRollFfPaths(): void {
+    if (!rollFf) return;
+    const st = rollFf.getState();
+    const o = rollFf.getOptions();
+    const values = [
+      { path: "steering.autopilot.pypilot.tuning.rollFf.gain",         value: o.gain },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.tauSec",       value: o.tauSec },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.twaGateDeg",   value: o.twaGateDeg },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.rollHpRad",    value: st.rollHpRad },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.deltaRad",     value: _lastRollFfDeltaRad },
+      { path: "steering.autopilot.pypilot.tuning.rollFf.appliedToAp",  value: false },
+    ];
+    const nowIso = new Date().toISOString();
+    try {
+      if (!rollFfMetaSent) {
+        const meta = [
+          { path: "steering.autopilot.pypilot.tuning.rollFf.gain",       value: { description: "Roll FF gain (unitless, output = -gain*rollHp). 0 = off." } },
+          { path: "steering.autopilot.pypilot.tuning.rollFf.rollHpRad",  value: { units: "rad", description: "High-pass filtered roll (dynamic component only)." } },
+          { path: "steering.autopilot.pypilot.tuning.rollFf.deltaRad",   value: { units: "rad", description: "Feed-forward heading delta this tick. Computed even when disabled — but only non-zero when gain>0, AP engaged, and |TWA| above the gate." } },
+          { path: "steering.autopilot.pypilot.tuning.rollFf.appliedToAp",value: { description: "False until a later Rev flips the enable switch after sea trial." } },
+        ];
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, meta }],
+        });
+        rollFfMetaSent = true;
+      }
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
+      });
+    } catch (e: any) {
+      app.debug(`[roll-ff] publish failed: ${e?.message || e}`);
     }
   }
 
@@ -3745,6 +4550,8 @@ module.exports = function (app: any) {
           if (!profilesList.includes(profileName)) {
             return bad(`profile "${profileName}" no longer exists`);
           }
+          try { profileChangeLog.markPlannedWrite(profileName, "user", "SK PUT handler (radio switch)"); }
+          catch { /* silent */ }
           client.set("profile", profileName);
           // Optimistic radio flip; the confirmation delta will re-emit
           // authoritatively when pypilot echoes the new 'profile' value.
@@ -3779,6 +4586,8 @@ module.exports = function (app: any) {
         for (const p of next) ensureProfileSwitchHandler(p);
         emitProfileSwitches();
       } else if (name === "profile" && typeof value === "string") {
+        // Rev296 (bug D): log the change with attribution.
+        try { profileChangeLog.observeDelta(value); } catch { /* silent */ }
         activeProfile = value;
         // If pypilot revealed a profile name we did not yet know about,
         // register it lazily so KIP still sees the switch immediately.

@@ -10,6 +10,7 @@
 // single socket to pypilot_web. See NOTICE + CHANGELOG for attribution.
 
 import { PypilotClient } from "./pypilot-client";
+import { decideReAnchor } from "./mode-reanchor";
 
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
@@ -331,6 +332,22 @@ export class AutopilotProvider {
     ) {
       throw new Error(`Invalid mode: ${mode}`);
     }
+    // Rev292 (Carlos, navigating - bug C "piloto girando loco"):
+    // snapshot the OLD mode so we can decide whether the transition
+    // needs a heading_command re-anchor. Pypilot's ap.heading_command
+    // lives in different spaces depending on the mode:
+    //   compass/gps/nav   -> compass heading in degrees 0..360
+    //   wind              -> AWA in degrees -180..+180
+    //   true wind         -> TWA in degrees -180..+180
+    // A stale value from the previous mode (say a 90° heading) becomes
+    // a 90° AWA when we cross into wind mode, and pypilot promptly
+    // tries to swing the boat toward it — the "piloto se vuelve loco"
+    // symptom Carlos reported on Rev280 sea trial. The fix: right
+    // after ap.mode changes, force heading_command to the CURRENT
+    // measurement in the destination space, so the pilot has a
+    // sane target and never chases a value that meant something else.
+    const oldMode = String(this.data.mode || "").toLowerCase();
+    const newMode = String(mode || "").toLowerCase();
     // Rev279 (audit follow-up B): bump modeGen so a stale mode retry
     // aborts before overwriting a newer setMode / setState intent.
     const gen = ++this.modeGen;
@@ -344,6 +361,44 @@ export class AutopilotProvider {
     }
     if (this.modeGen !== gen) {
       throw new Error("mode change superseded after write");
+    }
+    // Rev292: re-anchor. Only when the mode's target-space actually
+    // changed (compass↔gps↔nav share the compass space and don't need
+    // it; wind↔true wind share the wind space; only compass-family ↔
+    // wind-family crossings trigger the re-anchor).
+    if (this.data.engaged) {
+      try {
+        this._reAnchorTargetAfterModeChange(oldMode, newMode);
+      } catch (e: any) {
+        // Never fail the mode change on the re-anchor path — worst
+        // case we leave the stale target and the sailor corrects with
+        // a nudge. Log so the diagnostic captures it.
+        // eslint-disable-next-line no-console
+        console.log(`[apProvider.setMode] re-anchor failed: ${e?.message || e}`);
+      }
+    }
+  }
+
+  /** Rev292: after a compass↔wind (or vice-versa) mode change, force
+   *  heading_command to the current measurement in the destination
+   *  space so pypilot never starts a mode with a target that meant
+   *  something else in the previous mode. Rev295: decision extracted
+   *  to src/mode-reanchor.ts (pure, unit-tested). This method only
+   *  glues that decision to the pypilot socket. */
+  private _reAnchorTargetAfterModeChange(oldMode: string, newMode: string): void {
+    const values = (this.client as any).getValues?.() || {};
+    const d = decideReAnchor(oldMode, newMode, values);
+    // eslint-disable-next-line no-console
+    console.log(`[apProvider.setMode] re-anchor: ${d.reason}`);
+    if (!d.shouldReAnchor || d.valueDeg == null) return;
+    // Push directly to pypilot without going through setTarget() —
+    // setTarget bumps targetGen and could race with the modeGen we
+    // just claimed. Also bypass echo cancellation: the anchor value is
+    // what we WANT to see, so the echo does match.
+    try { this.client.set("ap.heading_command", d.valueDeg); }
+    catch (e: any) {
+      // eslint-disable-next-line no-console
+      console.log(`[apProvider.setMode] re-anchor write failed: ${e?.message || e}`);
     }
   }
 
@@ -386,8 +441,15 @@ export class AutopilotProvider {
 
   private async adjustTarget(rad: number): Promise<void> {
     // Rev272 (audit R07): reject non-finite deltas at the boundary.
-    if (!Number.isFinite(rad) || Math.abs(rad) > 10) {
-      throw new Error(`Invalid adjust rad: ${rad}`);
+    // Rev292 (Carlos, navigating - bug C "piloto girando loco"):
+    // tighten the ceiling. `adjustTarget` is called from user nudges
+    // (max nudgeBig = 100°, so ~1.75 rad in extreme configurations)
+    // and never for tacks (those go through this.tack() → setTarget
+    // absolute). A single adjustTarget above 90° is either a bug in
+    // the caller or a corrupt payload — refuse it before it reaches
+    // pypilot, where it becomes an untraceable heading sweep.
+    if (!Number.isFinite(rad) || Math.abs(rad) > Math.PI / 2) {
+      throw new Error(`Invalid adjust rad: ${rad} (max ±π/2 = ±90°)`);
     }
     // Rev272 (audit R06): serialise on the shared chain. base must be
     // read AFTER any pending adjust has committed data.target,
