@@ -55,7 +55,7 @@ import { TripRecorder, TripSample } from "./trip-recorder";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev292";
+const PLUGIN_REVISION = "Rev293";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -164,6 +164,11 @@ interface PluginProps {
   alarmLowVoltageV?: number;
   alarmServoTempC?: number;
   alarmServoMotorTempC?: number;
+  // Rev292 (Carlos, navigating): sustain window before the pypilot-
+  // disconnected banner fires. Was hardcoded at 1 s (too eager in a
+  // marine SIM/4G environment). Default 15 s; sailors on a stable LAN
+  // can shorten it, sailors on lossy 4G can extend it.
+  alarmPypilotDiscSec?: number;
   // Rev291 (F1): NAV mode target source preference. "auto" (default)
   // uses steerTo when the plotter provides it, bearingTrue otherwise.
   // Currently READ-ONLY: the plugin exposes the computed target under
@@ -709,6 +714,11 @@ module.exports = function (app: any) {
       // Health. Rules that fire publish canonical SK notifications and
       // land in /alarms/state for the visor banner.
       alarms = new AlarmEngine();
+      // Rev292 (Carlos, navigating): apply the user's chosen pypilot-
+      // disconnect sustain window on start-up, in case pluginOptions
+      // already carries a value.
+      try { alarms.setRuleSustain("pypilot-disconnected", props.alarmPypilotDiscSec ?? 15); }
+      catch { /* silent */ }
       // Rev281: episode detector idles until the sampler feeds it.
       episodes = new EpisodeDetector();
       // Rev103: Pypilot Doctor engine. Starts an idle instance;
@@ -1842,6 +1852,7 @@ module.exports = function (app: any) {
           alarmLowVoltageV: props.alarmLowVoltageV ?? 11.0,
           alarmServoTempC: props.alarmServoTempC ?? 60,
           alarmServoMotorTempC: props.alarmServoMotorTempC ?? 70,
+          alarmPypilotDiscSec: props.alarmPypilotDiscSec ?? 15,
           apbSource: props.apbSource ?? "auto",
         });
       });
@@ -1894,12 +1905,21 @@ module.exports = function (app: any) {
         if (typeof b.alarmServoMotorTempC === "number") {
           patch.alarmServoMotorTempC = clampNumber(b.alarmServoMotorTempC, 40, 90, 70);
         }
+        if (typeof b.alarmPypilotDiscSec === "number") {
+          patch.alarmPypilotDiscSec = clampNumber(b.alarmPypilotDiscSec, 3, 300, 15);
+        }
         // Rev291 (F1): APB source preference (read-only side, no
         // pypilot write yet).
         if (isApbSource(b.apbSource)) {
           patch.apbSource = b.apbSource;
         }
         Object.assign(props, patch);
+        // Rev292 (bug A): hot-apply the pypilot-disconnect sustain
+        // window so the sailor sees the change without a plugin restart.
+        if (typeof patch.alarmPypilotDiscSec === "number" && alarms) {
+          try { alarms.setRuleSustain("pypilot-disconnected", patch.alarmPypilotDiscSec); }
+          catch { /* silent */ }
+        }
         // Rev282: hot-apply Roll FF options so the sailor sees the
         // effect on the sample tick without a plugin restart.
         if (rollFf && (patch.rollFfGain !== undefined || patch.rollFfTauSec !== undefined || patch.rollFfTwaGateDeg !== undefined)) {
@@ -2778,6 +2798,7 @@ module.exports = function (app: any) {
       alarmLowVoltageV: clampNumber(options.alarmLowVoltageV, 8, 14, 11.0),
       alarmServoTempC: clampNumber(options.alarmServoTempC, 40, 85, 60),
       alarmServoMotorTempC: clampNumber(options.alarmServoMotorTempC, 40, 90, 70),
+      alarmPypilotDiscSec: clampNumber(options.alarmPypilotDiscSec, 3, 300, 15),
       apbSource: (["auto","steerTo","bearing"] as const).includes(options.apbSource as any)
         ? options.apbSource : "auto",
     };

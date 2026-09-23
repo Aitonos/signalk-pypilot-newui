@@ -115,12 +115,15 @@ export const RULE_LOW_VOLTAGE_V    = 11.0;
 // or ease pressure before the fault-severity rule kicks in.
 export const RULE_SERVO_TRIM_FRAC   = 0.75;               // 75% of overcurrent
 export const RULE_RUDDER_TRIM_RAD   = 40 * Math.PI / 180; // 40 deg absolute
-// Rev256 lowered this from 10 s to 3 s. Rev258 (Carlos): with the new
-// pong-aware `healthy` check the socket is flagged offline after ~8 s
-// of missed pings (much earlier than TCP heartbeat would), so we can
-// afford a very short sustain here. Total from real pypilot power-off
-// to alarm firing: ~8 s + 1 s = 9 s.
-export const RULE_PYPILOT_DISC_SEC = 1;
+// Rev292 (Carlos, navigating): the previous 1 s default was too eager
+// in a marine environment where a 4G router routinely blips for a few
+// seconds on the SIM. The severity was also cranked to "alarm" which
+// forced the audio channel and made the pop-up unavoidable. New
+// default: 15 s sustain (comfortable with the 8 s pong-aware healthy
+// check → total ~23 s to fire) and "warn" severity so the visor banner
+// shows but does not force sound. Sailors who want stricter behaviour
+// can drop sustainSec via /supervisor/config.
+export const RULE_PYPILOT_DISC_SEC = 15;
 
 export const DEFAULT_RULES: RuleDef[] = [
   {
@@ -340,10 +343,21 @@ export const DEFAULT_RULES: RuleDef[] = [
   {
     id: "pypilot-disconnected",
     label: "Pypilot desconectado",
-    severity: "alarm",
+    // Rev292 (Carlos, navigating): dropped from "alarm" to "warn". A
+    // pypilot socket that stops sending pings does NOT put the boat in
+    // immediate danger — the sailor can still steer manually while the
+    // sailors's phone / router / SIM recovers. Reserve "alarm" (audio
+    // channel) for rules that actually mean "act now" (unable-to-steer,
+    // servo-overcurrent).
+    severity: "warn",
     defaultEnabled: true,
+    // sustainSec is now dynamic: threshold override wins; falls back
+    // to the module default (15 s in Rev292+). We keep the field here
+    // for the description; the actual sustain used is stateful because
+    // AlarmEngine reads it once at register time — see the sustain
+    // override handled by evalWithSustainOverride below.
     sustainSec: RULE_PYPILOT_DISC_SEC,
-    description: `pypilot_web socket has been down for ${RULE_PYPILOT_DISC_SEC} seconds.`,
+    description: `pypilot_web socket has been down for the configured window (default ${RULE_PYPILOT_DISC_SEC} s).`,
     evaluate: (c) => !c.connected,
     message: (c) => {
       if (c.disconnectedSinceMs == null) return "Pypilot desconectado";
@@ -445,6 +459,21 @@ export class AlarmEngine {
       }
     }
     return changed;
+  }
+
+  /** Rev292: change the sustain window of one rule at runtime, e.g.
+   *  when the sailor updates alarmPypilotDiscSec in /supervisor/config.
+   *  Returns true on success, false if the rule id is unknown. Values
+   *  outside a sane band are clamped, never rejected. */
+  setRuleSustain(ruleId: string, sec: number): boolean {
+    const rule = this.rules.get(ruleId);
+    if (!rule) return false;
+    const clamped = Math.max(1, Math.min(600, Math.floor(sec)));
+    // Mutate the RuleDef in place. The RuleDef object was captured by
+    // reference in this.rules.set(), so subsequent ticks pick up the
+    // new value on their next evaluate.
+    (rule as any).sustainSec = clamped;
+    return true;
   }
 
   private fire(s: RuleRuntimeState, rule: RuleDef, ctx: EvalContext): void {
