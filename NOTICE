@@ -1,12 +1,26 @@
 signalk-pypilot-newui
 Copyright 2026 Aitonos
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this project except in compliance with the License.
-You may obtain a copy of the License at
+Licensed under the GNU Affero General Public License, Version 3.0 or
+later (the "License"); you may not use this project except in
+compliance with the License. You may obtain a copy of the License
+in the LICENSE file next to this NOTICE, or at:
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.gnu.org/licenses/agpl-3.0.html
 
+
+LICENSING HISTORY
+
+Prior releases (2.7.5 and earlier through 2.8.0) shipped under the
+Apache License 2.0. Starting with 2.9.0 this project is distributed
+under the AGPL-3.0-or-later to require any downstream fork to remain
+open under the same license — including forks offered as a network
+service. Users who installed a version <= 2.8.0 keep the Apache-2.0
+rights that were granted at the time of that release, in perpetuity,
+for those specific versions.
+
+
+THIRD-PARTY DERIVATIONS
 
 This project includes an "Autopilot Provider" adapter
 (src/autopilot-provider.ts) whose method structure and command
@@ -22,9 +36,19 @@ re-implemented the same command surface on top of the PypilotClient we
 already carry (src/pypilot-client.ts) so that a Signal K server with
 both plugins effectively active only ever opens ONE socket to the
 pypilot_web process on the TinyPilot. This is a functional benefit for
-Pi Zero W hardware; no derivative works of the upstream code itself are
-distributed.
+Pi Zero W hardware; no derivative works of the upstream code itself
+are distributed.
 
-For the socket.io protocol layer talking to pypilot_web (watch=, name=value)
-we independently confirmed it against the upstream pypilot sources
-(https://github.com/pypilot/pypilot) which are LGPL-3.0.
+Apache-2.0 code is compatible with AGPL-3.0 for inclusion — the Apache
+portions retain their original license notice inside our source; the
+combined work is distributed under AGPL-3.0-or-later.
+
+
+PYPILOT UPSTREAM (INTERPROCESS ONLY, NOT LINKED)
+
+For the socket.io protocol layer talking to pypilot_web
+(watch=, name=value) we independently confirmed it against the
+upstream pypilot sources (https://github.com/pypilot/pypilot) which
+are LGPL-3.0. We do NOT link the pypilot code into this plugin. The
+plugin communicates with a separate pypilot_web process over a TCP
+socket, which does not trigger LGPL's linking requirements.

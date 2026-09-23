@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.9.0 — 2026-09-23 — Relicensed to AGPL-3.0-or-later
+
+### License change (see NOTICE for details)
+
+Starting with this release the plugin is distributed under the
+**GNU Affero General Public License 3.0 or later** instead of Apache
+2.0. The move is intended to keep downstream forks open under the
+same license — including forks offered as a network service — while
+still allowing personal and commercial USE without any fee, permission
+or contract.
+
+What this means in practice:
+
+- **Personal or commercial use is unchanged.** A cruiser, charter
+  fleet, sailing school or workshop can install and use the plugin
+  without paying anything or asking anyone.
+- **Fork for your own use or to contribute back — same as before.**
+  Anyone can clone the repo, modify the code, test it on their boat,
+  or open a pull request. The AGPL only kicks in the moment you
+  *distribute* your modified version (as a package or as a network
+  service).
+- **Distributing a modified version obliges you to publish the source
+  code under AGPL-3.0-or-later too.** Closing a fork behind a
+  commercial product without releasing the source is no longer
+  permitted.
+
+Previous releases (up to 2.8.0) remain available under the Apache 2.0
+terms that were granted at the time — those rights are perpetual for
+those specific versions.
+
+### Also in this release
+
+- Ship the `LICENSE` file that was declared in `package.json` but
+  missing from the tarball in all prior releases. The file now
+  carries the full AGPL-3.0 text (previously an implicit Apache-2.0
+  reference in `NOTICE`).
+- `NOTICE` updated with licensing history + reaffirmation that
+  Panaaj's Apache-2.0 code fragment (autopilot-provider adapter)
+  is compatible with an AGPL-3.0 combined work.
+
 ## 2.8.0 — 2026-09-23 — Sea-trial critical fixes + intelligence layer
 
 ### Fixed (critical, from real sea trial)

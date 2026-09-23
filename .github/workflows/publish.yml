@@ -63,6 +63,23 @@ jobs:
             exit 1
           fi
 
+      - name: Sanity check - LICENSE and NOTICE files present
+        run: |
+          for f in LICENSE NOTICE; do
+            if [ ! -s "$f" ]; then
+              echo "::error::$f is missing or empty. AGPL-3.0 requires the LICENSE text to ship with the package."
+              exit 1
+            fi
+          done
+          # Quick content sanity: LICENSE should mention AGPL when the
+          # package.json declares AGPL. Catches an accidental swap.
+          PKG_LIC=$(node -p "require('./package.json').license")
+          if [[ "$PKG_LIC" == AGPL* ]] && ! grep -q "GNU AFFERO GENERAL PUBLIC LICENSE" LICENSE; then
+            echo "::error::package.json declares $PKG_LIC but LICENSE does not carry the AGPL text."
+            exit 1
+          fi
+          echo "License files present and consistent with package.json license=$PKG_LIC"
+
       - name: Install (npm ci)
         run: npm ci
 
