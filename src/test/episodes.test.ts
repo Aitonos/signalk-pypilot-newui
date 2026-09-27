@@ -22,6 +22,7 @@ function mkSample(overrides: Partial<Sample>): Sample {
     tws: null,
     sog: null,
     heel: null,
+    pitch: null,
     engaged: true,
     mode: "compass",
     ...overrides,

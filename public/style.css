@@ -50,7 +50,7 @@
   border-radius: 14px;
   padding: 20px;
   width: min(400px, 92vw);
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   color: var(--fg);
   display: flex;
@@ -70,7 +70,7 @@
   border-radius: 14px;
   padding: 20px;
   width: min(360px, 90vw);
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   color: var(--fg);
   display: flex;
@@ -230,6 +230,14 @@ main {
   inset: 0;
   padding: 12px;
   overflow-y: auto;
+  /* Rev314 (Carlos sea trial 2026-09-25, bug recorte vertical tablet):
+     iOS Safari y algunas tablets Android necesitan momentum-scroll
+     explícito para que `overflow-y: auto` en un `position: absolute`
+     con `inset: 0` funcione bien con dedo. Sin esto, el scroll queda
+     "atascado" cerca del borde inferior y da la sensación de que la
+     card se recorta. */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   opacity: 0;
   pointer-events: none;
   transform: translateX(60%);
@@ -574,7 +582,7 @@ main {
   padding: 26px 22px 22px;
   max-width: 640px;
   width: 100%;
-  max-height: 80vh;
+  max-height: 80dvh;
   overflow-y: auto;
   color: var(--fg, #e5eaf3);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
@@ -589,7 +597,7 @@ main {
    Legacy popups (no .popup-body) keep the previous block layout. */
 .popup-box:has(> .popup-body) {
   padding: 0;
-  max-height: 85vh;
+  max-height: 85dvh;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -844,7 +852,7 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   margin-top: 4px;
 }
 
-/* B&G-ish tile color coding.
+/* Traffic-signal tile color coding.
    Rev151/152 (Carlos): SOG back to white (was yellow), wind now split
    into apparent (amber) / true (teal). The wind-app / wind-true rules
    further down in this file override the legacy green .wind rules. */
@@ -1614,6 +1622,13 @@ button.primary {
   font-size: 12px;
 }
 
+/* Rev306: KIP action-paths table row tints. Replaces the inline
+   `style="background: rgba(...)"` per row so the palette is
+   managed here in one place. Kept intentionally muted (bg-3
+   tinted only) — Carlos: "quita tanto colorín". */
+.paths-table tr.row-switch td { background: var(--bg-3); }
+.paths-table tr.row-put    td { background: color-mix(in srgb, var(--bg-3) 80%, var(--ok) 20%); }
+
 /* -------- Setup tab -------- */
 .setup-block {
   background: var(--bg-2);
@@ -1628,6 +1643,26 @@ button.primary {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* Rev306: breathing room between a text line (hint / status) and the
+   row of buttons or selects that comes after it. Carlos flagged that
+   inside .conn-sub sections the .row was hugging the previous line.
+   Applies to every conn-sub across the visor without further inline
+   styles. */
+.conn-sub .row + .row,
+.conn-sub .hint + .row,
+.conn-sub .gain-row + .row,
+.conn-sub .row + .hint,
+.conn-sub .row + .gain-row {
+  margin-top: 12px;
+}
+.conn-sub .row select,
+.conn-sub .row button,
+.conn-sub .row input[type=text],
+.conn-sub .row input[type=number],
+.conn-sub .row input[type=password] {
+  min-height: 40px;
 }
 
 .setup-block input[type=text],
@@ -2376,7 +2411,12 @@ main { touch-action: pan-y; overflow-x: hidden; }
   min-height: 100dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 14px 20px 14px;
+  /* Rev314 (Carlos sea trial): iOS smooth-scroll for touch; and el
+     padding-bottom escala con safe-area para que en dispositivos con
+     home-indicator o barra de status oculta al scrollear el último
+     bloque no quede tapado. */
+  -webkit-overflow-scrolling: touch;
+  padding: 0 14px max(20px, env(safe-area-inset-bottom)) 14px;
   cursor: default;
   border-radius: 0;
   transform: none;
@@ -3238,6 +3278,15 @@ body.setup-fullscreen-active #tabbar {
 .aproado-hud[data-phase="transit"]   > [data-aproado-phase="transit"]   { display: flex; }
 .aproado-hud[data-phase="active"]    > [data-aproado-phase="active"]    { display: flex; }
 .aproado-hud[data-phase="summary"]   > [data-aproado-phase="active"]    { display: flex; }
+/* Rev318: mismo mecanismo para el pseudo-mode EMPOPADO. El HUD comparte
+   la clase .aproado-hud (mismo CSS) y sus subsecciones usan
+   `data-empopado-phase` para no colisionar con el aproado si por
+   error los dos estuvieran abiertos a la vez. */
+.aproado-hud > [data-empopado-phase] { display: none; flex-direction: column; gap: 10px; }
+.aproado-hud[data-phase="choosing"]  > [data-empopado-phase="choosing"]  { display: flex; }
+.aproado-hud[data-phase="transit"]   > [data-empopado-phase="transit"]   { display: flex; }
+.aproado-hud[data-phase="active"]    > [data-empopado-phase="active"]    { display: flex; }
+.aproado-hud[data-phase="summary"]   > [data-empopado-phase="active"]    { display: flex; }
 .aproado-hud.transit { border-color: var(--warn); }
 .aproado-hud.transit .aproado-hud-title { color: var(--warn); }
 .aproado-hud.transit .aproado-hud-time { color: var(--warn); }

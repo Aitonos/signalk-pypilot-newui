@@ -36,6 +36,11 @@ export interface Sample {
   tws:           number | null;  // m/s - environment.wind.speedTrue
   sog:           number | null;  // m/s
   heel:          number | null;  // rad - navigation.attitude.roll (positive stbd)
+  // Rev299 (I1): pitch/trim angle. Positive = bow up. Consumed by the
+  // attitude-pitch-extreme alarm rule and any future wave/burial
+  // monitoring; kept optional so a plugin build without an IMU stream
+  // still fills the sample without crashing.
+  pitch:         number | null;  // rad - navigation.attitude.pitch (positive bow up)
   engaged:       boolean;
   mode:          string | null;  // "compass" | "wind" | "gps" | "true wind" | ...
 }

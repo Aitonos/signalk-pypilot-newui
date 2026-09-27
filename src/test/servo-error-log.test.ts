@@ -32,7 +32,7 @@ function mkSample(over: Partial<Sample> = {}): Sample {
     ts: Date.now(), headingCmd: 0, headingActual: 0,
     rudder: null, servoCurrent: null, servoTemp: null, servoMotorTemp: null,
     servoVoltage: null, awa: null, aws: null, twa: null, tws: null,
-    sog: null, heel: null, engaged: true, mode: null,
+    sog: null, heel: null, pitch: null, engaged: true, mode: null,
     ...over,
   };
 }

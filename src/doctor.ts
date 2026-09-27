@@ -34,8 +34,8 @@ export interface Suggestion {
   reason: string;
   expectedEffect: string;
   /** Rev121: i18n key + args so the frontend renders in the user's
-   *  language. `reason` above stays as the English fallback for clients
-   *  that don't know the key (KIP, WilhelmSK, older visor caches). */
+   *  language. `reason` above stays as the English fallback for
+   *  downstream SK clients that don't know the key. */
   reasonKey?: string;
   reasonArgs?: Record<string, string | number>;
   effectKey?: string;
@@ -53,8 +53,8 @@ export interface DiagnosticFinding {
   message: string;
   metric: string;      // machine-readable snippet e.g. "meanErr=8.2°"
   // Rev136 (Carlos): i18n handles for the frontend. `message` stays as
-  // an English fallback for legacy consumers (KIP/WilhelmSK) and for
-  // languages that don't ship a translation for this key.
+  // an English fallback for downstream SK clients and for languages
+  // that don't ship a translation for this key.
   messageKey?: string;
   messageArgs?: Record<string, string | number>;
 }

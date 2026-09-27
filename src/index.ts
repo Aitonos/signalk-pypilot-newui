@@ -24,6 +24,9 @@ import {
   ConfigBundle,
 } from "./config-backup";
 import { RollFeedForward } from "./roll-ff";
+import { LeewayEstimator } from "./leeway";
+import { FailsafeBspResolver, BspSource } from "./failsafe-bsp";
+import { TackCatchup, TackDirection } from "./tack-catchup";
 import { ServoErrorLog } from "./servo-error-log";
 import {
   computeGains,
@@ -53,10 +56,15 @@ import {
 } from "./nav-bearing";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { TripRecorder, TripSample } from "./trip-recorder";
+import {
+  ManeuverTraceLog,
+  type ManeuverContext,
+  type ManeuverEventKind,
+} from "./maneuver-trace";
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev297";
+const PLUGIN_REVISION = "Rev323";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -128,10 +136,17 @@ interface PluginProps {
   // them, and the recorder only opens a session while the AP is
   // actually engaged, so a moored boat produces nothing.
   sessionRecorderEnabled?: boolean;
+  // Rev322 (Carlos, 2026-09-27): maneuver trace log. Records every
+  // user-driven maneuver event posted by the visor (aproado_pick,
+  // empopado_pick, tack_tap, mode_change, target_put, engage,
+  // disengage, nudge) with pypilot state right before + a snapshot
+  // 300 ms later, so we can see whether the AP actually obeyed the
+  // command. Off by default — only enable during sea trial forensics.
+  maneuverTraceEnabled?: boolean;
   // Rev164 (Carlos): auto-select a pypilot profile per wind band.
   // Off by default (opt-in). Bins hard-coded to <8 kn / 8-16 / >16 kn
-  // for now - the wind numbers below reflect typical B&G Wind Response
-  // divisions and are safe on most cruising boats. Requires engaged
+  // for now - the wind numbers below reflect typical wind-response
+  // damping bands and are safe on most cruising boats. Requires engaged
   // navigation and a valid tws source; will not touch the profile at
   // the dock.
   autoProfileEnabled?: boolean;
@@ -147,6 +162,25 @@ interface PluginProps {
   rollFfGain?: number;
   rollFfTauSec?: number;
   rollFfTwaGateDeg?: number;
+  // Rev298 (H4): leeway estimator. When leewayAdjustment > 0 the
+  // plugin publishes `performance.leeway` derived from the classical
+  // heel-over-speed² formula drift_deg = adj * heel_deg / bsp_kn^2. Opt-in;
+  // when disabled we do NOT overwrite whatever signalk-derived-data
+  // (or any other plugin) is already emitting on that path.
+  leewayAdjustment?: number;
+  // Rev299 (H2): failsafe boat speed in knots. When BSP and SOG are
+  // both missing (speedo unplugged AND GPS fix lost), the plugin
+  // pretends BSP is this many knots so downstream calculations
+  // (leeway, KPIs, any future wind-compensation) keep producing
+  // plausible numbers instead of going null. 0 = disabled.
+  failSafeBspKn?: number;
+  // Rev299 (I2): post-tack catch-up offset. Peak in degrees applied
+  // immediately after a tack completes, decayed exponentially with
+  // tackCatchupTauSec. 0 = disabled (nothing published). PUBLISHES
+  // only; not applied to the pilot yet, same gating pattern as
+  // Roll FF pending sea trial validation.
+  tackCatchupDeg?: number;
+  tackCatchupTauSec?: number;
   // Rev286 (B2): profile advisor. Watches window1m KPIs and emits a
   // notification when the sailor should consider a profile change.
   // Never applies anything. On by default; can be silenced from the
@@ -165,6 +199,22 @@ interface PluginProps {
   alarmLowVoltageV?: number;
   alarmServoTempC?: number;
   alarmServoMotorTempC?: number;
+  // Rev299 (I1): attitude safety envelope thresholds. Overrides the
+  // module-level RULE_ATTITUDE_* defaults.
+  alarmAttitudeHeelDeg?: number;
+  alarmAttitudePitchDeg?: number;
+  // Rev299 (2026-09-24): per-rule enable list for the AlarmEngine.
+  // Semantics:
+  //   - undefined  → legacy: every rule keeps its defaultEnabled=true
+  //                  (Tunatunes and other pre-Rev299 installs).
+  //   - []         → fresh install: NO rule fires. This is the schema
+  //                  default so a new user in OpenPlotter never sees
+  //                  a random alarm without opting in.
+  //   - [ids...]   → only the listed rule ids are active. All others
+  //                  are silently skipped by the engine.
+  // Rule ids match the `id` fields in DEFAULT_RULES (alarms.ts) —
+  // "heading-deviation", "unable-to-steer", "servo-overcurrent", etc.
+  alarmsEnabled?: string[];
   // Rev292 (Carlos, navigating): sustain window before the pypilot-
   // disconnected banner fires. Was hardcoded at 1 s (too eager in a
   // marine SIM/4G environment). Default 15 s; sailors on a stable LAN
@@ -183,8 +233,8 @@ interface PluginProps {
   //   "off"          - do nothing
   //   "warn"         - fire an advisory notification (Rev165 behaviour)
   //   "freeze-target"- pin the current target for GUST_FREEZE_SEC so
-  //                    the AP does not chase the shifted apparent wind
-  //                    (B&G Gust Response). Wind-mode only.
+  //                    the AP does not chase the shifted apparent wind.
+  //                    Wind-mode only.
   //   "boost-D"      - temporarily raise D by +20% for GUST_BOOST_SEC
   //                    to damp the rudder response.
   //   "temp-heavy"   - swap to the "heavy" profile of autoProfile*
@@ -305,6 +355,24 @@ module.exports = function (app: any) {
   // Currently PUBLISHES its output only, does not apply it to the AP.
   let rollFf: RollFeedForward | null = null;
   let _lastRollFfDeltaRad = 0;
+  // Rev298 (H4): leeway estimator. Idle unless props.leewayAdjustment > 0.
+  // Publishes `performance.leeway` on each historian tick.
+  let leewayEst: LeewayEstimator | null = null;
+  let _lastLeewayRad: number | null = null;
+  // Rev299 (H2): failsafe BSP resolver. Feeds a plausible boat speed
+  // into leeway and any future speed-dependent derivation when both
+  // BSP and SOG are missing. `_lastBspSource` is exposed via
+  // /api/diagnostic so operators know when they are looking at a
+  // failsafe-derived value.
+  let bspResolver: FailsafeBspResolver | null = null;
+  let _lastBspSource: BspSource = "none";
+  // Rev299 (I2): tack catch-up. `_tackStatePrev` and `_tackDirection`
+  // let observeTackTransition tell "just finished a tack" from any
+  // other state change of ap.tack.state.
+  let tackCatchup: TackCatchup | null = null;
+  let _lastTackCatchupRad = 0;
+  let _tackStatePrev: string | null = null;
+  let _tackDirection: TackDirection | null = null;
   // Rev283: persistent servo error log. Writes JSONL to dataDir on
   // every off→on transition of a servo-* alarm rule and remembers the
   // 30 s pre-fault window from the historian.
@@ -331,6 +399,15 @@ module.exports = function (app: any) {
   // so it also covers motor legs and tender rides. Independent of the
   // session recorder.
   let tripRecorder: TripRecorder | null = null;
+  // Rev322 (Carlos, 2026-09-27): maneuver trace log. Off by default.
+  let maneuverTrace: ManeuverTraceLog | null = null;
+  // Rev323 (Carlos, 2026-09-27): pseudo-modo visor-side. El visor lo
+  // posta a `/maneuver-state` al arrancar / cerrar Aproado o Empopado.
+  // Se usa para silenciar heading-deviation / cruise-drift / unable-
+  // to-steer durante la maniobra, INDEPENDIENTE de `ap.tack.state` —
+  // en modo wind pypilot NO obedece y ap.tack.state se queda en "none"
+  // aunque el visor esté pilotando la maniobra por otras vías.
+  let _maneuverPseudoActive = false;
   let lastNavState: string | null = null;
   let sessionSampleTimer: NodeJS.Timeout | null = null;
   let lastEngagedState = false;
@@ -446,7 +523,7 @@ module.exports = function (app: any) {
           type: "boolean",
           title: "Absorb pypilot-autopilot-provider (one-socket mode)",
           description:
-            "When on, this plugin registers itself as the SK Autopilot Provider (WilhelmSK, freeboard, etc. control it via /signalk/v2/api/vessels/self/autopilots). REQUIRES you to disable the official 'pypilot-autopilot-provider' plugin at the same time - otherwise both fight for the deviceId. Benefit: only one socket to pypilot_web (halves the load on a Pi Zero TinyPilot).",
+            "When on, this plugin registers itself as the SK Autopilot Provider (downstream SK autopilot clients control it via /signalk/v2/api/vessels/self/autopilots). REQUIRES you to disable the official 'pypilot-autopilot-provider' plugin at the same time - otherwise both fight for the deviceId. Benefit: only one socket to pypilot_web (halves the load on a Pi Zero TinyPilot).",
           default: false,
         },
         enabledPaths: {
@@ -495,6 +572,24 @@ module.exports = function (app: any) {
           title: "Record labelled navigation sessions",
           description: "When ON, the plugin appends 1 Hz autopilot telemetry (heading command/actual, servo current/duty, wind, etc.) to a JSONL file for every engaged session. Files stay on the Pi 5 until you download them from the visor. Used to feed the AI-tuned Doctor roadmap.",
           default: true,
+        },
+        maneuverTraceEnabled: {
+          type: "boolean",
+          title: "Trace user maneuvers vs. pypilot response (sea-trial forensics)",
+          description: "When ON, every maneuver-related action from the visor (aproado / empopado / tack / mode change / target PUT / engage) is logged along with pypilot state before and 300 ms after the command, so we can audit whether pypilot actually obeyed. Files land under <plugin data dir>/maneuver-trace/*.jsonl. Off by default — enable only during a sea trial.",
+          default: false,
+        },
+        // Rev299 (2026-09-24): per-rule alarm enable list. Managed from
+        // the visor's Setup → Alarms card. NO schema default here on
+        // purpose: an existing install that upgraded from a pre-Rev299
+        // plugin must not have its (implicit) alarms silenced by a
+        // schema default of []. The visor is responsible for prompting
+        // a first-time user to opt in ("start clean" vs "keep all on").
+        alarmsEnabled: {
+          type: "array",
+          title: "Alarms enabled (rule ids)",
+          description: "List of alarm rule ids that are active. When absent the plugin keeps its legacy behaviour (every rule on). Managed from the visor's Setup → Alarms card; edit here only if you know the rule ids (heading-deviation, servo-overcurrent, low-voltage, etc.).",
+          items: { type: "string" },
         },
         // Rev167 (Carlos): the Smart Pilot toggles (auto-profile, gust
         // strategy, auto-disengage) live under Setup > Smart Pilot in
@@ -559,7 +654,7 @@ module.exports = function (app: any) {
       // died; propagate the sticky offline flag so alarms + status +
       // AP provider all know. The PypilotClient itself refuses set()
       // while coreOffline is true, but this makes the UI reflect it
-      // and gives KIP/WilhelmSK an accurate autopilot state.
+      // and gives downstream SK clients an accurate autopilot state.
       client.on("pypilot_offline", () => {
         app.error("[pypilot-newui] pypilot core reported offline");
         if (apProvider) apProvider.markOffline();
@@ -607,6 +702,12 @@ module.exports = function (app: any) {
           const changed = apProvider.receiveValue(name, value);
           if (changed) pushAutopilotUpdate();
         }
+        // Rev299 (I2): watch ap.tack.state for the tacking → none
+        // transition, which is the moment the sailor needs the
+        // catch-up nudge. `ap.tack.direction` is watched separately
+        // so we already know which side we tacked onto by the time
+        // the state event lands.
+        try { observeTackTransition(name, value); } catch { /* silent */ }
         // Rev38: forward profile / profiles updates to the dynamic profile
         // switch registrar so KIP's radio group stays in sync.
         try {
@@ -634,8 +735,8 @@ module.exports = function (app: any) {
             allowDodge: !!props.allowDirectServo,
             // Rev68: setTarget/adjustTarget assign optimistically and need
             // to push a canonical steering.autopilot.target delta right
-            // then so JS + KIP + WilhelmSK snap without waiting for the
-            // pypilot echo round-trip.
+            // then so the visor JS and any downstream SK client snap
+            // without waiting for the pypilot echo round-trip.
             // Rev84: forward the field mask ("engaged" / "target" /
             // "all") so pushAutopilotUpdate filters the emitted delta
             // paths accordingly.
@@ -726,6 +827,10 @@ module.exports = function (app: any) {
       // already carries a value.
       try { alarms.setRuleSustain("pypilot-disconnected", props.alarmPypilotDiscSec ?? 15); }
       catch { /* silent */ }
+      // Rev299: apply the per-rule enable list. undefined = legacy
+      // behaviour (every rule stays on its defaultEnabled). Array
+      // (including empty) = user-selected: only the listed ids fire.
+      try { applyAlarmsEnabled(props.alarmsEnabled); } catch { /* silent */ }
       // Rev281: episode detector idles until the sampler feeds it.
       episodes = new EpisodeDetector();
       // Rev103: Pypilot Doctor engine. Starts an idle instance;
@@ -747,6 +852,21 @@ module.exports = function (app: any) {
         gain: props.rollFfGain ?? 0,
         tauSec: props.rollFfTauSec ?? 3,
         twaGateDeg: props.rollFfTwaGateDeg ?? 90,
+      });
+      // Rev298 (H4): leeway estimator, off unless leewayAdjustment > 0.
+      leewayEst = new LeewayEstimator({
+        adj: props.leewayAdjustment ?? 0,
+      });
+      // Rev299 (H2): failsafe BSP resolver. Always instantiated so
+      // leeway/etc. can call resolve() unconditionally; failSafeBspKn
+      // = 0 keeps it inert until the sailor opts in.
+      bspResolver = new FailsafeBspResolver({
+        failSafeBspKn: props.failSafeBspKn ?? 0,
+      });
+      // Rev299 (I2): tack catch-up. tackCatchupDeg=0 keeps it inert.
+      tackCatchup = new TackCatchup({
+        offsetDeg: props.tackCatchupDeg ?? 0,
+        tauSec: props.tackCatchupTauSec ?? 6,
       });
       // Rev283: servo error log. Shares dataDir with the session and
       // trip recorders. On startup loads recent history from disk so
@@ -773,6 +893,17 @@ module.exports = function (app: any) {
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
       });
+      // Rev322 (Carlos, 2026-09-27): maneuver trace log. Instance is
+      // always created so the ring buffer + /tail work; disk writes
+      // only start when props.maneuverTraceEnabled is true (or the
+      // sailor toggles start from the visor at runtime).
+      maneuverTrace = new ManeuverTraceLog({
+        dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
+        log: (level: "info" | "warn" | "error", msg: string) => {
+          try { (app as any).debug?.(`${level} ${msg}`); } catch {}
+        },
+      });
+      if (props.maneuverTraceEnabled) maneuverTrace.start();
       historian.start(() => {
         const s = collectSample();
         // Update session counters BEFORE the sample lands in the buffer -
@@ -792,6 +923,30 @@ module.exports = function (app: any) {
               engaged: s.engaged,
             });
           } catch { _lastRollFfDeltaRad = 0; }
+        }
+        // Rev298 (H4) + Rev299 (H2): leeway estimator tick. Goes
+        // through the FailsafeBspResolver so that if the speedo AND
+        // SOG both drop, the failsafe kicks in and leeway keeps
+        // publishing instead of going null. `_lastBspSource` is used
+        // by /api/diagnostic to reveal when leeway is leaning on the
+        // failsafe.
+        if (leewayEst && bspResolver) {
+          try {
+            const bspRawMs = (app.getSelfPath
+              ? app.getSelfPath("navigation.speedThroughWater.value")
+              : null) as number | null;
+            const resolved = bspResolver.resolve(bspRawMs, s.sog);
+            _lastBspSource = resolved.source;
+            _lastLeewayRad = leewayEst.compute(s.heel, resolved.valueMs);
+            if (_lastLeewayRad != null) publishLeewayDelta(_lastLeewayRad, s.ts);
+          } catch { _lastLeewayRad = null; }
+        }
+        // Rev299 (I2): tack catch-up tick. Advances the exponential
+        // decay set by observeTackTransition. Published as diagnostic
+        // path only; NOT applied to the pilot yet.
+        if (tackCatchup) {
+          try { _lastTackCatchupRad = tackCatchup.compute(s.ts); }
+          catch { _lastTackCatchupRad = 0; }
         }
         // Rev97: also feed the quality monitor. Reading each watched
         // path costs one getSelfPath() call, cheap on Pi 4.
@@ -819,6 +974,7 @@ module.exports = function (app: any) {
         try { publishKpiPaths(); } catch { /* silent */ }
         try { publishServoHealthPaths(); } catch { /* silent */ }
         try { publishRollFfPaths(); } catch { /* silent */ }
+        try { publishTackCatchupPaths(); } catch { /* silent */ }
       }, 1000);
       if (typeof (kpiPublishTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
         (kpiPublishTimer as NodeJS.Timeout & { unref: () => void }).unref();
@@ -845,6 +1001,8 @@ module.exports = function (app: any) {
       kpis = null;
       kpiMetaSent = false;
       rollFfMetaSent = false;
+      leewayMetaSent = false;
+      tackCatchupMetaSent = false;
       // Rev97: drop the sensor quality monitor (its ring buffers go with it).
       sensorQuality = null;
       // Rev99: drop the servo health monitor (its EWMA baseline resets
@@ -898,6 +1056,12 @@ module.exports = function (app: any) {
         try { tripRecorder.stop(); } catch {}
         tripRecorder = null;
       }
+      // Rev322 (Carlos, 2026-09-27): flush the trace file + kill any
+      // pending post-capture timers on plugin stop.
+      if (maneuverTrace) {
+        try { maneuverTrace.stop(); } catch {}
+        maneuverTrace = null;
+      }
       if (sessionSampleTimer) {
         try { clearInterval(sessionSampleTimer); } catch {}
         sessionSampleTimer = null;
@@ -912,6 +1076,14 @@ module.exports = function (app: any) {
       // Rev282: drop the roll feed-forward computer.
       rollFf = null;
       _lastRollFfDeltaRad = 0;
+      leewayEst = null;
+      _lastLeewayRad = null;
+      bspResolver = null;
+      _lastBspSource = "none";
+      tackCatchup = null;
+      _lastTackCatchupRad = 0;
+      _tackStatePrev = null;
+      _tackDirection = null;
       // Rev283: drop the servo error log (persisted state stays on disk).
       servoErrorLog = null;
       // Rev286: drop advisor + reset dedup markers so a re-enable
@@ -983,7 +1155,7 @@ module.exports = function (app: any) {
           historian: historian ? historian.status() : null,
           // Rev95: KPI snapshot header (computedTs + session start). Full
           // snapshot lives under /stats to avoid bloating /status calls
-          // that KIP/WilhelmSK poll frequently.
+          // that downstream SK clients poll frequently.
           kpisComputedTs: kpis ? kpis.snapshot().computedTs : null,
         });
       });
@@ -1864,6 +2036,17 @@ module.exports = function (app: any) {
           rollFfGain: props.rollFfGain ?? 0,
           rollFfTauSec: props.rollFfTauSec ?? 3,
           rollFfTwaGateDeg: props.rollFfTwaGateDeg ?? 90,
+          leewayAdjustment: props.leewayAdjustment ?? 0,
+          failSafeBspKn: props.failSafeBspKn ?? 0,
+          bspSource: _lastBspSource,
+          tackCatchupDeg: props.tackCatchupDeg ?? 0,
+          tackCatchupTauSec: props.tackCatchupTauSec ?? 6,
+          tackCatchupActive: tackCatchup ? tackCatchup.isActive() : false,
+          // Rev299: null = legacy (every rule on defaultEnabled), otherwise
+          // the exact user selection. `describe()` lets the visor render
+          // the toggle list without an extra request.
+          alarmsEnabled: props.alarmsEnabled ?? null,
+          alarmsAvailable: alarms ? alarms.describe() : [],
           profileAdvisorEnabled: props.profileAdvisorEnabled !== false,
           profileAdvisorRmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
           profileAdvisorRmsLowDeg: props.profileAdvisorRmsLowDeg ?? 1,
@@ -1900,6 +2083,31 @@ module.exports = function (app: any) {
         }
         if (typeof b.rollFfTwaGateDeg === "number") {
           patch.rollFfTwaGateDeg = clampNumber(b.rollFfTwaGateDeg, 30, 179, 90);
+        }
+        // Rev298 (H4): leeway adjustment. Clamped 0..30; 0 = disabled.
+        if (typeof b.leewayAdjustment === "number") {
+          patch.leewayAdjustment = clampNumber(b.leewayAdjustment, 0, 30, 0);
+        }
+        // Rev299 (H2): failsafe boat speed. Clamped 0..15 kn; 0 = disabled.
+        if (typeof b.failSafeBspKn === "number") {
+          patch.failSafeBspKn = clampNumber(b.failSafeBspKn, 0, 15, 0);
+        }
+        // Rev299 (I2): tack catch-up knobs.
+        if (typeof b.tackCatchupDeg === "number") {
+          patch.tackCatchupDeg = clampNumber(b.tackCatchupDeg, 0, 15, 0);
+        }
+        if (typeof b.tackCatchupTauSec === "number") {
+          patch.tackCatchupTauSec = clampNumber(b.tackCatchupTauSec, 1, 15, 6);
+        }
+        // Rev299: per-rule alarm enable list. Explicit array (including
+        // empty) is what the visor sends; null resets to legacy defaults.
+        let alarmsEnabledTouched = false;
+        if (Array.isArray(b.alarmsEnabled)) {
+          patch.alarmsEnabled = b.alarmsEnabled.filter((s: unknown): s is string => typeof s === "string");
+          alarmsEnabledTouched = true;
+        } else if (b.alarmsEnabled === null) {
+          patch.alarmsEnabled = undefined;
+          alarmsEnabledTouched = true;
         }
         // Rev286 (B2) knobs.
         if (typeof b.profileAdvisorEnabled === "boolean") {
@@ -1949,6 +2157,31 @@ module.exports = function (app: any) {
               twaGateDeg: props.rollFfTwaGateDeg ?? 90,
             });
           } catch { /* silent */ }
+        }
+        // Rev298 (H4): hot-apply leeway adjustment.
+        if (leewayEst && patch.leewayAdjustment !== undefined) {
+          try { leewayEst.update({ adj: props.leewayAdjustment ?? 0 }); }
+          catch { /* silent */ }
+        }
+        // Rev299 (H2): hot-apply failsafe BSP.
+        if (bspResolver && patch.failSafeBspKn !== undefined) {
+          try { bspResolver.update({ failSafeBspKn: props.failSafeBspKn ?? 0 }); }
+          catch { /* silent */ }
+        }
+        // Rev299 (I2): hot-apply tack catch-up.
+        if (tackCatchup && (patch.tackCatchupDeg !== undefined || patch.tackCatchupTauSec !== undefined)) {
+          try {
+            tackCatchup.update({
+              offsetDeg: props.tackCatchupDeg ?? 0,
+              tauSec: props.tackCatchupTauSec ?? 6,
+            });
+          } catch { /* silent */ }
+        }
+        // Rev299: hot-apply per-rule alarm enable list. `alarmsEnabledTouched`
+        // covers the null-to-legacy reset case where `patch.alarmsEnabled`
+        // is intentionally undefined.
+        if (alarms && alarmsEnabledTouched) {
+          try { applyAlarmsEnabled(props.alarmsEnabled); } catch { /* silent */ }
         }
         // Rev286 (B2): hot-apply advisor thresholds; also reset its
         // sustain timers if the sailor disabled the feature outright,
@@ -2294,6 +2527,80 @@ module.exports = function (app: any) {
           lastBounceMs: _engagedLastFilteredMs || null,
           lastBounceDetails: _engagedLastFilteredDetails,
         });
+      });
+
+      // ==== Rev322 (Carlos, 2026-09-27): Maneuver Trace Log ====
+      // Sailor toggles it from the visor Setup card during sea trial.
+      // The visor POSTs one event per user action; we snapshot pypilot
+      // state right then AND again 300 ms later so a forensic pass can
+      // see whether the AP obeyed. Ring buffer + JSONL to disk.
+      router.get("/maneuver-trace/status", (_req: any, res: any) => {
+        if (!maneuverTrace) { res.status(503).json({ error: "not initialised" }); return; }
+        res.json(maneuverTrace.status());
+      });
+      router.post("/maneuver-trace/start", (_req: any, res: any) => {
+        if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
+        maneuverTrace.start();
+        // Persist opt-in so the trace survives a plugin restart during
+        // the sea trial (writing options triggers a plugin reload, so
+        // do it after start() to avoid the current instance vanishing
+        // mid-request).
+        try {
+          props.maneuverTraceEnabled = true;
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch {}
+        res.json({ ok: true, ...maneuverTrace.status() });
+      });
+      router.post("/maneuver-trace/stop", (_req: any, res: any) => {
+        if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
+        maneuverTrace.stop();
+        try {
+          props.maneuverTraceEnabled = false;
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch {}
+        res.json({ ok: true, ...maneuverTrace.status() });
+      });
+      router.get("/maneuver-trace/tail", (req: any, res: any) => {
+        if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
+        const n = Math.max(1, Math.min(500, Number(req.query?.n) || 100));
+        res.json({ entries: maneuverTrace.tail(n) });
+      });
+      // Rev323 (Carlos, 2026-09-27): visor-side pseudo-modo gate for
+      // heading-deviation / cruise-drift / unable-to-steer. Visor
+      // POSTs {active:true} on aproadoExecute / empopadoExecute and
+      // {active:false} on their teardowns. Independent of trace log.
+      router.get("/maneuver-state", (_req: any, res: any) => {
+        res.json({ pseudoActive: _maneuverPseudoActive });
+      });
+      router.post("/maneuver-state", (req: any, res: any) => {
+        const body = req.body || {};
+        if (typeof body.active === "boolean") {
+          _maneuverPseudoActive = body.active;
+        }
+        res.json({ ok: true, pseudoActive: _maneuverPseudoActive });
+      });
+      router.post("/maneuver-trace/event", (req: any, res: any) => {
+        if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
+        const body = req.body || {};
+        const kind = String(body.kind || "").trim() as ManeuverEventKind;
+        const validKinds: ManeuverEventKind[] = [
+          "aproado_start", "aproado_pick", "aproado_teardown",
+          "empopado_start", "empopado_pick", "empopado_teardown",
+          "tack_tap", "tack_cancel",
+          "mode_change", "target_put", "engage", "disengage", "nudge", "other",
+        ];
+        if (!validKinds.includes(kind)) {
+          return res.status(400).json({ error: "unknown kind", kind });
+        }
+        const payload = (body.payload && typeof body.payload === "object") ? body.payload : {};
+        const visorRev = typeof body.visorRev === "string" ? body.visorRev : undefined;
+        const pre = _captureManeuverContext();
+        const entry = maneuverTrace.record(
+          { kind, payload, visorRev },
+          pre,
+          () => _captureManeuverContext(),
+        );
+        res.json({ ok: true, ts: entry.ts, kind: entry.kind });
       });
       // Rev176 (Carlos): manual purge endpoint - lets the user clear
       // legacy short-session noise on demand from Setup.
@@ -2799,6 +3106,7 @@ module.exports = function (app: any) {
       logCaptureIntervalSec: typeof options.logCaptureIntervalSec === "number"
         ? Math.max(30, options.logCaptureIntervalSec) : 60,
       sessionRecorderEnabled: options.sessionRecorderEnabled !== false,
+      maneuverTraceEnabled: options.maneuverTraceEnabled === true,
       autoProfileEnabled: options.autoProfileEnabled === true,
       autoProfileLight:   typeof options.autoProfileLight  === "string" ? options.autoProfileLight.trim()  : "",
       autoProfileMedium:  typeof options.autoProfileMedium === "string" ? options.autoProfileMedium.trim() : "",
@@ -2817,6 +3125,18 @@ module.exports = function (app: any) {
       rollFfGain: clampNumber(options.rollFfGain, 0, 2, 0),
       rollFfTauSec: clampNumber(options.rollFfTauSec, 0.5, 30, 3),
       rollFfTwaGateDeg: clampNumber(options.rollFfTwaGateDeg, 30, 179, 90),
+      // Rev298 (H4): leeway adjustment. Practical range 9..12 for a
+      // keelboat. 0 = disabled (nothing published). Upper cap 30 keeps
+      // a stray fat-finger config from producing a 40° leeway.
+      leewayAdjustment: clampNumber(options.leewayAdjustment, 0, 30, 0),
+      // Rev299 (H2): failsafe boat speed in knots. Clamped 0..15;
+      // 0 = disabled. Practical range 3..8 kn for a cruising keelboat.
+      failSafeBspKn: clampNumber(options.failSafeBspKn, 0, 15, 0),
+      // Rev299 (I2): tack catch-up. Peak 0..15° (0 disables); tau
+      // 1..15 s. Defaults keep the module inert; sailor opts in
+      // after sea trial validation.
+      tackCatchupDeg: clampNumber(options.tackCatchupDeg, 0, 15, 0),
+      tackCatchupTauSec: clampNumber(options.tackCatchupTauSec, 1, 15, 6),
       profileAdvisorEnabled: options.profileAdvisorEnabled !== false,
       profileAdvisorRmsHighDeg: clampNumber(options.profileAdvisorRmsHighDeg, 3, 45, 10),
       profileAdvisorRmsLowDeg: clampNumber(options.profileAdvisorRmsLowDeg, 0.1, 5, 1),
@@ -2830,6 +3150,17 @@ module.exports = function (app: any) {
       alarmServoTempC: clampNumber(options.alarmServoTempC, 40, 85, 60),
       alarmServoMotorTempC: clampNumber(options.alarmServoMotorTempC, 40, 90, 70),
       alarmPypilotDiscSec: clampNumber(options.alarmPypilotDiscSec, 3, 300, 15),
+      // Rev299 (I1): attitude envelope thresholds. Ranges kept wide
+      // enough for coastal cruisers (25°) and racers who purposely
+      // put the rail under (60°). Defaults are conservative.
+      alarmAttitudeHeelDeg: clampNumber(options.alarmAttitudeHeelDeg, 15, 70, 45),
+      alarmAttitudePitchDeg: clampNumber(options.alarmAttitudePitchDeg, 10, 45, 25),
+      // Rev299: per-rule enable list. Preserve undefined so legacy
+      // installs keep their default-on behaviour; only sanitise when
+      // the user (or the schema default of []) provided an actual array.
+      alarmsEnabled: Array.isArray(options.alarmsEnabled)
+        ? options.alarmsEnabled.filter((s: unknown): s is string => typeof s === "string")
+        : undefined,
       apbSource: (["auto","steerTo","bearing"] as const).includes(options.apbSource as any)
         ? options.apbSource : "auto",
     };
@@ -2849,7 +3180,7 @@ module.exports = function (app: any) {
   function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
     if (!apProvider) return;
     try {
-      // Push structured update through the Autopilot API (WilhelmSK etc.).
+      // Push structured update through the SK Autopilot API.
       // The App API accepts partial updates - only include changed fields
       // so a target-only or engaged-only notify does not overwrite the
       // sibling field's provider-visible value with a stale copy.
@@ -3465,16 +3796,104 @@ module.exports = function (app: any) {
       tws:           skNum("environment.wind.speedTrue") ?? skNum("environment.wind.speedOverGround"),
       sog:           skNum("navigation.speedOverGround"),
       heel:          skAttitudeField("roll"),
+      pitch:         skAttitudeField("pitch"),
       engaged,
       mode,
+    };
+  }
+
+  // Rev322 (Carlos, 2026-09-27): snapshot pypilot + SK state for the
+  // maneuver trace log. Cheaper than collectSample() — no historian
+  // aggregations, no derivations. Read once, fill the flat object,
+  // return. Called on every trace event pre + 300 ms later.
+  function _captureManeuverContext(): ManeuverContext {
+    const pv = (client && client.connected) ? client.getValues() : {};
+    const skNum = (p: string): number | null => {
+      try {
+        const v = app.getSelfPath(p + ".value");
+        return typeof v === "number" && !isNaN(v) ? v : null;
+      } catch { return null; }
+    };
+    const cmdDeg = pv["ap.heading_command"];
+    const headingCmdRad = typeof cmdDeg === "number" ? cmdDeg * Math.PI / 180 : null;
+    const engaged = apProvider
+      ? !!apProvider.data.engaged
+      : (pv["ap.enabled"] === true || pv["ap.enabled"] === 1
+          ? true
+          : (pv["ap.enabled"] === false || pv["ap.enabled"] === 0 ? false : null));
+    const mode = apProvider
+      ? (apProvider.data.mode || null)
+      : (typeof pv["ap.mode"] === "string" ? pv["ap.mode"] as string : null);
+    const target = apProvider && apProvider.data.target != null
+      ? apProvider.data.target
+      : headingCmdRad;
+    const tackState = typeof pv["ap.tack.state"] === "string"
+      ? pv["ap.tack.state"] as string : null;
+    const tackDirection = typeof pv["ap.tack.direction"] === "string"
+      ? pv["ap.tack.direction"] as string : null;
+    return {
+      ts: Date.now(),
+      mode,
+      target,
+      heading: skNum("navigation.headingMagnetic"),
+      awa: skNum("environment.wind.angleApparent"),
+      twa: skNum("environment.wind.angleTrue")
+        ?? skNum("environment.wind.angleTrueWater")
+        ?? skNum("environment.wind.angleTrueGround"),
+      engaged,
+      tackState,
+      tackDirection,
+      servoCur: typeof pv["servo.current"] === "number" ? (pv["servo.current"] as number) : null,
     };
   }
 
   // Rev100: evaluate the alarm engine on this tick and publish SK
   // notifications for any rule whose state changed. Notifications
   // follow the canonical SK format under notifications.autopilot.<id>
-  // with state / method / message so WilhelmSK, KIP, and any other
-  // client honour them out of the box.
+  // with state / method / message so any downstream SK client honours
+  // them out of the box.
+  // Rev299: apply the per-rule enable list to the AlarmEngine.
+  // undefined = legacy → every rule keeps its defaultEnabled (=true
+  // for pre-Rev299 installs, so Tunatunes carries on unchanged).
+  // Array = user-selected → only listed ids are enabled, everything
+  // else is silenced. Empty array = fresh install = ALL silent.
+  // Rev299 (I2): watch pypilot values that describe the tack state
+  // machine so we can trigger the catch-up module on completion.
+  // Pypilot exposes:
+  //   - ap.tack.state:     "none" | "begin" | "waiting" | "tacking"
+  //   - ap.tack.direction: "port" | "starboard"
+  // A tack is "just complete" when state transitions FROM "tacking"
+  // (or "waiting") TO "none" while the pilot is still engaged. That
+  // is the moment the sails need a few seconds to re-fill.
+  function observeTackTransition(name: string, value: unknown): void {
+    if (!tackCatchup) return;
+    if (name === "ap.tack.direction" && typeof value === "string") {
+      // Pypilot spells starboard out; we keep our internal "stbd".
+      _tackDirection = value === "starboard" ? "stbd"
+                     : value === "port" ? "port"
+                     : _tackDirection;
+      return;
+    }
+    if (name !== "ap.tack.state" || typeof value !== "string") return;
+    const prev = _tackStatePrev;
+    _tackStatePrev = value;
+    if (prev == null) return; // seed only, do not fire on the first read
+    const wasTacking = prev === "tacking" || prev === "waiting";
+    const nowIdle = value === "none";
+    if (wasTacking && nowIdle && _tackDirection != null) {
+      tackCatchup.onTackComplete(_tackDirection, Date.now());
+    }
+  }
+
+  function applyAlarmsEnabled(list: string[] | undefined): void {
+    if (!alarms) return;
+    if (list === undefined) return; // legacy: leave defaults alone
+    const wanted = new Set(list);
+    for (const rule of alarms.describe()) {
+      alarms.setEnabled(rule.id, wanted.has(rule.id));
+    }
+  }
+
   function evaluateAndPublishAlarms(sample: Sample): void {
     if (!alarms) return;
     // Rev258 (Carlos): use `client.healthy` (pong-aware) instead of
@@ -3504,7 +3923,19 @@ module.exports = function (app: any) {
         lowVoltageV:     props.alarmLowVoltageV,
         servoTempC:      props.alarmServoTempC,
         servoMotorTempC: props.alarmServoMotorTempC,
+        attitudeHeelDeg: props.alarmAttitudeHeelDeg,
+        attitudePitchDeg: props.alarmAttitudePitchDeg,
       },
+      // Rev311 (Carlos sea trial 2026-09-25): flag para las reglas
+      // de heading-error / drift / unable-to-steer. Durante una
+      // virada nativa de pypilot (ap.tack.state != "none") el error
+      // instantáneo es enorme por diseño; silenciamos esas alarmas.
+      // `_tackStatePrev` lo mantiene observeTackTransition() al día en
+      // el mismo callback de client.on("value"), así que siempre
+      // refleja el último valor conocido de pypilot.
+      maneuverInProgress: !!(_tackStatePrev && _tackStatePrev !== "none"),
+      // Rev323 (Carlos, 2026-09-27): flag pseudo-modo del visor.
+      maneuverPseudoActive: _maneuverPseudoActive,
     };
     const changed = alarms.tick(ctx);
     // Rev283: feed the servo error log AFTER the tick so its snapshot
@@ -3550,7 +3981,7 @@ module.exports = function (app: any) {
   // Rev99: publish the servo health snapshot as SK paths under
   // steering.autopilot.pypilot.servo.health.*. Meta emitted once on
   // first publish. Emitted on the same 1 Hz cadence as the KPI paths so
-  // downstream WilhelmSK / KIP widgets update in sync.
+  // downstream SK widgets update in sync.
   const SERVO_HEALTH_META: Record<string, { units?: string; description: string }> = {
     "steering.autopilot.pypilot.servo.health.status":         {              description: "Servo health verdict: idle / learning / good / elevated / high." },
     "steering.autopilot.pypilot.servo.health.baselineA":      { units: "A",  description: "Learned baseline servo current (mean of the first ~5-10 min of active navigation)." },
@@ -3619,7 +4050,7 @@ module.exports = function (app: any) {
 
   // Rev95: publish the current KPI snapshot as Signal K paths under
   // steering.autopilot.pypilot.stats.*. Called once per second by the
-  // kpiPublishTimer while the plugin is running - a KIP or WilhelmSK
+  // kpiPublishTimer while the plugin is running - any downstream SK
   // client can bind a widget to any of these paths and see the same
   // aggregates the Trip Stats card in the webapp will render.
   //
@@ -3705,7 +4136,7 @@ module.exports = function (app: any) {
     } else {
       // No new event — but if we previously published an advisory and
       // the cooldown has expired, revert the notification to normal so
-      // KIP / WilhelmSK stop showing the banner.
+      // downstream SK clients stop showing the banner.
       const st = profileAdvisor.status(nowMs);
       if (_profileAdvisorLastPubKind && _profileAdvisorLastPubKind !== "normal" && st.cooldownRemainingMs === 0) {
         publishProfileAdvisorNormal();
@@ -3802,6 +4233,84 @@ module.exports = function (app: any) {
     }
   }
 
+  // Rev298 (H4) → Rev300: publish the leeway estimate on our own
+  // namespace instead of the canonical `performance.leeway`. Two
+  // reasons: (1) signalk-derived-data already publishes on that
+  // canonical path with a different formula and the sailor was
+  // seeing a stale 0 from that source instead of our estimate;
+  // (2) our value is a plugin-specific derivation, so keeping it
+  // under `steering.autopilot.pypilot.derived.*` makes provenance
+  // obvious in KIP / Data Browser.
+  let leewayMetaSent = false;
+  const LEEWAY_PATH = "steering.autopilot.pypilot.derived.leewayRad";
+  function publishLeewayDelta(leewayRad: number, tsMs: number): void {
+    const nowIso = new Date(tsMs).toISOString();
+    try {
+      if (!leewayMetaSent) {
+        const meta = [
+          { path: LEEWAY_PATH, value: {
+            units: "rad",
+            description: "Estimated leeway (side-slip) angle from the plugin's own estimator. Formula: drift_deg = adj * heel_deg / bsp_kn^2 with adj set by the sailor (Setup → Smart Pilot → Sensor helpers). Positive = drifting to port. Published only when leewayAdjustment > 0. Kept off the canonical performance.leeway path so it does not overwrite signalk-derived-data.",
+          }},
+        ];
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, meta }],
+        });
+        leewayMetaSent = true;
+      }
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{
+          $source: SOURCE_LABEL,
+          timestamp: nowIso,
+          values: [{ path: LEEWAY_PATH, value: leewayRad }],
+        }],
+      });
+    } catch (e: any) {
+      app.debug?.(`[leeway] publish failed: ${e?.message || e}`);
+    }
+  }
+
+  // Rev299 (I2): publish the current tack catch-up delta as a
+  // diagnostic path so downstream SK clients can watch the decay.
+  // NOT applied to the pilot yet — the sea trial gates that switch.
+  let tackCatchupMetaSent = false;
+  function publishTackCatchupPaths(): void {
+    if (!tackCatchup) return;
+    const o = tackCatchup.getOptions();
+    const values = [
+      { path: "steering.autopilot.pypilot.tuning.tackCatchup.offsetDeg", value: o.offsetDeg },
+      { path: "steering.autopilot.pypilot.tuning.tackCatchup.tauSec",    value: o.tauSec },
+      { path: "steering.autopilot.pypilot.tuning.tackCatchup.deltaRad",  value: _lastTackCatchupRad },
+      { path: "steering.autopilot.pypilot.tuning.tackCatchup.active",    value: tackCatchup.isActive() },
+      { path: "steering.autopilot.pypilot.tuning.tackCatchup.appliedToAp", value: false },
+    ];
+    const nowIso = new Date().toISOString();
+    try {
+      if (!tackCatchupMetaSent) {
+        const meta = [
+          { path: "steering.autopilot.pypilot.tuning.tackCatchup.offsetDeg", value: { units: "deg", description: "Peak catch-up offset applied at tack completion. 0 = module inert." } },
+          { path: "steering.autopilot.pypilot.tuning.tackCatchup.tauSec",    value: { units: "s",   description: "Exponential decay time constant of the catch-up offset." } },
+          { path: "steering.autopilot.pypilot.tuning.tackCatchup.deltaRad",  value: { units: "rad", description: "Current catch-up delta this tick. Signed: >0 = bear off to stbd, <0 = bear off to port." } },
+          { path: "steering.autopilot.pypilot.tuning.tackCatchup.active",    value: { description: "True while a decay is in progress." } },
+          { path: "steering.autopilot.pypilot.tuning.tackCatchup.appliedToAp", value: { description: "False until a later Rev flips the enable switch after sea trial." } },
+        ];
+        app.handleMessage(PLUGIN_ID, {
+          context: "vessels." + app.selfId,
+          updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, meta }],
+        });
+        tackCatchupMetaSent = true;
+      }
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
+      });
+    } catch (e: any) {
+      app.debug?.(`[tack-catchup] publish failed: ${e?.message || e}`);
+    }
+  }
+
   // Rev93: parse `?window=30s` / `?window=2m` / `?window=10m` (or plain
   // `?window=90000` ms) into a millisecond value. Anything unparseable
   // falls back to 30 s so a malformed query never returns everything.
@@ -3893,8 +4402,8 @@ module.exports = function (app: any) {
     if (name === "ap.pilot" || name === "profile" || name === "profiles" || name === "ap.modes") return WATCH_MED;
     // Everything the user has opted-in to publish (enabledPaths) but
     // is not currently focusing goes at the resting rate - 10 s is
-    // enough to reflect a slow-moving telemetry change in KIP /
-    // WilhelmSK without pinning pypilot_web.
+    // enough to reflect a slow-moving telemetry change in downstream
+    // SK clients without pinning pypilot_web.
     const en = props.enabledPaths || {};
     if (en[name] === true) return WATCH_LOW;
     // Anything else stays unwatched by default.
@@ -4096,12 +4605,12 @@ module.exports = function (app: any) {
     const bad = (msg: string) => ({ state: "COMPLETED", statusCode: 400, message: msg });
     const noConn = () => ({ state: "COMPLETED", statusCode: 503, message: "not connected" });
     // Rev271 (audit R05): writes gate. The single PypilotClient.set()
-    // check already refuses the emit, but returning 403 here gives KIP
-    // / WilhelmSK / freeboard a legible reason instead of a silent
+    // check already refuses the emit, but returning 403 here gives
+    // downstream SK clients a legible reason instead of a silent
     // no-op.
     const writesOff = () => ({ state: "COMPLETED", statusCode: 403, message: "allowWrites disabled" });
 
-    // Rev29: KIP (and OpenPlotter switches) send booleans as 1/0 int or "on"/"off"
+    // Rev29: downstream SK clients (and OpenPlotter switches) send booleans as 1/0 int or "on"/"off"
     // string, not true/false. Ewelink plugin accepts all of them. We do the same.
     const coerceBool = (v: unknown): boolean | null => {
       if (v === true || v === 1 || v === "1" || v === "on" || v === "true") return true;

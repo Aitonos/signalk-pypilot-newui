@@ -11,8 +11,8 @@
 //   - Rules never share state - a rule that says "true" this tick can
 //     later say "false" without any cleanup dance.
 //   - Every fire increments a per-rule counter used to add jitter to
-//     the emitted notification timestamp, so KIP/WilhelmSK never
-//     collapse two consecutive alerts into one.
+//     the emitted notification timestamp, so downstream SK clients
+//     never collapse two consecutive alerts into one.
 
 import { Sample } from "./historian";
 import { KPISnapshot } from "./kpis";
@@ -40,6 +40,22 @@ export interface EvalContext {
   // these instead of the module-level RULE_* defaults. Undefined
   // fields fall back to the defaults so partial overrides work.
   thresholds?: AlarmThresholds;
+  // Rev311 (Carlos sea trial 2026-09-25): true mientras hay una
+  // maniobra en curso — tack nativo de pypilot (`ap.tack.state != "none"`)
+  // o pseudo-modo Aproado/Apopar en fase transit. Las reglas que
+  // miden error de rumbo (heading-deviation, unable-to-steer,
+  // cruise-drift) DEBEN silenciarse porque durante la maniobra el
+  // error es enorme por diseño (el barco está girando).
+  maneuverInProgress?: boolean;
+  // Rev323 (Carlos, 2026-09-27): pseudo-modo visor-side activo
+  // (Aproado / Empopado en fase transit/active). El visor lo posta a
+  // `/maneuver-state` al arrancar y al cerrar cada maniobra. Se
+  // necesita como flag INDEPENDIENTE de `ap.tack.state` porque el
+  // sea trial 2026-09-27 confirmó que pypilot NO obedece los cambios
+  // de target en modo wind — `ap.tack.state` sigue "none" mientras el
+  // barco (a veces) está girando por otras vías, así que la única
+  // señal fiable de "estoy en maniobra" viene del propio visor.
+  maneuverPseudoActive?: boolean;
 }
 
 /** Per-install threshold overrides. Any field left undefined keeps
@@ -49,6 +65,10 @@ export interface AlarmThresholds {
   lowVoltageV?: number;
   servoTempC?: number;
   servoMotorTempC?: number;
+  // Rev299 (I1): attitude envelope thresholds in DEGREES so the sailor
+  // does not have to think in radians.
+  attitudeHeelDeg?: number;
+  attitudePitchDeg?: number;
 }
 
 /** Canonical defaults, exposed for the /alarms/thresholds GET and for
@@ -131,12 +151,32 @@ export const DEFAULT_RULES: RuleDef[] = [
     label: "Heading deviation",
     severity: "warn",
     defaultEnabled: true,
-    sustainSec: 15,
-    description: `RMS heading error exceeds ${(RULE_HEADING_ERR_RAD * 180 / Math.PI) | 0}° with the AP engaged.`,
+    // Rev323 (Carlos, 2026-09-27): sustain subido de 15 s a 30 s. Con
+    // 15 s cualquier ola grande / racha corta metía la RMS 20 s por
+    // encima del umbral y disparaba la alarma; 30 s filtra el ruido
+    // legítimo de un mar entrecortado sin perder la señal de un AP
+    // realmente descolgado.
+    sustainSec: 30,
+    description: `RMS heading error exceeds ${(RULE_HEADING_ERR_RAD * 180 / Math.PI) | 0}° (compass) / 35° (wind) with the AP engaged.`,
     evaluate: (c) => {
       if (!c.kpis || !c.sample || !c.sample.engaged) return false;
+      // Rev311: durante una maniobra nativa del pypilot silenciamos.
+      if (c.maneuverInProgress) return false;
+      // Rev323 (Carlos, 2026-09-27): pseudo-modo visor-side (Aproado /
+      // Empopado) también silencia — el visor está pilotando la
+      // maniobra por su cuenta y el "error" que reporta pypilot es
+      // el gap intencionado durante el swing.
+      if (c.maneuverPseudoActive) return false;
+      // Rev323 mode-aware threshold. En wind / true-wind el heading
+      // command es un AWA/TWA target, que oscila naturalmente ±20-30°
+      // en olas y ráfagas mientras el AP sí está corrigiendo. Subir
+      // el umbral en esos modos elimina el disparo por doquier que
+      // Carlos reportó 2026-09-27.
+      const mode = (c.sample.mode || "").toLowerCase();
+      const isWind = mode.includes("wind");
+      const threshold = isWind ? (35 * Math.PI / 180) : RULE_HEADING_ERR_RAD;
       const r = c.kpis.window1m.rmsErrorRad;
-      return typeof r === "number" && r > RULE_HEADING_ERR_RAD;
+      return typeof r === "number" && r > threshold;
     },
     message: (c) => {
       const r = c.kpis?.window1m.rmsErrorRad ?? 0;
@@ -157,6 +197,8 @@ export const DEFAULT_RULES: RuleDef[] = [
     description: "Signed mean heading error > 5° for over 2 min - possible sail imbalance, current, or misaligned target.",
     evaluate: (c) => {
       if (!c.kpis || !c.sample || !c.sample.engaged) return false;
+      if (c.maneuverInProgress) return false; // Rev311: silencio en maniobra
+      if (c.maneuverPseudoActive) return false; // Rev323: idem pseudo-modo
       const mean = c.kpis.window1m.meanErrorRad;
       return typeof mean === "number" && Math.abs(mean) > (5 * Math.PI / 180);
     },
@@ -175,6 +217,8 @@ export const DEFAULT_RULES: RuleDef[] = [
     description: `Sustained high error AND servo running at ${(RULE_UNABLE_DUTY_MIN * 100) | 0}%+ duty - the AP is losing authority.`,
     evaluate: (c) => {
       if (!c.kpis || !c.sample || !c.sample.engaged) return false;
+      if (c.maneuverInProgress) return false; // Rev311: silencio en maniobra
+      if (c.maneuverPseudoActive) return false; // Rev323: idem pseudo-modo
       const r = c.kpis.window1m.rmsErrorRad;
       const d = c.kpis.window1m.servoDutyPct;
       return typeof r === "number" && r > RULE_UNABLE_ERR_RAD
@@ -282,9 +326,10 @@ export const DEFAULT_RULES: RuleDef[] = [
   {
     // Rev156 (Carlos): ServoHealth already grades the drive as
     // learning/good/elevated/high on the deviation ratio (recent avg
-    // vs learned baseline). Surface "high" as a notification so KIP /
-    // WilhelmSK show the same red banner the visor card does. Only
-    // fires once the baseline is actually learned (deviation != null).
+    // vs learned baseline). Surface "high" as a notification so
+    // downstream SK clients show the same red banner the visor card
+    // does. Only fires once the baseline is actually learned
+    // (deviation != null).
     id: "servo-load-high",
     label: "Autopilot load high",
     severity: "warn",
@@ -381,7 +426,54 @@ export const DEFAULT_RULES: RuleDef[] = [
       return `Pypilot desconectado desde hace ${tail}`;
     },
   },
+  // Rev299 (I1): attitude safety envelope. These rules watch what the
+  // sailor cares about — is the boat pinned on its side, is the bow
+  // buried — not just what the servo is doing. Both are opt-in
+  // (defaultEnabled=false) because a heavy-weather passage will trip
+  // them and we do not want a fresh install screaming across a
+  // deliberate rail-in-the-water broach. Thresholds live in
+  // AlarmThresholds so the sailor can tune per-boat.
+  {
+    id: "attitude-heel-extreme",
+    label: "Escora extrema",
+    severity: "warn",
+    defaultEnabled: false,
+    sustainSec: 5,
+    description: "Heel angle sostenido por encima del umbral configurado (por defecto 45°). Sirve como envoltura de seguridad: no reemplaza el criterio del navegante ni desengancha el piloto.",
+    evaluate: (c) => {
+      if (!c.sample || typeof c.sample.heel !== "number") return false;
+      const thrDeg = c.thresholds?.attitudeHeelDeg ?? RULE_ATTITUDE_HEEL_DEG;
+      return Math.abs(c.sample.heel) * 180 / Math.PI > thrDeg;
+    },
+    message: (c) => {
+      const heelDeg = Math.abs((c.sample?.heel ?? 0) * 180 / Math.PI);
+      const thrDeg = c.thresholds?.attitudeHeelDeg ?? RULE_ATTITUDE_HEEL_DEG;
+      return `Escora ${heelDeg.toFixed(0)}° (umbral ${thrDeg}°)`;
+    },
+  },
+  {
+    id: "attitude-pitch-extreme",
+    label: "Cabeceo extremo",
+    severity: "warn",
+    defaultEnabled: false,
+    sustainSec: 3,
+    description: "Pitch (cabeceo) sostenido por encima del umbral configurado. Suele indicar embarque de proa o clavado en ola.",
+    evaluate: (c) => {
+      if (!c.sample || typeof c.sample.pitch !== "number") return false;
+      const thrDeg = c.thresholds?.attitudePitchDeg ?? RULE_ATTITUDE_PITCH_DEG;
+      return Math.abs(c.sample.pitch) * 180 / Math.PI > thrDeg;
+    },
+    message: (c) => {
+      const pitchDeg = Math.abs((c.sample?.pitch ?? 0) * 180 / Math.PI);
+      const thrDeg = c.thresholds?.attitudePitchDeg ?? RULE_ATTITUDE_PITCH_DEG;
+      return `Cabeceo ${pitchDeg.toFixed(0)}° (umbral ${thrDeg}°)`;
+    },
+  },
 ];
+
+// Rev299 (I1): defaults for the attitude envelope.
+export const RULE_ATTITUDE_HEEL_DEG = 45;
+export const RULE_ATTITUDE_PITCH_DEG = 25;
 
 export interface AlarmEngineOptions {
   /** Retain N most-recent resolved alarms in the /alarms/state history. */

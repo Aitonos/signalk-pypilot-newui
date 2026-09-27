@@ -28,6 +28,25 @@
     en: {
       "tack": "TACK",
       "cal": "CAL",
+      "cal.align.title": "IMU alignment",
+      "cal.rud.title":   "Rudder",
+      // Rev307: plain-language names for the pypilot RangeSettings
+      // shown under Calibration → Advanced sliders. Missing keys
+      // simply fall back to the raw pypilot name.
+      "cal.rs.servo.max_current":         "Servo current limit",
+      "cal.rs.servo.max_controller_temp": "Controller max temperature",
+      "cal.rs.servo.max_motor_temp":      "Motor max temperature",
+      "cal.rs.servo.min_speed":           "Servo minimum speed",
+      "cal.rs.servo.max_speed":           "Servo maximum speed",
+      "cal.rs.servo.period":              "Servo pulse period",
+      "cal.rs.servo.gain":                "Servo gain",
+      "cal.rs.servo.clutch_pwm":          "Clutch PWM",
+      "cal.rs.rudder.range":              "Rudder range",
+      "cal.rs.rudder.offset":             "Rudder zero offset",
+      "cal.rs.rudder.scale":              "Rudder scale",
+      "cal.rs.imu.heading_offset":        "IMU heading offset",
+      "cal.rs.ap.wind_offset_filter":     "Wind offset filter",
+      "cal.rs.gps.filtered.time_offset":  "GPS latency assumption",
       "cal.level": "Level (boat flat)",
       "cal.rudCentered": "Rudder centered",
       "cal.rudPort": "Rudder port range",
@@ -152,13 +171,23 @@
       "chart.servoHealth.peak":    "Peak 30 s",
       "chart.servoHealth.temp":    "Temp",
       "chart.servoHealth.voltage": "Voltage",
-      "setup.paths.title":         "Signal K Sentences",
+      "setup.paths.title":         "Data feed for other apps",
       "setup.conn.title":          "pypilot connection",
       "setup.conn.status":         "Status",
       "setup.remoteConsole":       "Remote Control Console",
+      // Rev322 (Carlos, 2026-09-27): maneuver trace strings.
+      "mt.title":                  "Maneuver trace (sea-trial forensics)",
+      "mt.hint":                   "Records every visor action (aproado, empopado, tack, mode change, target, engage) with pypilot state before and 300 ms after, so we can audit whether the AP obeyed. Files land under the plugin data dir. Off by default; turn ON only during a sea trial.",
+      "mt.toggle":                 "Enable maneuver trace",
+      "mt.view":                   "Show last events",
+      "mt.st.on":                  "ON",
+      "mt.st.off":                 "OFF",
+      "mt.st.events":              "events",
+      "mt.empty":                  "(no events yet)",
+      "mt.err":                    "Maneuver trace failed",
       // Alarms (Rev101)
       "setup.alarms.title":        "Alarms",
-      "setup.alarms.hint":         "Turn each rule on or off and mute it temporarily. Active alarms appear in the banner at the top and publish canonical SK notifications for KIP / WilhelmSK.",
+      "setup.alarms.hint":         "Turn each rule on or off and mute it temporarily. Active alarms appear in the banner at the top and publish canonical SK notifications for downstream SK clients.",
       "alarm.ack":                 "ACK",
       "alarm.acked":               "Acked",
       "alarm.mute15":              "Mute 15m",
@@ -239,6 +268,10 @@
       // Sensor Quality panel (Rev97)
       "setup.quality.title":       "Sensor Quality",
       "setup.quality.hint":        "Freshness and update rate of the SK paths the autopilot depends on. Green = good, amber = degraded, red = lost.",
+      "setup.quality.level.good":     "GOOD",
+      "setup.quality.level.degraded": "DEGRADED",
+      "setup.quality.level.lost":     "LOST",
+      "setup.quality.level.ignored":  "IGNORED",
       "sq.col.sensor":             "Sensor",
       "sq.col.value":              "Value",
       "sq.col.age":                "Age",
@@ -287,8 +320,9 @@
       "setup.absorb.title": "Autopilot Provider (one-socket mode)",
       "setup.absorb.label": "Absorb official provider",
       "setup.absorb.btn": "Save & restart",
-      "setup.absorb.hint": "When ON, this plugin registers itself as the Signal K Autopilot Provider (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.",
+      "setup.absorb.hint": "When ON, this plugin registers itself as the Signal K Autopilot Provider (any downstream SK autopilot client connects to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.",
       "setup.emergency": "Emergency",
+      "setup.ssh.title": "SSH credentials",
       "setup.ssh.user": "SSH user",
       "setup.ssh.password": "SSH password",
       "setup.ssh.password.ph.notset": "(not set)",
@@ -328,6 +362,24 @@
       "smart.st.band":             "band",
       "smart.st.pending":          "pending",
       "smart.st.strategy":         "strategy",
+      // Rev300: Section 4 — Sensor helpers.
+      "smart.helpers.title":       "Sensor helpers",
+      "smart.helpers.hint":        "Opt-in. Leave sliders at 0 to disable. Leeway is published on our own path (steering.autopilot.pypilot.derived.leewayRad) so it does not overwrite signalk-derived-data. Failsafe boat speed kicks in only when the speedometer AND the GPS are both missing.",
+      "smart.helpers.leewayLabel": "Leeway adjustment (0 = off · typ 9–12)",
+      "smart.helpers.failsafeLabel":"Failsafe boat speed (kn, 0 = off)",
+      "smart.helpers.sourceLabel": "Boat speed source:",
+      "smart.helpers.src.bsp":     "from speedometer",
+      "smart.helpers.src.sog":     "from GPS (proxy)",
+      "smart.helpers.src.failsafe":"using failsafe value",
+      "smart.helpers.src.none":    "unavailable",
+      // Rev300: alarms selection card.
+      "alarmscfg.title":           "Alarms",
+      "alarmscfg.hint":            "Each row is one alarm rule. Unchecked = never fires. Existing installs run in legacy mode (every rule active) until you save a selection for the first time.",
+      "alarmscfg.legend":          "🔴 alarm = immediate action needed (sound + banner) · 🟡 warn = watch closely (banner only) · 🔵 info = advisory (visor only)",
+      "alarmscfg.legacyTitle":     "Legacy mode:",
+      "alarmscfg.legacyBody":      "every alarm rule is currently active. Pick the ones you want and press save.",
+      "alarmscfg.allOff":          "All off",
+      "alarmscfg.allOn":           "All on",
       "watch.title":         "pypilot subscriptions",
       "watch.hint":          "Live count of what the backend is subscribing to on pypilot_web. Should stay well under 40 - Sean D'Epagnier flagged that saturating pypilot_web is what crashes it.",
       "watch.total":         "total",
@@ -387,6 +439,7 @@
       "mode.label.true-wind": "TRUE WIND",
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "HEAD TO WIND",
+      "mode.label.empopado":    "HEAD DOWNWIND",
       "tune.gain.helpBtn":  "More info",
       "tune.gain.P.short":  "Corrects a heading error instantly with rudder. The 'act now' reflex.",
       "tune.gain.P.long":   "Raise if the AP takes too long to close a heading error. Lower if the rudder dances at every wave.",
@@ -572,7 +625,7 @@
       "alert.configApplied": "Config saved. Plugin restarting.",
       "alert.configFail": "Config failed. Sign in to Signal K admin first.",
       "alert.absorb.on": "Enabled the AutopilotProvider. IMPORTANT: go to SK Admin and DISABLE the 'pypilot-autopilot-provider' plugin so they do not fight.",
-      "alert.absorb.off": "Disabled the AutopilotProvider. Re-enable 'pypilot-autopilot-provider' in SK Admin if you want WilhelmSK / freeboard to keep working.",
+      "alert.absorb.off": "Disabled the AutopilotProvider. Re-enable 'pypilot-autopilot-provider' in SK Admin if you want other SK autopilot clients to keep working.",
       "alert.hostRequired": "Host required",
       "alert.nudgeSaved": "Saved. Nudge values updated.",
       "confirm.removeProfile": "Remove current profile?",
@@ -672,6 +725,16 @@
       "aproado.tws.mild":          "TWS {tws} kn",
       "aproado.tws.hot":           "TWS {tws} kn - jibing is risky, prefer BOW",
       "aproado.cancel":            "Cancel",
+      "empopado.done":               "Downwind, ready to strike sail",
+      "empopado.lost":               "Downwind cancelled, wind shifted",
+      "empopado.unstable":           "Downwind unstable, watch the boom",
+      "empopado.modal.title":        "Downwind: strike sail",
+      "empopado.modal.sub":          "Pick which side to swing through",
+      "empopado.choice.bow":         "BY BOW",
+      "empopado.choice.stern":       "BY STERN",
+      "empopado.transit.sub":        "Rotating downwind...",
+      "empopado.transit.remaining":  "to downwind",
+      "empopado.hud.title":          "DOWNWIND",
       "aproado.cd.exec":           "Starting in",
       "aproado.cd.title.bow":      "HEADING UP BY BOW",
       "aproado.cd.title.stern":    "HEADING UP BY STERN",
@@ -688,6 +751,22 @@
     es: {
       "tack": "VIRAR",
       "cal": "CAL",
+      "cal.align.title": "Alineacion IMU",
+      "cal.rud.title":   "Timon",
+      "cal.rs.servo.max_current":         "Corriente maxima del servo",
+      "cal.rs.servo.max_controller_temp": "Temperatura maxima del controlador",
+      "cal.rs.servo.max_motor_temp":      "Temperatura maxima del motor",
+      "cal.rs.servo.min_speed":           "Velocidad minima del servo",
+      "cal.rs.servo.max_speed":           "Velocidad maxima del servo",
+      "cal.rs.servo.period":              "Periodo de pulso del servo",
+      "cal.rs.servo.gain":                "Ganancia del servo",
+      "cal.rs.servo.clutch_pwm":          "PWM del embrague",
+      "cal.rs.rudder.range":              "Recorrido del timon",
+      "cal.rs.rudder.offset":             "Cero del timon",
+      "cal.rs.rudder.scale":              "Escala del timon",
+      "cal.rs.imu.heading_offset":        "Desfase del rumbo IMU",
+      "cal.rs.ap.wind_offset_filter":     "Filtro de compensacion del viento",
+      "cal.rs.gps.filtered.time_offset":  "Latencia asumida del GPS",
       "cal.level": "Nivelar (barco adrizado)",
       "cal.rudCentered": "Timón centrado",
       "cal.rudPort": "Rango babor",
@@ -812,13 +891,23 @@
       "chart.servoHealth.peak":    "Pico 30 s",
       "chart.servoHealth.temp":    "Temp",
       "chart.servoHealth.voltage": "Voltaje",
-      "setup.paths.title":         "Sentencias de Signal K",
+      "setup.paths.title":         "Datos para otras apps",
       "setup.conn.title":          "Conexión pypilot",
       "setup.conn.status":         "Estado",
       "setup.remoteConsole":       "Consola control remoto",
+      // Rev322 (Carlos, 2026-09-27): maneuver trace strings.
+      "mt.title":                  "Traza de maniobras (forense de agua)",
+      "mt.hint":                   "Graba cada acción del visor (aproado, empopado, tack, cambio de modo, target, engage) con el estado de pypilot antes y 300 ms después, para auditar si el AP obedeció. Los ficheros se guardan en el data dir del plugin. Off por defecto; activa sólo durante una sesión de agua.",
+      "mt.toggle":                 "Activar traza de maniobras",
+      "mt.view":                   "Ver últimos eventos",
+      "mt.st.on":                  "ON",
+      "mt.st.off":                 "OFF",
+      "mt.st.events":              "eventos",
+      "mt.empty":                  "(aún sin eventos)",
+      "mt.err":                    "Fallo en traza de maniobras",
       // Alarms (Rev101)
       "setup.alarms.title":        "Alarmas",
-      "setup.alarms.hint":         "Activa o desactiva cada regla y silencia temporalmente. Las alarmás activas salen en el banner de arriba y publican notificaciones SK canonicas para KIP / WilhelmSK.",
+      "setup.alarms.hint":         "Activa o desactiva cada regla y silencia temporalmente. Las alarmás activas salen en el banner de arriba y publican notificaciones SK canonicas para clientes SK externos.",
       "alarm.ack":                 "ACK",
       "alarm.acked":               "Ack'd",
       "alarm.mute15":              "Silenciar 15m",
@@ -897,6 +986,10 @@
       // Sensor Quality panel (Rev97)
       "setup.quality.title":       "Calidad de sensores",
       "setup.quality.hint":        "Frescura y frecuencia de las rutas SK que usa el AP. Verde = OK, ambar = degradado, rojo = perdido.",
+      "setup.quality.level.good":     "BUENO",
+      "setup.quality.level.degraded": "DEGRADADO",
+      "setup.quality.level.lost":     "PERDIDO",
+      "setup.quality.level.ignored":  "IGNORADO",
       "sq.col.sensor":             "Sensor",
       "sq.col.value":              "Valor",
       "sq.col.age":                "Edad",
@@ -942,8 +1035,9 @@
       "setup.absorb.title": "Provider de Autopiloto (modo un-solo-socket)",
       "setup.absorb.label": "Absorber el provider oficial",
       "setup.absorb.btn": "Guardar y reiniciar",
-      "setup.absorb.hint": "Cuando esta ON, este plugin se registra como Signal K Autopilot Provider (WilhelmSK / freeboard / KIP se conectan por /signalk/v2/api/vessels/self/autopilots). Debes desactivar también el plugin 'pypilot-autopilot-provider' en SK Admin - dos providers pelearian por el pilot ID. Ventaja: un socket menos hacia la TinyPilot Pi Zero.",
+      "setup.absorb.hint": "Cuando esta ON, este plugin se registra como Signal K Autopilot Provider (cualquier cliente SK de autopiloto se conecta por /signalk/v2/api/vessels/self/autopilots). Debes desactivar también el plugin 'pypilot-autopilot-provider' en SK Admin - dos providers pelearian por el pilot ID. Ventaja: un socket menos hacia la TinyPilot Pi Zero.",
       "setup.emergency": "Emergencia",
+      "setup.ssh.title": "Credenciales SSH",
       "setup.ssh.user": "Usuario SSH",
       "setup.ssh.password": "Password SSH",
       "setup.ssh.password.ph.notset": "(sin configurar)",
@@ -982,6 +1076,24 @@
       "smart.st.band":             "banda",
       "smart.st.pending":          "pendiente",
       "smart.st.strategy":         "estrategia",
+      // Rev300: Seccion 4 — Ayudas de sensores.
+      "smart.helpers.title":       "Ayudas de sensores",
+      "smart.helpers.hint":        "Opcionales. Deja los sliders a 0 para desactivar. La abatimiento se publica en nuestra ruta propia (steering.autopilot.pypilot.derived.leewayRad) para no pisar signalk-derived-data. La velocidad de reserva se usa solo si sonda Y GPS estan caidos a la vez.",
+      "smart.helpers.leewayLabel": "Ajuste del abatimiento (0 = off · tipico 9-12)",
+      "smart.helpers.failsafeLabel":"Velocidad de reserva (kn, 0 = off)",
+      "smart.helpers.sourceLabel": "Fuente de velocidad:",
+      "smart.helpers.src.bsp":     "sonda",
+      "smart.helpers.src.sog":     "GPS (proxy)",
+      "smart.helpers.src.failsafe":"valor de reserva",
+      "smart.helpers.src.none":    "sin dato",
+      // Rev300: seleccion de alarmas.
+      "alarmscfg.title":           "Alarmas",
+      "alarmscfg.hint":            "Cada fila es una regla de alarma. Sin marcar = nunca dispara. Instalaciones existentes van en modo legacy (todas activas) hasta que guardes una seleccion por primera vez.",
+      "alarmscfg.legend":          "🔴 alarma = accion inmediata (sonido + banner) · 🟡 aviso = vigilar (solo banner) · 🔵 info = advertencia suave (solo visor)",
+      "alarmscfg.legacyTitle":     "Modo legacy:",
+      "alarmscfg.legacyBody":      "todas las reglas estan activas. Marca las que quieras y pulsa guardar.",
+      "alarmscfg.allOff":          "Todas OFF",
+      "alarmscfg.allOn":           "Todas ON",
       "watch.title":         "Suscripciones a pypilot",
       "watch.hint":          "Cuantas keys esta el backend suscribiendo a pypilot_web en vivo. Debe quedarse bien por debajo de 40 - Sean D'Epagnier avisa que saturar pypilot_web es lo que lo cuelga.",
       "watch.total":         "total",
@@ -1041,6 +1153,7 @@
       "mode.label.true-wind": "REAL",
       "mode.label.nav":       "RUMBO A WAYPOINT",
       "mode.label.aproado":   "APROADO",
+      "mode.label.empopado":    "EMPOPADO",
       // Rev172 (Carlos): short labels for the collapsed button, long
       // ones swapped in on pointerdown so the dropdown itself reads
       // "VIENTO APARENTE" / "VIENTO REAL" fully.
@@ -1232,7 +1345,7 @@
       "alert.configApplied": "Config guardada. Plugin reiniciando.",
       "alert.configFail": "Config fallo. Inicia sesión como admin en Signal K primero.",
       "alert.absorb.on": "Habilitado el AutopilotProvider. IMPORTANTE: ve a SK Admin y DESACTIVA el plugin 'pypilot-autopilot-provider' para que no se peleen.",
-      "alert.absorb.off": "Deshabilitado el AutopilotProvider. Vuelve a activar 'pypilot-autopilot-provider' en SK Admin si quieres que WilhelmSK / freeboard sigan funcionando.",
+      "alert.absorb.off": "Deshabilitado el AutopilotProvider. Vuelve a activar 'pypilot-autopilot-provider' en SK Admin si quieres que los clientes SK externos sigan funcionando.",
       "alert.hostRequired": "Falta host",
       "alert.nudgeSaved": "Guardado. Valores de nudge actualizados.",
       "confirm.removeProfile": "Borrar el perfil actual?",
@@ -1331,6 +1444,16 @@
       "aproado.tws.mild":          "Viento real {tws} kn",
       "aproado.tws.hot":           "Viento real {tws} kn - trasluchar es delicado, mejor PROA",
       "aproado.cancel":            "Cancelar",
+      "empopado.done":               "Empopado, listo para arriar",
+      "empopado.lost":               "Empopado cancelado, viento cambió",
+      "empopado.unstable":           "Empopado inestable, cuidado con la botavara",
+      "empopado.modal.title":        "Empopado - arriar velas",
+      "empopado.modal.sub":          "Elige por que lado",
+      "empopado.choice.bow":         "POR PROA",
+      "empopado.choice.stern":       "POR POPA",
+      "empopado.transit.sub":        "Girando a popa...",
+      "empopado.transit.remaining":  "para empopado",
+      "empopado.hud.title":          "EMPOPADO",
       "aproado.cd.exec":           "Ejecutando en",
       "aproado.cd.title.bow":      "APROARSE POR PROA",
       "aproado.cd.title.stern":    "APROARSE POR POPA",
@@ -2022,11 +2145,17 @@
       case "steering.autopilot.pypilot.ap.modes":
         if (Array.isArray(value)) {
           state.modeList = value.slice();
-          const withAproado = value.includes("aproado") ? value : [...value, "aproado"];
-          fillSelect("#mode-select", withAproado);
-          // If aproado is currently active or transitioning, keep the dropdown pinned on it.
+          // Rev313 (Carlos sea trial 2026-09-25): añadido pseudo-mode
+          // "empopado" junto con el existente "aproado". Empopado = viento
+          // por popa (TWA≈180°) para bajar vela sin flapping.
+          let withPseudo = value.includes("aproado") ? value : [...value, "aproado"];
+          if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
+          fillSelect("#mode-select", withPseudo);
           if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
             setSelect("#mode-select", "aproado");
+          }
+          if (state.empopado && (state.empopado.phase === "transit" || state.empopado.phase === "active")) {
+            setSelect("#mode-select", "empopado");
           }
         }
         break;
@@ -2364,7 +2493,7 @@
       } else {
         el.innerHTML = `<div class="label">${paintedLabel}</div><div class="value">${val}</div>`;
       }
-      // Rev48: color coding by data type - keep classic B&G-ish palette.
+      // Rev48: color coding by data type - keep classic traffic-signal palette.
       // Rev151: tgt goes red (matches the AP button); awa/aws lean amber;
       // twa/tws lean teal; wind combo picks amber/teal via the paint below.
       el.classList.remove("heading","target","wind","sog","depth","cog","mode","twa","twd","wind-app","wind-true");
@@ -3425,6 +3554,32 @@
               && _tackRotationDoneDeg >= totalDeg * 0.7) arrived = true;
         }
       }
+      // Rev311 (Carlos sea trial 2026-09-25): el contador seguía
+      // contando aunque el barco estuviera claramente asentado post-tack
+      // (heading estable, rot < ~3°/s), porque el arrival-by-plan no
+      // llegaba a `totalDeg` por overshoot / wind noise. Añadimos un
+      // fallback por RATE OF TURN: dos segundos con rot < 3°/s en fase
+      // executing y elapsed >= 4s → asumimos asentado y cerramos.
+      if (!arrived && elapsed >= 4 && typeof state.heading === "number") {
+        const now = Date.now();
+        if (_tackRotLastHdg != null && _tackRotLastTs != null) {
+          const dtSec = (now - _tackRotLastTs) / 1000;
+          if (dtSec > 0) {
+            let dhDeg = (state.heading - _tackRotLastHdg) * RAD2DEG;
+            while (dhDeg > 180) dhDeg -= 360;
+            while (dhDeg < -180) dhDeg += 360;
+            const rotDegPerSec = Math.abs(dhDeg) / dtSec;
+            if (rotDegPerSec < 3) {
+              if (_tackRotStableSince == null) _tackRotStableSince = now;
+              if (now - _tackRotStableSince > 2000) arrived = true;
+            } else {
+              _tackRotStableSince = null;
+            }
+          }
+        }
+        _tackRotLastHdg = state.heading;
+        _tackRotLastTs = now;
+      }
       const timedOut = !arrived && elapsed >= 120;
       if (arrived) {
         try { _tackStatsOnTackCompleted(); } catch { /* silent */ }
@@ -3439,6 +3594,11 @@
   }
   let _tackCountdownAwaSignAtStart = 0;
   let _tackCountdownHdgAtStart = null;
+  // Rev311: rate-of-turn stability fallback for tack completion.
+  // Reset in _tackCountdownHide().
+  let _tackRotLastHdg = null;
+  let _tackRotLastTs = null;
+  let _tackRotStableSince = null;
   // Rev246 (audit): rotation-done is tracked as a monotonically-growing
   // sum of per-tick deltas projected onto the sailor's chosen side.
   // Net difference (currentRad - startRad) normalised to +/-180 loses
@@ -3554,7 +3714,30 @@
     // the write through the long-arc stepper instead so the AP takes
     // the requested (bow) side even though the target could be reached
     // faster by the stern.
-    if (_tackForceLongArcSign !== 0 && _tackPendingFinalTargetRad != null) {
+    //
+    // Rev309 (Carlos, sea trial 2026-09-25, bug crítico): en modo
+    // wind el synthetic tack calculaba planned = -refRad SIN usar
+    // la dirección del botón (`sign`). Los dos botones (babor/estribor)
+    // mandaban al mismo AWA opuesto y pypilot elegía el camino más
+    // corto — que con AWA cerca del través podía ir por el lado
+    // contrario al pulsado, dando la sensación de que "los botones
+    // hacen lo que les da la gana". Fix: en wind delegamos a la
+    // máquina de tack NATIVA de pypilot (ap.tack.direction +
+    // ap.tack.state=begin) para que respete el lado. En compass el
+    // synthetic tack ya funcionaba bien y se queda igual.
+    const isWindManeuver = String(_maneuverModeAtStart || "").includes("wind");
+    if (isWindManeuver && _tackCountdownDir) {
+      const dirVal = _tackCountdownDir === "port" ? "port" : "starboard";
+      try {
+        await pluginRaw("ap.tack.direction", dirVal);
+        const res = await pluginRaw("ap.tack.state", "begin");
+        if (res && res.ok === false) console.warn("[tack wind native] state=begin returned not-ok", res);
+      } catch (e) {
+        console.warn("[tack wind native] write threw", e);
+      }
+      _tackPendingFinalTargetRad = null;
+      _tackForceLongArcSign = 0;
+    } else if (_tackForceLongArcSign !== 0 && _tackPendingFinalTargetRad != null) {
       const send = _tackPendingFinalTargetRad;
       const sign = _tackForceLongArcSign;
       _tackForceLongArcSign = 0;
@@ -3606,6 +3789,10 @@
     if (_tackCountdownTimer) { clearInterval(_tackCountdownTimer); _tackCountdownTimer = null; }
     _stopTackStepper();   // Rev214: real stop of long-arc stepper.
     _tackForceLongArcSign = 0;
+    // Rev311: reset del rate-of-turn stability tracker.
+    _tackRotLastHdg = null;
+    _tackRotLastTs = null;
+    _tackRotStableSince = null;
     // Rev210 (P1-3): invalidate any in-flight nudge debounce so a
     // callback that fires after cancel becomes a no-op.
     _nudgeGeneration++;
@@ -4580,8 +4767,18 @@
           const step = (meta.max - meta.min) / 200 || 0.001;
           const cur = values[name];
           const baseline = _calBaselines.get(name);
+          // Rev307: translate the raw pypilot key to plain-language
+          // via i18n `cal.rs.<name>`. When a translation exists we
+          // show "Nombre en cristiano (<i>servo.max_current</i>)";
+          // when not, we fall back to the raw name so a new key stays
+          // visible.
+          const rsKey = `cal.rs.${name}`;
+          const rsT   = t(rsKey);
+          const label = (rsT === rsKey)
+            ? name
+            : `${rsT} (<i>${name}</i>)`;
           const { row, rng, val } = _buildSliderRow({
-            name,
+            name: label,
             min: meta.min, max: meta.max, step,
             decimals: 3,
             cur,
@@ -4687,6 +4884,28 @@
           if (state.pypilotValues[k] == null) state.pypilotValues[k] = v;
         }
       }
+      // Rev310 (Carlos sea trial 2026-09-25, bug D revisited): el fix
+      // Rev296 (_profileSelectPrimed) solo se marca cuando llega el
+      // delta WS `steering.autopilot.pypilot.profile`. Si un dispositivo
+      // se conecta después (móvil sobre tablet ya abierta) y ese delta
+      // no se re-emite, el <select> se queda con la primera <option>
+      // ("default") indefinidamente. Aquí, después del snapshot HTTP,
+      // si tenemos `profile` y `profiles` en pypilotValues, poblamos
+      // el <select> y marcamos primed. Idempotente: si ya lo hicimos
+      // los write handlers no cambian nada.
+      try {
+        const profiles = fetched?.profiles ?? state.pypilotValues?.profiles;
+        const profile  = fetched?.profile  ?? state.pypilotValues?.profile;
+        if (Array.isArray(profiles) && profiles.length > 0) {
+          state.profiles = profiles;
+          fillSelect("#profile-select", profiles);
+        }
+        if (typeof profile === "string" && profile.length > 0) {
+          state.profile = profile;
+          setSelect("#profile-select", profile);
+          window._profileSelectPrimed = true;
+        }
+      } catch { /* silent */ }
       // Refresh anything that depends on it.
       renderConfigSliders();
       // Populate Calibration inputs on Setup tab.
@@ -4862,9 +5081,12 @@
   function _relabelDynamicUI() {
     // Mode selector: rebuild the same list under the new language.
     if (Array.isArray(state.modeList)) {
-      const withAproado = state.modeList.includes("aproado") ? state.modeList : [...state.modeList, "aproado"];
+      // Rev313: pseudo-modes locales (aproado + empopado) siempre al
+      // final del dropdown, con label i18n.
+      let withPseudo = state.modeList.includes("aproado") ? state.modeList : [...state.modeList, "aproado"];
+      if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
       const prev = document.getElementById("mode-select")?.value;
-      fillSelect("#mode-select", withAproado);
+      fillSelect("#mode-select", withPseudo);
       if (prev != null) setSelect("#mode-select", prev);
     }
     // Gain help lines under the Tune sliders + Calibration sliders
@@ -5258,18 +5480,51 @@
     }
     return true;
   }
+  // Rev322 (Carlos, 2026-09-27): maneuver-trace helper. Fires
+  // fire-and-forget - a failure never blocks the actual AP command.
+  // The backend is a no-op unless the sailor turned the toggle on
+  // from the Setup card. Callers just have to name the kind and pass
+  // whatever payload is useful for post-trial forensics.
+  function _mtLog(kind, payload) {
+    try {
+      const body = { kind, payload: payload || {}, visorRev: (window.PLUGIN_REV || null) };
+      skFetch(`/plugins/${PLUGIN_ID}/maneuver-trace/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).catch(() => { /* silent - forensics is best-effort */ });
+    } catch { /* silent */ }
+  }
+  // Rev323 (Carlos, 2026-09-27): tell the backend a visor-side
+  // pseudo-modo is active/inactive. Backend uses this to silence the
+  // heading-deviation family of alarms during Aproado / Empopado. In
+  // the sea trial 2026-09-27 alarms disparaban por doquier durante
+  // esas maniobras porque `ap.tack.state` seguía en "none" y el gate
+  // Rev311 no las cazaba.
+  function _setManeuverPseudo(active) {
+    try {
+      skFetch(`/plugins/${PLUGIN_ID}/maneuver-state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !!active }),
+      }).catch(() => { /* silent - alarm gate is best-effort */ });
+    } catch { /* silent */ }
+  }
   async function apEngage() {
     if (!await ensureAutopilotId()) return;
+    _mtLog("engage", { via: "apEngage" });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
     return handleAuth(await skFetch(url, { method: "POST" }));
   }
   async function apDisengage() {
     if (!await ensureAutopilotId()) return;
+    _mtLog("disengage", { via: "apDisengage" });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
     return handleAuth(await skFetch(url, { method: "POST" }));
   }
   async function apSetMode(mode) {
     if (!await ensureAutopilotId()) return;
+    _mtLog("mode_change", { requested: mode });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/mode`;
     return handleAuth(await skFetch(url, {
       method: "PUT",
@@ -5279,6 +5534,7 @@
   }
   async function apSetTargetRad(rad) {
     if (!await ensureAutopilotId()) return;
+    _mtLog("target_put", { rad, deg: (rad * 180 / Math.PI).toFixed(1) });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/target`;
     return handleAuth(await skFetch(url, {
       method: "PUT",
@@ -5288,6 +5544,7 @@
   }
   async function apTack(direction) {
     if (!await ensureAutopilotId()) return;
+    _mtLog("tack_tap", { direction });
     const chk = await _pypilotPingCheck();
     if (!chk.ok) { _pypilotPingFailToast(chk.reason); return { ok: false, status: 503, blocked: true, reason: chk.reason }; }
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/tack/${direction}`;
@@ -5316,7 +5573,13 @@
   // state are restored (Carlos Rev88 feedback: if the AP was NOT engaged
   // when we entered aproado, disengage on exit).
   const APROADO_TWS_HOT_KN = 10;      // above this, PROA is highlighted
-  const APROADO_COUNTDOWN_S = 5;       // grace period AFTER user picks
+  // Rev311 (Carlos sea trial 2026-09-25): countdown a 0 por default.
+  // Feedback del navegante: "el countdown para aproar no sirve" — al
+  // subir vela, el sailor pulsa cuando está listo y quiere que el
+  // barco arranque YA a subir la proa al viento. Los 5 s previos
+  // restaban reactividad. Sigue configurable (0-5 s) por si alguien
+  // los quiere de vuelta.
+  const APROADO_COUNTDOWN_S = 0;
   const APROADO_HUD_TICK_MS = 500;
   const APROADO_SUMMARY_MS = 15000;    // Carlos Rev89: 15 s dwell (was 8)
   // Rev90: |AWA| below this threshold (degrees) → the boat is considered
@@ -5324,6 +5587,12 @@
   // timer starts). Once achieved the phase LATCHES - a subsequent wind
   // gust that pushes AWA above the threshold does NOT flip back.
   const APROADO_ACHIEVED_DEG = 10;
+  // Rev311 (Carlos sea trial 2026-09-25): antes el latch a "active"
+  // ocurría en el primer tick que |AWA| < 10°. En oleaje eso disparaba
+  // el "logrado" durante una oscilación breve sin que el barco
+  // estuviera realmente aproado. Ahora exigimos que |AWA| esté por
+  // debajo del umbral SOSTENIDO al menos este tiempo antes de latch.
+  const APROADO_ACHIEVED_SUSTAIN_MS = 3000;
 
   function _distanceNm(a, b) {
     if (!a || !b) return 0;
@@ -5366,6 +5635,7 @@
   }
 
   function aproadoStart() {
+    _mtLog("aproado_start", { mode: state.mode, engaged: state.engaged });
     // Snapshot everything we may need to restore on SALIR / cancel.
     const snapshot = {
       mode: state.mode,
@@ -5403,6 +5673,15 @@
     const apr = state.aproado;
     if (!apr || apr.phase !== "choosing") return;
     apr.direction = direction === "stern" ? "stern" : "bow";
+    _mtLog("aproado_pick", { direction: apr.direction });
+    // Rev311 (Carlos sea trial 2026-09-25): sin countdown por default.
+    // Cuando APROADO_COUNTDOWN_S <= 0 vamos DIRECTO al execute. La
+    // maniobra arranca en el mismo tap que la elige. El bloque
+    // countdown-visual se salta sin pintar cero.
+    if (APROADO_COUNTDOWN_S <= 0) {
+      aproadoExecute();
+      return;
+    }
     _setPhase("countdown");
     const hud = _aproadoHud();
     if (!hud) return;
@@ -5431,6 +5710,10 @@
   async function aproadoExecute() {
     const apr = state.aproado;
     if (!apr) return;
+    // Rev323 (Carlos, 2026-09-27): flag pseudo-modo activo para
+    // silenciar heading-deviation / cruise-drift / unable-to-steer
+    // durante la maniobra.
+    _setManeuverPseudo(true);
     // Rev90: transit is a NEW phase between countdown and active. The
     // boat starts rotating toward head-to-wind; only when |AWA| falls
     // below APROADO_ACHIEVED_DEG do we consider it "aproada" and start
@@ -5503,9 +5786,15 @@
     // rotate CW so AWA grows through +180 and wraps to -180 then up to 0.
     // Wind on port (-): rotate CCW.
     const dir = startDeg > 0 ? 1 : -1;
-    const STEP_DEG = 60;
-    const STEP_TOL_DEG = 25;         // "arrived" tolerance per step
-    const STEP_TIMEOUT_MS = 15000;   // give up on a step after 15 s
+    // Rev311 (Carlos sea trial 2026-09-25): 60° steps con 15 s timeout
+    // eran "vagos" — pypilot perdía momentum entre steps y la maniobra
+    // se quedaba a medias. Steps más largos + timeout más corto: la
+    // trayectoria es menos "escalonada" y bail-out más temprano si
+    // pypilot no responde. Tolerance sube a 30° porque con steps
+    // mayores hay más overshoot posible.
+    const STEP_DEG = 90;
+    const STEP_TOL_DEG = 30;
+    const STEP_TIMEOUT_MS = 8000;
     const totalRotation = 360 - Math.abs(startDeg);
     let accumulated = 0;
     console.info(`aproado stern: startAWA=${startDeg.toFixed(0)} dir=${dir} totalRot=${totalRotation.toFixed(0)}`);
@@ -5580,13 +5869,21 @@
     if (!apr._targetIsFinal) return;
     if (state.windAngle == null) return;
     const awaDeg = Math.abs(state.windAngle * RAD2DEG);
-    if (awaDeg <= APROADO_ACHIEVED_DEG) {
-      apr.phase = "active";
-      apr.startTs = Date.now();
-      _setPhase("active");
-      const hud = _aproadoHud();
-      if (hud) hud.classList.remove("transit");
+    // Rev311 (Carlos sea trial 2026-09-25): antes se latcheaba a
+    // "active" en el primer tick por debajo del umbral, lo que en
+    // oleaje disparaba el "logrado" en una oscilación breve. Ahora
+    // requerimos sostenimiento (APROADO_ACHIEVED_SUSTAIN_MS).
+    if (awaDeg > APROADO_ACHIEVED_DEG) {
+      apr._achievedSinceTs = null;
+      return;
     }
+    if (apr._achievedSinceTs == null) apr._achievedSinceTs = Date.now();
+    if (Date.now() - apr._achievedSinceTs < APROADO_ACHIEVED_SUSTAIN_MS) return;
+    apr.phase = "active";
+    apr.startTs = Date.now();
+    _setPhase("active");
+    const hud = _aproadoHud();
+    if (hud) hud.classList.remove("transit");
   }
 
   // Cancel from choosing OR countdown phase. Nothing was sent to pypilot
@@ -5605,11 +5902,414 @@
   function aproadoTearDown() {
     const apr = state.aproado;
     if (!apr) return;
+    _mtLog("aproado_teardown", { phase: apr.phase, direction: apr.direction });
+    // Rev323: cerrar el gate pseudo-modo antes de nada; el backend
+    // vuelve a evaluar heading-deviation con el umbral normal.
+    _setManeuverPseudo(false);
     if (apr._cdTimer) { clearInterval(apr._cdTimer); apr._cdTimer = null; }
     if (apr._hudTimer) { clearInterval(apr._hudTimer); apr._hudTimer = null; }
     if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
     hideAproadoHud();
     state.aproado = null;
+  }
+
+  // Rev313 (Carlos sea trial 2026-09-25): pseudo-mode EMPOPADO — mirror
+  // of Aproado for the OTHER extreme: bring the boat to TWA ≈ 180°
+  // (viento por popa) so the mainsail flogs the least while striking
+  // sail. Minimum-scope implementation: sin HUD custom (usa el mismo
+  // #aproado-hud), sin fase choosing (target directo AWA=180°), sin
+  // stepping (pypilot elige el camino). Latch a "active" cuando
+  // |AWA| > 170° sostenido APROADO_ACHIEVED_SUSTAIN_MS.
+  //
+  // El feedback de Carlos 2026-09-25 post-Rev311 pide que el arranque
+  // sea "agresivo casi como un tack" y el mantenimiento "rápido y
+  // nervioso". Esta versión mínima sólo cambia el target; el arranque
+  // agresivo (ap.tack.state=begin) y las gains custom van en el
+  // sprint junto con [[feature-tack-wind-strategies]].
+  // ==== Rev318: EMPOPADO pseudo-mode — CLON COMPLETO del Aproado ====
+  // Espejo del Aproado (`state.aproado`) para la maniobra inversa:
+  // poner el barco con viento por popa (TWA ≈ 180°) para bajar vela
+  // sin flapping. Reutiliza el CSS `.aproado-hud` (mismo look) y el
+  // HUD DOM `#empopado-hud` con IDs propios. Todas las funciones son
+  // espejo directo de las aproado* con:
+  //   - target absoluto → π - 0.001 (viento por popa).
+  //   - logrado si |TWA| > 175° sostenido 3 s (ventana ±5° crujía-popa).
+  //   - auto-cancel si |TWA| < 140° sostenido 5 s en fase active.
+  //   - swap a perfil reactivo (heavy/reactive/…) durante la maniobra.
+  //   - restore mode+target+engaged+profile al SALIR o auto-cancel.
+  // Rev319 (Carlos correction 2026-09-26): la ventana de "empopado
+  // logrado" es MUY estrecha porque TWA se mide contra crujía-popa
+  // (0°=proa, ±180°=popa exacto, signo indica banda). Un TWA de 170°
+  // aún tiene 10° de escora respecto a la línea del mástil: la vela
+  // sigue cargando y flapping al bajarla. Ventana real = 175°..185°
+  // (equivalente a ±5° alrededor de crujía-popa), por CUALQUIER banda.
+  // El Math.abs() del check ya cubre ambas bandas (TWA=+178 y
+  // TWA=-178 los dos cuentan como popa).
+  const EMPOPADO_ACHIEVED_DEG    = 175;   // |TWA| > 175° = viento en crujía-popa ±5°
+  const EMPOPADO_LOST_DEG        = 140;
+  const EMPOPADO_LOST_SUSTAIN_MS = 2500;  // Rev320: 5s → 2.5s (Carlos: reacción crítica anti-trasluchada)
+  const EMPOPADO_WARN_DEG        = 160;   // Rev320: pre-cancel warning si |TWA|<160°
+  const EMPOPADO_WARN_SUSTAIN_MS = 1000;  //         sostenido 1 s (aviso sonoro rápido).
+  // Rev320 gains "nerviosas" mientras estamos EMPOPADO ACTIVE:
+  //   P ×1.5   → reacción más fuerte al error de heading.
+  //   D ×1.7   → reacción a velocidad de giro (CRÍTICO anti-trasluchada:
+  //              si la popa empieza a moverse rápido, corregir YA).
+  //   servo max_slew ×1.3 → permitir movimiento de timón más rápido.
+  // Los originales se guardan en `state.empopado._hotGainSnapshot` y se
+  // restauran en finish/tearDown. Se aplican sólo cuando el catalog tiene
+  // el valor cacheado (defensivo si el path no existe en este pypilot).
+  const EMPOPADO_HOT_GAIN_MULT = {
+    P: 1.5,
+    D: 1.7,
+    SLEW: 1.3,
+  };
+
+  function _empopadoHud() { return document.getElementById("empopado-hud"); }
+  function _empopadoSetPhase(phase) {
+    const hud = _empopadoHud();
+    if (hud) hud.setAttribute("data-phase", phase);
+  }
+  function hideEmpopadoHud() {
+    const hud = _empopadoHud();
+    if (hud) {
+      hud.setAttribute("hidden", "");
+      hud.classList.remove("summary", "hot", "transit");
+      hud.removeAttribute("data-phase");
+    }
+  }
+  // Rev320: overrides temporales de gains PID para el estado empopado
+  // active. Snapshot en `ap._hotGainSnapshot` para restore posterior.
+  // No se aplica en transit — sólo cuando ya estamos plantados en popa,
+  // que es donde una ola puede trasluchar.
+  async function _empopadoApplyHotGains(ap) {
+    if (!ap || ap._hotGainSnapshot) return;
+    const pilot = state.pilot;
+    if (!pilot) return;
+    const cat = state.catalog || {};
+    const targets = [
+      { path: `ap.pilot.${pilot}.P`,  mult: EMPOPADO_HOT_GAIN_MULT.P },
+      { path: `ap.pilot.${pilot}.D`,  mult: EMPOPADO_HOT_GAIN_MULT.D },
+      { path: `servo.max_slew_speed`, mult: EMPOPADO_HOT_GAIN_MULT.SLEW },
+    ];
+    const applied = {};
+    for (const t of targets) {
+      const entry = cat[t.path];
+      const cur = entry?.value;
+      if (typeof cur !== "number") continue;
+      const max = typeof entry.max === "number" ? entry.max : Infinity;
+      const next = Math.min(cur * t.mult, max);
+      if (Math.abs(next - cur) < 1e-6) continue;
+      try {
+        await pluginRaw(t.path, next);
+        applied[t.path] = cur;
+        console.info(`empopado: hot gain ${t.path} ${cur.toFixed(3)} → ${next.toFixed(3)}`);
+      } catch (e) {
+        console.warn(`empopado: hot gain ${t.path} apply failed`, e);
+      }
+    }
+    ap._hotGainSnapshot = applied;
+  }
+  async function _empopadoRestoreHotGains(ap) {
+    const snap = ap && ap._hotGainSnapshot;
+    if (!snap) return;
+    for (const [path, val] of Object.entries(snap)) {
+      try {
+        await pluginRaw(path, val);
+        console.info(`empopado: hot gain ${path} restored → ${val.toFixed(3)}`);
+      } catch (e) { console.warn(`empopado: hot gain ${path} restore failed`, e); }
+    }
+    ap._hotGainSnapshot = null;
+  }
+  function _empopadoPickReactiveProfile() {
+    const list = Array.isArray(state.profiles) ? state.profiles : [];
+    if (list.length === 0) return null;
+    const preferred = ["heavy", "reactive", "aggressive", "storm"];
+    for (const p of preferred) if (list.includes(p)) return p;
+    return list.find((p) => p && p.toLowerCase() !== "default") || null;
+  }
+  function empopadoStart() {
+    if (state.empopado) return;
+    _mtLog("empopado_start", { mode: state.mode, engaged: state.engaged });
+    const snapshot = {
+      mode: state.mode,
+      targetRad: state.target,
+      headingRad: state.heading,
+      engaged: state.engaged,
+      profile: state.profile,
+      ts: Date.now(),
+    };
+    state.empopado = {
+      phase: "choosing",
+      direction: null,
+      snapshot,
+      startTs: null,
+      endTs: null,
+      startPos: null,
+      startHeadingDeg: null,
+      distanceNm: 0,
+      _achievedSinceTs: null,
+      _lostSinceTs: null,
+    };
+    const hud = _empopadoHud();
+    if (!hud) return;
+    hud.classList.remove("summary");
+    // Rev318: recomendado POR POPA (camino corto habitual al empopar
+    // desde ceñido/través — arribar hasta encaramar). BY BOW requiere
+    // cruzar el viento por proa, mucho más giro y sólo tiene sentido
+    // si estás ya de aleta al lado contrario.
+    const bowBtn  = hud.querySelector('.aproado-choice[data-empopado-dir="bow"]');
+    const sternBtn = hud.querySelector('.aproado-choice[data-empopado-dir="stern"]');
+    if (sternBtn) sternBtn.classList.add("recommended");
+    if (bowBtn)   bowBtn.classList.remove("recommended");
+    _empopadoSetPhase("choosing");
+    hud.removeAttribute("hidden");
+  }
+  function empopadoPick(direction) {
+    const ap = state.empopado;
+    if (!ap || ap.phase !== "choosing") return;
+    ap.direction = direction === "bow" ? "bow" : "stern";
+    _mtLog("empopado_pick", { direction: ap.direction });
+    // Rev318 (espejo Rev311): SIN countdown por default. Ejecución
+    // inmediata para maximizar reactividad.
+    empopadoExecute();
+  }
+  async function empopadoExecute() {
+    const ap = state.empopado;
+    if (!ap) return;
+    // Rev323 (Carlos, 2026-09-27): silenciar heading-deviation /
+    // cruise-drift / unable-to-steer durante la maniobra.
+    _setManeuverPseudo(true);
+    ap.phase = "transit";
+    ap.executeTs = Date.now();
+    ap.startTs = null;
+    ap.startPos = state.position ? { ...state.position } : null;
+    ap.startHeadingDeg = state.heading != null
+      ? ((state.heading * RAD2DEG + 360) % 360)
+      : null;
+    setSelect("#mode-select", "empopado");
+    _empopadoSetPhase("transit");
+    const hud = _empopadoHud();
+    if (hud) { hud.classList.add("transit"); hud.classList.remove("summary"); }
+    const transitTitle = document.getElementById("empopado-transit-title");
+    if (transitTitle) transitTitle.textContent = t("empopado.hud.title") || "EMPOPANDOSE";
+    // Cambio de perfil a uno reactivo (seguridad en popa).
+    const reactive = _empopadoPickReactiveProfile();
+    if (reactive && reactive !== state.profile) {
+      try {
+        await pluginRaw("profile", reactive);
+        ap._profileSwapped = reactive;
+        console.info(`empopado: profile swapped ${ap.snapshot.profile} → ${reactive} (reactive)`);
+      } catch (e) { console.warn("empopado: profile swap failed", e); }
+    }
+    try {
+      await apSetMode("wind");
+      // Target AWA = π - 0.001 (viento por popa). Usamos ligeramente
+      // menos de π para evitar que pypilot normalice al opuesto.
+      const targetRad = Math.PI - 0.001;
+      await apSetTargetRad(targetRad);
+      ap._targetIsFinal = true;
+      if (!state.engaged) await apEngage();
+      console.info(`empopado: dir=${ap.direction} mode=wind target=${targetRad.toFixed(3)} engage sent`);
+    } catch (e) {
+      console.warn("empopado: mode/target/engage failed", e);
+    }
+    updateEmpopadoHud();
+    ap._hudTimer = setInterval(updateEmpopadoHud, APROADO_HUD_TICK_MS);
+  }
+  // Rev318 (Carlos correction mid-turn): Empopado evalúa "logrado" /
+  // "perdido" contra TWA (True Wind Angle), NO contra AWA. Pypilot en
+  // modo wind sigue controlando AWA (única señal que conoce) — el
+  // target enviado sigue siendo AWA=π-0.001 — pero la POSICIÓN REAL
+  // respecto al viento real que necesitamos para bajar vela sin
+  // flapping se juzga con TWA. A poca velocidad AWA≈TWA, pero
+  // navegando fuerte con corriente o mar la diferencia puede ser 30°+.
+  function _empopadoTwaSigned() {
+    // Fallback a AWA si el sensor de rumbo/velocidad todavía no publica
+    // TWA (raro pero puede pasar arrancando con SOG=0).
+    return typeof state.windAngleTrue === "number"
+      ? state.windAngleTrue
+      : (typeof state.windAngle === "number" ? state.windAngle : null);
+  }
+  function _empopadoCheckAchieved() {
+    const ap = state.empopado;
+    if (!ap) return;
+    const twa = _empopadoTwaSigned();
+    // Fase transit → active si logrado sostenido.
+    if (ap.phase === "transit") {
+      if (!ap._targetIsFinal) return;
+      if (twa == null) return;
+      const twaAbsDeg = Math.abs(twa * RAD2DEG);
+      if (twaAbsDeg < EMPOPADO_ACHIEVED_DEG) { ap._achievedSinceTs = null; return; }
+      if (ap._achievedSinceTs == null) ap._achievedSinceTs = Date.now();
+      if (Date.now() - ap._achievedSinceTs < APROADO_ACHIEVED_SUSTAIN_MS) return;
+      ap.phase = "active";
+      ap.startTs = Date.now();
+      _empopadoSetPhase("active");
+      const hud = _empopadoHud();
+      if (hud) hud.classList.remove("transit");
+      try { _alSpeak(t("empopado.done") || "Empopado, listo para arriar"); } catch { /* silent */ }
+      console.info(`empopado: achieved |TWA|=${twaAbsDeg.toFixed(0)}° sostenido`);
+      // Rev320: al entrar en active, disparar los hot gains "nerviosos"
+      // (P/D + slew) para reactividad máxima anti-trasluchada.
+      _empopadoApplyHotGains(ap).catch(() => { /* silent */ });
+      return;
+    }
+    // Fase active → warning pre-cancel + auto-cancel sostenido.
+    if (ap.phase === "active") {
+      if (twa == null) return;
+      const twaAbsDeg = Math.abs(twa * RAD2DEG);
+      // Rev320: aviso rápido cuando |TWA|<160° sostenido 1 s — antes del
+      // auto-cancel de EMPOPADO_LOST_DEG=140°. Da a la tripulación
+      // margen para tomar la caña manualmente si el AP no está siendo
+      // suficiente contra las olas.
+      if (twaAbsDeg < EMPOPADO_WARN_DEG) {
+        if (ap._warnSinceTs == null) ap._warnSinceTs = Date.now();
+        if (!ap._warnFired && Date.now() - ap._warnSinceTs >= EMPOPADO_WARN_SUSTAIN_MS) {
+          ap._warnFired = true;
+          console.warn(`empopado: WARN |TWA|=${twaAbsDeg.toFixed(0)}° <${EMPOPADO_WARN_DEG}° — inestable`);
+          try { _alSpeak(t("empopado.unstable") || "Empopado inestable"); } catch { /* silent */ }
+        }
+      } else {
+        // Salió de la zona de warning — resetea para que el próximo
+        // roll fuerte vuelva a avisar.
+        ap._warnSinceTs = null;
+        ap._warnFired = false;
+      }
+      if (twaAbsDeg > EMPOPADO_LOST_DEG) { ap._lostSinceTs = null; return; }
+      if (ap._lostSinceTs == null) ap._lostSinceTs = Date.now();
+      if (Date.now() - ap._lostSinceTs < EMPOPADO_LOST_SUSTAIN_MS) return;
+      console.warn(`empopado: lost stern (|TWA|=${twaAbsDeg.toFixed(0)}° <${EMPOPADO_LOST_DEG}°) — auto-cancel`);
+      try { _alSpeak(t("empopado.lost") || "Empopado cancelado, viento cambió"); } catch { /* silent */ }
+      empopadoFinish({ restoreAll: true, silent: true });
+    }
+  }
+  function updateEmpopadoHud() {
+    const ap = state.empopado;
+    const hud = _empopadoHud();
+    if (!ap || !hud) return;
+    _empopadoCheckAchieved();
+    if ((ap.phase === "active" || ap.phase === "transit") &&
+        ap.startPos && state.position) {
+      ap.distanceNm = _distanceNm(ap.startPos, state.position);
+    }
+    const nowTs = ap.phase === "summary" ? (ap.endTs || Date.now()) : Date.now();
+    const elapsedMs = ap.startTs ? nowTs - ap.startTs : 0;
+    const hdgTxt = ap.startHeadingDeg != null
+      ? `${String(Math.round(ap.startHeadingDeg)).padStart(3, "0")}°`
+      : "---°";
+    if (ap.phase === "transit") {
+      const degEl   = document.getElementById("empopado-transit-deg");
+      const hdgTrEl = document.getElementById("empopado-transit-hdg");
+      if (degEl) {
+        // Rev318: error contra TWA (viento real). "Me faltan N° para
+        // popa" — un TWA=100° faltarían 80° para 180°.
+        const twa = _empopadoTwaSigned();
+        degEl.textContent = twa != null
+          ? `${Math.round(180 - Math.abs(twa * RAD2DEG))}°`
+          : "---°";
+      }
+      if (hdgTrEl) hdgTrEl.textContent = hdgTxt;
+    } else {
+      const elapsedEl = document.getElementById("empopado-hud-elapsed");
+      const distEl    = document.getElementById("empopado-hud-dist");
+      const hdgEl     = document.getElementById("empopado-hud-hdg");
+      const titleEl   = document.getElementById("empopado-active-title");
+      const endBtn    = document.getElementById("empopado-hud-end");
+      if (elapsedEl) elapsedEl.textContent = _formatElapsed(elapsedMs);
+      if (distEl)    distEl.textContent    = `${ap.distanceNm.toFixed(2)} nm`;
+      if (hdgEl)     hdgEl.textContent     = hdgTxt;
+      if (ap.phase === "summary") {
+        if (titleEl) titleEl.textContent = t("aproado.hud.summary") || "SUMMARY";
+        if (endBtn)  endBtn.textContent = t("close") || "Cerrar";
+      } else {
+        if (titleEl) titleEl.textContent = t("empopado.hud.title") || "EMPOPADO";
+        if (endBtn)  endBtn.textContent = t("aproado.hud.exit")  || "SALIR";
+      }
+    }
+  }
+  function empopadoCancel() {
+    // Cancel desde choosing (nada enviado a pypilot todavía).
+    const ap = state.empopado;
+    if (!ap) return;
+    if (ap._hudTimer) { clearInterval(ap._hudTimer); ap._hudTimer = null; }
+    hideEmpopadoHud();
+    state.empopado = null;
+    setSelect("#mode-select", ap.snapshot.mode || "");
+  }
+  async function empopadoFinish(opts) {
+    const ap = state.empopado;
+    if (!ap || (ap.phase !== "active" && ap.phase !== "transit")) return;
+    const restoreAll = !opts || opts.restoreAll !== false;
+    const silent = !!(opts && opts.silent);
+    if (ap._hudTimer) { clearInterval(ap._hudTimer); ap._hudTimer = null; }
+    ap.endTs = Date.now();
+    if (ap.startPos && state.position) {
+      ap.distanceNm = _distanceNm(ap.startPos, state.position);
+    }
+    if (ap.startTs == null) ap.startTs = ap.endTs;
+    ap.phase = silent ? "summary" : "summary";
+    const hud = _empopadoHud();
+    if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
+    _empopadoSetPhase("summary");
+    updateEmpopadoHud();
+    const snap = ap.snapshot;
+    if (snap.mode) setSelect("#mode-select", snap.mode);
+    // Rev320: restaurar gains hot ANTES del profile swap.
+    // El profile swap sobrescribe todos los gains — si hacemos primero
+    // el restore de nuestros hot gains y luego el profile restore, es
+    // idempotente. Si el orden fuera al revés, el profile pondría los
+    // gains del perfil original y nuestro restore (con valores ya
+    // sobrescritos por el profile) los pisaría con valores viejos.
+    await _empopadoRestoreHotGains(ap);
+    // Perfil siempre restaura si lo swapeamos.
+    if (ap._profileSwapped && snap.profile && snap.profile !== ap._profileSwapped) {
+      try { await pluginRaw("profile", snap.profile); console.info(`empopado: profile restored → ${snap.profile}`); }
+      catch (e) { console.warn("empopado: profile restore failed", e); }
+    }
+    if (restoreAll) {
+      if (snap.mode) {
+        try { await apSetMode(snap.mode); console.info(`empopado: mode restored → ${snap.mode}`); }
+        catch (e) { console.warn("empopado: mode restore failed", e); }
+      }
+      if (typeof snap.targetRad === "number") {
+        try { await apSetTargetRad(snap.targetRad); console.info(`empopado: target restored → ${snap.targetRad.toFixed(3)}`); }
+        catch (e) { console.warn("empopado: target restore failed", e); }
+      }
+      if (snap.engaged === false && state.engaged) {
+        try { await apDisengage(); console.info("empopado: AP disengaged (was OFF before empopado)"); }
+        catch (e) { console.warn("empopado: disengage restore failed", e); }
+      }
+    }
+    // Auto-hide del summary igual que aproado (usa APROADO_SUMMARY_MS).
+    ap._summaryTimer = setTimeout(() => { empopadoTearDown(); }, APROADO_SUMMARY_MS);
+  }
+  function empopadoTearDown(opts) {
+    const ap = state.empopado;
+    if (!ap) return;
+    _mtLog("empopado_teardown", { phase: ap.phase, direction: ap.direction, restoreAll: !!(opts && opts.restoreAll) });
+    // Rev323: cerrar el gate pseudo-modo — el heading-deviation
+    // vuelve al umbral normal.
+    _setManeuverPseudo(false);
+    if (ap._hudTimer)     { clearInterval(ap._hudTimer);   ap._hudTimer = null; }
+    if (ap._summaryTimer) { clearTimeout(ap._summaryTimer); ap._summaryTimer = null; }
+    // Rev316: restore adicional si tearDown fue directo (sin pasar por
+    // finish, ej. mode-select change durante active).
+    const restoreAll = opts && opts.restoreAll === true;
+    const snap = ap.snapshot || {};
+    // Rev320: restaurar hot gains ANTES del profile (mismo orden que
+    // empopadoFinish; ver comentario allí para el racional).
+    _empopadoRestoreHotGains(ap).catch(() => {});
+    if (ap._profileSwapped && snap.profile && snap.profile !== ap._profileSwapped) {
+      try { pluginRaw("profile", snap.profile).catch(() => {}); }
+      catch { /* silent */ }
+    }
+    if (restoreAll) {
+      if (snap.mode) { try { apSetMode(snap.mode).catch(() => {}); } catch {} }
+      if (typeof snap.targetRad === "number") { try { apSetTargetRad(snap.targetRad).catch(() => {}); } catch {} }
+      if (snap.engaged === false && state.engaged) { try { apDisengage().catch(() => {}); } catch {} }
+    }
+    hideEmpopadoHud();
+    state.empopado = null;
   }
 
   // SALIR from the transit or active HUD: freeze counters, show the
@@ -6112,6 +6812,18 @@
         aproadoStart();
         return;
       }
+      // Rev313 (Carlos sea trial 2026-09-25): pseudo-mode "empopado"
+      // (viento por popa para bajar vela).
+      if (chosen === "empopado") {
+        empopadoStart();
+        return;
+      }
+      // Picking another mode while a pseudo-mode is active ends the
+      // maneuver WITHOUT restoring the pre-* mode (usuario ya
+      // eligió qué quiere ahora). SÍ restaura el profile.
+      if (state.empopado && (state.empopado.phase === "transit" || state.empopado.phase === "active")) {
+        empopadoTearDown({ restoreAll: false });
+      }
       // Picking another mode while aproado is active ends the maneuver
       // WITHOUT restoring the pre-aproado mode - honor the user's new
       // choice. (Use the SALIR button on the HUD to return to previous.)
@@ -6217,6 +6929,33 @@
       if (transitCancelBtn) transitCancelBtn.addEventListener("click", exitHandler);
     }
 
+    // Rev318: Empopado HUD wiring. Espejo del aproado (mismo CSS,
+    // IDs propios, data-empopado-* atributos). Todo va a las funciones
+    // empopado* correspondientes.
+    const empopadoHud = document.getElementById("empopado-hud");
+    if (empopadoHud) {
+      empopadoHud.querySelectorAll('.aproado-choice[data-empopado-dir]').forEach((btn) => {
+        btn.addEventListener("click", () => empopadoPick(btn.getAttribute("data-empopado-dir")));
+      });
+      const cancelChoose = document.getElementById("empopado-cancel-btn");
+      if (cancelChoose) cancelChoose.addEventListener("click", () => empopadoCancel());
+      const emExitHandler = () => {
+        const emp = state.empopado;
+        if (!emp) return;
+        if (emp.phase === "summary") {
+          if (emp._summaryTimer) { clearTimeout(emp._summaryTimer); emp._summaryTimer = null; }
+          hideEmpopadoHud();
+          state.empopado = null;
+        } else if (emp.phase === "active" || emp.phase === "transit") {
+          empopadoFinish();
+        }
+      };
+      const emExitBtn = document.getElementById("empopado-hud-end");
+      if (emExitBtn) emExitBtn.addEventListener("click", emExitHandler);
+      const emTransitCancelBtn = document.getElementById("empopado-transit-cancel");
+      if (emTransitCancelBtn) emTransitCancelBtn.addEventListener("click", emExitHandler);
+    }
+
     // Rev184 (Carlos): tack per side, with the "triple-tap = jibe"
     // gesture built in. Rules:
     //   - 1 tap  -> tack (default).
@@ -6277,10 +7016,11 @@
       return newTarget;
     }
     // Rev210 (Carlos + LLM audit): a second VIRAR tap during a running
-    // maneuver CANCELS the maneuver (B&G/Raymarine semantics). No more
-    // accumulation. The nudges cover fine adjustment; if the sailor
-    // wants another full tack they let this one complete and press
-    // again. Signature kept to avoid touching wireControl call sites.
+    // maneuver CANCELS the maneuver (canonical single-tack semantics).
+    // No more accumulation. The nudges cover fine adjustment; if the
+    // sailor wants another full tack they let this one complete and
+    // press again. Signature kept to avoid touching wireControl call
+    // sites.
     async function _tackExtend(dir) {
       console.log(`[tack] second tap on ${dir} during ${_tackCountdownPhase} - cancelling maneuver`);
       _cancelManeuverFromButton();
@@ -6292,6 +7032,13 @@
       const isWind = modeStr.includes("wind");
       const useTrue = modeStr.includes("true");
       const preTackTarget = _tackTargetBeforeStart;
+      // Rev309: si la maniobra estaba corriendo via pypilot native
+      // (wind mode) hay que abortarla explícitamente con
+      // ap.tack.state=none, si no pypilot seguirá terminando el giro
+      // que arrancamos.
+      if (wasExecuting && isWind) {
+        try { pluginRaw("ap.tack.state", "none").catch(() => {}); } catch { /* silent */ }
+      }
       let restoreRad = null;
       if (wasExecuting) {
         if (isWind) {
@@ -6457,7 +7204,13 @@
       pluginRaw("profile", v);
     });
     $("#profile-add").addEventListener("click", async () => {
-      const name = prompt(t("prompt.profileName"));
+      const raw = prompt(t("prompt.profileName"));
+      if (!raw) return;
+      // Rev316 (Carlos log 2026-09-25): el prompt dejaba espacios al
+      // final ("Mar plana, viento flojo "), lo que rompe comparaciones
+      // exactas y sale feo en los headers de los JSONL de sesión.
+      // Trim + collapse whitespace en un solo espacio.
+      const name = raw.trim().replace(/\s+/g, " ");
       if (!name) return;
       if (state.profiles.includes(name)) return alert("Already exists");
       await pluginRaw("profile", name);
@@ -6756,6 +7509,9 @@
   // every 5 s while the panel is on-screen, so Carlos can see the
   // file growing without opening it.
   let _lcRefreshTimer = null;
+  // Rev322 (Carlos, 2026-09-27): timer for the maneuver trace card
+  // status pill. Same 5 s cadence as the log capture status.
+  let _mtRefreshTimer = null;
   function _lcFmtTs(ms) {
     if (!ms) return "--";
     const d = new Date(ms);
@@ -6829,6 +7585,69 @@
       ev.target.checked = !on;
     }
     _lcRefreshStatus();
+  }
+
+  // Rev322 (Carlos, 2026-09-27): maneuver trace client-side wiring.
+  // Mirrors the log-capture card patterns so the sailor gets the same
+  // muscle memory (toggle + status pill + Show recent).
+  async function _mtRefreshStatus() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/maneuver-trace/status`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const cb = document.getElementById("mt-enabled");
+      const status = document.getElementById("mt-status");
+      if (cb && cb.checked !== !!j.enabled) cb.checked = !!j.enabled;
+      if (status) {
+        const parts = [];
+        parts.push(j.enabled ? (t("mt.st.on") || "ON") : (t("mt.st.off") || "OFF"));
+        if (typeof j.ringEntries === "number") parts.push(`${j.ringEntries} ${t("mt.st.events") || "events"}`);
+        if (j.file && j.enabled) parts.push(String(j.file).split(/[\\/]/).pop());
+        status.textContent = parts.join("  ·  ");
+        status.style.color = j.enabled ? "var(--ok, #2ecc71)" : "var(--fg-dim)";
+      }
+    } catch { /* silent */ }
+  }
+  async function _mtShowRecent() {
+    const box = document.getElementById("mt-viewer");
+    if (!box) return;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/maneuver-trace/tail?n=50`);
+      const j = r.ok ? await r.json() : { entries: [] };
+      const lines = (j.entries || []).map((e) => {
+        const ts = new Date(e.ts).toLocaleTimeString();
+        const pre = e.pre || {};
+        const post = e.post || {};
+        const preSum = `pre[m=${pre.mode || "-"} t=${pre.target != null ? (pre.target * 180 / Math.PI).toFixed(1) + "°" : "-"} h=${pre.heading != null ? (pre.heading * 180 / Math.PI).toFixed(1) + "°" : "-"} awa=${pre.awa != null ? (pre.awa * 180 / Math.PI).toFixed(1) + "°" : "-"} eng=${pre.engaged} tk=${pre.tackState || "-"}]`;
+        const postSum = post && post.mode !== undefined ? ` -> post[m=${post.mode || "-"} t=${post.target != null ? (post.target * 180 / Math.PI).toFixed(1) + "°" : "-"} h=${post.heading != null ? (post.heading * 180 / Math.PI).toFixed(1) + "°" : "-"} awa=${post.awa != null ? (post.awa * 180 / Math.PI).toFixed(1) + "°" : "-"} eng=${post.engaged} tk=${post.tackState || "-"}]` : " -> (no post)";
+        return `${ts}  ${e.kind}  ${JSON.stringify(e.payload || {})}\n         ${preSum}${postSum}`;
+      });
+      box.textContent = lines.length ? lines.join("\n") : (t("mt.empty") || "(no events yet)");
+      box.hidden = false;
+      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      box.textContent = String(e);
+      box.hidden = false;
+    }
+  }
+  async function _mtToggle(ev) {
+    const on = !!ev.target.checked;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/maneuver-trace/${on ? "start" : "stop"}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert((t("mt.err") || "Maneuver trace failed") + ": " + (j.error || `HTTP ${r.status}`));
+        ev.target.checked = !on;
+      }
+    } catch (e) {
+      alert((t("mt.err") || "Maneuver trace failed") + ": " + e);
+      ev.target.checked = !on;
+    }
+    _mtRefreshStatus();
   }
   // Rev141 (Carlos): live inspector for the pypilot_web watch set.
   // Sits inside the Remote Control Console tile in Setup. Polls
@@ -7131,6 +7950,58 @@
     }
     select.value = current || "";
   }
+  // Rev300: track the helpers state in module-scope so the Save
+  // handler can read the current slider values without querying
+  // extra DOM nodes.
+  let _smartHelpersState = { leewayAdjustment: 0, failSafeBspKn: 0 };
+  // Rev303: Smart Pilot auto-save. Any change to a slider / toggle /
+  // select fires _smartMarkDirty(), which coalesces via a short
+  // debounce and then persists via _smartSave(). The old Save button
+  // is gone.
+  let _smartDirtyTimer = null;
+  function _smartMarkDirty() {
+    if (_smartDirtyTimer) clearTimeout(_smartDirtyTimer);
+    _smartDirtyTimer = setTimeout(() => { _smartDirtyTimer = null; _smartSave(); }, 800);
+  }
+  function _smartRenderHelpersSliders(cfg) {
+    const leewayHost = document.getElementById("smart-leeway-slider");
+    const fsHost     = document.getElementById("smart-failsafe-slider");
+    // Rev301 BUG: _buildSliderRow returns {row, rng, val, commit},
+    // not a DOM node — we were appending the wrapper object and the
+    // sliders never rendered. Grab .row explicitly.
+    if (leewayHost) {
+      leewayHost.innerHTML = "";
+      const b = _buildSliderRow({
+        name: (t("smart.helpers.leewayLabel") || "Leeway adjustment (0 = off)"),
+        min: 0, max: 30, step: 0.5, decimals: 1,
+        cur: cfg.leewayAdjustment ?? 0,
+        unlocked: true,
+        showBaseline: true,
+        onChange: (v) => {
+          _smartHelpersState.leewayAdjustment = v;
+          _smartMarkDirty();
+        },
+      });
+      leewayHost.appendChild(b.row);
+    }
+    if (fsHost) {
+      fsHost.innerHTML = "";
+      const b = _buildSliderRow({
+        name: (t("smart.helpers.failsafeLabel") || "Failsafe boat speed (kn, 0 = off)"),
+        min: 0, max: 15, step: 0.5, decimals: 1,
+        cur: cfg.failSafeBspKn ?? 0,
+        unlocked: true,
+        showBaseline: true,
+        onChange: (v) => {
+          _smartHelpersState.failSafeBspKn = v;
+          _smartMarkDirty();
+        },
+      });
+      fsHost.appendChild(b.row);
+    }
+    _smartHelpersState.leewayAdjustment = cfg.leewayAdjustment ?? 0;
+    _smartHelpersState.failSafeBspKn    = cfg.failSafeBspKn    ?? 0;
+  }
   async function _smartLoadConfig() {
     try {
       const r = await skFetch(`/plugins/${PLUGIN_ID}/supervisor/config`);
@@ -7145,6 +8016,18 @@
       _smartFillProfiles(document.getElementById("smart-auto-profile-light"),  j.autoProfileLight);
       _smartFillProfiles(document.getElementById("smart-auto-profile-medium"), j.autoProfileMedium);
       _smartFillProfiles(document.getElementById("smart-auto-profile-heavy"),  j.autoProfileHeavy);
+      // Rev300: helpers section (leeway + failsafe BSP + live source pill).
+      _smartRenderHelpersSliders(j);
+      const src = document.getElementById("smart-bsp-source");
+      if (src) {
+        const map = {
+          bsp:      t("smart.helpers.src.bsp")     || "from speedo",
+          sog:      t("smart.helpers.src.sog")     || "from GPS (proxy)",
+          failsafe: t("smart.helpers.src.failsafe")|| "using failsafe",
+          none:     t("smart.helpers.src.none")    || "unavailable",
+        };
+        src.textContent = map[j.bspSource] || "—";
+      }
     } catch { /* silent */ }
   }
   async function _smartRefreshStatus() {
@@ -7190,6 +8073,23 @@
         }
       }
     } catch { /* silent */ }
+    // Rev300: refresh the BSP source pill on the same 3 s cadence
+    // without re-rendering the sliders (which would drop mid-drag).
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/supervisor/config`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const src = document.getElementById("smart-bsp-source");
+      if (src) {
+        const map = {
+          bsp:      t("smart.helpers.src.bsp")     || "from speedo",
+          sog:      t("smart.helpers.src.sog")     || "from GPS (proxy)",
+          failsafe: t("smart.helpers.src.failsafe")|| "using failsafe",
+          none:     t("smart.helpers.src.none")    || "unavailable",
+        };
+        src.textContent = map[j.bspSource] || "—";
+      }
+    } catch { /* silent */ }
   }
   async function _smartSave() {
     const statusEl = document.getElementById("smart-save-status");
@@ -7201,6 +8101,9 @@
       autoProfileHeavy:   document.getElementById("smart-auto-profile-heavy")?.value || "",
       gustStrategy:       document.getElementById("smart-gust-strategy")?.value || "warn",
       autoDisengageOnLostAuthority: !!document.getElementById("smart-auto-disengage-enabled")?.checked,
+      // Rev300: helpers section shares the same POST endpoint.
+      leewayAdjustment:   Number(_smartHelpersState.leewayAdjustment) || 0,
+      failSafeBspKn:      Number(_smartHelpersState.failSafeBspKn)    || 0,
     };
     try {
       const r = await skFetch(`/plugins/${PLUGIN_ID}/supervisor/config`, {
@@ -7220,11 +8123,93 @@
     }
   }
   function _smartWire() {
-    const btn = document.getElementById("smart-save");
-    if (btn && !btn.__wired) { btn.__wired = true; btn.addEventListener("click", _smartSave); }
+    // Rev303: auto-save. Every existing input/select in Smart Pilot
+    // fires _smartMarkDirty on change so the sailor never has to
+    // hunt for a Save button. The button itself was removed from
+    // the HTML — sliders wire their own mark-dirty in
+    // _smartRenderHelpersSliders.
+    const ids = [
+      "smart-auto-profile-enabled",
+      "smart-auto-profile-light",
+      "smart-auto-profile-medium",
+      "smart-auto-profile-heavy",
+      "smart-gust-strategy",
+      "smart-auto-disengage-enabled",
+    ];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el && !el.__smartWired) {
+        el.__smartWired = true;
+        el.addEventListener("change", _smartMarkDirty);
+      }
+    }
     _smartLoadConfig().then(() => _smartRefreshStatus());
     if (_smartRefreshTimer) clearInterval(_smartRefreshTimer);
     _smartRefreshTimer = setInterval(_smartRefreshStatus, 3000);
+  }
+
+  // Rev299: alarms selection card. Renders one checkbox per rule
+  // that AlarmEngine.describe() returned in /supervisor/config's
+  // `alarmsAvailable`. The `alarmsEnabled` field is null in legacy
+  // mode (banner shown) or an explicit array once the sailor saved.
+  async function _alarmsCfgLoad() {
+    const list = document.getElementById("alarms-cfg-list");
+    const banner = document.getElementById("alarms-cfg-legacy-banner");
+    if (!list) return;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/supervisor/config`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const rules = Array.isArray(j.alarmsAvailable) ? j.alarmsAvailable : [];
+      const isLegacy = j.alarmsEnabled == null;
+      if (banner) banner.style.display = isLegacy ? "block" : "none";
+      const enabled = new Set(isLegacy
+        ? rules.filter((r) => r.enabled).map((r) => r.id) // reflect defaults
+        : (j.alarmsEnabled || []));
+      list.innerHTML = "";
+      for (const rule of rules) {
+        // Rev300: reuse the Smart Pilot toggle-row idiom so the CSS
+        // (larger touch-friendly checkbox, matching spacing) is shared.
+        const label = document.createElement("label");
+        label.className = "smart-toggle-row";
+        label.style.alignItems = "flex-start";
+        label.style.borderTop = "1px solid var(--border)";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.dataset.ruleId = rule.id;
+        cb.checked = enabled.has(rule.id);
+        const txt = document.createElement("div");
+        const sev = rule.severity === "alarm" ? "🔴" : rule.severity === "warn" ? "🟡" : "🔵";
+        txt.innerHTML = `<b>${sev} ${rule.label}</b><br><span class="hint" style="font-size:11px">${rule.description}</span>`;
+        label.appendChild(cb);
+        label.appendChild(txt);
+        list.appendChild(label);
+      }
+    } catch { /* silent */ }
+  }
+  function _alarmsCfgSetAll(on) {
+    const list = document.getElementById("alarms-cfg-list");
+    if (!list) return;
+    for (const cb of list.querySelectorAll('input[type="checkbox"]')) cb.checked = on;
+  }
+  // Rev302: read the current alarm-rule selection from the DOM so
+  // _smartSave can include it in the same POST body as the rest of
+  // the Smart Pilot config. No separate save button any more.
+  function _alarmsCfgSelectedIds() {
+    const list = document.getElementById("alarms-cfg-list");
+    if (!list) return [];
+    const ids = [];
+    for (const cb of list.querySelectorAll('input[type="checkbox"]')) {
+      if (cb.checked && cb.dataset.ruleId) ids.push(cb.dataset.ruleId);
+    }
+    return ids;
+  }
+  function _alarmsCfgWire() {
+    const off = document.getElementById("alarms-cfg-all-off");
+    if (off && !off.__wired) { off.__wired = true; off.addEventListener("click", () => _alarmsCfgSetAll(false)); }
+    const on  = document.getElementById("alarms-cfg-all-on");
+    if (on  && !on.__wired)  { on.__wired  = true; on.addEventListener("click",  () => _alarmsCfgSetAll(true)); }
+    _alarmsCfgLoad();
   }
 
   // Rev178 (Carlos): trip list + detail modal wiring. Fetches
@@ -7920,6 +8905,15 @@
     _lcRefreshStatus();
     if (_lcRefreshTimer) clearInterval(_lcRefreshTimer);
     _lcRefreshTimer = setInterval(_lcRefreshStatus, 5000);
+    // Rev322 (Carlos, 2026-09-27): maneuver trace card. Same wiring
+    // pattern as log capture.
+    const mtCb = document.getElementById("mt-enabled");
+    const mtBv = document.getElementById("mt-view");
+    if (mtCb && !mtCb.__wired) { mtCb.__wired = true; mtCb.addEventListener("change", _mtToggle); }
+    if (mtBv && !mtBv.__wired) { mtBv.__wired = true; mtBv.addEventListener("click", _mtShowRecent); }
+    _mtRefreshStatus();
+    if (_mtRefreshTimer) clearInterval(_mtRefreshTimer);
+    _mtRefreshTimer = setInterval(_mtRefreshStatus, 5000);
     // Rev141: also start the watch inspector.
     _watchInspectorStart();
     // Rev140 (Carlos): restart pypilot_web on the Pi Zero. Runs
@@ -7958,6 +8952,7 @@
     _lcWire();
     _sessWire();
     _smartWire();
+    _alarmsCfgWire();
     _wireTackLogButtons();
     _tripsWire();
     // Rev172 (Carlos): gust ghost toggle in the corner-selector popup.
@@ -10284,7 +11279,22 @@
       cb.type = "checkbox";
       cb.checked = !!r.enabled;
       cb.addEventListener("change", () => {
+        // Rev302: two steps so the change survives a plugin restart.
+        // (1) Hot-toggle via /alarms/enable/:id (instant effect on the
+        //     running engine, matches Rev101 behaviour).
+        // (2) Persist the current full selection via /supervisor/config
+        //     so alarmsEnabled lands in the plugin config file.
         fetch(`/plugins/${PLUGIN_ID}/alarms/enable/${r.id}?on=${cb.checked ? 1 : 0}`, { method: "POST" })
+          .then(() => {
+            const ids = _al.rules
+              .map((rule) => rule.id === r.id ? (cb.checked ? r.id : null) : (rule.enabled ? rule.id : null))
+              .filter(Boolean);
+            return fetch(`/plugins/${PLUGIN_ID}/supervisor/config`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ alarmsEnabled: ids }),
+            });
+          })
           .then(() => _alFetch())
           .catch(() => {});
       });
@@ -10294,7 +11304,13 @@
       body.className = "ac-body";
       const lab = document.createElement("div");
       lab.className = "ac-label";
-      lab.textContent = r.label;
+      // Rev303: prepend the traffic-light emoji that matches the
+      // severity legend at the top of the card so the sailor can
+      // read severity at a glance in the list.
+      const sevEmoji = r.severity === "alarm" ? "🔴 "
+                     : r.severity === "warn"  ? "🟡 "
+                     : "🔵 ";
+      lab.textContent = sevEmoji + r.label;
       const desc = document.createElement("div");
       desc.className = "ac-desc";
       desc.textContent = r.description;
@@ -10482,6 +11498,12 @@
       const tr = document.createElement("tr");
       const ignored = _sqIgnored.has(r.path);
       const displayLevel = ignored ? "ignored" : (r.level || "");
+      // Rev306: level label is translated (setup.quality.level.<lvl>);
+      // fallback to the raw uppercase key so a language file that has
+      // not been updated still shows something.
+      const lvlKey = `setup.quality.level.${displayLevel}`;
+      const lvlT   = t(lvlKey);
+      const lvlLbl = (lvlT === lvlKey) ? displayLevel.toUpperCase() : lvlT;
       const cells = [
         r.label || r.path,
         _sqFormatValue(r.lastValue),
@@ -10489,7 +11511,7 @@
         _sqFormatHz(r.hz),
         _sqFormatJitter(r.jitterMs),
         r.source || "--",
-        `<span class="sq-status ${displayLevel}">${displayLevel.toUpperCase()}</span>`,
+        `<span class="sq-status ${displayLevel}">${lvlLbl}</span>`,
       ];
       for (let i = 0; i < cells.length; i += 1) {
         const td = document.createElement("td");

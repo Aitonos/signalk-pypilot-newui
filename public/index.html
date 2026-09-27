@@ -519,6 +519,57 @@
                       data-i18n="aproado.hud.exit">SALIR</button>
             </div>
           </div>
+          <!-- Rev318 (Carlos sea trial 2026-09-25): EMPOPADO HUD — mirror
+               completo del Aproado. Reutiliza TODAS las clases CSS
+               `aproado-*` (sin duplicar reglas) y usa IDs propios
+               `empopado-*` para que el JS pueda direccionar sin
+               colisión con el aproado. La lógica JS vive en las
+               funciones empopado* que replican las aproado*. -->
+          <div class="aproado-hud" id="empopado-hud" hidden>
+            <div class="aproado-choose" data-empopado-phase="choosing">
+              <div class="aproado-hud-title" data-i18n="empopado.modal.title">Empopado - arriar velas</div>
+              <div class="aproado-hud-sub" data-i18n="empopado.modal.sub">Elige por que lado</div>
+              <div class="aproado-tws" id="empopado-choose-tws"></div>
+              <div class="aproado-choice-row">
+                <button type="button" class="aproado-choice" data-empopado-dir="stern">
+                  <div class="aproado-choice-lbl" data-i18n="empopado.choice.stern">POR POPA</div>
+                  <div class="aproado-choice-tag" data-i18n="aproado.choice.recommended">Recomendado</div>
+                </button>
+                <button type="button" class="aproado-choice" data-empopado-dir="bow">
+                  <div class="aproado-choice-lbl" data-i18n="empopado.choice.bow">POR PROA</div>
+                  <div class="aproado-choice-tag" data-i18n="aproado.choice.recommended">Recomendado</div>
+                </button>
+              </div>
+              <button type="button" class="aproado-cancel" id="empopado-cancel-btn"
+                      data-i18n="aproado.cancel">Cancelar</button>
+            </div>
+            <div class="aproado-transit-box" data-empopado-phase="transit">
+              <div class="aproado-hud-title" id="empopado-transit-title">EMPOPANDOSE</div>
+              <div class="aproado-hud-sub" data-i18n="empopado.transit.sub">Girando a popa...</div>
+              <div class="aproado-hud-time" id="empopado-transit-deg">--&deg;</div>
+              <div class="aproado-hud-sub" data-i18n="empopado.transit.remaining">para empopado</div>
+              <div class="aproado-hud-row">
+                <span class="aproado-hud-lbl" data-i18n="aproado.hud.hdg">Rumbo</span>
+                <span class="aproado-hud-val" id="empopado-transit-hdg">---&deg;</span>
+              </div>
+              <button type="button" class="aproado-hud-end" id="empopado-transit-cancel"
+                      data-i18n="aproado.hud.exit">SALIR</button>
+            </div>
+            <div class="aproado-active-box" data-empopado-phase="active">
+              <div class="aproado-hud-title" id="empopado-active-title" data-i18n="empopado.hud.title">EMPOPADO</div>
+              <div class="aproado-hud-time" id="empopado-hud-elapsed">0:00</div>
+              <div class="aproado-hud-row">
+                <span class="aproado-hud-lbl" data-i18n="aproado.hud.dist">Dist</span>
+                <span class="aproado-hud-val" id="empopado-hud-dist">0.00 nm</span>
+              </div>
+              <div class="aproado-hud-row">
+                <span class="aproado-hud-lbl" data-i18n="aproado.hud.hdg">Rumbo</span>
+                <span class="aproado-hud-val" id="empopado-hud-hdg">---&deg;</span>
+              </div>
+              <button type="button" class="aproado-hud-end" id="empopado-hud-end"
+                      data-i18n="aproado.hud.exit">SALIR</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -708,12 +759,11 @@
           </button>
         </div>
 
-        <!-- Rev226 (Carlos): 5 cells with bow-direction arrows
-             (like B&G / Raymarine). The value shown is the current
-             nudge amount from settings; direction is the side the
-             bow will swing to, independent of AP mode. The backend
-             translates that into the correct sign for compass or
-             wind target internally. -->
+        <!-- Rev226 (Carlos): 5 cells with bow-direction arrows —
+             the value shown is the current nudge amount from
+             settings; direction is the side the bow will swing to,
+             independent of AP mode. The backend translates that into
+             the correct sign for compass or wind target internally. -->
         <div class="row-nudge-ap">
           <button class="steer-btn nudge-big-port" data-nudge-kind="big-port">
             <span class="lbl" id="lbl-big-port">&laquo; 10</span>
@@ -957,16 +1007,24 @@
         <button id="paths-refresh" class="ghost" data-i18n="paths.refresh">Refresh</button>
       </div>
 
-      <!-- Rev56: KIP action paths trimmed to the current API surface.
-           Simple Switch (electrical.switches.pypilot.*) is what KIP widgets
-           actually bind to today; the SK Autopilot API paths cover mode/target
-           for WilhelmSK. The old .actions.engage/nudge/tack aliases (Rev24)
-           and their numeric variants (Rev33) are still registered in the
-           backend for backwards compat but no longer surfaced here -- they
+      <!-- Rev56: action paths trimmed to the current API surface.
+           Simple Switch (electrical.switches.pypilot.*) is what generic
+           SK switch widgets bind to today; the SK Autopilot API paths
+           cover mode/target for downstream autopilot clients. The old
+           .actions.engage/nudge/tack aliases (Rev24) and their numeric
+           variants (Rev33) are still registered in the backend for
+           backwards compat but no longer surfaced here -- they
            duplicated the switches and confused users. -->
-      <div class="setup-block" style="border-color: var(--accent);">
-        <div class="section-title" style="color: var(--accent);" data-i18n="paths.kip.title">KIP action paths</div>
-        <div class="hint" style="margin-bottom:8px;" data-i18n="paths.kip.hint">Wire these to KIP "Simple Switch" widgets (blue rows) or "Put" widgets (green rows).</div>
+      <!-- Rev306 unified: paths tab uses the same .conn-sub /
+           .conn-sub-title idiom as the Setup cards. Colour-coded
+           inline `background: rgba(...)` on table rows was
+           replaced by the shared `.paths-table .row-switch` /
+           `.row-put` classes (see style.css) so the palette is
+           managed in one place and the toned-down accent doesn't
+           overpower the rest of the card. -->
+      <div class="conn-sub">
+        <div class="conn-sub-title" data-i18n="paths.kip.title">KIP action paths</div>
+        <div class="hint" data-i18n="paths.kip.hint">Wire these to KIP "Simple Switch" widgets or "Put" widgets.</div>
         <div class="paths-scroll">
           <table class="paths-table">
             <thead><tr>
@@ -977,49 +1035,49 @@
               <th data-i18n="paths.kip.col.copy">Copy</th>
             </tr></thead>
             <tbody>
-              <tr style="background: rgba(55,182,255,0.08);">
+              <tr class="row-switch">
                 <td data-i18n-html="paths.kip.widget.apEngage"><b>AP engage</b></td>
                 <td class="path">electrical.switches.pypilot.ap.state</td>
                 <td data-i18n="paths.kip.type.simple">Simple Switch</td>
                 <td data-i18n="paths.kip.val.engage">1 = engage, 0 = disengage</td>
                 <td><button class="copy" data-copy="electrical.switches.pypilot.ap.state" data-i18n="paths.kip.copy">Copy</button></td>
               </tr>
-              <tr style="background: rgba(55,182,255,0.08);">
+              <tr class="row-switch">
                 <td data-i18n-html="paths.kip.widget.nudge">Nudge <code>-10 / -1 / +1 / +10</code></td>
                 <td class="path">electrical.switches.pypilot.nudge.{bigPort,smallPort,smallStar,bigStar}</td>
                 <td data-i18n="paths.kip.type.momentary">Simple Switch (momentary)</td>
                 <td data-i18n="paths.kip.val.fireReset">1 = fire, auto-resets</td>
                 <td><button class="copy" data-copy="electrical.switches.pypilot.nudge.smallStar" data-i18n="paths.kip.copy.plus1">Copy +1</button></td>
               </tr>
-              <tr style="background: rgba(55,182,255,0.08);">
+              <tr class="row-switch">
                 <td data-i18n-html="paths.kip.widget.tack">Tack <code>port / starboard / cancel</code></td>
                 <td class="path">electrical.switches.pypilot.tack.{port,starboard,cancel}</td>
                 <td data-i18n="paths.kip.type.momentary">Simple Switch (momentary)</td>
                 <td data-i18n="paths.kip.val.fire">1 = fire</td>
                 <td><button class="copy" data-copy="electrical.switches.pypilot.tack.port" data-i18n="paths.kip.copy.port">Copy port</button></td>
               </tr>
-              <tr style="background: rgba(55,182,255,0.08);">
+              <tr class="row-switch">
                 <td data-i18n-html="paths.kip.widget.mode">Mode <code>compass / gps / wind / true / nav</code></td>
                 <td class="path">electrical.switches.pypilot.mode.{compass,gps,wind,trueWind,nav}</td>
                 <td data-i18n="paths.kip.type.radio">Simple Switch (radio)</td>
                 <td data-i18n="paths.kip.val.select">1 = select</td>
                 <td><button class="copy" data-copy="electrical.switches.pypilot.mode.compass" data-i18n="paths.kip.copy.compass">Copy compass</button></td>
               </tr>
-              <tr style="background: rgba(55,182,255,0.08);">
+              <tr class="row-switch">
                 <td data-i18n-html="paths.kip.widget.profile">Profile <code>&lt;name&gt;</code></td>
                 <td class="path">electrical.switches.pypilot.profile.&lt;name&gt;</td>
                 <td data-i18n="paths.kip.type.radioDyn">Simple Switch (radio, dynamic)</td>
                 <td data-i18n="paths.kip.val.select">1 = select</td>
                 <td><button class="copy" data-copy="electrical.switches.pypilot.profile." data-i18n="paths.kip.copy.prefix">Copy prefix</button></td>
               </tr>
-              <tr style="background: rgba(46,204,113,0.10);">
+              <tr class="row-put">
                 <td data-i18n-html="paths.kip.widget.modePut"><b>Mode</b> (Put)</td>
                 <td class="path">steering.autopilot.mode</td>
                 <td data-i18n="paths.kip.type.string">string</td>
                 <td data-i18n="paths.kip.val.modeStrings">"compass" / "gps" / "wind" / "true wind" / "nav"</td>
                 <td><button class="copy" data-copy="steering.autopilot.mode" data-i18n="paths.kip.copy">Copy</button></td>
               </tr>
-              <tr style="background: rgba(46,204,113,0.10);">
+              <tr class="row-put">
                 <td data-i18n="paths.kip.widget.targetPut">Target (Put)</td>
                 <td class="path">steering.autopilot.target</td>
                 <td data-i18n="paths.kip.type.numberRad">number (rad)</td>
@@ -1031,31 +1089,33 @@
         </div>
       </div>
 
-      <div class="section-title" style="margin-top:14px;" data-i18n="paths.all.title">All published paths</div>
-      <div class="row" style="margin-bottom:6px; gap:8px; flex-wrap:wrap; align-items:center;">
-        <input type="search" id="paths-search" data-i18n-placeholder="paths.search.ph" placeholder="filter paths..." style="flex:1; min-width:180px; background:var(--bg-3); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px;" />
-        <span id="paths-counter" class="hint" style="font-family:monospace;">0 / 0</span>
-      </div>
-      <div class="row" style="margin-bottom:8px; gap:8px; align-items:center;">
-        <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
-          <input type="checkbox" id="cfg-only-essentials" />
-          <span data-i18n="paths.essentials.label">Publish only essentials + explicitly enabled (recommended)</span>
-        </label>
-      </div>
-      <div class="hint" data-i18n="paths.hint" style="margin-bottom:8px;">Applies instantly, no restart. Essential paths (state / mode / target / tack / selectors) always publish.</div>
-      <div class="paths-scroll">
-        <table id="paths-table" class="paths-table">
-          <thead>
-            <tr>
-              <th data-i18n="paths.publish">Publish</th>
-              <th data-i18n="paths.skPath">SK path</th>
-              <th data-i18n="paths.units">Units</th>
-              <th data-i18n="paths.put">PUT?</th>
-              <th data-i18n="paths.copy">Copy</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+      <div class="conn-sub">
+        <div class="conn-sub-title" data-i18n="paths.all.title">All published paths</div>
+        <div class="hint" data-i18n="paths.hint">Applies instantly, no restart. Essential paths (state / mode / target / tack / selectors) always publish.</div>
+        <div class="row">
+          <input type="search" id="paths-search" data-i18n-placeholder="paths.search.ph" placeholder="filter paths..." />
+          <span id="paths-counter" class="hint" style="font-family:monospace;">0 / 0</span>
+        </div>
+        <div class="row">
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="cfg-only-essentials" />
+            <span data-i18n="paths.essentials.label">Publish only essentials + explicitly enabled (recommended)</span>
+          </label>
+        </div>
+        <div class="paths-scroll">
+          <table id="paths-table" class="paths-table">
+            <thead>
+              <tr>
+                <th data-i18n="paths.publish">Publish</th>
+                <th data-i18n="paths.skPath">SK path</th>
+                <th data-i18n="paths.units">Units</th>
+                <th data-i18n="paths.put">PUT?</th>
+                <th data-i18n="paths.copy">Copy</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -1102,24 +1162,21 @@
         </div>
         <div id="doctor-result" class="doctor-result" hidden></div>
 
-        <!-- Rev143 (Carlos): navigation session recorder + shared advice
-             loop. The plugin auto-records every engaged session as a
-             JSONL file on the Pi 5. The user labels conditions from
-             here, shares the file (WhatsApp / email) with Carlos, and
-             an off-boat analysis produces an "advice" JSON that lands
-             back here as a "Consejos recibidos" card. -->
-        <div class="session-recorder-panel" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-          <div class="section-title" style="font-size:14px;margin-bottom:4px" data-i18n="sess.title">Grabador de sesiones de navegación</div>
-          <div class="hint" style="font-size:11px" data-i18n="sess.hint">Cada vez que el AP se engancha, el plugin graba un JSONL con la telemetría. Al desenganchar cierra la sesión. Compártelo para recibir consejos de ajuste personalizados.</div>
-          <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px">
-            <span id="sess-status" class="hint" style="font-size:12px;font-family:ui-monospace,monospace"></span>
+        <!-- Rev143 (Carlos) / Rev304 unified: navigation session recorder
+             + shared advice loop. Sub-panel switched to the standard
+             .conn-sub / .conn-sub-title idiom. -->
+        <div class="conn-sub session-recorder-panel">
+          <div class="conn-sub-title" data-i18n="sess.title">Grabador de sesiones de navegación</div>
+          <div class="hint" data-i18n="sess.hint">Cada vez que el AP se engancha, el plugin graba un JSONL con la telemetría. Al desenganchar cierra la sesión. Compártelo para recibir consejos de ajuste personalizados.</div>
+          <div class="row">
+            <span id="sess-status" class="hint" style="font-family:ui-monospace,monospace"></span>
           </div>
-          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+          <div class="row">
             <button id="sess-tag-btn" class="ghost" data-i18n="sess.tag">Etiquetar sesión actual</button>
             <button id="sess-list-btn" class="ghost" data-i18n="sess.list">Ver sesiones grabadas</button>
             <button id="sess-advice-btn" class="ghost" data-i18n="sess.advice">Consejos recibidos</button>
           </div>
-          <div id="sess-body" style="margin-top:8px"></div>
+          <div id="sess-body"></div>
         </div>
       </div>
 
@@ -1128,12 +1185,13 @@
       <div class="setup-block" data-setup-order="100" data-block-key="connection">
         <div class="section-title" data-i18n="setup.conn.title">Conexion pypilot</div>
         <div class="setup-block-status" id="setup-status-conn"></div>
-        <!-- Subsection 1: Estado -->
-        <div class="conn-sub">
-          <div class="conn-sub-title" data-i18n="setup.conn.status">Estado</div>
-          <div id="setup-status" class="status-block" data-i18n="loading">loading...</div>
-        </div>
-        <!-- Subsection 2: Escanear LAN -->
+        <!-- Rev306 reorder (Carlos): Scan LAN + Manual host first as
+             the two mutually-exclusive ways to point the plugin at
+             TinyPilot; then the active address + link status; and
+             the Autopilot Provider absorb switch last (independent
+             of how the host is chosen). -->
+
+        <!-- Subsection 1: Scan LAN -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="setup.scan.title">Scan LAN for pypilot_web</div>
           <div class="row">
@@ -1142,26 +1200,31 @@
           </div>
           <div id="scan-results" class="scan-results"></div>
         </div>
-        <!-- Subsection 3: Host manual -->
+        <!-- Subsection 2: Manual host (alternative to Scan LAN) -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="setup.manual.title">Manual host</div>
+          <div class="hint" data-i18n="setup.manual.hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
           <div class="row">
             <input type="text"   id="cfg-host" data-i18n-placeholder="setup.host.ph" placeholder="192.168.1.115" />
-            <input type="number" id="cfg-port" placeholder="80" style="max-width:6em" />
+            <input type="number" id="cfg-port" placeholder="80" />
             <button id="cfg-apply" class="primary" data-i18n="setup.apply.btn">Apply &amp; reconnect</button>
           </div>
-          <div class="hint" data-i18n="setup.manual.hint">Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.</div>
+        </div>
+        <!-- Subsection 3: active address + link status -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.conn.status">Estado</div>
+          <div id="setup-status" class="status-block" data-i18n="loading">loading...</div>
         </div>
         <!-- Subsection 4: Autopilot Provider -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="setup.absorb.title">Autopilot Provider (one-socket mode)</div>
-          <div class="row">
-            <label style="min-width:140px" data-i18n="setup.absorb.label">Absorb official provider</label>
-            <input type="checkbox" id="cfg-absorb" style="transform:scale(1.5); margin-right:12px;" />
-            <button id="cfg-absorb-apply" class="primary" data-i18n="setup.absorb.btn">Save &amp; restart</button>
+          <div class="hint" data-i18n="setup.absorb.hint">
+            When ON, this plugin registers itself as the Signal K Autopilot Provider (any downstream SK autopilot client connects to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.
           </div>
-          <div class="hint" style="color: var(--warn);" data-i18n="setup.absorb.hint">
-            When ON, this plugin registers itself as the Signal K Autopilot Provider (WilhelmSK / freeboard / KIP connect to it via /signalk/v2/api/vessels/self/autopilots). You must also disable the 'pypilot-autopilot-provider' plugin in SK Admin - two providers would fight for the pilot ID. Benefit: one less socket to the Pi Zero TinyPilot.
+          <div class="row">
+            <label data-i18n="setup.absorb.label">Absorb official provider</label>
+            <input type="checkbox" id="cfg-absorb" />
+            <button id="cfg-absorb-apply" class="primary" data-i18n="setup.absorb.btn">Save &amp; restart</button>
           </div>
         </div>
       </div>
@@ -1171,41 +1234,49 @@
            wind band (Rev164), gust strategy (Rev167), authority-lost
            auto-disengage (Rev166). All configuration lives here, NOT
            in the SK Admin plugin schema. -->
+      <!-- Rev167 → Rev304: Smart Pilot card.
+           Rev304 refactor: swapped the ad-hoc `.smart-section` +
+           inline `style="font-size:13px;margin-top:14px;..."` sub-
+           sections for the shared `.conn-sub` / `.conn-sub-title`
+           idiom that the "Conexión pypilot" card uses, so every
+           card in Setup speaks the same visual language (dashed
+           separator, uppercase small-caps subtitle, standard hint
+           typography). See docs/UI_STYLE_GUIDE.md. -->
       <div class="setup-block" data-setup-order="25" data-block-key="smartpilot">
         <div class="section-title" data-i18n="smart.title">Smart Pilot</div>
         <div class="setup-block-status" id="setup-status-smart"></div>
-        <div class="hint" style="font-size:11px" data-i18n="smart.hint">Higher-level control on top of pypilot: auto-selects the pilot profile by wind band, reacts to gusts (freeze / boost D / heavy profile), auto-disengages if the pilot loses authority.</div>
+        <div class="hint" data-i18n="smart.hint">Higher-level control on top of pypilot: auto-selects the pilot profile by wind band, reacts to gusts (freeze / boost D / heavy profile), auto-disengages if the pilot loses authority.</div>
 
-        <!-- Section 1: auto profile by wind band -->
-        <div class="smart-section" style="margin-top:12px">
-          <div class="section-title" style="font-size:13px" data-i18n="smart.autoProfile.title">Auto pilot profile by wind</div>
+        <!-- Subsection 1: auto profile by wind band -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="smart.autoProfile.title">Auto pilot profile by wind</div>
           <label class="smart-toggle-row">
             <input type="checkbox" id="smart-auto-profile-enabled" />
             <span data-i18n="smart.autoProfile.enable">Enable</span>
           </label>
-          <div class="hint" style="font-size:11px;margin-top:2px" data-i18n="smart.autoProfile.hint">The plugin averages TWS over 60 s while engaged; when the wind band is stable for 90 s it switches pypilot to the matching profile. Leave a field blank to skip that band.</div>
-          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
-            <label style="min-width:150px" data-i18n="smart.autoProfile.light">Profile for TWS &lt; 8 kn</label>
-            <select id="smart-auto-profile-light" style="min-width:140px"></select>
+          <div class="hint" data-i18n="smart.autoProfile.hint">The plugin averages TWS over 60 s while engaged; when the wind band is stable for 90 s it switches pypilot to the matching profile. Leave a field blank to skip that band.</div>
+          <div class="row">
+            <label data-i18n="smart.autoProfile.light">Profile for TWS &lt; 8 kn</label>
+            <select id="smart-auto-profile-light"></select>
           </div>
-          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px">
-            <label style="min-width:150px" data-i18n="smart.autoProfile.medium">Profile for 8 – 16 kn</label>
-            <select id="smart-auto-profile-medium" style="min-width:140px"></select>
+          <div class="row">
+            <label data-i18n="smart.autoProfile.medium">Profile for 8 – 16 kn</label>
+            <select id="smart-auto-profile-medium"></select>
           </div>
-          <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px">
-            <label style="min-width:150px" data-i18n="smart.autoProfile.heavy">Profile for TWS &gt; 16 kn</label>
-            <select id="smart-auto-profile-heavy" style="min-width:140px"></select>
+          <div class="row">
+            <label data-i18n="smart.autoProfile.heavy">Profile for TWS &gt; 16 kn</label>
+            <select id="smart-auto-profile-heavy"></select>
           </div>
-          <div id="smart-auto-profile-status" class="hint" style="font-size:11px;margin-top:6px;font-family:ui-monospace,monospace"></div>
+          <div id="smart-auto-profile-status" class="hint" style="font-family:ui-monospace,monospace"></div>
         </div>
 
-        <!-- Section 2: gust strategy -->
-        <div class="smart-section" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
-          <div class="section-title" style="font-size:13px" data-i18n="smart.gust.title">Gust strategy</div>
-          <div class="hint" style="font-size:11px" data-i18n="smart.gust.hint">Detects when AWS jumps ≥ 5 kn in 5 s and applies the chosen action.</div>
-          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
-            <label style="min-width:150px" data-i18n="smart.gust.strategy">Strategy on gust</label>
-            <select id="smart-gust-strategy" style="min-width:180px">
+        <!-- Subsection 2: gust strategy -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="smart.gust.title">Gust strategy</div>
+          <div class="hint" data-i18n="smart.gust.hint">Detects when AWS jumps ≥ 5 kn in 5 s and applies the chosen action.</div>
+          <div class="row">
+            <label data-i18n="smart.gust.strategy">Strategy on gust</label>
+            <select id="smart-gust-strategy">
               <option value="off"           data-i18n="smart.gust.opt.off">OFF - do nothing</option>
               <option value="warn"          data-i18n="smart.gust.opt.warn">Warn only (advisory)</option>
               <option value="freeze-target" data-i18n="smart.gust.opt.freeze">Freeze target (wind modes)</option>
@@ -1213,23 +1284,37 @@
               <option value="temp-heavy"    data-i18n="smart.gust.opt.heavy">Switch to Heavy profile 30 s</option>
             </select>
           </div>
-          <div id="smart-gust-status" class="hint" style="font-size:11px;margin-top:6px;font-family:ui-monospace,monospace"></div>
+          <div id="smart-gust-status" class="hint" style="font-family:ui-monospace,monospace"></div>
         </div>
 
-        <!-- Section 3: auto-disengage on lost authority -->
-        <div class="smart-section" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
-          <div class="section-title" style="font-size:13px;color:var(--engaged)" data-i18n="smart.autoDis.title">Emergency: auto-disengage on lost authority</div>
-          <div class="hint" style="font-size:11px" data-i18n="smart.autoDis.hint">If RMS heading error &gt; 30° AND servo duty &gt; 90% sustained 10 s, the plugin disengages the AP and fires an emergency notification. Re-engage is manual.</div>
-          <label class="smart-toggle-row" style="margin-top:6px">
+        <!-- Subsection 3: auto-disengage on lost authority. -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="smart.autoDis.title">Emergency: auto-disengage on lost authority</div>
+          <div class="hint" data-i18n="smart.autoDis.hint">If RMS heading error &gt; 30° AND servo duty &gt; 90% sustained 10 s, the plugin disengages the AP and fires an emergency notification. Re-engage is manual.</div>
+          <label class="smart-toggle-row">
             <input type="checkbox" id="smart-auto-disengage-enabled" />
             <span data-i18n="smart.autoDis.enable">Enable auto-disengage</span>
           </label>
-          <div id="smart-auto-dis-status" class="hint" style="font-size:11px;margin-top:6px;font-family:ui-monospace,monospace"></div>
+          <div id="smart-auto-dis-status" class="hint" style="font-family:ui-monospace,monospace"></div>
         </div>
 
-        <div class="row" style="gap:8px;margin-top:12px">
-          <button id="smart-save" class="primary" data-i18n="smart.save">Save Smart Pilot settings</button>
-          <span id="smart-save-status" class="hint" style="font-size:11px"></span>
+        <!-- Subsection 4: sensor helpers (Rev300, unified in Rev304). -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="smart.helpers.title">Sensor helpers</div>
+          <div class="hint" data-i18n="smart.helpers.hint">Opt-in. Leaves everything at 0 to disable. Leeway estimates side-slip from heel and boat speed; publishes on our own path so it does not collide with signalk-derived-data. Failsafe boat speed keeps the wind chain alive when speedo AND GPS both drop.</div>
+          <div id="smart-leeway-slider"></div>
+          <div id="smart-failsafe-slider"></div>
+          <div class="hint" style="font-family:ui-monospace,monospace">
+            <span data-i18n="smart.helpers.sourceLabel">BSP source:</span>
+            <b id="smart-bsp-source">—</b>
+          </div>
+        </div>
+
+        <!-- Rev303/304: no Save button. Auto-save fires on any
+             debounced change; this line only surfaces the last
+             save status. -->
+        <div class="row">
+          <span id="smart-save-status" class="hint"></span>
         </div>
       </div>
 
@@ -1272,15 +1357,20 @@
       <div class="setup-block" data-setup-order="900" data-block-key="emergency">
         <div class="section-title" data-i18n="setup.remoteConsole">Remote Control Console</div>
         <div class="setup-block-status" id="setup-status-remote"></div>
-        <div class="hint" style="margin-bottom:8px" data-i18n-html="setup.ssh.defaultHint">TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.</div>
-        <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center">
-          <label style="min-width:100px" data-i18n="setup.ssh.user">SSH user</label>
-          <input type="text"     id="cfg-ssh-user"     placeholder="tc" value="tc" style="max-width:9em" autocomplete="off" />
-          <label style="min-width:120px" data-i18n="setup.ssh.password">SSH password</label>
-          <input type="password" id="cfg-ssh-password" data-i18n-placeholder="setup.ssh.password.ph.default" placeholder="tc" style="max-width:14em" autocomplete="new-password" />
-          <button id="cfg-ssh-save" class="ghost" data-i18n="setup.ssh.save.btn">Save</button>
+
+        <!-- Rev304 unified: SSH credentials subsection. -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.ssh.title">SSH credentials</div>
+          <div class="hint" data-i18n-html="setup.ssh.defaultHint">TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.</div>
+          <div class="row">
+            <label data-i18n="setup.ssh.user">SSH user</label>
+            <input type="text"     id="cfg-ssh-user"     placeholder="tc" value="tc" autocomplete="off" />
+            <label data-i18n="setup.ssh.password">SSH password</label>
+            <input type="password" id="cfg-ssh-password" data-i18n-placeholder="setup.ssh.password.ph.default" placeholder="tc" autocomplete="new-password" />
+            <button id="cfg-ssh-save" class="ghost" data-i18n="setup.ssh.save.btn">Save</button>
+          </div>
+          <div id="cfg-ssh-status" class="hint"></div>
         </div>
-        <div id="cfg-ssh-status" class="hint" style="margin-top:6px"></div>
 
         <!-- Rev66 / 2.0.4: simplified to 2 levels. `restart pypilot_web`
              (level 1) rarely helps in practice - when the Pi Zero is
@@ -1288,8 +1378,8 @@
              Debug console below as an advanced preset for the 5 % of
              cases where only the web layer is stuck but the AP core
              keeps steering (rare). -->
-        <div class="restart-block" style="margin-top:14px">
-          <div class="restart-title" data-i18n="setup.restart.title">Restart / reboot</div>
+        <div class="conn-sub restart-block">
+          <div class="conn-sub-title" data-i18n="setup.restart.title">Restart / reboot</div>
           <div class="restart-row two-cols">
             <button id="cli-restart-pypilot" class="restart-btn level-2" data-outage-i18n="setup.restart.outage.pypilot">
               <span class="rb-title" data-i18n="setup.restart.pypilot.title">RESTART pypilot</span>
@@ -1300,17 +1390,16 @@
               <span class="rb-sub"   data-i18n="setup.restart.reboot.sub">~35-60 s &middot; full outage</span>
             </button>
           </div>
+          <div id="cli-restart-status" class="hint"></div>
+          <div class="hint" data-i18n="setup.restart.hint">Both actions use the SSH user + password above and show a helm-manned confirmation before executing. Use RESTART pypilot for the common case; reboot Pi when the TinyPilot has degraded and needs a cold reset. For a lighter web-only restart see the Debug console below.</div>
+          <div class="hint" data-i18n="setup.security.hint">Signal K stores plugin config in plain text at ~/.signalk/plugin-config-data/.</div>
         </div>
 
-        <div id="cli-restart-status" class="hint" style="margin-top:8px"></div>
-        <div class="hint" data-i18n="setup.restart.hint">Both actions use the SSH user + password above and show a helm-manned confirmation before executing. Use RESTART pypilot for the common case; reboot Pi when the TinyPilot has degraded and needs a cold reset. For a lighter web-only restart see the Debug console below.</div>
-        <div class="hint" data-i18n="setup.security.hint" style="margin-top:6px">Signal K stores plugin config in plain text at ~/.signalk/plugin-config-data/.</div>
-
-        <!-- Rev63 / 2.0.0: Debug console. Closed whitelist of preset
-             commands executed via SSH on the TinyPilot. Output is dumped
-             into a scrollable textarea. -->
-        <div class="debug-block" style="margin-top:16px">
-          <div class="restart-title" data-i18n="setup.debug.title">Debug console</div>
+        <!-- Rev63 / 2.0.0 / Rev304 unified: Debug console. Closed
+             whitelist of preset commands executed via SSH on the
+             TinyPilot. Output is dumped into a scrollable textarea. -->
+        <div class="conn-sub debug-block">
+          <div class="conn-sub-title" data-i18n="setup.debug.title">Debug console</div>
           <!-- Rev115 (Carlos): plain human labels only. The underlying
                shell command lives in the `title` attribute so hovering
                (or long-pressing on mobile) still reveals it for the
@@ -1375,33 +1464,43 @@
             <span id="pypilot-web-restart-status" class="hint" style="font-size:11px"></span>
           </div>
 
-          <!-- Rev141 (Carlos): live watch inspector so we can prove
-               Sean's advice is landing: total subscriptions in flight,
-               how many are pinned by the current tab's focus, and the
-               breakdown per period. Refreshes every 3 s while Setup is
-               on screen. -->
-          <div class="watch-panel" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-            <div class="section-title" style="font-size:13px;margin-bottom:4px" data-i18n="watch.title">pypilot subscriptions</div>
-            <div class="hint" style="font-size:11px" data-i18n="watch.hint">Live count of what the backend is subscribing to on pypilot_web. Should stay well under 40 - Sean D'Epagnier flagged that saturating pypilot_web is what crashes it.</div>
-            <div id="watch-status-summary" class="hint" style="font-size:12px;margin-top:6px;font-family:ui-monospace,monospace"></div>
-            <details style="margin-top:6px">
-              <summary style="cursor:pointer;font-size:12px;color:var(--fg-dim)" data-i18n="watch.detailsToggle">Show focus detail</summary>
+          <!-- Rev141 / Rev306 unified: live watch inspector. Bold
+               conn-sub-title (Suscripciones a pypilot). -->
+          <div class="conn-sub watch-panel">
+            <div class="conn-sub-title" data-i18n="watch.title">pypilot subscriptions</div>
+            <div class="hint" data-i18n="watch.hint">Live count of what the backend is subscribing to on pypilot_web. Should stay well under 40 - Sean D'Epagnier flagged that saturating pypilot_web is what crashes it.</div>
+            <div id="watch-status-summary" class="hint" style="font-family:ui-monospace,monospace"></div>
+            <details>
+              <summary style="cursor:pointer;color:var(--fg-dim)" data-i18n="watch.detailsToggle">Show focus detail</summary>
               <pre id="watch-focus-detail" style="max-height:180px;overflow:auto;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.35;margin-top:6px;white-space:pre"></pre>
             </details>
           </div>
-          <div class="log-capture-panel" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-            <div class="section-title" style="font-size:13px;margin-bottom:4px" data-i18n="lc.title">Log capture (Pi Zero)</div>
-            <div class="hint" style="font-size:11px" data-i18n="lc.hint">piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.</div>
-            <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px">
-              <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+          <div class="conn-sub log-capture-panel">
+            <div class="conn-sub-title" data-i18n="lc.title">Log capture (Pi Zero)</div>
+            <div class="hint" data-i18n="lc.hint">piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.</div>
+            <div class="row">
+              <label style="display:flex;align-items:center;gap:6px">
                 <input type="checkbox" id="lc-enabled" />
                 <span data-i18n="lc.toggle">Enable log capture</span>
               </label>
               <button id="lc-view"     class="ghost" data-i18n="lc.view">Show recent</button>
               <button id="lc-download" class="ghost" data-i18n="lc.download">Download today</button>
-              <span id="lc-status" class="hint" style="font-size:11px;margin-left:auto"></span>
+              <span id="lc-status" class="hint" style="margin-left:auto"></span>
             </div>
             <pre id="lc-viewer" hidden style="max-height:220px;overflow:auto;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.35;margin-top:6px;white-space:pre"></pre>
+          </div>
+          <div class="conn-sub maneuver-trace-panel">
+            <div class="conn-sub-title" data-i18n="mt.title">Maneuver trace (sea-trial forensics)</div>
+            <div class="hint" data-i18n="mt.hint">Records every visor action (aproado, empopado, tack, mode change, target, engage) with pypilot state before and 300 ms after, so we can audit whether the AP obeyed. Files land under the plugin data dir. Off by default; turn ON only during a sea trial.</div>
+            <div class="row">
+              <label style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="mt-enabled" />
+                <span data-i18n="mt.toggle">Enable maneuver trace</span>
+              </label>
+              <button id="mt-view" class="ghost" data-i18n="mt.view">Show last events</button>
+              <span id="mt-status" class="hint" style="margin-left:auto"></span>
+            </div>
+            <pre id="mt-viewer" hidden style="max-height:220px;overflow:auto;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.35;margin-top:6px;white-space:pre"></pre>
           </div>
         </div>
       </div>
@@ -1420,52 +1519,65 @@
         <div class="hint" data-i18n="language.hint">Persists in this browser only. No server round-trip.</div>
       </div>
 
+      <!-- Rev306 unified: Calibration card now speaks the same visual
+           language as Conexión pypilot / Smart Pilot — every logical
+           block is a `.conn-sub` with uppercase `.conn-sub-title`.
+           The old .calib-row / .calib-advanced classes stayed as
+           legacy hooks that CSS + JS still key off, they are kept
+           so nothing breaks. -->
       <div class="setup-block" data-setup-order="160" data-block-key="calibration">
         <div class="section-title" data-i18n="calibration.title">Calibration</div>
         <div class="setup-block-status" id="setup-status-cal"></div>
-        <div class="calib-row">
-          <button id="cal-level" class="ghost" data-i18n="cal.level">Level (boat is flat)</button>
-          <div id="cal-level-progress" class="progress"><div class="bar"></div></div>
-        </div>
-        <div class="calib-row">
-          <label data-i18n="cal.headingOffset">IMU heading offset (deg)</label>
-          <input type="number" id="cal-heading-offset" min="-180" max="180" step="0.1" />
-        </div>
-        <div class="calib-row">
-          <button id="cal-rud-centered" class="ghost" data-i18n="cal.rudCentered">Rudder centered</button>
-          <button id="cal-rud-port"     class="ghost" data-i18n="cal.rudPort">Port range</button>
-          <button id="cal-rud-star"     class="ghost" data-i18n="cal.rudStar">Star range</button>
-          <button id="cal-rud-reset"    class="ghost" data-i18n="cal.rudReset">Reset</button>
-        </div>
-        <div class="calib-row">
-          <label data-i18n="cal.rudRange">Rudder range (deg)</label>
-          <input type="number" id="cal-rud-range" min="10" max="100" step="1" />
+
+        <!-- Subsection 1: IMU alignment -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="cal.align.title">IMU alignment</div>
+          <div class="row">
+            <button id="cal-level" class="ghost" data-i18n="cal.level">Level (boat is flat)</button>
+            <div id="cal-level-progress" class="progress"><div class="bar"></div></div>
+          </div>
+          <div class="row">
+            <label data-i18n="cal.headingOffset">IMU heading offset (deg)</label>
+            <input type="number" id="cal-heading-offset" min="-180" max="180" step="0.1" />
+          </div>
         </div>
 
-        <!-- Rev124 (Carlos): Nudge/heading-trim moved here from its own
-             card. It fits conceptually under Calibration - it defines
-             how much the ±1 / ±10 buttons on the Control tab move the
-             target heading. -->
+        <!-- Subsection 2: Rudder calibration -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="cal.rud.title">Rudder</div>
+          <div class="row">
+            <button id="cal-rud-centered" class="ghost" data-i18n="cal.rudCentered">Rudder centered</button>
+            <button id="cal-rud-port"     class="ghost" data-i18n="cal.rudPort">Port range</button>
+            <button id="cal-rud-star"     class="ghost" data-i18n="cal.rudStar">Star range</button>
+            <button id="cal-rud-reset"    class="ghost" data-i18n="cal.rudReset">Reset</button>
+          </div>
+          <div class="row">
+            <label data-i18n="cal.rudRange">Rudder range (deg)</label>
+            <input type="number" id="cal-rud-range" min="10" max="100" step="1" />
+          </div>
+        </div>
+
+        <!-- Subsection 3: Heading trim buttons (moved here in Rev124). -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="nudge.title">Heading trim buttons</div>
+          <div class="hint" data-i18n="nudge.hint">Degrees added to the target each time you press a nudge button. Also configurable in Signal K Admin -> Plugin Config -> PyPilot New-UI.</div>
           <div class="row">
-            <label style="min-width:120px" data-i18n="nudge.small">Small (-1/+1)</label>
+            <label data-i18n="nudge.small">Small (-1/+1)</label>
             <input type="number" id="cfg-nudge-small" min="0.1" max="45" step="0.5" value="1" />
-            <label style="min-width:120px" data-i18n="nudge.big">Big (-10/+10)</label>
+            <label data-i18n="nudge.big">Big (-10/+10)</label>
             <input type="number" id="cfg-nudge-big" min="1" max="90" step="1" value="10" />
             <button id="cfg-nudge-apply" class="primary" data-i18n="save">Save</button>
           </div>
-          <div class="hint" data-i18n="nudge.hint">Degrees added to the target each time you press a nudge button. Also configurable in Signal K Admin -> Plugin Config -> PyPilot New-UI.</div>
         </div>
 
-        <!-- Rev116 (Carlos): full pypilot RangeSetting sliders grouped
+        <!-- Subsection 4: full pypilot RangeSetting sliders grouped
              by category (rudder / servo / imu / ap / other). Populated
              from state.catalog + state.pypilotValues via
              renderCalibrationSliders() on catalog refresh. -->
-        <div class="calib-advanced">
-          <div class="calib-advanced-title" data-i18n="cal.advanced.title">Advanced sliders</div>
-          <div class="hint" style="margin-bottom:8px" data-i18n="cal.advanced.hint">All the pypilot RangeSettings, grouped. Long-press or hover a name to see the raw pypilot key.</div>
-          <div class="calib-unlock-row">
+        <div class="conn-sub calib-advanced">
+          <div class="conn-sub-title" data-i18n="cal.advanced.title">Advanced sliders</div>
+          <div class="hint" data-i18n="cal.advanced.hint">All the pypilot RangeSettings, grouped. Long-press or hover a name to see the raw pypilot key.</div>
+          <div class="row calib-unlock-row">
             <label class="calib-unlock">
               <input type="checkbox" id="calib-unlock" />
               <span data-i18n="cal.unlock">Unlock sliders</span>
@@ -1481,7 +1593,12 @@
            same /alarms/state poll that drives the banner. -->
       <div class="setup-block" data-setup-order="40" data-block-key="alarms">
         <div class="section-title" data-i18n="setup.alarms.title">Alarms</div>
-        <div class="hint" data-i18n="setup.alarms.hint">Turn each rule on or off and mute it temporarily. Active alarms appear in the banner at the top and publish canonical SK notifications for KIP / WilhelmSK.</div>
+        <div class="hint" data-i18n="setup.alarms.hint">Turn each rule on or off and mute it temporarily. Active alarms appear in the banner at the top and publish canonical SK notifications for downstream SK clients.</div>
+        <div class="hint" data-i18n="alarmscfg.legend">🔴 alarm = immediate action needed (sound + banner) · 🟡 warn = watch closely (banner only) · 🔵 info = advisory (visor only)</div>
+        <div id="alarms-cfg-legacy-banner" class="hint" hidden>
+          <b data-i18n="alarmscfg.legacyTitle">Legacy mode:</b>
+          <span data-i18n="alarmscfg.legacyBody">every alarm rule is currently active. Uncheck the ones you don't want and the selection is saved automatically.</span>
+        </div>
         <div id="alarms-config" class="alarms-config"></div>
       </div>
 
@@ -1618,7 +1735,7 @@
             <ul class="info-list">
               <li><b>Connection</b>: LAN scan for pypilot_web, manual host+port, Absorb Autopilot Provider toggle, live connection status.</li>
               <li><b>Autopilot Check</b> (pre-departure): aggregates every sensor / servo / voltage / connectivity signal into a single verdict (ready / caveats / do not engage). Recomputes every 3 s.</li>
-              <li><b>Alarms</b>: on / off / mute per rule; heading deviation, cruise drift, unable-to-steer, servo overcurrent, servo temp, motor temp, servo load high, low voltage, sensor lost, pypilot disconnected. Publishes canonical SK <code>notifications.*</code> for KIP / WilhelmSK, speaks the alarm out loud, and pushes a banner to the top of the app.</li>
+              <li><b>Alarms</b>: on / off / mute per rule; heading deviation, cruise drift, unable-to-steer, servo overcurrent, servo temp, motor temp, servo load high, low voltage, sensor lost, pypilot disconnected. Publishes canonical SK <code>notifications.*</code> for downstream SK clients, speaks the alarm out loud, and pushes a banner to the top of the app.</li>
               <li><b>Sensor Quality</b>: freshness + update rate + jitter + source for every AP-critical SK path. Green / amber / red so you spot a stuck compass or a slow rudder in one glance. Ignore / restore per sensor.</li>
               <li><b>Diagnostics &amp; Advice (Doctor)</b>: engage the AP, press DIAGNOSE, and the plugin records the heading error + servo response. Proposes P / I / D adjustments with a plain-English rationale. Nothing applies automatically &mdash; APPLY forks the current profile into <code>doctor-YYYYMMDD-HHMM</code> so the original stays untouched.</li>
               <li><b>Smart Pilot</b>: three optional layers on top of pypilot &mdash; auto-select the pypilot profile by wind band, react to gusts (freeze target / boost D / heavy profile / warn), and auto-disengage on lost authority (RMS &gt; 30&deg; and duty &gt; 90%).</li>
@@ -1693,7 +1810,7 @@
             <ul class="info-list">
               <li><b>Conexi&oacute;n</b>: escaneo LAN de pypilot_web, host+puerto manual, toggle Absorber Autopilot Provider, estado de conexi&oacute;n en vivo.</li>
               <li><b>Comprobaci&oacute;n del piloto</b> (pre-departure): agrega cada sensor / servo / voltaje / conectividad en un veredicto &uacute;nico (listo / con reservas / no activar). Recalcula cada 3 s.</li>
-              <li><b>Alarmas</b>: on / off / silenciar por regla; desv&iacute;o de rumbo, deriva sostenida, sin autoridad, sobrecorriente servo, temperatura servo, temperatura motor, carga alta, tensi&oacute;n baja, sensor perdido, pypilot desconectado. Publica <code>notifications.*</code> can&oacute;nicas SK para KIP / WilhelmSK, lee la alarma en voz alta y ense&ntilde;a un banner arriba de la app.</li>
+              <li><b>Alarmas</b>: on / off / silenciar por regla; desv&iacute;o de rumbo, deriva sostenida, sin autoridad, sobrecorriente servo, temperatura servo, temperatura motor, carga alta, tensi&oacute;n baja, sensor perdido, pypilot desconectado. Publica <code>notifications.*</code> can&oacute;nicas SK para clientes SK externos, lee la alarma en voz alta y ense&ntilde;a un banner arriba de la app.</li>
               <li><b>Calidad de sensores</b>: frescura + frecuencia + jitter + fuente de cada path SK cr&iacute;tico para el AP. Verde / &aacute;mbar / rojo para detectar de un vistazo un comp&aacute;s congelado o un tim&oacute;n lento. Ignorar / restaurar por sensor.</li>
               <li><b>Asesoramiento y diagn&oacute;stico (Doctor)</b>: engancha el AP, pulsa DIAGNOSTICAR y el plugin graba el error de rumbo + la respuesta del servo. Propone ajustes P / I / D con una explicaci&oacute;n en lenguaje llano. Nada se aplica autom&aacute;ticamente &mdash; APLICAR bifurca el perfil actual en <code>doctor-YYYYMMDD-HHMM</code> para dejar el original intacto.</li>
               <li><b>Piloto Inteligente</b>: tres capas opcionales sobre pypilot &mdash; auto seleccionar el perfil pypilot por banda de viento, reaccionar a las r&aacute;fagas (congelar target / subir D / perfil pesado / avisar) y auto-desenganchar por p&eacute;rdida de autoridad (RMS &gt; 30&deg; y duty &gt; 90%).</li>
@@ -1803,7 +1920,7 @@
               This plugin builds on top of the excellent work by <b>Panaaj</b> with
               <code>pypilot-autopilot-provider</code>. That plugin gives Signal K the standard
               <b>Autopilot API v2</b> (<code>/signalk/v2/api/vessels/self/autopilots/*</code>) &mdash;
-              the canonical interface used by WilhelmSK, freeboard and other clients to drive the
+              the canonical interface used by downstream SK autopilot clients to drive the
               pilot. It focuses tightly on that API and opens its own socket.io connection to
               pypilot_web.
             </p>
@@ -1822,7 +1939,7 @@
               <li><b>Panaaj ON + Absorb OFF</b> (default): both work happily together. Panaaj owns the AP v2 API, we add the extra paths and the UI. <b>2 sockets</b> to pypilot_web.</li>
               <li><b>Panaaj OFF + Absorb ON</b>: only this plugin. Same AP v2 API + all the extras. <b>1 socket</b>. Handy on Pi Zero W.</li>
               <li><b>Panaaj ON + Absorb ON</b>: both try to register the same AP &mdash; leave one off.</li>
-              <li><b>Panaaj OFF + Absorb OFF</b>: WilhelmSK / KIP won't see the AP. Only if you use this webapp exclusively.</li>
+              <li><b>Panaaj OFF + Absorb OFF</b>: no downstream SK client will see the AP. Only if you use this webapp exclusively.</li>
             </ul>
           </div>
           <div data-lang="es">
@@ -1832,7 +1949,7 @@
               <code>pypilot-autopilot-provider</code>. Su plugin ofrece a Signal K la
               <b>Autopilot API v2</b> est&aacute;ndar
               (<code>/signalk/v2/api/vessels/self/autopilots/*</code>) &mdash; la interfaz can&oacute;nica
-              que usan WilhelmSK, freeboard y otros clientes para pilotar. Est&aacute; enfocado
+              que usan los clientes SK externos de autopiloto. Est&aacute; enfocado
               exclusivamente a eso y abre su propia conexi&oacute;n socket.io a pypilot_web.
             </p>
             <p class="info-p">
@@ -1850,7 +1967,7 @@
               <li><b>Panaaj ON + Absorb OFF</b> (por defecto): funcionan juntos sin problemas. Panaaj lleva la API v2, nosotros aportamos los paths extra y la UI. <b>2 sockets</b> a pypilot_web.</li>
               <li><b>Panaaj OFF + Absorb ON</b>: solo este plugin. Misma API v2 + todo lo extra. <b>1 socket</b>. C&oacute;modo en Pi Zero W.</li>
               <li><b>Panaaj ON + Absorb ON</b>: ambos intentan registrar el mismo AP &mdash; deja uno apagado.</li>
-              <li><b>Panaaj OFF + Absorb OFF</b>: WilhelmSK / KIP no ver&aacute;n el AP. S&oacute;lo si usas este webapp en exclusiva.</li>
+              <li><b>Panaaj OFF + Absorb OFF</b>: ning&uacute;n cliente SK externo ver&aacute; el AP. S&oacute;lo si usas este webapp en exclusiva.</li>
             </ul>
           </div>
         </div>
@@ -2097,6 +2214,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev297"></script>
+  <script src="app.js?v=Rev323"></script>
 </body>
 </html>

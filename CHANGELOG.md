@@ -1,5 +1,103 @@
 # Changelog
 
+## 2.10.0 — 2026-09-27 — Sea-trial wind-mode fixes + maneuver forensics
+
+Rolls up Rev309 through Rev323. Between 2.9.0 (Rev280) and 2.10.0 the
+plugin absorbed a sea trial (2026-09-25) that surfaced several critical
+gaps in the wind-mode workflow, plus a new forensics module so future
+sea trials can be audited offline.
+
+### Added
+
+- **Maneuver Trace Log** (Rev322, opt-in). Every user-driven action from
+  the visor — aproado / empopado pick, tack tap, mode change, target PUT,
+  engage / disengage — is recorded together with pypilot state right
+  before the command AND 300 ms after. Pair pre/post makes it trivial
+  to answer "did the pilot actually obey?". Files land as JSONL under
+  `<plugin data dir>/maneuver-trace/`. New endpoints:
+  `GET|POST /maneuver-trace/{status,start,stop,event}` +
+  `GET /maneuver-trace/tail?n=N`. Setup card "Maneuver trace
+  (sea-trial forensics)" toggles it on the fly, off by default.
+- **Empopado pseudo-mode** (Rev313 → Rev320) — mirror of Aproado for the
+  other extreme: bring the boat to TWA ≈ 180° so the mainsail flogs the
+  least while striking sail. Full HUD (choosing → transit → active),
+  hot gains at latch (P × 1.5, D × 1.7, servo slew × 1.3), audible
+  warning when `|TWA| < 160°` sustained 1 s ("empopado inestable"),
+  auto-cancel when `|TWA| < 140°` sustained 2.5 s. Restore in order
+  hot gains → profile → mode → target → engaged on SALIR / cancel.
+- **Attitude safety alarms** (Rev299 / I1) — `attitude-heel-extreme` and
+  `attitude-pitch-extreme` rules with configurable thresholds
+  (`alarmAttitudeHeelDeg`, `alarmAttitudePitchDeg`), off by default so
+  a fresh install never disarms on the dock.
+- **Roll feed-forward** (Rev282+) and **Post-tack catch-up** (Rev299)
+  publish diagnostic paths under
+  `steering.autopilot.pypilot.tuning.rollFf.*` and `.tackCatchup.*`.
+  Both are currently `appliedToAp: false` — computed and observable
+  but not yet fed to the pilot; a later release flips the switch after
+  sea trial validation.
+- **Leeway estimator** (Rev298 / H4) publishing
+  `steering.autopilot.pypilot.derived.leewayRad` from the classical
+  `drift_deg = adj * heel_deg / bsp_kn²` formula. Opt-in via
+  `leewayAdjustment > 0`, kept off the canonical `performance.leeway`
+  path so it never overwrites `signalk-derived-data`.
+- **Failsafe boat speed** (Rev299 / H2) — when both BSP and SOG go
+  missing, the plugin injects a configurable knots value so downstream
+  wind / leeway calculations keep producing plausible numbers.
+- **Profile default persistence fix** (Rev310) — opening the visor from
+  a second device no longer silently overwrites the pypilot profile with
+  `default`; the select is now primed from the HTTP snapshot before the
+  WebSocket delta arrives.
+
+### Fixed (critical — from the 2026-09-25 sea trial)
+
+- **Tack in wind mode** (Rev309) — pressing VIRAR to a specific side now
+  reliably rotates the bow to that side, even when the "short arc" would
+  go the other way. Root cause: `planned = -refRad` in the countdown
+  path was ignoring the sign; now `_tackCountdownToExecuting` delegates
+  to `ap.tack.direction` + `ap.tack.state=begin` so pypilot honours the
+  band the sailor chose.
+- **Aproado without countdown** (Rev311) — pressing POR PROA / POR POPA
+  starts the maneuver on the same tap (previously 5 s delay). Sustain
+  3 s for the "achieved" latch avoids false positives on brief AWA
+  oscillations.
+- **Alarm silence during maneuvers** (Rev311 → Rev312 → Rev323) — the
+  `heading-deviation`, `cruise-drift` and `unable-to-steer` rules now
+  respect both pypilot's own `ap.tack.state != "none"` AND a visor-side
+  pseudo-mode flag posted to `POST /maneuver-state` when Aproado /
+  Empopado are running. Independent flag needed because pypilot does
+  not always update `ap.tack.state` when the sailor uses one of the
+  pseudo-modes.
+- **Heading-deviation false positives in wind mode** (Rev323) —
+  threshold raised to 35° and sustain to 30 s when the pilot mode is
+  `wind` / `true wind`. In waves and gusts the AWA target legitimately
+  oscillates ±20-30° while the AP is still correcting; the 20°/15 s
+  default of compass mode was disarming the alarm several times per
+  hour on Tunatunes.
+- **Tack countdown stability close-out** (Rev312) — if the tack overshoots
+  the plan but the boat is clearly settled (rate-of-turn < 3°/s for 2 s),
+  the overlay closes on its own instead of counting up to the 120 s
+  timeout.
+
+### Changed
+
+- **Alarms OFF by default** (Rev317) — a fresh install no longer arms
+  every rule; the sailor opts in via Setup → Alarms. Pre-Rev299 installs
+  keep legacy behaviour (undefined = all-on) so nothing changes silently
+  under an existing boat.
+- **Terminology cleanup** (Rev321) — all references to third-party
+  autopilot brands / dashboards in code, comments, docs, UI hints and
+  package metadata have been rewritten as neutral descriptions of the
+  mechanism ("downstream Signal K clients", "wind-response damping
+  bands", "classical heel-over-speed² formula"). No behavioural change.
+- **Tablet vertical crop hardening** (Rev314) — `100vh` → `100dvh` in
+  every fullscreen modal, `-webkit-overflow-scrolling: touch`, safe-area
+  padding. Fixes bottom-of-card clipping on Android tablets in portrait.
+
+### Removed
+
+- `docs/PROMPT_FOR_LLM_maneuver_catalog.md` — obsolete Rev209 audit
+  prompt, superseded by the current tack design.
+
 ## 2.9.0 — 2026-09-23 — Relicensed to AGPL-3.0-or-later
 
 ### License change (see NOTICE for details)

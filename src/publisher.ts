@@ -8,8 +8,8 @@ import { PypilotCatalog, PypilotVarMeta } from "./pypilot-client";
 // conversion layer. Signal K infers units from the path type well enough,
 // consumers pick their display unit, and we surface pypilot's own
 // `meta.units` verbatim so nothing is lost. This deletes ~150 lines of
-// noise and makes the mapping fully predictable for anyone wiring KIP
-// widgets or WilhelmSK dashboards.
+// noise and makes the mapping fully predictable for anyone wiring
+// downstream SK widgets or dashboards.
 
 /**
  * Mapping descriptor kept as a thin shape so the existing consumers in
@@ -75,8 +75,8 @@ function isWriteable(meta: PypilotVarMeta): boolean {
 /**
  * Catalog-derived one-shot publishes. `ap.pilot.choices` is a list held
  * inside the catalog metadata (not as a value delta), so we lift it to
- * a first-class `availablePilots` path so KIP / WilhelmSK see it without
- * having to walk metadata blobs.
+ * a first-class `availablePilots` path so downstream SK clients see it
+ * without having to walk metadata blobs.
  */
 export function extractCatalogDerivedPublishes(
   catalog: Record<string, any>

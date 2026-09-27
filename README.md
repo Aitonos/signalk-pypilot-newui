@@ -3,12 +3,12 @@
 **This plugin enhances and extends the magic of [pypilot](https://github.com/pypilot/pypilot)**,
 Sean D'Epagnier's open-source autopilot, with more functions, a modern
 touch-first user experience on tablets and phones, first-class
-**Signal K integration** so tools like [KIP](https://kip.signalk.org),
-WilhelmSK and freeboard can drive and monitor the autopilot out of the
-box, and a strong focus on **reliability, ease of use and ease of
-tuning**: the plugin itself watches how your autopilot is behaving and
-quietly suggests how to sharpen its settings, so you spend more time
-sailing and less time guessing which slider to move.
+**Signal K integration** so any downstream Signal K client can drive
+and monitor the autopilot out of the box, and a strong focus on
+**reliability, ease of use and ease of tuning**: the plugin itself
+watches how your autopilot is behaving and quietly suggests how to
+sharpen its settings, so you spend more time sailing and less time
+guessing which slider to move.
 
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
@@ -78,8 +78,8 @@ by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongs
 18. **Alarm engine — 9 rules** — heading deviation, cruise drift,
     unable-to-steer, servo overcurrent, servo temp, motor temp, high
     AP load, low voltage, sensor lost, pypilot disconnected — all
-    published as canonical `notifications.autopilot.*` for KIP /
-    WilhelmSK.
+    published as canonical `notifications.autopilot.*` for any
+    downstream Signal K client.
 19. **Head-to-wind pseudo-mode** — a "raise the sails" mode not
     present in pypilot, with countdown and bow / stern swing
     selection.
@@ -112,16 +112,16 @@ by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongs
     stored as JSONL with tags (wind, sea state, propulsion, point of
     sail, crew), shareable for advice.
 28. **Full Signal K path catalog viewer** in the visor with
-    copy-to-clipboard for KIP.
+    copy-to-clipboard for downstream widgets.
 
 ### Signal K integration — 8 new added functions
 
 29. **~110 Signal K paths** under `steering.autopilot.pypilot.*`,
     opt-in per path so you never flood the bus.
-30. **Autopilot API v2 provider** (absorbable) — WilhelmSK,
-    freeboard and KIP talk to this plugin as the canonical
+30. **Autopilot API v2 provider** (absorbable) — any downstream
+    Signal K autopilot client talks to this plugin as the canonical
     autopilot.
-31. **KIP action paths** — Simple Switch for engage, nudge, tack,
+31. **Simple Switch action paths** — engage, nudge, tack,
     mode selector, profile selector.
 32. **9 momentary switches** — nudge ±10 / ±1, tack port / starboard
     / cancel — as KIP boolean paths.
@@ -152,8 +152,8 @@ history.
 2.0.0 is a **breaking release** addressing feedback from Sean D'Epagnier
 (pypilot author). Every pypilot key now maps 1:1 to
 `steering.autopilot.pypilot.<key>` verbatim - no more hand-picked renames
-or C -> K / deg -> rad conversions. If you have KIP widgets or WilhelmSK
-dashboards wired to 1.0.0 paths, see the full migration table in
+or C -> K / deg -> rad conversions. If you have Signal K dashboards
+wired to 1.0.0 paths, see the full migration table in
 [`CHANGELOG.md`](./CHANGELOG.md) - most notable examples:
 
 - `.servo.controllerTemperature` (K) -> `.servo.controller_temp` (C)
@@ -241,7 +241,7 @@ We build on top of the excellent
 [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — the plugin that gives Signal K the standard
 **Autopilot API v2** surface (`/signalk/v2/api/vessels/self/autopilots/*`) so
-WilhelmSK, freeboard and other clients can drive pypilot through the canonical
+any downstream Signal K autopilot client can drive pypilot through the canonical
 interface. Panaaj focuses tightly on that API and opens its own socket.io
 connection to `pypilot_web`.
 
@@ -260,7 +260,7 @@ register the same ID and behaviour is undefined). Valid setups:
 | Enabled | Off (default) | Both run happily side by side. Panaaj owns the AP v2 API; this plugin adds the extra paths + UI. **2 sockets** to `pypilot_web`. |
 | Disabled | **On** | Only this plugin. Same AP v2 API + all the extras. **1 socket**. Handy on Pi Zero W. |
 | Enabled | On | Both try to register the same AP ID — leave one off. |
-| Disabled | Off | WilhelmSK / freeboard / KIP won't see the AP. Only useful if you exclusively use this plugin's own webapp. |
+| Disabled | Off | No downstream Signal K client will see the AP. Only useful if you exclusively use this plugin's own webapp. |
 
 Absorb mode lives in **Setup → Autopilot Provider (one-socket mode)**.
 
