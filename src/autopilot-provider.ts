@@ -125,25 +125,48 @@ export class AutopilotProvider {
   // its now-stale copy of the sibling field (the classic "DIA jumps
   // to 115° then back to 75°" race Carlos reported on Rev82).
   private onDataChanged?: (fields?: "engaged" | "target" | "all") => void;
+  // Rev350 (Carlos, 2026-09-29): optional callback that receives
+  // per-frontier observability events. Wired to ManeuverTraceLog
+  // in index.ts when the trace is enabled. No-op when undefined so
+  // the provider stays cheap in production runs with trace OFF.
+  private onStageEvent?: (stage: string, event: Record<string, unknown>) => void;
 
   constructor(
     private client: PypilotClient,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private app: any,
-    opts?: { allowDodge?: boolean; onDataChanged?: (fields?: "engaged" | "target" | "all") => void }
+    opts?: {
+      allowDodge?: boolean;
+      onDataChanged?: (fields?: "engaged" | "target" | "all") => void;
+      onStageEvent?: (stage: string, event: Record<string, unknown>) => void;
+    }
   ) {
     if (opts?.allowDodge) this.allowDodge = true;
     this.onDataChanged = opts?.onDataChanged;
+    this.onStageEvent = opts?.onStageEvent;
   }
 
   private notifyChanged(fields?: "engaged" | "target" | "all"): void {
     try { this.onDataChanged?.(fields || "all"); } catch { /* silent */ }
   }
 
-  // Called from PypilotClient 'value' event. Returns true if apData changed
-  // and an autopilotUpdate should be pushed.
-  receiveValue(name: string, value: unknown): boolean {
+  // Called from PypilotClient 'value' event. Returns the field that
+  // changed (so the caller can push a field-scoped delta and avoid
+  // dragging siblings with stale values), or null if nothing changed.
+  //
+  // Rev352 (Carlos, 2026-09-30, trace analysis): previously returned
+  // boolean and the caller line 729 defaulted to fields="all" — that
+  // emitted state+engaged+target+mode+availableActions with whatever
+  // apProvider.data held at that instant. When pypilot took seconds
+  // to echo an engage (external tack from mando/nativo), any other
+  // pypilot value arriving in the meantime triggered fields="all"
+  // publishes with the stale engaged=false. The next echo produced
+  // fields="all" with engaged=true, but subscription manager's
+  // minPeriod:500 collapsed the pair and the visor saw only false.
+  // Field-scoping the push kills the collision at source.
+  receiveValue(name: string, value: unknown): "engaged" | "target" | "all" | null {
     let changed = false;
+    let changedField: "engaged" | "target" | "all" | null = null;
     switch (name) {
       case "ap.heading_command":
         if (typeof value === "number") {
@@ -164,26 +187,96 @@ export class AutopilotProvider {
               // Real echo landed - clear pending, keep our value (may be
               // slightly more precise than the echo). No change signal
               // needed since data.target already equals the pending value.
+              this.onStageEvent?.("provider", {
+                path: "ap.heading_command",
+                decision: "echo_dropped_match",
+                reason: "diff_within_tol",
+                rawValue: value,
+                normalizedValue: rad,
+                pendingValue: this.pendingTarget.value,
+                diffRad: diff,
+              });
               this.pendingTarget = null;
+              break;
             }
-            // Whether match or stale, do not overwrite data.target inside
-            // the pending window.
+            // Rev350 (Carlos, 2026-09-29, cross-check LLM audit): diff
+            // GRANDE dentro de la ventana pending. Antes: descartábamos
+            // el valor y no limpiábamos pending → si pypilot no volvía
+            // a publicar tras el drop, data.target quedaba rancio hasta
+            // que expiraba pending Y pypilot re-emitía. Confirmado por
+            // GPT-Codex: "la ventana dura 2.5 s pero el valor descartado
+            // puede perderse indefinidamente". Ver memoria
+            // [[backend-echo-cancel-drops-external-override]].
+            //
+            // Ahora: interpretamos diff > TOL como OVERRIDE EXTERNO
+            // genuino (mando físico / UI nativo cambió target mientras
+            // nuestra escritura estaba pendiente). Aplicamos el valor,
+            // liberamos el gate, notificamos cambio. El caso Rev68
+            // original (echo con mismo valor) sigue funcionando: cae en
+            // la rama `<= TOL` y limpia pending sin cambiar target.
+            const pendingSnap = this.pendingTarget.value;
+            this.pendingTarget = null;
+            this.onStageEvent?.("provider", {
+              path: "ap.heading_command",
+              decision: "external_override_applied",
+              reason: "diff_over_tol_in_pending_window",
+              rawValue: value,
+              normalizedValue: rad,
+              pendingValue: pendingSnap,
+              diffRad: diff,
+            });
+            if (rad !== this.data.target) { this.data.target = rad; changed = true; changedField = "target"; }
             break;
           }
-          if (rad !== this.data.target) { this.data.target = rad; changed = true; }
+          {
+            const prev = this.data.target;
+            if (rad !== prev) { this.data.target = rad; changed = true; changedField = "target"; }
+            this.onStageEvent?.("provider", {
+              path: "ap.heading_command",
+              decision: changed ? "accepted_change" : "accepted_noop",
+              reason: "no_pending_window",
+              rawValue: value,
+              normalizedValue: rad,
+              prevValue: prev,
+            });
+          }
         } else if (value === false && this.data.target !== null) {
+          const prev = this.data.target;
           this.data.target = null;
           this.pendingTarget = null;
           changed = true;
+          changedField = "target";
+          this.onStageEvent?.("provider", {
+            path: "ap.heading_command",
+            decision: "accepted_change",
+            reason: "value_false_cleared_target",
+            rawValue: value,
+            prevValue: prev,
+          });
         }
         break;
       case "ap.mode":
-        if (typeof value === "string" && value !== this.data.mode) {
-          this.data.mode = value;
-          if (this.data.options.modes.length === 0) {
-            this.data.options.modes.push(value);
+        if (typeof value === "string") {
+          const prev = this.data.mode;
+          if (value !== prev) {
+            this.data.mode = value;
+            if (this.data.options.modes.length === 0) {
+              this.data.options.modes.push(value);
+            }
+            changed = true;
+            // Rev352: mode change also affects recomputeActions (some
+            // actions like courseCurrentPoint gate on mode). Push "all"
+            // so state+engaged+target+mode+availableActions stay in
+            // sync. This IS a genuine multi-field change, not a
+            // spurious drag.
+            changedField = "all";
           }
-          changed = true;
+          this.onStageEvent?.("provider", {
+            path: "ap.mode",
+            decision: changed ? "accepted_change" : "accepted_noop",
+            rawValue: value,
+            prevValue: prev,
+          });
         }
         break;
       case "ap.modes":
@@ -199,6 +292,7 @@ export class AutopilotProvider {
           // stayed unavailable until the next engage/disengage.
           this.recomputeActions();
           changed = true;
+          changedField = "all";
         }
         break;
       case "ap.enabled": {
@@ -213,22 +307,49 @@ export class AutopilotProvider {
         // engage-disengage-engage. Ignore echoes that don't match the
         // pending intent while the pending window is open.
         if (this.pendingEngaged && Date.now() < this.pendingEngaged.until) {
-          if (eng === this.pendingEngaged.value) {
+          const pendVal = this.pendingEngaged.value;
+          if (eng === pendVal) {
             this.pendingEngaged = null;
+            this.onStageEvent?.("provider", {
+              path: "ap.enabled",
+              decision: "echo_dropped_match",
+              rawValue: value,
+              normalizedValue: eng,
+              pendingValue: pendVal,
+            });
+          } else {
+            this.onStageEvent?.("provider", {
+              path: "ap.enabled",
+              decision: "echo_dropped_stale",
+              rawValue: value,
+              normalizedValue: eng,
+              pendingValue: pendVal,
+            });
           }
           break;
         }
         const st: ApState = eng ? "enabled" : "disabled";
+        const prevState = this.data.state;
+        const prevEngaged = this.data.engaged;
         if (this.data.state !== st || this.data.engaged !== eng) {
           this.data.state = st;
           this.data.engaged = eng;
           changed = true;
+          changedField = "engaged";
         }
+        this.onStageEvent?.("provider", {
+          path: "ap.enabled",
+          decision: changed ? "accepted_change" : "accepted_noop",
+          rawValue: value,
+          normalizedValue: eng,
+          prevValue: prevEngaged,
+          prevState,
+        });
         break;
       }
     }
     if (changed) this.recomputeActions();
-    return changed;
+    return changedField;
   }
 
   markOffline(): void {
@@ -295,25 +416,23 @@ export class AutopilotProvider {
     // the retry backoff, the stale isStale() check aborts the retry
     // and we throw without mutating optimistic state.
     const gen = this._bumpEngageGen();
-    // Rev254 (Carlos audit): reject the write BEFORE mutating optimistic
-    // state if the pypilot socket is offline. Previously the visor was
-    // told the order succeeded even though nothing left the plugin.
-    // Rev255: retry with backoff to tolerate socket.io reconnects.
-    if (!(await this._setWithRetry("ap.enabled", eng, () => this.engageGen !== gen))) {
-      if (this.engageGen !== gen) {
-        throw new Error("engage/disengage superseded by newer order");
-      }
-      throw new Error("pypilot offline: engage/disengage not delivered");
-    }
-    // Rev271: last-check after the successful set - a newer bump could
-    // have won the race between the emit and this line. Do not mutate
-    // optimistic state in that case; the winner's own setState will.
-    if (this.engageGen !== gen) {
-      throw new Error("engage/disengage superseded after write");
-    }
+    // Rev351 (Carlos, 2026-09-29, sea-trial QA Rev350): optimist STATE
+    // + pending window BEFORE the await. Antes: pendingEngaged sólo se
+    // seteaba tras el ACK de pypilot. Durante ese await (~10 s en engage
+    // observados por Carlos en localhost), el watch 2 Hz de pypilot
+    // seguía emitiendo `ap.enabled=false` (stale) y el receiveValue lo
+    // aplicaba como estado real → push SK engaged=false → visor
+    // revertía la UI optimista. Disengage no lo sufría porque pypilot
+    // aplica disable en < 500 ms y el echo real llegaba inmediato.
+    //
+    // Fix: setear pendingEngaged + data.state/engaged + notifyChanged
+    // ANTES del _setWithRetry, con ventana extendida a 15 s para cubrir
+    // el peor caso de latencia pypilot. Si el set falla, revertimos.
+    const prevState = this.data.state;
+    const prevEngaged = this.data.engaged;
+    this.pendingEngaged = { value: eng, until: Date.now() + 15000 };
     this.data.state = apSt;
     this.data.engaged = eng;
-    this.pendingEngaged = { value: eng, until: Date.now() + TARGET_PENDING_MS };
     this.recomputeActions();
     // Rev84: publish ONLY the engaged/state/actions delta - do NOT
     // include target. If setTarget was called in parallel, its own
@@ -322,6 +441,33 @@ export class AutopilotProvider {
     // apProvider.data.target and clobber JS state.target if this
     // delta happens to land second.
     this.notifyChanged("engaged");
+    // Rev254 (Carlos audit): reject the write on offline socket.
+    // Rev255: retry with backoff to tolerate socket.io reconnects.
+    // Rev351: on failure, revert the optimist so the UI reflects
+    // reality (unless a newer bump has already overwritten us).
+    if (!(await this._setWithRetry("ap.enabled", eng, () => this.engageGen !== gen))) {
+      if (this.engageGen === gen) {
+        this.pendingEngaged = null;
+        this.data.state = prevState;
+        this.data.engaged = prevEngaged;
+        this.recomputeActions();
+        this.notifyChanged("engaged");
+      }
+      if (this.engageGen !== gen) {
+        throw new Error("engage/disengage superseded by newer order");
+      }
+      throw new Error("pypilot offline: engage/disengage not delivered");
+    }
+    // Rev271: last-check after the successful set - a newer bump could
+    // have won the race between the emit and this line. If superseded,
+    // the winning order has already published its own optimist; leave
+    // state alone and let the winner's echo reconcile.
+    if (this.engageGen !== gen) {
+      throw new Error("engage/disengage superseded after write");
+    }
+    // Rev351: pypilot ACK-eó el set. Reduce la ventana pending al
+    // valor normal (2.5 s) porque el eco real llegará en < 1 s típico.
+    this.pendingEngaged = { value: eng, until: Date.now() + TARGET_PENDING_MS };
     return eng;
   }
 

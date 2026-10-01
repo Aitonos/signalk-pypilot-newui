@@ -553,6 +553,19 @@ export class AlarmEngine {
     return changed;
   }
 
+  /** Rev342 (Carlos, 2026-09-28): override the severity of one rule
+   *  at runtime. The RuleDef default is preserved so subsequent boots
+   *  without an override recover the shipped severity. Returns true
+   *  on success, false if the rule id or severity is unknown. */
+  setRuleSeverity(ruleId: string, severity: Severity): boolean {
+    const rule = this.rules.get(ruleId);
+    const s = this.state.get(ruleId);
+    if (!rule || !s) return false;
+    if (severity !== "info" && severity !== "warn" && severity !== "alarm") return false;
+    s.severity = severity;
+    return true;
+  }
+
   /** Rev292: change the sustain window of one rule at runtime, e.g.
    *  when the sailor updates alarmPypilotDiscSec in /supervisor/config.
    *  Returns true on success, false if the rule id is unknown. Values
@@ -646,7 +659,7 @@ export class AlarmEngine {
   /** Describe every rule for the future config UI: label, severity,
    *  enabled, mute status, description. Cheap - just iterates the map. */
   describe(): {
-    id: string; label: string; severity: Severity;
+    id: string; label: string; severity: Severity; defaultSeverity: Severity;
     enabled: boolean; description: string; sustainSec: number;
     active: boolean; mutedUntilMs: number | null;
   }[] {
@@ -656,7 +669,16 @@ export class AlarmEngine {
       out.push({
         id,
         label: rule.label,
-        severity: rule.severity,
+        // Rev375 (Carlos, 2026-09-30): was `rule.severity` (default),
+        // which made the frontend severity dropdown revert to default
+        // on every _alFetch poll. `s.severity` reflects setRuleSeverity
+        // overrides applied at boot from props.alarmSeverityOverrides
+        // and by runtime POSTs to /alarms/severity/:id.
+        severity: s.severity,
+        // Rev376 (Carlos, 2026-09-30): expose the shipped default so
+        // the frontend dropdown can mark it (★) — sailor asked to see
+        // which option is "the default" before changing it.
+        defaultSeverity: rule.severity,
         enabled: s.enabled,
         description: rule.description,
         sustainSec: rule.sustainSec,

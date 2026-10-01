@@ -196,4 +196,25 @@ export class ManeuverTraceLog {
       pendingPosts: this.pendingPost.size,
     };
   }
+
+  // Rev350 (Carlos, 2026-09-29): frontier observability. One-shot
+  // event that captures where in the pipeline a value was observed,
+  // with wall + monotonic timestamps. Consumed to correlate what
+  // pypilot emitted, what the provider accepted or dropped, what SK
+  // published, and what the visor rendered. Emits ONLY when the log
+  // is enabled (no ring buffer, no post capture — pure append).
+  logStageEvent(stage: string, event: Record<string, unknown>): void {
+    if (!this.enabled) return;
+    try {
+      this.buffer.push(JSON.stringify({
+        phase: "stage",
+        stage,
+        wallTs: Date.now(),
+        monoTs: Math.round(performance.now() * 1000) / 1000,
+        ...event,
+      }));
+    } catch (e) {
+      this.log("warn", `[maneuver-trace] logStageEvent failed: ${(e as Error).message}`);
+    }
+  }
 }

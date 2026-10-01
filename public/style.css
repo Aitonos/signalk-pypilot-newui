@@ -243,7 +243,12 @@ main {
   transform: translateX(60%);
   transition: transform 340ms cubic-bezier(0.22, 0.61, 0.36, 1),
               opacity   260ms ease;
-  will-change: transform, opacity;
+  /* Rev355 (Carlos, 2026-09-30, console log audit): removed
+     `will-change: transform, opacity` — Firefox flagged the total
+     will-change budget (document area × 3 = ~667k px²) as exceeded
+     across the many tab-panel elements, so it was ignoring the hint
+     anyway. Transform + opacity are GPU-composited by default; the
+     hint here bought nothing and cost GPU memory. */
 }
 .tab-panel.active {
   opacity: 1;
@@ -263,32 +268,44 @@ main {
 /* Rev53: portrait = rose on top full-width, buttons stacked below.
    Landscape (wider than tall) = rose left + buttons right, both bounded
    to fit inside 100vw x 100vh so nothing clips. */
+/* Rev370 (Carlos, 2026-09-30): reverted Rev369 Grid rewrite — it
+   scaled the rose but not the buttons (Carlos's screenshot showed
+   black gap under rudder scale). Back to Rev368 baseline: flex
+   column + font-size media queries. Portrait layout is still
+   sub-optimal on tablets; a second Gemini/GPT round is prepped
+   with the full HTML tree so the next attempt can target the
+   actual row wrappers (row-tack-mode, row-nudge-ap) rather than
+   the generic `.controls > *` selector. */
 #tab-control {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Rev54: start from top and let overflow-y drive the scroll if
-     content exceeds viewport. `center` was clipping the top/bottom
-     when the row of buttons pushed total height above viewport. */
-  justify-content: flex-start;
-  gap: 12px;
+  gap: 10px;
   padding: 10px;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 .dash-rose {
   display: flex;
   justify-content: center;
+  align-items: center;
   width: 100%;
-  margin-bottom: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
 }
 .dash-rose .rose-wrap {
   position: relative;
   aspect-ratio: 1 / 1;
-  /* Portrait / narrow default: rose = min(width, viewport height * ~65%). */
-  width: min(100%, 70vh);
+  width: 100%;
+  height: 100%;
   max-width: 100%;
-  background: var(--bg-2);
+  max-height: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: var(--bg-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -309,6 +326,24 @@ main {
    circle grows as big as possible. Corner cells sit in the rectangle's true
    corners, which are now further from the compass ring than in a tight
    square wrap => more room for 3-4 digits without touching the circle. */
+/* Rev368 (Carlos, 2026-09-30): font-size scaling on #tab-control +
+   `em` cascade to children. Opera Mobile did not react to Rev366's
+   `zoom`, so switched to font-size + `em` which all browsers respect.
+   Still sub-optimal — only rules that use `em`/`rem` in children are
+   affected. Full portrait re-layout pending Gemini/GPT round 2. */
+@media (orientation: portrait) and (min-height: 900px) {
+  #tab-control { font-size: 17px; }
+}
+@media (orientation: portrait) and (min-height: 1200px) {
+  #tab-control { font-size: 19px; }
+}
+@media (orientation: portrait) and (min-height: 1600px) {
+  #tab-control { font-size: 22px; }
+}
+@media (orientation: portrait) and (min-height: 2000px) {
+  #tab-control { font-size: 26px; }
+}
+
 @media (min-aspect-ratio: 5/4) {
   #tab-control {
     flex-direction: row;
@@ -2354,6 +2389,12 @@ main { touch-action: pan-y; overflow-x: hidden; }
   color: var(--fg-dim);
   font-weight: 500;
 }
+/* Rev331 (Carlos, 2026-09-28): la lista de bitácora y su fila de
+   filtros usan flex, pero eso vive en CSS para que la regla tile-mode
+   (display:none en cualquier hijo que no sea section-title / summary /
+   pc-header / close) funcione. Antes iba inline y se colaba. */
+#trips-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.trips-filter-row { display: flex; }
 .setup-block-summary.good {
   color: var(--ok);
   background: color-mix(in srgb, var(--ok) 18%, var(--bg-3));

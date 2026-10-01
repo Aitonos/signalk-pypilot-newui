@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev323";
+const PLUGIN_REVISION = "Rev376";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -136,6 +136,16 @@ interface PluginProps {
   // them, and the recorder only opens a session while the AP is
   // actually engaged, so a moored boat produces nothing.
   sessionRecorderEnabled?: boolean;
+  // Rev324 (Carlos, 2026-09-28): per-path "ignored sensor" list for
+  // the Setup → Sensor Quality panel. Kept in backend so a tablet and
+  // a phone talking to the same SK server share the same set of
+  // acknowledged-missing sensors. Empty by default.
+  sensorsIgnored?: string[];
+  // Rev328 (Carlos, 2026-09-28): master enable for the trip recorder
+  // ("Bitácora" / "Logbook"). ON by default so existing installs keep
+  // recording. When OFF, the plugin skips every tripRecorder.start() /
+  // sample() call — the historian and other subsystems keep running.
+  tripRecorderEnabled?: boolean;
   // Rev322 (Carlos, 2026-09-27): maneuver trace log. Records every
   // user-driven maneuver event posted by the visor (aproado_pick,
   // empopado_pick, tack_tap, mode_change, target_put, engage,
@@ -215,6 +225,9 @@ interface PluginProps {
   // Rule ids match the `id` fields in DEFAULT_RULES (alarms.ts) —
   // "heading-deviation", "unable-to-steer", "servo-overcurrent", etc.
   alarmsEnabled?: string[];
+  // Rev342 (Carlos, 2026-09-28): per-rule severity override. Absent
+  // keys keep the RuleDef's default severity. Applied on plugin start.
+  alarmSeverityOverrides?: Record<string, "info" | "warn" | "alarm">;
   // Rev292 (Carlos, navigating): sustain window before the pypilot-
   // disconnected banner fires. Was hardcoded at 1 s (too eager in a
   // marine SIM/4G environment). Default 15 s; sailors on a stable LAN
@@ -573,6 +586,19 @@ module.exports = function (app: any) {
           description: "When ON, the plugin appends 1 Hz autopilot telemetry (heading command/actual, servo current/duty, wind, etc.) to a JSONL file for every engaged session. Files stay on the Pi 5 until you download them from the visor. Used to feed the AI-tuned Doctor roadmap.",
           default: true,
         },
+        sensorsIgnored: {
+          type: "array",
+          title: "Ignored sensor SK paths",
+          description: "List of Signal K paths the sailor has marked as 'not on this boat' from Setup → Sensor Quality. Ignored sensors stop turning the Setup chip red without hiding the row. Managed from the visor; edit here only if you know the exact path names.",
+          items: { type: "string" },
+          default: [],
+        },
+        tripRecorderEnabled: {
+          type: "boolean",
+          title: "Record logbook (bitácora) trips",
+          description: "When ON, the plugin auto-opens a trip on every leg away from moored, records position + wind + speed samples, and closes on return with a summary + KPI. Files stay on the Pi 5. Managed from Setup → Logbook.",
+          default: true,
+        },
         maneuverTraceEnabled: {
           type: "boolean",
           title: "Trace user maneuvers vs. pypilot response (sea-trial forensics)",
@@ -699,8 +725,14 @@ module.exports = function (app: any) {
       client.on("value", (name: string, value: unknown) => {
         publishValue(name, value);
         if (apProvider) {
-          const changed = apProvider.receiveValue(name, value);
-          if (changed) pushAutopilotUpdate();
+          // Rev352: receiveValue now returns the field that changed
+          // (engaged | target | all | null) so we push field-scoped
+          // deltas instead of dragging every other value along. That
+          // stops the "engaged=false push a few ms before the real
+          // engaged=true" race that subscription-manager's minPeriod
+          // collapsed into a lost delta (trace analysis 2026-09-30).
+          const changedField = apProvider.receiveValue(name, value);
+          if (changedField) pushAutopilotUpdate(changedField);
         }
         // Rev299 (I2): watch ap.tack.state for the tacking → none
         // transition, which is the moment the sailor needs the
@@ -741,6 +773,14 @@ module.exports = function (app: any) {
             // "all") so pushAutopilotUpdate filters the emitted delta
             // paths accordingly.
             onDataChanged: (fields) => pushAutopilotUpdate(fields),
+            // Rev350 (Carlos, 2026-09-29): frontier observability. The
+            // provider emits {stage:"provider", ...} events at every
+            // decision point in receiveValue (accepted / echo-dropped /
+            // override-applied). Forwarded to maneuver-trace when the
+            // sailor has trace ON. Cheap when OFF (early-return).
+            onStageEvent: (stage, ev) => {
+              try { maneuverTrace?.logStageEvent(stage, ev); } catch { /* silent */ }
+            },
           });
           app.registerAutopilotProvider(
             apProvider.toProviderInterface(),
@@ -831,6 +871,16 @@ module.exports = function (app: any) {
       // behaviour (every rule stays on its defaultEnabled). Array
       // (including empty) = user-selected: only the listed ids fire.
       try { applyAlarmsEnabled(props.alarmsEnabled); } catch { /* silent */ }
+      // Rev342 (Carlos, 2026-09-28): apply per-rule severity overrides
+      // saved from the visor. Missing keys keep the RuleDef default.
+      try {
+        const overrides = props.alarmSeverityOverrides || {};
+        for (const [ruleId, sev] of Object.entries(overrides)) {
+          if (sev === "info" || sev === "warn" || sev === "alarm") {
+            alarms.setRuleSeverity(ruleId, sev);
+          }
+        }
+      } catch { /* silent */ }
       // Rev281: episode detector idles until the sampler feeds it.
       episodes = new EpisodeDetector();
       // Rev103: Pypilot Doctor engine. Starts an idle instance;
@@ -1298,7 +1348,69 @@ module.exports = function (app: any) {
           res.status(503).json({ error: "sensor quality not initialised" });
           return;
         }
-        res.json(sensorQuality.snapshot());
+        // Rev324 (Carlos, 2026-09-28): include the shared "ignored"
+        // list so the visor renders the same acknowledgments on every
+        // device without touching localStorage.
+        const snap = sensorQuality.snapshot();
+        const ignored = Array.isArray(props.sensorsIgnored) ? props.sensorsIgnored : [];
+        res.json({ ...snap, ignored });
+      });
+      // Rev326 (Carlos, 2026-09-28): OSM tile proxy. Both OpenStreetMap
+      // volunteer servers (403 "App not following tile policy") and
+      // CartoDB Voyager (watermark "API KEY REQUIRED" since late 2026)
+      // reject embedded webapps served over Signal K. Routing tiles
+      // through this backend lets us send the User-Agent that OSM's
+      // policy requires (self-identifying app string) and centralises
+      // caching. Zero external dependencies — Node 18+ has fetch built
+      // in, browser handles per-tile caching via Cache-Control.
+      router.get("/tiles/:z/:x/:y.png", async (req: any, res: any) => {
+        const z = parseInt(req.params.z, 10);
+        const x = parseInt(req.params.x, 10);
+        const y = parseInt(req.params.y, 10);
+        if (!Number.isFinite(z) || !Number.isFinite(x) || !Number.isFinite(y)
+            || z < 0 || z > 19 || x < 0 || y < 0) {
+          res.status(400).json({ error: "bad tile coords" });
+          return;
+        }
+        const url = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+        try {
+          const upstream = await fetch(url, {
+            headers: {
+              "User-Agent": `signalk-pypilot-newui/${PLUGIN_PKG_VERSION || "dev"} (https://github.com/Aitonos/signalk-pypilot-newui)`,
+              "Accept": "image/png,image/*;q=0.8",
+            },
+          });
+          if (!upstream.ok) {
+            res.status(upstream.status).end();
+            return;
+          }
+          const buf = Buffer.from(await upstream.arrayBuffer());
+          res.setHeader("Content-Type", "image/png");
+          // Cache 24 h in the browser — OSM tiles are effectively
+          // immutable within a day; a hard reload still fetches fresh.
+          res.setHeader("Cache-Control", "public, max-age=86400, immutable");
+          res.send(buf);
+        } catch (e: any) {
+          res.status(502).json({ error: String(e?.message || e) });
+        }
+      });
+
+      // Rev324 (Carlos, 2026-09-28): mark/unmark a sensor as ignored
+      // in the shared backend list. Body: {path: "...", ignored: bool}.
+      router.post("/quality/ignored", (req: any, res: any) => {
+        const body = req.body || {};
+        const p = typeof body.path === "string" ? body.path.trim() : "";
+        const ig = !!body.ignored;
+        if (!p) return res.status(400).json({ error: "path required" });
+        const current = new Set(Array.isArray(props.sensorsIgnored) ? props.sensorsIgnored : []);
+        if (ig) current.add(p); else current.delete(p);
+        props.sensorsIgnored = [...current].slice(0, 100);
+        try {
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: String(e?.message || e) });
+        }
+        res.json({ ok: true, ignored: props.sensorsIgnored });
       });
 
       // Rev281: step-response metrics per correction episode. Cheap
@@ -1358,6 +1470,29 @@ module.exports = function (app: any) {
         const on = String(req.query?.on ?? "1") !== "0";
         const ok = alarms.setEnabled(String(req.params?.id || ""), on);
         res.json({ ok, enabled: on });
+      });
+      // Rev342 (Carlos, 2026-09-28): change the severity of one rule
+      // and persist the override. Body: {severity: "info"|"warn"|"alarm"}.
+      router.post("/alarms/severity/:id", (req: any, res: any) => {
+        if (!alarms) return res.status(503).json({ error: "alarms not initialised" });
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const id = String(req.params?.id || "");
+        const sev = String(req.body?.severity || "");
+        if (sev !== "info" && sev !== "warn" && sev !== "alarm") {
+          return res.status(400).json({ error: "severity must be info | warn | alarm" });
+        }
+        const ok = alarms.setRuleSeverity(id, sev);
+        if (!ok) return res.status(404).json({ error: "unknown rule id" });
+        // Persist the override so it survives a plugin restart.
+        try {
+          const map = { ...(props.alarmSeverityOverrides || {}) };
+          map[id] = sev;
+          props.alarmSeverityOverrides = map;
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: String(e?.message || e) });
+        }
+        res.json({ ok: true, id, severity: sev });
       });
 
       // Rev103: Pypilot Doctor endpoints.
@@ -2046,6 +2181,7 @@ module.exports = function (app: any) {
           // the exact user selection. `describe()` lets the visor render
           // the toggle list without an extra request.
           alarmsEnabled: props.alarmsEnabled ?? null,
+          alarmSeverityOverrides: props.alarmSeverityOverrides ?? {},
           alarmsAvailable: alarms ? alarms.describe() : [],
           profileAdvisorEnabled: props.profileAdvisorEnabled !== false,
           profileAdvisorRmsHighDeg: props.profileAdvisorRmsHighDeg ?? 10,
@@ -2658,12 +2794,30 @@ module.exports = function (app: any) {
       // ============================================================
       router.get("/trip-recorder/status", (_req: any, res: any) => {
         res.json({
+          // Rev328: expose the master enable so the visor toggle stays
+          // in sync across devices.
+          enabled: props.tripRecorderEnabled !== false,
           recording: tripRecorder ? tripRecorder.isRecording() : false,
           tripId: tripRecorder ? tripRecorder.currentTripId() : null,
           startTs: tripRecorder ? tripRecorder.currentStartTs() : null,
           samples: tripRecorder ? tripRecorder.currentSampleCount() : 0,
           navState: lastNavState,
         });
+      });
+      // Rev328 (Carlos, 2026-09-28): master enable/disable from the
+      // visor. Persists via savePluginOptions so it survives restarts.
+      router.post("/trip-recorder/enable", (req: any, res: any) => {
+        const body = req.body || {};
+        if (typeof body.enabled !== "boolean") {
+          return res.status(400).json({ error: "enabled (boolean) required" });
+        }
+        props.tripRecorderEnabled = body.enabled;
+        try {
+          app.savePluginOptions?.(props, () => { /* noop */ });
+        } catch (e: any) {
+          return res.status(500).json({ error: String(e?.message || e) });
+        }
+        res.json({ ok: true, enabled: props.tripRecorderEnabled });
       });
       router.get("/trip-recorder/list", (_req: any, res: any) => {
         if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
@@ -2680,7 +2834,22 @@ module.exports = function (app: any) {
         const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
         const sum = tripRecorder.summary(id);
         if (!sum) return res.status(404).json({ error: "not found" });
-        res.json(sum);
+        // Rev327 (Carlos, 2026-09-28): attach the friendly name if the
+        // sailor set one via /trip-recorder/trip/:id/name.
+        res.json({ ...sum, name: tripRecorder.getName(id) });
+      });
+      // Rev327 (Carlos, 2026-09-28): rename a trip. Sidecar file
+      // trip-<id>.name.txt keeps the friendly name out of the JSONL
+      // so summaries never get regenerated on a rename.
+      router.patch("/trip-recorder/trip/:id/name", (req: any, res: any) => {
+        if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        const body = req.body || {};
+        const name = typeof body.name === "string" ? body.name : "";
+        const r = tripRecorder.renameTrip(id, name);
+        if (!r.ok) return res.status(500).json({ error: r.error || "rename failed" });
+        res.json({ ok: true, id, name: r.name });
       });
       router.get("/trip-recorder/download/:id", (req: any, res: any) => {
         if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
@@ -3107,6 +3276,12 @@ module.exports = function (app: any) {
         ? Math.max(30, options.logCaptureIntervalSec) : 60,
       sessionRecorderEnabled: options.sessionRecorderEnabled !== false,
       maneuverTraceEnabled: options.maneuverTraceEnabled === true,
+      sensorsIgnored: Array.isArray(options.sensorsIgnored)
+        ? options.sensorsIgnored
+            .filter((p: unknown) => typeof p === "string" && (p as string).length > 0)
+            .slice(0, 100)
+        : [],
+      tripRecorderEnabled: options.tripRecorderEnabled !== false,
       autoProfileEnabled: options.autoProfileEnabled === true,
       autoProfileLight:   typeof options.autoProfileLight  === "string" ? options.autoProfileLight.trim()  : "",
       autoProfileMedium:  typeof options.autoProfileMedium === "string" ? options.autoProfileMedium.trim() : "",
@@ -3158,6 +3333,13 @@ module.exports = function (app: any) {
       // Rev299: per-rule enable list. Preserve undefined so legacy
       // installs keep their default-on behaviour; only sanitise when
       // the user (or the schema default of []) provided an actual array.
+      alarmSeverityOverrides: (options.alarmSeverityOverrides && typeof options.alarmSeverityOverrides === "object")
+        ? Object.fromEntries(
+            Object.entries(options.alarmSeverityOverrides).filter(
+              ([, v]) => v === "info" || v === "warn" || v === "alarm"
+            )
+          )
+        : {},
       alarmsEnabled: Array.isArray(options.alarmsEnabled)
         ? options.alarmsEnabled.filter((s: unknown): s is string => typeof s === "string")
         : undefined,
@@ -3226,6 +3408,16 @@ module.exports = function (app: any) {
       values.push({ path: "steering.autopilot.mode",    value: apProvider.data.mode });
     }
     if (values.length === 0) return;
+    // Rev350: stage=publish for the CANONICAL pilot deltas (state,
+    // engaged, target, mode). Complements the wildcard publisher log
+    // in publishValue().
+    try {
+      maneuverTrace?.logStageEvent("publish", {
+        source: "canonical",
+        fields,
+        values: values.map((v: any) => ({ path: v.path, value: v.value })),
+      });
+    } catch { /* silent */ }
     try {
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
@@ -3269,6 +3461,16 @@ module.exports = function (app: any) {
   // getSelfPath call per tick, one JSONL line while a trip is open.
   function _tripTick(s: Sample): void {
     if (!tripRecorder) return;
+    // Rev328 (Carlos, 2026-09-28): master switch. When the sailor
+    // disables the logbook from Setup we neither open new trips nor
+    // record samples into an open one — but we DO close any trip that
+    // was already recording so its summary lands cleanly on disk.
+    if (props.tripRecorderEnabled === false) {
+      if (tripRecorder.isRecording()) {
+        try { tripRecorder.stop(); } catch { /* silent */ }
+      }
+      return;
+    }
     const stateRaw = app.getSelfPath ? app.getSelfPath("navigation.state.value") : null;
     const navState = typeof stateRaw === "string" ? stateRaw : "moored";
     // Transitions.
@@ -4508,6 +4710,20 @@ module.exports = function (app: any) {
       }
       metaSent.add(mapping.skPath);
     }
+    // Rev350 (Carlos, 2026-09-29): stage=publish frontier log for the
+    // pilot-critical paths so we can measure how long between the
+    // provider accepting a value and SK propagating the delta out.
+    // Skips high-frequency non-critical values (servo current, imu, ...)
+    // to keep the trace signal-to-noise high.
+    if (_STAGE_PUBLISH_LOG_PATHS.has(name)) {
+      try {
+        maneuverTrace?.logStageEvent("publish", {
+          pypilotName: name,
+          skPath: mapping.skPath,
+          value: skValue,
+        });
+      } catch { /* silent */ }
+    }
     try {
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
@@ -4519,6 +4735,15 @@ module.exports = function (app: any) {
       app.debug(`[publish] handleMessage failed for ${mapping.skPath}: ${e?.message || e}`);
     }
   }
+  // Rev350: pypilot names whose publish is worth tracing.
+  const _STAGE_PUBLISH_LOG_PATHS: Set<string> = new Set([
+    "ap.tack.state",
+    "ap.tack.direction",
+    "ap.heading_command",
+    "ap.mode",
+    "ap.enabled",
+    "servo.engaged",
+  ]);
 
   function publishCatalogDerived(catalog: PypilotCatalog): void {
     const items = extractCatalogDerivedPublishes(catalog);
@@ -5140,16 +5365,17 @@ module.exports = function (app: any) {
             (() => void) | undefined;
           if (emitP) emitP();
         } catch { /* silent */ }
-        if (apProvider) {
-          values.push(
-            { path: "steering.autopilot.state",   value: apProvider.data.state },
-            { path: "steering.autopilot.mode",    value: apProvider.data.mode },
-            { path: "steering.autopilot.target",  value: apProvider.data.target },
-            { path: "steering.autopilot.engaged", value: engaged },
-            { path: "steering.autopilot.availableActions",
-              value: apProvider.data.options.actions.filter((a) => a.available).map((a) => a.id) },
-          );
-        }
+        // Rev352 (Carlos, 2026-09-30, trace analysis): removed the
+        // steering.autopilot.* canonical paths from this 30-s keep-
+        // alive. Reason: subscription manager already keeps them
+        // resident for subscribers; re-emitting the CURRENT
+        // apProvider.data value periodically produced double-pushes
+        // that raced with the real change delta and got collapsed by
+        // minPeriod:500 on the visor's subscription — the sailor saw
+        // engaged=false held for ~10 s after an external engage.
+        // The KIP-specific momentary + mode radio + engage switch
+        // values still ship (KIP UI needs them refreshed to stay in
+        // its picker).
         app.handleMessage(PLUGIN_ID, {
           context: "vessels." + app.selfId,
           updates: [{

@@ -78,6 +78,10 @@ export interface TripSummary {
   voltAvgV: number | null;
   voltMinV: number | null;
   voltSagsBelow115: number;   // discrete events < 11.5 V
+  // Rev330 (Carlos, 2026-09-28): amp-hours consumed by the pilot
+  // during the trip — integration of servoCurrent over time. Null
+  // when the trip carried no servo current samples.
+  energyAh: number | null;
 
   // Highlights (offsets into the jsonl by ts)
   peakWindTs: number | null;
@@ -129,6 +133,8 @@ export class TripRecorder {
   private tackCount = 0; private lastAwaSign = 0; private lastTackSignFlipTs = 0;
   private voltSum = 0; private voltN = 0; private voltMin: number | null = null;
   private voltInSag = false; private voltSags = 0;
+  // Rev330: integración de Ah desde servoCurrent (Amps) × dt (h).
+  private energyAhSum = 0; private lastAmpTs: number | null = null;
   private engagedTicks = 0; private allTicks = 0;
   private modeShareTicks: Record<string, number> = {};
   private lastLat: number | null = null; private lastLon: number | null = null;
@@ -237,6 +243,18 @@ export class TripRecorder {
       if (s.servoVolt < 11.5 && !this.voltInSag) { this.voltInSag = true; this.voltSags += 1; }
       if (s.servoVolt >= 11.5 && this.voltInSag) { this.voltInSag = false; }
     }
+    // Rev330 (Carlos, 2026-09-28): integrar consumo del piloto.
+    // servoCurrent en Amps; dt entre samples típicamente ~1 s. Cap
+    // el dt a 10 s para que un hueco largo en el JSONL no infle el
+    // total como si hubiera habido corriente sostenida durante ese
+    // gap. Solo integramos con dos samples consecutivos válidos.
+    if (typeof s.servoCur === "number" && this.lastAmpTs != null) {
+      const dtMs = s.ts - this.lastAmpTs;
+      if (dtMs > 0 && dtMs < 10_000) {
+        this.energyAhSum += s.servoCur * (dtMs / 3_600_000);
+      }
+    }
+    if (typeof s.servoCur === "number") this.lastAmpTs = s.ts;
     if (s.engaged) this.engagedTicks += 1;
     if (s.mode) this.modeShareTicks[s.mode] = (this.modeShareTicks[s.mode] ?? 0) + 1;
     // Distance: integrate great-circle between consecutive positions.
@@ -304,6 +322,8 @@ export class TripRecorder {
       voltAvgV: this.voltN > 0 ? this.voltSum / this.voltN : null,
       voltMinV: this.voltMin,
       voltSagsBelow115: this.voltSags,
+      // Rev330 (Carlos, 2026-09-28): Ah consumidos durante el viaje.
+      energyAh: this.energyAhSum > 0 ? this.energyAhSum : null,
 
       peakWindTs: this.peakWindTs,
       peakWindKn: this.peakWindKn,
@@ -359,6 +379,7 @@ export class TripRecorder {
     this.tackCount = 0; this.lastAwaSign = 0; this.lastTackSignFlipTs = 0;
     this.voltSum = 0; this.voltN = 0; this.voltMin = null;
     this.voltInSag = false; this.voltSags = 0;
+    this.energyAhSum = 0; this.lastAmpTs = null;
     this.engagedTicks = 0; this.allTicks = 0;
     this.modeShareTicks = {};
     this.lastLat = null; this.lastLon = null; this.lastPosTs = 0;
@@ -370,8 +391,8 @@ export class TripRecorder {
 
   // -- listing / retrieval helpers --
 
-  list(): { id: string; sizeBytes: number; hasSummary: boolean }[] {
-    const out: { id: string; sizeBytes: number; hasSummary: boolean }[] = [];
+  list(): { id: string; sizeBytes: number; hasSummary: boolean; name: string | null }[] {
+    const out: { id: string; sizeBytes: number; hasSummary: boolean; name: string | null }[] = [];
     let names: string[] = [];
     try { names = fs.readdirSync(this.dir).filter((f) => f.startsWith("trip-") && f.endsWith(".jsonl")); } catch { return out; }
     for (const name of names) {
@@ -381,12 +402,48 @@ export class TripRecorder {
         const st = fs.statSync(full);
         const sumPath = path.join(this.dir, `trip-${id}.summary.json`);
         const hasSummary = fs.existsSync(sumPath);
-        out.push({ id, sizeBytes: st.size, hasSummary });
+        out.push({ id, sizeBytes: st.size, hasSummary, name: this.getName(id) });
       } catch { /* skip */ }
     }
     // Newest first.
     out.sort((a, b) => (a.id < b.id ? 1 : -1));
     return out;
+  }
+
+  // Rev327 (Carlos, 2026-09-28): user-friendly trip names. Persisted
+  // as a sidecar `trip-<id>.name.txt` so the JSONL / summary stay
+  // untouched — a rename is a single tiny write and a delete just
+  // unlinks the sidecar alongside the other trip files.
+  private _namePath(id: string): string {
+    return path.join(this.dir, `trip-${id}.name.txt`);
+  }
+  getName(id: string): string | null {
+    try {
+      const raw = fs.readFileSync(this._namePath(id), "utf8").trim();
+      return raw.length > 0 ? raw : null;
+    } catch { return null; }
+  }
+  renameTrip(id: string, rawName: string): { ok: boolean; name: string | null; error?: string } {
+    // Sanitise: strip control chars, collapse whitespace, cap at 60.
+    // Empty string clears the sidecar so we fall back to the date.
+    const clean = String(rawName || "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1F\x7F]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 60);
+    const namePath = this._namePath(id);
+    try {
+      if (clean.length === 0) {
+        try { fs.unlinkSync(namePath); } catch { /* already absent */ }
+        return { ok: true, name: null };
+      }
+      fs.writeFileSync(namePath, clean, "utf8");
+      return { ok: true, name: clean };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, name: null, error: msg };
+    }
   }
 
   summary(id: string): TripSummary | null {
@@ -409,6 +466,8 @@ export class TripRecorder {
     if (this.currentId === id) return false;
     try { fs.unlinkSync(path.join(this.dir, `trip-${id}.jsonl`)); } catch { /* file may be missing */ }
     try { fs.unlinkSync(path.join(this.dir, `trip-${id}.summary.json`)); } catch { /* silent */ }
+    // Rev327: also drop the sidecar name if the sailor named the trip.
+    try { fs.unlinkSync(this._namePath(id)); } catch { /* absent */ }
     return true;
   }
 

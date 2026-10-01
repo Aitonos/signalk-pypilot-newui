@@ -23,6 +23,12 @@
        until the underlying condition clears). -->
   <div id="alarm-banner" class="alarm-banner" hidden></div>
 
+  <!-- Rev342 (Carlos, 2026-09-28): net health banner. Fires when the
+       SK WebSocket goes silent > 3 s or the /status ping RTT crosses
+       1 s. Visual cue so the sailor can tell "red intermitente" from
+       "bug del pilot" in agua. -->
+  <div id="net-health-banner" hidden style="position:fixed;top:0;left:0;right:0;padding:8px 14px;text-align:center;font-size:13px;font-weight:600;letter-spacing:0.3px;z-index:9998;background:rgba(255,149,0,0.92);color:#0a1220;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>
+
   <!-- Login modal: opens when SK returns 401 on a write. Gets a JWT from
        /signalk/v1/auth/login and caches it in localStorage - no more cookie
        dependency, no more red banner. -->
@@ -1326,10 +1332,38 @@
            moored) with quick stats per row: distance, avg SOG, avg TWS,
            tacks, duration. Click opens the details modal. -->
       <div class="setup-block" data-setup-order="27" data-block-key="trips">
-        <div class="section-title" data-i18n="setup.trips.title">Trips</div>
-        <div class="hint" data-i18n="setup.trips.hint">Every time you leave the marina (navigation.state moves off "moored") a trip is opened. When you return, it closes and the summary is computed. Tap one to see the detail.</div>
-        <div id="trips-status" style="font-size:12px;opacity:0.7;margin-top:6px"></div>
-        <div id="trips-list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+        <div class="section-title" data-i18n="setup.trips.title">Logbook</div>
+        <div class="hint" data-i18n="setup.trips.hint">Every time you leave the marina (navigation.state moves off "moored") a logbook entry is opened. When you return, it closes and the summary is computed. Tap one to see the detail.</div>
+        <!-- Rev330 (Carlos, 2026-09-28): the summary chip is the
+             native .setup-block-summary auto-injected by
+             initSetupTiles(), same look as the other cards. Populated
+             from _tripsRefresh via _updateSetupSummary("trips", …). -->
+        <div class="row" style="align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px">
+            <input type="checkbox" id="trip-recorder-enable" checked style="width:20px;height:20px" />
+            <span data-i18n="setup.trips.enableToggle">Record logbook</span>
+          </label>
+        </div>
+        <!-- Rev330 → Rev331: solo búsqueda + orden (menos es más).
+             Inputs touch-size (~44px alto). Los estilos display:flex
+             van por CSS (no inline) para que la regla tile-mode
+             `display:none` funcione. -->
+        <div class="trips-filter-row" style="gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+          <input id="trips-filter-name" type="search" placeholder="🔍" data-i18n-placeholder="trips.filter.search" style="flex:1;min-width:140px;padding:10px 14px;font-size:14px;border-radius:8px;background:var(--bg-3);color:var(--fg);border:1px solid var(--border)" />
+          <select id="trips-sort" style="padding:10px 14px;font-size:14px;border-radius:8px;background:var(--bg-3);color:var(--fg);border:1px solid var(--border);min-height:44px">
+            <option value="date-desc" data-i18n="trips.sort.dateDesc">Fecha ↓ (nuevo)</option>
+            <option value="date-asc"  data-i18n="trips.sort.dateAsc">Fecha ↑ (viejo)</option>
+            <option value="dist-desc" data-i18n="trips.sort.distDesc">Distancia ↓</option>
+            <option value="dist-asc"  data-i18n="trips.sort.distAsc">Distancia ↑</option>
+            <option value="dur-desc"  data-i18n="trips.sort.durDesc">Duración ↓</option>
+            <option value="dur-asc"   data-i18n="trips.sort.durAsc">Duración ↑</option>
+            <option value="sogAvg-desc" data-i18n="trips.sort.sogAvgDesc">SOG med ↓</option>
+            <option value="sogMax-desc" data-i18n="trips.sort.sogMaxDesc">SOG max ↓</option>
+            <option value="twsMax-desc" data-i18n="trips.sort.twsMaxDesc">Viento max ↓</option>
+          </select>
+        </div>
+        <div id="trips-filter-count" style="margin-top:6px;font-size:11px;color:var(--fg-dim)"></div>
+        <div id="trips-list"></div>
       </div>
 
       <div class="setup-block" data-setup-order="30" data-block-key="quality">
@@ -1570,11 +1604,15 @@
           </div>
         </div>
 
-        <!-- Subsection 4: full pypilot RangeSetting sliders grouped
-             by category (rudder / servo / imu / ap / other). Populated
-             from state.catalog + state.pypilotValues via
-             renderCalibrationSliders() on catalog refresh. -->
-        <div class="conn-sub calib-advanced">
+        <!-- Subsection 4: [Rev338 Carlos, 2026-09-28] MOVED — todos
+             los RangeSettings avanzados viven ahora en el tab
+             AJUSTES como acordeones (Tack / Servo / Wind / IMU).
+             Setup → Calibración queda sólo con calibración sensorial
+             (IMU alignment, Compass swing, Rudder trim, Nudge). Se
+             mantiene el bloque `hidden` para no romper referencias
+             DOM (`calib-unlock`, `calib-sliders-mount`) que todavía
+             usa el código; ninguna regla CSS/JS necesita cambiarse. -->
+        <div class="conn-sub calib-advanced" hidden>
           <div class="conn-sub-title" data-i18n="cal.advanced.title">Advanced sliders</div>
           <div class="hint" data-i18n="cal.advanced.hint">All the pypilot RangeSettings, grouped. Long-press or hover a name to see the raw pypilot key.</div>
           <div class="row calib-unlock-row">
@@ -2155,6 +2193,17 @@
              each detected tack. -->
         <div id="trip-detail-map" style="height:300px;border-radius:8px;overflow:hidden;background:#0a1220;border:1px solid var(--border,#2b3542);margin-bottom:14px"></div>
         <div id="trip-detail-map-legend" style="font-size:11px;opacity:0.7;margin:-8px 0 12px;display:flex;flex-wrap:wrap;gap:12px"></div>
+        <!-- Rev328 (Carlos, 2026-09-28): SOG + AWS time chart from the
+             trip's JSONL, painted right after the map. Same samples,
+             no extra fetch. Legend embedded in-canvas. -->
+        <div id="trip-detail-chart-wrap" style="margin-bottom:14px;position:relative">
+          <div class="hint" data-i18n="trips.chart.title" style="margin-bottom:6px">Speed &amp; apparent wind</div>
+          <canvas id="trip-detail-chart" height="160" style="width:100%;height:160px;background:#0a1220;border-radius:8px;border:1px solid var(--border,#2b3542);display:block;cursor:crosshair;touch-action:none"></canvas>
+          <!-- Rev329 (Carlos, 2026-09-28): tooltip absoluto pintado al
+               hover / drag sobre el canvas. Sale SOG + AWS + AWA (AWA
+               solo aquí, no como línea en el chart). -->
+          <div id="trip-detail-chart-tooltip" style="position:absolute;pointer-events:none;background:rgba(10,18,32,0.95);color:#e8ecf1;border:1px solid var(--border,#2b3542);border-radius:6px;padding:6px 8px;font-size:11px;font-family:ui-monospace,monospace;line-height:1.4;display:none;z-index:5;box-shadow:0 4px 12px rgba(0,0,0,0.4)"></div>
+        </div>
         <div id="trip-detail-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div>
         <div id="trip-detail-highlights" style="margin-top:14px;display:flex;flex-direction:column;gap:6px"></div>
         <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
@@ -2214,6 +2263,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev323"></script>
+  <script src="app.js?v=Rev376"></script>
 </body>
 </html>

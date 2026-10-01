@@ -175,6 +175,10 @@
       "setup.conn.title":          "pypilot connection",
       "setup.conn.status":         "Status",
       "setup.remoteConsole":       "Remote Control Console",
+      // Rev327 (Carlos, 2026-09-28): rename trip.
+      "trips.rename.prompt":       "Trip name (empty to clear):",
+      "trips.rename.tooltip":      "Rename trip",
+      "trips.rename.err":          "Rename failed",
       // Rev322 (Carlos, 2026-09-27): maneuver trace strings.
       "mt.title":                  "Maneuver trace (sea-trial forensics)",
       "mt.hint":                   "Records every visor action (aproado, empopado, tack, mode change, target, engage) with pypilot state before and 300 ms after, so we can audit whether the AP obeyed. Files land under the plugin data dir. Off by default; turn ON only during a sea trial.",
@@ -441,6 +445,46 @@
       "mode.label.aproado":   "HEAD TO WIND",
       "mode.label.empopado":    "HEAD DOWNWIND",
       "tune.gain.helpBtn":  "More info",
+      // Rev333 (Carlos, 2026-09-28): human-readable slider titles.
+      "tune.gain.P.title":    "Reactivity (P)",
+      "tune.gain.I.title":    "Drift correction (I)",
+      "tune.gain.D.title":    "Damping (D)",
+      "tune.gain.DD.title":   "Rate anticipation (DD)",
+      "tune.gain.PR.title":   "Yaw-rate reactivity (PR)",
+      "tune.gain.FF.title":   "Feed-forward (FF)",
+      "tune.gain.servo.max_current.title":    "Motor MAX current",
+      "tune.gain.servo.max_slew_speed.title": "Rudder MAX slew",
+      "tune.gain.servo.max_slew_slow.title":  "Rudder slow slew",
+      "tune.gain.servo.period.title":         "Servo period",
+      "tune.gain.servo.speed.max.title":      "Servo speed MAX",
+      "tune.gain.servo.speed.min.title":      "Servo speed MIN",
+      "tune.gain.servo.min_speed.title":      "Servo speed MIN",
+      "tune.gain.servo.duty.max.title":       "Servo duty MAX",
+      "tune.gain.rudder.offset.title":        "Rudder offset",
+      "tune.gain.imu.heading_offset.title":   "IMU alignment",
+      "tune.gain.rudder.range.title":         "Rudder range",
+      "tune.gain.ap.tack.angle.title":        "Tack angle",
+      "tune.gain.ap.tack.rate.title":         "Tack rate",
+      "tune.gain.ap.tack.delay.title":        "Tack delay",
+      "tune.gain.ap.tack.threshold.title":    "Tack threshold",
+      "tune.gain.ap.wind_compensation.title": "Wind compensation",
+      "tune.gain.wind.offset.title":          "Wind offset",
+      "tune.gain.truewind.offset.title":      "True wind offset",
+      "tune.gain.tune.emptyPilot":            "Waiting for pilot data…",
+      "tune.group.tack":   "Tack settings",
+      "tune.group.servo":  "Servo / motor",
+      "tune.group.wind":   "Wind sensor",
+      "tune.group.imu":    "IMU / rudder",
+      "tune.group.other":  "Other",
+      "tune.badge.profile": "PROFILE",
+      "tune.badge.global":  "GLOBAL",
+      "net.warn":       "Intermittent network",
+      "net.ok":         "Network OK",
+      "net.slow":       "Slow network",
+      "net.silent":     "no data",
+      "net.wsDown":     "WebSocket down",
+      "net.pingFail":   "Ping failing",
+      "tack.cancel":    "Cancel",
       "tune.gain.P.short":  "Corrects a heading error instantly with rudder. The 'act now' reflex.",
       "tune.gain.P.long":   "Raise if the AP takes too long to close a heading error. Lower if the rudder dances at every wave.",
       "tune.gain.I.short":  "Closes a sustained drift over time: if the boat sits 5° off, this nudges it back.",
@@ -465,6 +509,30 @@
       "tune.gain.ap.tack.angle.long":         "Raise for wider tacks (safer on rough water). Lower for tighter, race-style turns.",
       "tune.gain.ap.tack.rate.short":         "Speed of an automatic tack in degrees per second.",
       "tune.gain.ap.tack.rate.long":          "Raise for a snappier tack. Lower if the boat heels aggressively or the crew can't keep up.",
+      "tune.gain.ap.tack.delay.short":        "Countdown (seconds) between pressing TACK and the pilot actually starting to turn.",
+      "tune.gain.ap.tack.delay.long":         "Raise to give the crew more warning. Lower to zero for instant execution once you tap.",
+      "tune.gain.ap.tack.threshold.short":    "How far past head-to-wind the pilot commits before it considers the tack completed (%).",
+      "tune.gain.ap.tack.threshold.long":     "Raise if the tack keeps aborting early. Lower if the pilot overshoots and settles too far off the new heading.",
+      "tune.gain.ap.wind_compensation.short": "How much the pilot bends the target away from a rising apparent wind (advanced).",
+      "tune.gain.ap.wind_compensation.long":  "Leave near 0 unless your wind sensor is very clean and you race. Positive values open the target in gusts.",
+      "tune.gain.servo.max_slew_slow.short":  "Rudder speed cap used when the correction is small — protects the linear drive.",
+      "tune.gain.servo.max_slew_slow.long":   "Raise if small corrections feel sluggish. Lower to smooth chatter on a fragile drive.",
+      "tune.gain.servo.period.short":         "How often the pilot loop runs (seconds). Default 0.4 s.",
+      "tune.gain.servo.period.long":          "Lower for a faster reaction (higher CPU / drive wear). Raise to relieve a slow board.",
+      "tune.gain.servo.speed.max.short":      "Upper bound of servo command (%). Ceiling at full throw.",
+      "tune.gain.servo.speed.max.long":       "Raise for more authority at the top of the range. Lower to protect the drive from full-throw slams.",
+      "tune.gain.servo.speed.min.short":      "Lower bound of servo command (%). Below this the servo does nothing (deadband).",
+      "tune.gain.servo.speed.min.long":       "Raise if the servo hunts with tiny commands that don't move the rudder. Lower for finer trim.",
+      "tune.gain.servo.min_speed.short":      "Same as servo.speed.min — deadband floor for the drive.",
+      "tune.gain.servo.min_speed.long":       "Raise on a stiff drive that ignores small commands. Lower to catch subtle heading errors.",
+      "tune.gain.servo.duty.max.short":       "Maximum duty cycle the drive is allowed to sustain (%).",
+      "tune.gain.servo.duty.max.long":        "Raise if the drive is under-worked and heading errors persist. Lower to keep the motor cool over long legs.",
+      "tune.gain.rudder.offset.short":        "Trim added to the rudder centre — corrects a mechanical bias so the rudder actually sits centred at 0.",
+      "tune.gain.rudder.offset.long":         "Set once during calibration with the boat pointing straight. Rarely touched after that.",
+      "tune.gain.wind.offset.short":          "Angle correction added to the raw apparent wind (compensates a misaligned wind vane).",
+      "tune.gain.wind.offset.long":           "Set with the boat pointing dead into the wind: adjust until AWA reads 0. Positive = vane leaning to starboard.",
+      "tune.gain.truewind.offset.short":      "Same idea as wind.offset but applied to the computed true wind angle.",
+      "tune.gain.truewind.offset.long":       "Leave 0 unless you have a documented true-wind bias from a polar test.",
       "lc.title":    "Log capture (Pi Zero)",
       "lc.hint":     "piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.",
       "lc.toggle":   "Enable log capture",
@@ -545,12 +613,19 @@
       // Maneuver stats HUD verdict
       "maneuver.tack.title":     "TACK",
       "maneuver.jibe.title":     "JIBE",
+      "maneuver.tack.cancelled": "TACK CANCELLED",
+      "maneuver.jibe.cancelled": "JIBE CANCELLED",
       "maneuver.verdict.good":   "good tack",
       "maneuver.verdict.normal": "normal tack",
       "maneuver.verdict.lost":   "poor tack",
+      "maneuver.verdict.cancelled": "CANCELLED",
+      "maneuver.verdict.measuring": "measuring post-tack…",
       // Trips (Setup card + list + detail + share card)
-      "setup.trips.title":  "Trips",
-      "setup.trips.hint":   "Every time you leave the marina (navigation.state moves off \"moored\") a trip is opened. When you return, it closes and the summary is computed. Tap one to see the detail.",
+      "setup.trips.title":         "Logbook",
+      "setup.trips.hint":          "Every time you leave the marina (navigation.state moves off \"moored\") a logbook entry is opened. When you return, it closes and the summary is computed. Tap one to see the detail.",
+      "setup.trips.enableToggle":  "Record logbook",
+      "setup.trips.lastLabel":     "Last:",
+      "setup.trips.enableFail":    "Could not toggle logbook recording",
       "trips.delConfirm":       "Delete this trip?",
       "trips.summaryFail":      "Could not load the summary.",
       "trips.captureLibFail":   "No connection to load the capture library.",
@@ -568,9 +643,27 @@
       "trips.caption.tacks":    "Tacks",
       "trips.caption.voltMin":  "Min volt",
       "trips.caption.sags":     "sags",
-      "trips.status.recording": "TRIP IN PROGRESS for",
+      "trips.status.recording": "LOGBOOK ENTRY IN PROGRESS for",
       "trips.status.navState":  "Nav state",
-      "trips.status.noneOpen":  "no trip in progress.",
+      "trips.status.noneOpen":  "no logbook entry in progress.",
+      "trips.status.disabled":  "Logbook recording is OFF.",
+      "trips.chart.title":      "Speed & apparent wind",
+      "trips.chart.sog":        "SOG",
+      "trips.chart.aws":        "AWS",
+      "trips.chart.noData":     "(no speed/wind samples in this trip)",
+      "trips.filter.title":     "Filter / sort",
+      "trips.filter.clear":     "Clear filters",
+      "trips.filter.count":     "matching / total",
+      "trips.filter.none":      "No trips match the current filters.",
+      "trips.sort.dateDesc":    "Date ↓ (newest)",
+      "trips.sort.dateAsc":     "Date ↑ (oldest)",
+      "trips.sort.distDesc":    "Distance ↓",
+      "trips.sort.distAsc":     "Distance ↑",
+      "trips.sort.durDesc":     "Duration ↓",
+      "trips.sort.durAsc":      "Duration ↑",
+      "trips.sort.sogAvgDesc":  "SOG avg ↓",
+      "trips.sort.sogMaxDesc":  "SOG max ↓",
+      "trips.sort.twsMaxDesc":  "Wind max ↓",
       "trips.loadFail":         "Failed to load trips.",
       "trips.empty":            "No trips recorded yet. Sail out and the summary will appear when you're back.",
       "trips.noSummary":        "Trip without summary yet.",
@@ -587,6 +680,7 @@
       "trips.kpi.sogMax":       "SOG max",
       "trips.kpi.twsAvg":       "TWS avg",
       "trips.kpi.twsMax":       "TWS max",
+      "trips.kpi.awsAvg":       "AWS avg",
       "trips.kpi.awsMax":       "AWS max",
       "trips.kpi.heelAvg":      "Heel avg",
       "trips.kpi.heelMax":      "Heel max",
@@ -595,6 +689,10 @@
       "trips.kpi.voltAvg":      "Voltage avg",
       "trips.kpi.voltMin":      "Voltage min",
       "trips.kpi.voltSags":     "Sags < 11.5 V",
+      "trips.kpi.energyAh":     "Pilot Ah",
+      "trips.filter.search":    "🔍 Search…",
+      "trips.share.wa":         "Share to WhatsApp",
+      "trips.credit":           "Generated with PyPilot New-UI",
       "trips.kpi.pointsOfSail": "Points of sail",
       "trips.kpi.upwind":       "upwind",
       "trips.kpi.reach":        "reach",
@@ -895,6 +993,10 @@
       "setup.conn.title":          "Conexión pypilot",
       "setup.conn.status":         "Estado",
       "setup.remoteConsole":       "Consola control remoto",
+      // Rev327 (Carlos, 2026-09-28): renombrar viaje.
+      "trips.rename.prompt":       "Nombre del viaje (vacío para borrar):",
+      "trips.rename.tooltip":      "Renombrar viaje",
+      "trips.rename.err":          "No se pudo renombrar",
       // Rev322 (Carlos, 2026-09-27): maneuver trace strings.
       "mt.title":                  "Traza de maniobras (forense de agua)",
       "mt.hint":                   "Graba cada acción del visor (aproado, empopado, tack, cambio de modo, target, engage) con el estado de pypilot antes y 300 ms después, para auditar si el AP obedeció. Los ficheros se guardan en el data dir del plugin. Off por defecto; activa sólo durante una sesión de agua.",
@@ -1160,6 +1262,46 @@
       "mode.label.wind.long":      "VIENTO APARENTE",
       "mode.label.true-wind.long": "VIENTO REAL",
       "tune.gain.helpBtn":  "Más info",
+      // Rev333 (Carlos, 2026-09-28): títulos de sliders en cristiano.
+      "tune.gain.P.title":    "Reactividad (P)",
+      "tune.gain.I.title":    "Corrección de deriva (I)",
+      "tune.gain.D.title":    "Amortiguamiento (D)",
+      "tune.gain.DD.title":   "Anticipación de aceleración (DD)",
+      "tune.gain.PR.title":   "Reactividad al giro (PR)",
+      "tune.gain.FF.title":   "Anticipación cambio de rumbo (FF)",
+      "tune.gain.servo.max_current.title":    "Corriente MAX motor",
+      "tune.gain.servo.max_slew_speed.title": "Velocidad MAX timón",
+      "tune.gain.servo.max_slew_slow.title":  "Velocidad lenta timón",
+      "tune.gain.servo.period.title":         "Periodo del servo",
+      "tune.gain.servo.speed.max.title":      "Velocidad MAX servo",
+      "tune.gain.servo.speed.min.title":      "Velocidad MIN servo",
+      "tune.gain.servo.min_speed.title":      "Velocidad MIN servo",
+      "tune.gain.servo.duty.max.title":       "Duty MAX servo",
+      "tune.gain.rudder.offset.title":        "Descuadre del timón",
+      "tune.gain.imu.heading_offset.title":   "Alineación IMU",
+      "tune.gain.rudder.range.title":         "Rango del timón",
+      "tune.gain.ap.tack.angle.title":        "Ángulo de virada",
+      "tune.gain.ap.tack.rate.title":         "Velocidad de virada",
+      "tune.gain.ap.tack.delay.title":        "Retardo de virada",
+      "tune.gain.ap.tack.threshold.title":    "Umbral de virada",
+      "tune.gain.ap.wind_compensation.title": "Compensación de viento",
+      "tune.gain.wind.offset.title":          "Descuadre viento aparente",
+      "tune.gain.truewind.offset.title":      "Descuadre viento real",
+      "tune.gain.tune.emptyPilot":            "Esperando datos del piloto…",
+      "tune.group.tack":   "Ajustes de virada",
+      "tune.group.servo":  "Servo / motor",
+      "tune.group.wind":   "Sensor de viento",
+      "tune.group.imu":    "IMU / timón",
+      "tune.group.other":  "Otros",
+      "tune.badge.profile": "PERFIL",
+      "tune.badge.global":  "GLOBAL",
+      "net.warn":       "Red intermitente",
+      "net.ok":         "Red OK",
+      "net.slow":       "Red lenta",
+      "net.silent":     "sin datos",
+      "net.wsDown":     "WebSocket caído",
+      "net.pingFail":   "Ping falla",
+      "tack.cancel":    "Cancelar",
       "tune.gain.P.short":  "Corrige el error de rumbo al instante con más rueda. Es el reflejo 'hay que corregir ya'.",
       "tune.gain.P.long":   "Subir si el AP tarda en cerrar un desvío. Bajar si el timón 'baila' a cada ola.",
       "tune.gain.I.short":  "Cierra una deriva mantenida en el tiempo: si el barco se queda 5° a un lado, la I lo empuja de vuelta.",
@@ -1184,6 +1326,30 @@
       "tune.gain.ap.tack.angle.long":         "Subir para viradas amplias (más seguras en marejada). Bajar para viradas cerradas estilo regata.",
       "tune.gain.ap.tack.rate.short":         "Velocidad de una virada automática en grados por segundo.",
       "tune.gain.ap.tack.rate.long":          "Subir para virada más rápida. Bajar si el barco escora demasiado o la tripulacion no sigue.",
+      "tune.gain.ap.tack.delay.short":        "Cuenta atrás (segundos) entre pulsar VIRAR y el inicio real del giro.",
+      "tune.gain.ap.tack.delay.long":         "Subir para dar más aviso a la tripulación. Bajar a 0 para virada inmediata.",
+      "tune.gain.ap.tack.threshold.short":    "Cuánto más allá del viento por proa se compromete el piloto para dar la virada por completa (%).",
+      "tune.gain.ap.tack.threshold.long":     "Subir si la virada se aborta antes de tiempo. Bajar si el piloto se pasa y termina lejos del nuevo rumbo.",
+      "tune.gain.ap.wind_compensation.short": "Cuánto abre el piloto el objetivo cuando entra una racha (avanzado).",
+      "tune.gain.ap.wind_compensation.long":  "Dejar cerca de 0 salvo con sensor de viento muy limpio y regata. Valores positivos abren el rumbo en rachas.",
+      "tune.gain.servo.max_slew_slow.short":  "Velocidad máxima del timón cuando la corrección es pequeña — protege el actuador lineal.",
+      "tune.gain.servo.max_slew_slow.long":   "Subir si las correcciones pequeñas se sienten perezosas. Bajar para suavizar chattering en un actuador frágil.",
+      "tune.gain.servo.period.short":         "Cada cuánto (segundos) corre el bucle del piloto. Por defecto 0.4 s.",
+      "tune.gain.servo.period.long":          "Bajar para reacción más rápida (más CPU / más desgaste del actuador). Subir para aliviar una placa lenta.",
+      "tune.gain.servo.speed.max.short":      "Límite superior del comando servo (%). Techo a fondo de carrera.",
+      "tune.gain.servo.speed.max.long":       "Subir para más autoridad al tope. Bajar para proteger el actuador de golpes a fondo.",
+      "tune.gain.servo.speed.min.short":      "Límite inferior del comando servo (%). Por debajo el servo no actúa (banda muerta).",
+      "tune.gain.servo.speed.min.long":       "Subir si el servo tiembla con órdenes minúsculas que no mueven el timón. Bajar para trim más fino.",
+      "tune.gain.servo.min_speed.short":      "Igual que servo.speed.min — suelo de la banda muerta del actuador.",
+      "tune.gain.servo.min_speed.long":       "Subir en actuador duro que ignora comandos pequeños. Bajar para captar errores sutiles.",
+      "tune.gain.servo.duty.max.short":       "Duty cycle máximo sostenido del motor (%).",
+      "tune.gain.servo.duty.max.long":        "Subir si el actuador va sobrado y persisten errores de rumbo. Bajar para mantener el motor frío en singladuras largas.",
+      "tune.gain.rudder.offset.short":        "Descuadre del centro del timón — corrige un sesgo mecánico para que a 0 esté realmente en el eje.",
+      "tune.gain.rudder.offset.long":         "Se calibra una vez con el barco tirando recto. Rara vez se vuelve a tocar.",
+      "tune.gain.wind.offset.short":          "Ángulo que se suma al viento aparente crudo (compensa una veleta desalineada).",
+      "tune.gain.wind.offset.long":           "Ajustar con el barco a viento por proa hasta que AWA marque 0. Positivo = veleta inclinada a estribor.",
+      "tune.gain.truewind.offset.short":      "Igual que wind.offset pero aplicado al viento real calculado.",
+      "tune.gain.truewind.offset.long":       "Dejar en 0 salvo que tengas un sesgo documentado del viento real por análisis de polar.",
       "lc.title":    "Captura de logs (Pi Zero)",
       "lc.hint":     "piCore guarda /var/log solo en RAM, un hard reset los pierde. Activalo para que el plugin guarde pypilot / pypilot_web / pypilot_hat en un archivo persistente del Pi 5.",
       "lc.toggle":   "Activar captura",
@@ -1265,12 +1431,19 @@
       // Veredicto HUD de maniobra
       "maneuver.tack.title":     "VIRADA",
       "maneuver.jibe.title":     "TRASLUCHADA",
+      "maneuver.tack.cancelled": "VIRADA CANCELADA",
+      "maneuver.jibe.cancelled": "TRASLUCHADA CANCELADA",
       "maneuver.verdict.good":   "buena virada",
       "maneuver.verdict.normal": "virada normal",
       "maneuver.verdict.lost":   "virada pérdida",
+      "maneuver.verdict.cancelled": "CANCELADA",
+      "maneuver.verdict.measuring": "midiendo post-virada…",
       // Viajes (Setup card + lista + detalle + share card)
-      "setup.trips.title":  "Viajes",
-      "setup.trips.hint":   "Cada vez que sales de puerto (navigation.state pasa de moored a otro estado) se abre un viaje. Al volver a puerto se cierra y se calcula el resumen. Toca uno para ver el detalle.",
+      "setup.trips.title":         "Bitácora",
+      "setup.trips.hint":          "Cada vez que sales de puerto (navigation.state pasa de moored a otro estado) se abre una entrada de bitácora. Al volver a puerto se cierra y se calcula el resumen. Toca una para ver el detalle.",
+      "setup.trips.enableToggle":  "Grabar bitácora",
+      "setup.trips.lastLabel":     "Último:",
+      "setup.trips.enableFail":    "No se pudo cambiar el estado de grabación",
       "trips.delConfirm":       "¿Eliminar este viaje?",
       "trips.summaryFail":      "No se pudo cargar el resumen.",
       "trips.captureLibFail":   "No hay conexión para cargar la libreria de captura.",
@@ -1288,9 +1461,27 @@
       "trips.caption.tacks":    "Bordos",
       "trips.caption.voltMin":  "Volt min",
       "trips.caption.sags":     "caidas",
-      "trips.status.recording": "VIAJE EN CURSO desde hace",
+      "trips.status.recording": "BITÁCORA EN CURSO desde hace",
       "trips.status.navState":  "Estado nav",
-      "trips.status.noneOpen":  "sin viaje en curso.",
+      "trips.status.noneOpen":  "sin bitácora en curso.",
+      "trips.status.disabled":  "Grabación de bitácora OFF.",
+      "trips.chart.title":      "Velocidad y viento aparente",
+      "trips.chart.sog":        "SOG",
+      "trips.chart.aws":        "AWS",
+      "trips.chart.noData":     "(sin muestras de velocidad/viento en este viaje)",
+      "trips.filter.title":     "Filtrar / ordenar",
+      "trips.filter.clear":     "Limpiar filtros",
+      "trips.filter.count":     "coincidencias / total",
+      "trips.filter.none":      "Ninguna entrada cumple los filtros.",
+      "trips.sort.dateDesc":    "Fecha ↓ (nueva)",
+      "trips.sort.dateAsc":     "Fecha ↑ (vieja)",
+      "trips.sort.distDesc":    "Distancia ↓",
+      "trips.sort.distAsc":     "Distancia ↑",
+      "trips.sort.durDesc":     "Duración ↓",
+      "trips.sort.durAsc":      "Duración ↑",
+      "trips.sort.sogAvgDesc":  "SOG med ↓",
+      "trips.sort.sogMaxDesc":  "SOG max ↓",
+      "trips.sort.twsMaxDesc":  "Viento max ↓",
       "trips.loadFail":         "No se pudieron cargar los viajes.",
       "trips.empty":            "Aún no hay viajes registrados. Sal a navegar y al volver aparecera el resumen.",
       "trips.noSummary":        "Viaje sin resumen aún.",
@@ -1307,6 +1498,7 @@
       "trips.kpi.sogMax":       "SOG max",
       "trips.kpi.twsAvg":       "TWS med",
       "trips.kpi.twsMax":       "TWS max",
+      "trips.kpi.awsAvg":       "AWS med",
       "trips.kpi.awsMax":       "AWS max",
       "trips.kpi.heelAvg":      "Escora med",
       "trips.kpi.heelMax":      "Escora max",
@@ -1315,6 +1507,10 @@
       "trips.kpi.voltAvg":      "Voltaje med",
       "trips.kpi.voltMin":      "Voltaje min",
       "trips.kpi.voltSags":     "Sags < 11.5 V",
+      "trips.kpi.energyAh":     "Ah consumidos",
+      "trips.filter.search":    "🔍 Buscar…",
+      "trips.share.wa":         "Compartir por WhatsApp",
+      "trips.credit":           "Generado con PyPilot New-UI",
       "trips.kpi.pointsOfSail": "Rumbos",
       "trips.kpi.upwind":       "ceñida",
       "trips.kpi.reach":        "traves",
@@ -1531,6 +1727,19 @@
       "setup.remoteConsole":  "Fernsteuerungskonsole",
       "setup.alarms.title":   "Alarme",
       "setup.quality.title":  "Sensor-Qualitaet",
+      "setup.trips.title":         "Logbuch",
+      "setup.trips.hint":          "Bei jeder Ausfahrt (navigation.state verlaesst 'moored') wird ein Logbucheintrag geoeffnet. Bei Rueckkehr schliesst er und die Zusammenfassung wird berechnet. Auf einen Eintrag tippen fuer Details.",
+      "setup.trips.enableToggle":  "Logbuch aufzeichnen",
+      "setup.trips.lastLabel":     "Letzte:",
+      "setup.trips.enableFail":    "Logbuch-Aufzeichnung konnte nicht umgeschaltet werden",
+      "trips.chart.title":         "Geschwindigkeit & Wind",
+      "trips.chart.sog":           "SOG",
+      "trips.chart.aws":           "AWS",
+      "trips.chart.noData":        "(keine Speed/Wind-Daten in dieser Fahrt)",
+      "trips.status.disabled":     "Logbuch-Aufzeichnung AUS.",
+      "trips.rename.prompt":       "Name der Fahrt (leer zum Loeschen):",
+      "trips.rename.tooltip":      "Fahrt umbenennen",
+      "trips.rename.err":          "Umbenennen fehlgeschlagen",
       "setup.paths.title":    "Pfade & API",
       "setup.precheck.title": "Autopilot-Check",
       "setup.doctor.title":   "Diagnose & Empfehlungen",
@@ -1551,6 +1760,38 @@
       "mode.label.nav":       "WEGPUNKT",
       "mode.label.aproado":   "AUFSCHIESSEN",
       "tune.gain.helpBtn":  "Mehr Info",
+      "tune.gain.P.title":    "Reaktivitaet (P)",
+      "tune.gain.I.title":    "Drift-Korrektur (I)",
+      "tune.gain.D.title":    "Daempfung (D)",
+      "tune.gain.DD.title":   "Rate-Antizipation (DD)",
+      "tune.gain.PR.title":   "Gierraten-Reaktion (PR)",
+      "tune.gain.FF.title":   "Feed-forward (FF)",
+      "tune.gain.servo.max_current.title":    "Motorstrom MAX",
+      "tune.gain.servo.max_slew_speed.title": "Rudergeschwindigkeit MAX",
+      "tune.gain.servo.max_slew_slow.title":  "Rudergeschwindigkeit langsam",
+      "tune.gain.servo.period.title":         "Servo-Periode",
+      "tune.gain.servo.speed.max.title":      "Servo-Geschwindigkeit MAX",
+      "tune.gain.servo.speed.min.title":      "Servo-Geschwindigkeit MIN",
+      "tune.gain.servo.min_speed.title":      "Servo-Geschwindigkeit MIN",
+      "tune.gain.servo.duty.max.title":       "Servo-Duty MAX",
+      "tune.gain.rudder.offset.title":        "Ruder-Offset",
+      "tune.gain.imu.heading_offset.title":   "IMU-Ausrichtung",
+      "tune.gain.rudder.range.title":         "Ruderausschlag",
+      "tune.gain.ap.tack.angle.title":        "Wendewinkel",
+      "tune.gain.ap.tack.rate.title":         "Wendegeschwindigkeit",
+      "tune.gain.ap.tack.delay.title":        "Wendeverzoegerung",
+      "tune.gain.ap.tack.threshold.title":    "Wendeschwelle",
+      "tune.gain.ap.wind_compensation.title": "Windkompensation",
+      "tune.gain.wind.offset.title":          "Wind-Offset",
+      "tune.gain.truewind.offset.title":      "Wahrer-Wind-Offset",
+      "tune.gain.tune.emptyPilot":            "Warte auf Pilot-Daten…",
+      "tune.group.tack":   "Wende-Einstellungen",
+      "tune.group.servo":  "Servo / Motor",
+      "tune.group.wind":   "Windsensor",
+      "tune.group.imu":    "IMU / Ruder",
+      "tune.group.other":  "Sonstige",
+      "tune.badge.profile": "PROFIL",
+      "tune.badge.global":  "GLOBAL",
       "tune.gain.P.short":  "Korrigiert einen Kursfehler sofort mit dem Ruder. Der 'jetzt gegensteuern'-Reflex.",
       "tune.gain.P.long":   "Anheben, wenn der AP zu lang braucht, um einen Fehler auszugleichen. Senken, wenn das Ruder bei jeder Welle tanzt.",
       "tune.gain.I.short":  "Schliesst eine anhaltende Kursabweichung ueber die Zeit.",
@@ -1678,6 +1919,19 @@
       "setup.remoteConsole":  "Console de controle distant",
       "setup.alarms.title":   "Alarmes",
       "setup.quality.title":  "Qualite capteurs",
+      "setup.trips.title":         "Journal de bord",
+      "setup.trips.hint":          "A chaque sortie (navigation.state quitte 'moored') une entree de journal s'ouvre. Au retour, elle se ferme et le resume est calcule. Toucher une entree pour le detail.",
+      "setup.trips.enableToggle":  "Enregistrer le journal",
+      "setup.trips.lastLabel":     "Derniere :",
+      "setup.trips.enableFail":    "Impossible de basculer l'enregistrement",
+      "trips.chart.title":         "Vitesse & vent apparent",
+      "trips.chart.sog":           "SOG",
+      "trips.chart.aws":           "AWS",
+      "trips.chart.noData":        "(pas de donnees vitesse/vent pour cette sortie)",
+      "trips.status.disabled":     "Enregistrement journal OFF.",
+      "trips.rename.prompt":       "Nom de la sortie (vide pour effacer) :",
+      "trips.rename.tooltip":      "Renommer la sortie",
+      "trips.rename.err":          "Renommage echoue",
       "setup.paths.title":    "Paths & API",
       "setup.precheck.title": "Verification autopilote",
       "setup.doctor.title":   "Diagnostic & Conseils",
@@ -1698,6 +1952,38 @@
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "FACE AU VENT",
       "tune.gain.helpBtn":  "Plus d'infos",
+      "tune.gain.P.title":    "Reactivite (P)",
+      "tune.gain.I.title":    "Correction de derive (I)",
+      "tune.gain.D.title":    "Amortissement (D)",
+      "tune.gain.DD.title":   "Anticipation d'acceleration (DD)",
+      "tune.gain.PR.title":   "Reactivite au lacet (PR)",
+      "tune.gain.FF.title":   "Anticipation (FF)",
+      "tune.gain.servo.max_current.title":    "Courant MAX moteur",
+      "tune.gain.servo.max_slew_speed.title": "Vitesse MAX barre",
+      "tune.gain.servo.max_slew_slow.title":  "Vitesse lente barre",
+      "tune.gain.servo.period.title":         "Periode servo",
+      "tune.gain.servo.speed.max.title":      "Vitesse MAX servo",
+      "tune.gain.servo.speed.min.title":      "Vitesse MIN servo",
+      "tune.gain.servo.min_speed.title":      "Vitesse MIN servo",
+      "tune.gain.servo.duty.max.title":       "Duty MAX servo",
+      "tune.gain.rudder.offset.title":        "Offset barre",
+      "tune.gain.imu.heading_offset.title":   "Alignement IMU",
+      "tune.gain.rudder.range.title":         "Debattement barre",
+      "tune.gain.ap.tack.angle.title":        "Angle de virement",
+      "tune.gain.ap.tack.rate.title":         "Vitesse de virement",
+      "tune.gain.ap.tack.delay.title":        "Delai de virement",
+      "tune.gain.ap.tack.threshold.title":    "Seuil de virement",
+      "tune.gain.ap.wind_compensation.title": "Compensation de vent",
+      "tune.gain.wind.offset.title":          "Offset vent apparent",
+      "tune.gain.truewind.offset.title":      "Offset vent reel",
+      "tune.gain.tune.emptyPilot":            "En attente des donnees pilote…",
+      "tune.group.tack":   "Reglages virement",
+      "tune.group.servo":  "Servo / moteur",
+      "tune.group.wind":   "Capteur de vent",
+      "tune.group.imu":    "IMU / barre",
+      "tune.group.other":  "Autres",
+      "tune.badge.profile": "PROFIL",
+      "tune.badge.global":  "GLOBAL",
       "tune.gain.P.short":  "Corrige une erreur de cap instantanement avec le safran. Le reflexe 'corriger maintenant'.",
       "tune.gain.P.long":   "Monter si l'AP tarde a fermer une erreur. Baisser si le safran 'danse' a chaque vague.",
       "tune.gain.I.short":  "Ferme une deviation persistante dans le temps: si le bateau reste 5° a cote, la I le ramene.",
@@ -1924,6 +2210,99 @@
 
   // ---- WebSocket stream to SK ----
   let ws = null;
+  // Rev342 (Carlos, 2026-09-28): net health monitor.
+  // On Tunatunes the TL-MR100 4G router drops WiFi + 4G intermittently
+  // and the sailor cannot tell "red caída" from "pilot bug". This
+  // banner surfaces both symptoms — gap on the SK stream + ping RTT.
+  let _lastDeltaTs = Date.now();
+  let _lastPingRttMs = null;
+  let _lastPingErrTs = null;
+  // Rev346 (Carlos, 2026-09-28): timestamp of the last write to
+  // ap.tack.state/direction FROM this visor. If a delta of those
+  // paths comes in and this ts is more than 2s old, we treat the
+  // delta as "external" (mando físico o UI nativo del pypilot) and
+  // emit an observability event to maneuver-trace.
+  let _lastVisorTackWriteTs = 0;
+  // Rev346: last-seen values of tack state / direction from WS deltas.
+  // Independent of state.pypilotValues (which is HTTP-fetched only).
+  let _lastTackStateSeen = null;
+  // Rev367 (Carlos, 2026-09-30, sea-trial 18:37 pypilot offline mid-tack):
+  // timestamp of last transition of ap.tack.state seen from pypilot.
+  // If more than PYPILOT_TACK_SILENCE_MS pass during executing without
+  // any state change, we assume pypilot lost connection (real cause of
+  // the 80 s "stuck tacking" episode) and cancel locally with a toast.
+  let _lastTackStateSeenTs = 0;
+  const PYPILOT_TACK_SILENCE_MS = 40000;
+  let _lastTackDirSeen   = null;
+  let _netBannerState = "";  // "", "warn", "recovering"
+  async function _netHealthPing() {
+    const t0 = performance.now();
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/status`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const rtt = performance.now() - t0;
+      if (r.ok) {
+        _lastPingRttMs = Math.round(rtt);
+        _lastPingErrTs = null;
+      } else if (r.status !== 401) {  // ignore auth churn
+        _lastPingErrTs = Date.now();
+      }
+    } catch {
+      _lastPingErrTs = Date.now();
+    }
+  }
+  function _netHealthTick() {
+    const banner = document.getElementById("net-health-banner");
+    if (!banner) return;
+    const now = Date.now();
+    const gapMs = now - _lastDeltaTs;
+    const wsBad = !ws || ws.readyState !== 1; // 1 = OPEN
+    const pingRecentErr = _lastPingErrTs && (now - _lastPingErrTs) < 4000;
+    const rttBad = _lastPingRttMs != null && _lastPingRttMs > 1500;
+    const badNow = wsBad || gapMs > 3000 || pingRecentErr;
+    const veryBadRtt = rttBad;
+    if (badNow) {
+      const gapSec = Math.floor(gapMs / 1000);
+      const reason = wsBad ? (t("net.wsDown") || "WebSocket caído")
+                    : gapMs > 3000 ? `${t("net.silent") || "Sin datos"} ${gapSec}s`
+                    : (t("net.pingFail") || "Ping falla");
+      banner.textContent = `🌐 ${t("net.warn") || "Red intermitente"} — ${reason}`;
+      banner.style.background = "rgba(255,149,0,0.92)";
+      banner.style.color = "#0a1220";
+      banner.hidden = false;
+      _netBannerState = "warn";
+    } else if (_netBannerState === "warn") {
+      // Just recovered — flash green 2 s then hide.
+      const rttStr = _lastPingRttMs != null ? ` (${_lastPingRttMs} ms)` : "";
+      banner.textContent = `✓ ${t("net.ok") || "Red OK"}${rttStr}`;
+      banner.style.background = "rgba(77,217,130,0.92)";
+      banner.style.color = "#0a1220";
+      banner.hidden = false;
+      _netBannerState = "recovering";
+      setTimeout(() => {
+        if (_netBannerState === "recovering") {
+          banner.hidden = true;
+          _netBannerState = "";
+        }
+      }, 2000);
+    } else if (veryBadRtt && _netBannerState === "") {
+      // Persistent slow RTT but stream OK — show info in yellow.
+      banner.textContent = `🌐 ${t("net.slow") || "Red lenta"} — ${_lastPingRttMs} ms`;
+      banner.style.background = "rgba(255,207,71,0.9)";
+      banner.style.color = "#0a1220";
+      banner.hidden = false;
+    } else if (!veryBadRtt && _netBannerState !== "recovering") {
+      banner.hidden = true;
+    }
+  }
+  function _netHealthStart() {
+    _netHealthTick();
+    setInterval(_netHealthTick, 2000);
+    _netHealthPing();
+    setInterval(_netHealthPing, 5000);
+  }
   function connectSK() {
     const loc = window.location;
     const wsProto = loc.protocol === "https:" ? "wss" : "ws";
@@ -1933,6 +2312,11 @@
       subscribeAll();
     });
     ws.addEventListener("message", (evt) => {
+      // Rev342 (Carlos, 2026-09-28): stamp the last-seen delta so the
+      // net-health banner can spot streaming gaps > 3 s and tell the
+      // sailor "the WS is silent" (router hiccup on Tunatunes) vs
+      // "the pilot is broken".
+      _lastDeltaTs = Date.now();
       try { handleDelta(JSON.parse(evt.data)); } catch { /* ignore */ }
     });
     ws.addEventListener("close", () => {
@@ -1952,13 +2336,34 @@
   }
 
   function subscribeAll() {
-    const paths = [
-      // Core autopilot API v1 (published by pypilot-autopilot-provider)
+    // Rev352 (Carlos, 2026-09-30, trace analysis): pilot-critical paths
+    // now go in a DEDICATED subscription with policy:"instant" and no
+    // minPeriod so the SK subscription manager does not group them.
+    // When two publishes of the same path landed inside the 500 ms
+    // window the manager collapsed to one delta and the sailor lost
+    // an engage/state transition (see doc/memory
+    // sk-subscribe-minperiod-groups-transitions).
+    const critical = [
       "steering.autopilot.state",
       "steering.autopilot.mode",
       "steering.autopilot.target",
       "steering.autopilot.engaged",
       "steering.autopilot.availableActions",
+      "steering.autopilot.pypilot.ap.tack.state",
+      "steering.autopilot.pypilot.ap.tack.direction",
+      "steering.autopilot.pypilot.ap.mode",
+      "steering.autopilot.pypilot.ap.enabled",
+      "steering.autopilot.pypilot.ap.heading_command",
+    ];
+    ws.send(JSON.stringify({
+      context: "vessels.self",
+      subscribe: critical.map((p) => ({
+        path: p,
+        policy: "instant",
+        format: "delta",
+      })),
+    }));
+    const paths = [
       // Ours - a single wildcard on the pypilot subtree catches everything
       // including gains, servo, calibration, tack detail, errors, warnings,
       // availableModes, availablePilots, profile, pilot, runtime, version.
@@ -2065,8 +2470,20 @@
     // wildcard subscription so no extra socket work.
     if (_applyServoHealthPath(path, value)) return;
     switch (path) {
-      case "steering.autopilot.state":            state.apState = value; break;
+      case "steering.autopilot.state":
+        // Rev350 (Carlos, 2026-09-29): stage=visor frontier log. Included
+        // for the pilot-critical paths so we can measure latency backend
+        // → visor. Only fires when maneuver-trace is ON (mtLog is a no-op
+        // otherwise, cheap HTTP POST when ON).
+        if (typeof _mtLog === "function") {
+          try { _mtLog("other", { stage: "visor", path: "steering.autopilot.state", value, monoTs: performance.now() }); } catch { /* silent */ }
+        }
+        state.apState = value;
+        break;
       case "steering.autopilot.mode":
+        if (typeof _mtLog === "function") {
+          try { _mtLog("other", { stage: "visor", path: "steering.autopilot.mode", value, prev: state.mode, monoTs: performance.now() }); } catch { /* silent */ }
+        }
         // Rev249 (Carlos): swallow a stale mode delta that arrives
         // shortly after the user changed the selector locally. If the
         // incoming value differs from the just-picked one, it is a
@@ -2109,8 +2526,17 @@
         // (compass / GPS -> "-100 deg" / "+100 deg"; wind -> "TACK").
         try { renderTackButton(state.pypilotValues?.["ap.tack.state"]); } catch { /* silent */ }
         break;
-      case "steering.autopilot.target":           state.target = numericOrNull(value); renderTargetArrow(); break;
+      case "steering.autopilot.target":
+        if (typeof _mtLog === "function") {
+          try { _mtLog("other", { stage: "visor", path: "steering.autopilot.target", value, prev: state.target, monoTs: performance.now() }); } catch { /* silent */ }
+        }
+        state.target = numericOrNull(value);
+        renderTargetArrow();
+        break;
       case "steering.autopilot.engaged": {
+        if (typeof _mtLog === "function") {
+          try { _mtLog("other", { stage: "visor", path: "steering.autopilot.engaged", value, prev: state.engaged, monoTs: performance.now() }); } catch { /* silent */ }
+        }
         const wasEngaged = state.engaged;
         state.engaged = !!value;
         // Rev262 (Carlos): TGT / diamond hide on disengage handled by
@@ -2206,10 +2632,48 @@
         if (Array.isArray(value)) { state.profiles = value; fillSelect("#profile-select", value); }
         break;
       // Rev63 / 2.0.0: verbatim - was `.tack.state`, now `.ap.tack.state` (from pypilot key `ap.tack.state`).
-      case "steering.autopilot.pypilot.ap.tack.state":
+      case "steering.autopilot.pypilot.ap.tack.state": {
+        // Rev346 (Carlos, 2026-09-28): observability. Log every WS
+        // delta of tack.state, and mark as external when the visor
+        // did NOT initiate it in the last 2s (mando físico o UI
+        // nativo). Guarda oldValue → newValue. `_lastTackStateSeen`
+        // is dedicated (state.pypilotValues comes from HTTP fetch
+        // and is not updated by WS deltas).
+        const prev = _lastTackStateSeen;
+        const now = Date.now();
+        const external = !_lastVisorTackWriteTs || (now - _lastVisorTackWriteTs) > 2000;
+        if (prev !== value && typeof _mtLog === "function") {
+          // Rev350 (Carlos): added stage + monoTs for frontier latency.
+          _mtLog("other", { stage: "visor", via: "delta", name: "ap.tack.state", from: prev, to: value, external, monoTs: performance.now() });
+        }
+        if (_lastTackStateSeen !== value) _lastTackStateSeenTs = Date.now();
+        _lastTackStateSeen = value;
         renderTackButton(value);
+        // Rev355 (Carlos, 2026-09-30, QA Rev354): stats HUD must fire
+        // for BOTH local and external tacks — sailor wants the summary
+        // regardless of who initiated the maneuver. The Rev353 gate
+        // that blocked externals was rolled back per user request.
         _tackStatsOnStateChange(value);
+        // Rev353: mirror sync for external tacks. Read-only observer.
+        if (external) {
+          try { _maybeSyncExternalOverlay(prev, value); } catch (e) { console.warn("[mirror sync]", e); }
+        }
         break;
+      }
+      // Rev346 (Carlos, 2026-09-28): idem para tack.direction — así
+      // vemos si pypilot cambia la dirección internamente (bug B de
+      // Rev344, ignora la banda pedida).
+      case "steering.autopilot.pypilot.ap.tack.direction": {
+        const prev = _lastTackDirSeen;
+        const now = Date.now();
+        const external = !_lastVisorTackWriteTs || (now - _lastVisorTackWriteTs) > 2000;
+        if (prev !== value && typeof _mtLog === "function") {
+          // Rev350 (Carlos): added stage + monoTs for frontier latency.
+          _mtLog("other", { stage: "visor", via: "delta", name: "ap.tack.direction", from: prev, to: value, external, monoTs: performance.now() });
+        }
+        _lastTackDirSeen = value;
+        break;
+      }
       case "navigation.headingMagnetic":
         state.heading = numericOrNull(value); renderCogAndCurrent(); break;
       case "steering.rudderAngle":
@@ -2865,7 +3329,23 @@
     // Rev208 (Carlos): while a countdown is running, prefer the
     // planned destination rad over state.target (which the stepped
     // writer temporarily moves to intermediate 100-deg targets).
-    const targetRad = _countdownPlannedTargetRad != null
+    // Rev347 (Carlos, 2026-09-29): gate the override on the countdown
+    // overlay being VISIBLE. Sea trial 2026-09-28 hit the case where a
+    // visor-initiated tack left `_countdownPlannedTargetRad` set,
+    // `_tackCountdownHide` was never called (auto-abort path in
+    // Rev311/345), and every subsequent target delta — including
+    // externally-originated tacks from the native UI or mando físico —
+    // was masked by the stale planned value. Diamond froze; sailor
+    // reported "el diamante se queda en su sitio, los botones sí se
+    // ponen naranja, el engage cambia". As a belt-and-suspenders
+    // measure, also clear the stale planned rad when we detect the
+    // overlay is closed (the sole legitimate owner of that value).
+    const overlayEl = document.getElementById("tack-countdown-overlay");
+    const overlayActive = !!(overlayEl && overlayEl.style.display !== "none");
+    if (!overlayActive && _countdownPlannedTargetRad != null) {
+      _countdownPlannedTargetRad = null;
+    }
+    const targetRad = (overlayActive && _countdownPlannedTargetRad != null)
       ? _countdownPlannedTargetRad
       : state.target;
     // Rev267 (Carlos): también ocultar el diamond cuando perdemos
@@ -3188,29 +3668,41 @@
     // Rev192/207 (Carlos): the VIRAR buttons never mutate into "CANCEL".
     // Cancel is the countdown circle. The two side buttons stay as
     // tack triggers so re-taps during a running maneuver can extend
-    // or subtract. Rev207: in compass / GPS modes the button label
-    // switches to signed degrees (-100 / +100 with the current
-    // ap.tack.angle) so the sailor sees the exact rotation each tap
-    // applies; wind modes keep the "VIRAR" verb because the actual
-    // maneuver (tack or jibe) is auto-detected from AWA geometry.
+    // or subtract.
+    // Rev343 (Carlos, 2026-09-28, sea-trial 2026-09-28): tres fixes:
+    //   1) En modo WIND el número "±100°" no aplica (el ángulo es AWA,
+    //      no heading). Label vacío en wind (el arco SVG ya sugiere
+    //      "virar" visualmente). Solo compass/gps mantiene el número.
+    //   2) Durante una maniobra los botones ahora muestran "✕" grande
+    //      y `title` "CANCELAR VIRADA/TRASLUCHADA" según el kind.
+    //   3) `useDeg` ya estaba computado pero nunca se aplicaba al
+    //      label — bug latente desde Rev207.
     const p = $("#tack-port-btn");
     const s = $("#tack-star-btn");
     if (!p || !s) return;
     const inProgress = tackState && tackState !== "none";
     const modeStr = String(state.mode || "").toLowerCase();
-    const useDeg = !modeStr.includes("wind");
+    const isWind = modeStr.includes("wind");
     const angleDeg = (() => {
       const v = state.pypilotValues?.["ap.tack.angle"];
       return (typeof v === "number" && v > 10 && v < 180) ? Math.round(v) : 100;
     })();
-    // Rev235 (Carlos): the tack buttons carry an SVG arc + a text
-    // node with class "tack-angle-lbl" that shows the configured
-    // tack angle from ap.tack.angle. Refreshes every render.
-    const label = String(angleDeg);
+    const kind = _tackCountdownKind === "jibe" ? "TRASLUCHADA" : "VIRADA";
+    const cancelTitle = `${t("tack.cancel") || "Cancelar"} ${kind}`;
+    // Compute the label per state:
+    //  - inProgress             → "✕" (cancel affordance)
+    //  - wind mode, idle        → "" (no misleading degrees)
+    //  - compass/gps mode, idle → the numeric ap.tack.angle
+    const label = inProgress ? "✕" : (isWind ? "" : String(angleDeg));
     for (const btn of [p, s]) {
       btn.dataset.state = "tack";
       const lbl = btn.querySelector(".tack-angle-lbl");
       if (lbl && lbl.textContent !== label) lbl.textContent = label;
+      // Grow the ✕ so it reads as a cancel from a metre away.
+      if (lbl) lbl.style.fontSize = inProgress ? "34px" : "";
+      // Title = accessibility + hover tooltip. Explicit cancel wording
+      // during a running maneuver kills Carlos' "orange despista" bug.
+      btn.setAttribute("title", inProgress ? cancelTitle : (btn.dataset.tackTitleIdle || ""));
     }
     for (const b of [p, s]) {
       if (inProgress) b.classList.add("tack-active");
@@ -3424,7 +3916,163 @@
     if (marker) marker.setAttribute("fill", stroke);
     g.style.display = "";
   }
+  // Rev353 (Carlos, 2026-09-30, Fase C): mirror sync entry point.
+  // Called from handleDelta case ap.tack.state ONLY when external=true.
+  function _maybeSyncExternalOverlay(prev, value) {
+    const activeStates = ["begin", "waiting", "tacking"];
+    const wasActive = activeStates.includes(prev);
+    const isActive  = activeStates.includes(value);
+    const overlayEl = document.getElementById("tack-countdown-overlay");
+    const overlayOpen = overlayEl && overlayEl.style.display !== "none";
+    // Guard: never take ownership if a LOCAL tack is already running.
+    // hudOwner semantics: overlay open + _externalManeuver=false
+    // means the local path owns it; we must not intrude.
+    if (overlayOpen && !_externalManeuver) return;
+    if (isActive && !wasActive && !_externalManeuver) {
+      _openExternalTackOverlay();
+      return;
+    }
+    if (!isActive && _externalManeuver) {
+      _closeExternalTackOverlay();
+    }
+  }
+  function _openExternalTackOverlay() {
+    // Rev358 (Carlos, 2026-09-30, QA Rev355): a new external maneuver
+    // arrived — close any prior stats HUD so it does not stay behind
+    // the mirror overlay and get overwritten later when this new tack
+    // completes.
+    try { if (_tackStats.hideAt) _tackStatsHide(); } catch { /* silent */ }
+    // Direction may not have landed yet. Fall back to _lastTackDirSeen
+    // (which the ap.tack.direction handler updates on every delta),
+    // or to a generic "MANIOBRA" label if still unknown.
+    const dir = _lastTackDirSeen === "port" ? "port"
+              : _lastTackDirSeen === "starboard" ? "starboard"
+              : null;
+    const modeStr = String(state.mode || "").toLowerCase();
+    const isWind = modeStr.includes("wind");
+    const useTrue = modeStr.includes("true");
+    let refRad = null;
+    if (isWind) refRad = useTrue ? state.windAngleTrue : state.windAngle;
+    else refRad = state.heading;
+    // Planned target (best-effort, may be off if direction rewrite
+    // upstream bug hits — that's a display issue, not a control one).
+    let planned = null;
+    if (dir && typeof refRad === "number") {
+      const sign = dir === "port" ? -1 : 1;
+      if (isWind) {
+        planned = -refRad;
+      } else {
+        const angleDeg = _tackAngleDeg();
+        planned = refRad + angleDeg * DEG2RAD * sign;
+        while (planned >  Math.PI) planned -= 2 * Math.PI;
+        while (planned < -Math.PI) planned += 2 * Math.PI;
+      }
+    }
+    _externalManeuver = true;
+    _tackCountdownDir = dir;
+    _maneuverModeAtStart = modeStr;
+    _tackTargetBeforeStart = state.target;
+    _countdownPlannedTargetRad = planned;
+    // Kind is "tack" by default; refresh once direction/AWA are known.
+    _tackCountdownKind = dir ? _detectManeuverKind() : "tack";
+    _tackDiamondBlink = true;
+    // Overlay visible, phase=executing (pypilot is already running).
+    const overlay = document.getElementById("tack-countdown-overlay");
+    if (overlay && overlay.parentNode) overlay.parentNode.appendChild(overlay);
+    _tackCountdownPhase = "executing";
+    _tackCountdownExecuteStartTs = Date.now();
+    _tackCountdownEndTs = Date.now();  // no arming countdown
+    // NOTE: NO _tackCountdownTimer / _tackCountdownTick. That timer
+    // would have rate-of-turn fallback that closes prematurely and
+    // fires stats. Instead a lightweight UI refresh only.
+    const style = MANEUVER_STYLES[_tackCountdownKind] || MANEUVER_STYLES.tack;
+    const phase = document.getElementById("tack-countdown-phase");
+    const num = document.getElementById("tack-countdown-num");
+    const circle = overlay ? overlay.querySelector("circle") : null;
+    if (overlay) overlay.style.display = "";
+    if (phase) {
+      phase.style.display = "";
+      phase.textContent = _labelForCurrentKind("executing");
+      phase.setAttribute("fill", style.execColor);
+      phase.setAttribute("font-size", "16");
+    }
+    if (num) {
+      num.setAttribute("y", "22");
+      num.setAttribute("font-size", "42");
+      num.setAttribute("fill", style.execColor);
+      // Static label: seconds elapsed (visor observer, no target).
+      num.textContent = "…";
+    }
+    if (circle) {
+      circle.setAttribute("fill", style.execAlpha);
+      circle.setAttribute("stroke", style.execColor);
+    }
+    const degEl = document.getElementById("tack-countdown-deg");
+    if (degEl) { degEl.style.display = "none"; }
+    // Light UI refresh: update label + elapsed. NO close logic.
+    if (_externalManeuverTimer) clearInterval(_externalManeuverTimer);
+    _externalManeuverTimer = setInterval(() => {
+      try {
+        if (!_externalManeuver) return;
+        const el = document.getElementById("tack-countdown-num");
+        if (el) {
+          const elapsedSec = Math.floor((Date.now() - _tackCountdownExecuteStartTs) / 1000);
+          el.textContent = `${elapsedSec}s`;
+        }
+        // Re-detect kind if direction/AWA showed up after open.
+        if (_lastTackDirSeen && _tackCountdownDir !== _lastTackDirSeen) {
+          _tackCountdownDir = _lastTackDirSeen === "port" ? "port" : "starboard";
+          try { _refreshOverlayKind(); } catch { /* silent */ }
+        }
+        try { renderTackRotationArc(); } catch { /* silent */ }
+      } catch (e) { console.warn("[mirror timer]", e); }
+    }, 500);
+    // Watchdog: if pypilot never sends ap.tack.state=none for 60 s,
+    // close the mirror ourselves so a lost delta does not leave the
+    // overlay stuck forever.
+    if (_externalManeuverWatchdog) clearTimeout(_externalManeuverWatchdog);
+    _externalManeuverWatchdog = setTimeout(() => {
+      if (_externalManeuver) {
+        console.warn("[mirror] 60s watchdog closing overlay (no ap.tack.state=none received)");
+        _closeExternalTackOverlay();
+      }
+    }, 60000);
+    renderTargetArrow();
+    if (typeof _mtLog === "function") {
+      try { _mtLog("other", { stage: "visor", via: "mirror-open", dir, mode: modeStr, plannedRad: planned }); } catch { /* silent */ }
+    }
+  }
+  function _closeExternalTackOverlay() {
+    if (_externalManeuverTimer) { clearInterval(_externalManeuverTimer); _externalManeuverTimer = null; }
+    if (_externalManeuverWatchdog) { clearTimeout(_externalManeuverWatchdog); _externalManeuverWatchdog = null; }
+    _externalManeuver = false;
+    // Reset planning/blink state shared with local path.
+    _countdownPlannedTargetRad = null;
+    _tackCountdownDir = null;
+    _tackCountdownKind = "tack";
+    _tackCountdownPhase = "arming";
+    _tackCountdownExecuteStartTs = 0;
+    _tackDiamondBlink = false;
+    _tackTargetBeforeStart = null;
+    _maneuverModeAtStart = null;
+    const overlay = document.getElementById("tack-countdown-overlay");
+    if (overlay) overlay.style.display = "none";
+    const arc = document.getElementById("tack-rotation-arc");
+    if (arc) arc.style.display = "none";
+    const toTack = document.getElementById("tack-countdown-toTack");
+    if (toTack) toTack.style.display = "none";
+    renderTargetArrow();
+    if (typeof _mtLog === "function") {
+      try { _mtLog("other", { stage: "visor", via: "mirror-close" }); } catch { /* silent */ }
+    }
+  }
   async function _tackCountdownStart(kind) {
+    // Rev358 (Carlos, 2026-09-30, QA Rev355): a new local maneuver
+    // starts — close any prior stats HUD (a "VIRADA CANCELADA" or a
+    // completed summary still on screen from a previous tack) so it
+    // does not stay behind the new countdown and confuse the sailor
+    // when the new maneuver completes and overwrites its content.
+    try { if (_tackStats.hideAt) _tackStatsHide(); } catch { /* silent */ }
     _tackCountdownKind = MANEUVER_STYLES[kind] ? kind : "tack";
     _tackDiamondBlink = true;
     renderTargetArrow();
@@ -3554,12 +4202,22 @@
               && _tackRotationDoneDeg >= totalDeg * 0.7) arrived = true;
         }
       }
-      // Rev311 (Carlos sea trial 2026-09-25): el contador seguía
-      // contando aunque el barco estuviera claramente asentado post-tack
-      // (heading estable, rot < ~3°/s), porque el arrival-by-plan no
-      // llegaba a `totalDeg` por overshoot / wind noise. Añadimos un
-      // fallback por RATE OF TURN: dos segundos con rot < 3°/s en fase
-      // executing y elapsed >= 4s → asumimos asentado y cerramos.
+      // Rev311 → Rev345 (Carlos sea trial 2026-09-28 port test): el
+      // fallback por rate-of-turn falsaba "arrived" en puerto donde el
+      // heading está estable (rot ~0°/s siempre) → visor mandaba
+      // ap.tack.state=none 6s después → CANCELABA el tack que pypilot
+      // acababa de arrancar. Confirmado en trace 22:51:26-32.
+      //
+      // Fix doble:
+      //  1) El fallback ahora exige ADEMÁS que la rotación acumulada
+      //     sea > 20° (o 40% del total, la menor). En puerto rot=0 →
+      //     jamás dispara.
+      //  2) Al detectar "arrived" NO mandamos state=none — sólo se
+      //     esconde el HUD. Si pypilot sigue tacking (tk=tacking en
+      //     los últimos deltas), interrumpirlo con state=none aborta
+      //     la maniobra. El pypilot core cierra el tack él mismo
+      //     cuando la rotación llega, o lo cancela el sailor con el
+      //     círculo del overlay.
       if (!arrived && elapsed >= 4 && typeof state.heading === "number") {
         const now = Date.now();
         if (_tackRotLastHdg != null && _tackRotLastTs != null) {
@@ -3571,7 +4229,14 @@
             const rotDegPerSec = Math.abs(dhDeg) / dtSec;
             if (rotDegPerSec < 3) {
               if (_tackRotStableSince == null) _tackRotStableSince = now;
-              if (now - _tackRotStableSince > 2000) arrived = true;
+              // Rev345 gate: only trust "settled" when the boat has
+              // actually rotated a meaningful amount. Otherwise a
+              // moored boat looks "settled" forever.
+              const minRotArrived = totalDeg != null
+                ? Math.max(20, totalDeg * 0.4)
+                : 20;
+              if (now - _tackRotStableSince > 2000 &&
+                  _tackRotationDoneDeg >= minRotArrived) arrived = true;
             } else {
               _tackRotStableSince = null;
             }
@@ -3580,14 +4245,56 @@
         _tackRotLastHdg = state.heading;
         _tackRotLastTs = now;
       }
-      const timedOut = !arrived && elapsed >= 120;
+      const timedOut = !arrived && elapsed >= 60;
+      // Rev367 (Carlos, 2026-09-30, sea-trial 18:37 80 s stuck tacking):
+      // if pypilot has been silent about ap.tack.state for the whole
+      // silence window while we're supposedly executing a tack, the
+      // most likely cause is a lost pypilot socket (18:37 journal
+      // confirmed "pypilot core reported offline" mid-tack). Rather
+      // than wait the 60 s hard timeout, close early and inform the
+      // sailor so they can rescue the maneuver.
+      const pypilotSilent = _lastTackStateSeenTs > 0
+        && (now - _lastTackStateSeenTs) > PYPILOT_TACK_SILENCE_MS
+        && elapsed >= 15;
       if (arrived) {
         try { _tackStatsOnTackCompleted(); } catch { /* silent */ }
-        pluginRaw("ap.tack.state", "none");
+        // Rev345: NO mandar state=none al éxito — el pilot puede seguir
+        // asentando; el próximo pypilot's own transition tack.state →
+        // none lo cerrará. Solo esconder el HUD.
+        _tackCountdownHide();
+      } else if (pypilotSilent) {
+        console.warn(`[tack] pypilot silent for ${Math.round((now - _lastTackStateSeenTs)/1000)} s while executing — cancelling and warning sailor`);
+        // Rev367: reuse the pypilot-reconnect-toast element with a
+        // different message for this specific silence event. Its CSS
+        // class already gives us the on-screen toast styling.
+        try {
+          let el = document.getElementById("pypilot-reconnect-toast");
+          if (!el) {
+            el = document.createElement("div");
+            el.id = "pypilot-reconnect-toast";
+            el.className = "pypilot-reconnect-toast";
+            document.body.appendChild(el);
+          }
+          el.textContent = t("tack.pypilotSilent") || "Pypilot no responde: virada cancelada";
+          el.classList.add("show");
+          clearTimeout(el._hideTimer);
+          el._hideTimer = setTimeout(() => { el.classList.remove("show"); }, 6000);
+          try { _alSpeak(t("tack.pypilotSilentSpeak") || "Pypilot sin respuesta"); } catch { /* silent */ }
+        } catch { /* silent */ }
+        try { _tackStatsOnTackCancelled(); } catch { /* silent */ }
+        // Try to tell pypilot to stop, best-effort (may fail if socket
+        // is dead — that's the whole point).
+        try { pluginRaw("ap.tack.state", "none").catch(() => {}); } catch { /* silent */ }
         _tackCountdownHide();
       } else if (timedOut) {
         console.warn(`[tack] timeout after ${elapsed}s - done=${Math.round(_tackRotationDoneDeg)} of ${totalDeg}, closing without success`);
-        pluginRaw("ap.tack.state", "none");
+        // Rev345: en timeout SÍ mandamos state=none porque asumimos
+        // que algo salió mal y queremos que pypilot pare — pero solo
+        // si pypilot todavía cree que está tacking.
+        const pypilotTk = state.pypilotValues?.["ap.tack.state"];
+        if (pypilotTk && pypilotTk !== "none") {
+          pluginRaw("ap.tack.state", "none");
+        }
         _tackCountdownHide();
       }
     }
@@ -3641,6 +4348,24 @@
   // cancel picks the right reference frame even if the AP mode has
   // changed since the tap.
   let _maneuverModeAtStart = null;
+  // Rev353 (Carlos, 2026-09-30, Fase C): mirror HUD for external
+  // tacks. When ap.tack.state=begin/waiting/tacking arrives with
+  // external=true, the visor opens its overlay in READ-ONLY mode.
+  // Nothing is written back to pypilot; the overlay only paints
+  // the countdown label, the planned diamond, and the rotation arc.
+  // Cross-check LLM (Gemini + GPT + GPT-Codex, 2026-09-29) mandated:
+  //   * NO _tackCountdownTick — no rate-of-turn fallback, no
+  //     "arrived", no timeout that writes ap.tack.state=none.
+  //   * NO _tackStatsOnStateChange dispatch — no post-tack summary.
+  //   * Close ONLY on ap.tack.state=none received from pypilot
+  //     (with a 60 s watchdog as safety).
+  //   * Coexist with local visor-tack path without collision.
+  // See [[hud-owner-pattern]] and [[tackstats-needs-local-session-gate]]
+  // memories. The previous Rev348 attempt broke because it reused
+  // _tackCountdownTick — that mistake stays killed here.
+  let _externalManeuver = false;
+  let _externalManeuverTimer = null;    // pure UI refresh, no logic
+  let _externalManeuverWatchdog = null; // 60 s safety close
   function _tackCountdownDegTotal() {
     if (_tackAccumulatedRotationDeg > 0) return Math.round(_tackAccumulatedRotationDeg);
     const raw = state.pypilotValues?.["ap.tack.angle"];
@@ -3728,6 +4453,16 @@
     const isWindManeuver = String(_maneuverModeAtStart || "").includes("wind");
     if (isWindManeuver && _tackCountdownDir) {
       const dirVal = _tackCountdownDir === "port" ? "port" : "starboard";
+      // Rev361 (Carlos, 2026-09-30): reverted Rev360 "prediction" flip.
+      // On re-analysis the flip does NOT solve the reported bug: if the
+      // sailor picks the SHORT arc pypilot respects it, so flipping
+      // sends us to the opposite side. If the sailor picks the LONG
+      // arc pypilot rewrites to short anyway, so flipping still ends
+      // in short arc — never the long side the sailor wanted. Either
+      // way the flip makes things worse or no better. The real bug is
+      // upstream in pypilot core (short-arc override); it needs a fix
+      // there, or a synthetic controller loop on our side. Neither is
+      // what this call site does.
       try {
         await pluginRaw("ap.tack.direction", dirVal);
         const res = await pluginRaw("ap.tack.state", "begin");
@@ -3786,6 +4521,14 @@
     if (degEl) degEl.setAttribute("fill", style.execColor);
   }
   function _tackCountdownHide() {
+    // Rev353: if a mirror session owned the overlay, delegate the close
+    // to _closeExternalTackOverlay so its timers get cleaned up. That
+    // path also resets _externalManeuver so the flag does not linger
+    // and confuse the next visor-tack.
+    if (_externalManeuver) {
+      _closeExternalTackOverlay();
+      return;
+    }
     if (_tackCountdownTimer) { clearInterval(_tackCountdownTimer); _tackCountdownTimer = null; }
     _stopTackStepper();   // Rev214: real stop of long-arc stepper.
     _tackForceLongArcSign = 0;
@@ -3864,6 +4607,10 @@
       }
       if (_nudgeSendTimer) { clearTimeout(_nudgeSendTimer); _nudgeSendTimer = null; }
       pluginRaw("ap.tack.state", "none");
+      // Rev355 (Carlos, 2026-09-30, QA Rev354): fire cancelled stats
+      // before the hide so the HUD opens with the pre-tack data and a
+      // "CANCELADO" verdict.
+      try { _tackStatsOnTackCancelled(); } catch (e) { console.warn("[stats cancel]", e); }
       _tackCountdownHide();
       if (!wasExecuting && typeof preTackTarget === "number") {
         state.target = preTackTarget;
@@ -3916,8 +4663,13 @@
     lastTackState: null,
   };
   const TACK_STATS_MAX_MS = 120_000;
-  const TACK_STATS_WINDOW_MS = 30_000;
-  const TACK_STATS_POST_START_MS = 30_000;
+  // Rev371 (Carlos, 2026-09-30): reduced post-tack measurement timing.
+  // Previous 30s wait + 30s window = 60s until post stats updated the
+  // HUD (Carlos: "es una locura"). Now 5s wait for ROT to settle + 10s
+  // measurement window = 15s total. 10 samples at 1 Hz still yield a
+  // stable average for TWS/AWA/SOG comparison.
+  const TACK_STATS_WINDOW_MS = 10_000;
+  const TACK_STATS_POST_START_MS = 5_000;
   // Rev225 (Carlos): HUD auto-close policy. Configurable knobs; TODO
   // expose in Setup. Fade begins TACK_STATS_HUD_FADE_MS before hide
   // so the sailor sees the panel dissolve rather than snap out.
@@ -3987,6 +4739,7 @@
     _tackStats.pre = _tackStatsAverage(now - TACK_STATS_WINDOW_MS, now);
     _tackStats.postScheduledFor = now + TACK_STATS_POST_START_MS;
     _tackStats.completedTs = now;   // Rev172: needed for recovery timer
+    _tackStats.cancelled = false;
     // Rev224 (Carlos): execution time from arming-to-executing switch
     // to completion. Reported in the "TIEMPO" row of the HUD.
     if (_tackCountdownExecuteStartTs > 0) {
@@ -3994,6 +4747,29 @@
     } else {
       _tackStats.executionMs = null;
     }
+    // Rev355 (Carlos, 2026-09-30, QA Rev354): sailor asked the HUD to
+    // appear IMMEDIATELY when the tack ends. Show now with post=null;
+    // the sampler tick updates the same HUD once the post window
+    // completes. Rev371: post window shortened to 5s wait + 10s span.
+    try { _tackStatsShow(_tackStats.pre, null); } catch (e) { console.warn("[stats show]", e); }
+  }
+  // Rev355 (Carlos, 2026-09-30): cancellation path. Sailor cancelled
+  // the tack (second-tap on side button, overlay tap, or hard stop).
+  // Show HUD immediately with "CANCELADO" label + whatever data we
+  // have (pre 30 s + partial post if we sampled anything). Post
+  // window is NOT scheduled because the maneuver was aborted.
+  function _tackStatsOnTackCancelled() {
+    const now = Date.now();
+    _tackStats.pre = _tackStatsAverage(now - TACK_STATS_WINDOW_MS, now);
+    _tackStats.completedTs = now;
+    _tackStats.cancelled = true;
+    _tackStats.postScheduledFor = 0;  // no post window on cancel
+    if (_tackCountdownExecuteStartTs > 0) {
+      _tackStats.executionMs = now - _tackCountdownExecuteStartTs;
+    } else {
+      _tackStats.executionMs = null;
+    }
+    try { _tackStatsShow(_tackStats.pre, null); } catch (e) { console.warn("[stats cancel show]", e); }
   }
   // Rev172 (Carlos): persistent tack log. Every completed tack lands in
   // localStorage with pre/post averages, SOG retention %, and time to
@@ -4340,48 +5116,65 @@
     // paints ON TOP of the wind arrows (they come later in the DOM
     // otherwise). Idempotent.
     if (g.parentNode) g.parentNode.appendChild(g);
-    const fmt = (v, unit, dec) => v == null ? "--" : v.toFixed(dec) + (unit || "");
+    const cancelled = !!_tackStats.cancelled;
+    // Rev355: post==null && !cancelled means "waiting for post window"
+    // — sailor sees the HUD open with the pre-tack data and a "…" on
+    // the after column. The sampler tick will call this again once
+    // the post average is ready and replace the "…" with real values.
+    const pending = post == null && !cancelled;
+    const fmt = (v, unit, dec) => v == null ? (pending ? "…" : "--") : v.toFixed(dec) + (unit || "");
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-    set("tack-stats-tws-before", fmt(pre?.tws, " kn", 1));
+    set("tack-stats-tws-before", (pre?.tws == null ? "--" : pre.tws.toFixed(1) + " kn"));
     set("tack-stats-tws-after",  fmt(post?.tws, " kn", 1));
     // Rev225 (Carlos): AWA with side abbreviation (B/E).
-    const awaFmt = (o) => (o == null || o.awa == null)
-      ? "--"
-      : `${Math.round(o.awa)}° ${o.awaSide || ""}`.trim();
-    set("tack-stats-awa-before", awaFmt(pre));
-    set("tack-stats-awa-after",  awaFmt(post));
-    set("tack-stats-sog-before", fmt(pre?.sog, " kn", 1));
+    const awaFmt = (o, isPost) => {
+      if (o == null || o.awa == null) return (isPost && pending) ? "…" : "--";
+      return `${Math.round(o.awa)}° ${o.awaSide || ""}`.trim();
+    };
+    set("tack-stats-awa-before", awaFmt(pre, false));
+    set("tack-stats-awa-after",  awaFmt(post, true));
+    set("tack-stats-sog-before", (pre?.sog == null ? "--" : pre.sog.toFixed(1) + " kn"));
     set("tack-stats-sog-after",  fmt(post?.sog, " kn", 1));
     // Rev224: execution time (from arming-to-executing switch to
     // completion). Shown as "X.Y s" when available.
     set("tack-stats-time", _tackStats.executionMs != null
       ? (_tackStats.executionMs / 1000).toFixed(1) + " s"
       : "--");
-    // Simple verdict: SOG loss expressed as pct of the pre value.
+    // Verdict line: for cancelled show "CANCELADO"; for pending show
+    // "midiendo…"; when post lands compute SOG loss percentage.
     const v = document.getElementById("tack-stats-verdict");
-    if (v && pre && post && pre.sog != null && post.sog != null && pre.sog > 0.1) {
-      const delta = post.sog - pre.sog;
-      const pct = (delta / pre.sog) * 100;
-      // Rev223 (Carlos): sin colores semanticos - todo blanco por
-      // consistencia con el resto del cuadro.
-      if (pct >= -5)      { v.textContent = `SOG ${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%  •  ${t("maneuver.verdict.good")}`; }
-      else if (pct >= -20){ v.textContent = `SOG ${pct.toFixed(0)}%  •  ${t("maneuver.verdict.normal")}`; }
-      else                { v.textContent = `SOG ${pct.toFixed(0)}%  •  ${t("maneuver.verdict.lost")}`; }
+    if (v) {
+      if (cancelled) {
+        v.textContent = t("maneuver.verdict.cancelled") || "CANCELADO";
+      } else if (pending) {
+        v.textContent = t("maneuver.verdict.measuring") || "midiendo post-virada…";
+      } else if (pre && post && pre.sog != null && post.sog != null && pre.sog > 0.1) {
+        const delta = post.sog - pre.sog;
+        const pct = (delta / pre.sog) * 100;
+        if (pct >= -5)      { v.textContent = `SOG ${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%  •  ${t("maneuver.verdict.good")}`; }
+        else if (pct >= -20){ v.textContent = `SOG ${pct.toFixed(0)}%  •  ${t("maneuver.verdict.normal")}`; }
+        else                { v.textContent = `SOG ${pct.toFixed(0)}%  •  ${t("maneuver.verdict.lost")}`; }
+      } else {
+        v.textContent = "";
+      }
       v.setAttribute("fill", "#ffffff");
-    } else if (v) {
-      v.textContent = "";
     }
     g.style.display = "";
     g.style.opacity = "1";
     // Rev225 (Carlos): tint the "VIRADA" title, the rect stroke and
     // the verdict line with the maneuver colour (rojo tack, verde
     // jibe). Falls back to gray if we never latched a kind.
+    // Rev355: for cancelled tacks force a neutral gray so it does not
+    // look like a completed maneuver.
     const style = MANEUVER_STYLES[_tackCountdownKind] || MANEUVER_STYLES.tack;
-    const kindColor = style.execColor;
-    const titleText = _tackCountdownKind === "jibe" ? t("maneuver.jibe.title") : t("maneuver.tack.title");
+    const kindColor = cancelled ? "#9aa0a6" : style.execColor;
+    let titleText;
+    if (cancelled) titleText = _tackCountdownKind === "jibe"
+        ? (t("maneuver.jibe.cancelled") || "TRASLUCHADA CANCELADA")
+        : (t("maneuver.tack.cancelled")  || "VIRADA CANCELADA");
+    else titleText = _tackCountdownKind === "jibe" ? t("maneuver.jibe.title") : t("maneuver.tack.title");
     const titleEl = g.querySelector("text");
     if (titleEl && titleEl.textContent) titleEl.textContent = titleText;
-    // The <rect> is the first child; recolour the stroke.
     const rectEl = g.querySelector("rect");
     if (rectEl && !rectEl.parentNode.getAttribute("id")?.endsWith("close")) {
       rectEl.setAttribute("stroke", kindColor);
@@ -4394,16 +5187,25 @@
     _tackStats.hideAt = Date.now() + TACK_STATS_HUD_MS;
     // Rev172: persist this tack in the local log so long-press-on-boat
     // can rank tacks by SOG retention and by recovery time.
-    const retention = (pre?.sog > 0 && post?.sog != null)
-      ? (post.sog / pre.sog) * 100 : null;
-    const recoverySec = _tackLogRecoverySec(_tackStats.completedTs, pre?.sog);
-    _tackLogSave({
-      ts: _tackStats.completedTs || Date.now(),
-      pre:  { tws: pre?.tws  ?? null, awa: pre?.awa  ?? null, sog: pre?.sog  ?? null },
-      post: { tws: post?.tws ?? null, awa: post?.awa ?? null, sog: post?.sog ?? null },
-      retention,
-      recoverySec,
-    });
+    // Rev355: only persist when we have a FINAL snapshot — post ready
+    // (completed) OR cancelled (no post coming). The pending initial
+    // render does not write to localStorage; the post-ready render
+    // reuses the same completedTs so the entry appears once.
+    if (post != null || cancelled) {
+      const retention = (pre?.sog > 0 && post?.sog != null)
+        ? (post.sog / pre.sog) * 100 : null;
+      const recoverySec = _tackLogRecoverySec(_tackStats.completedTs, pre?.sog);
+      _tackLogSave({
+        ts: _tackStats.completedTs || Date.now(),
+        pre:  { tws: pre?.tws  ?? null, awa: pre?.awa  ?? null, sog: pre?.sog  ?? null },
+        post: { tws: post?.tws ?? null, awa: post?.awa ?? null, sog: post?.sog ?? null },
+        retention,
+        recoverySec,
+        cancelled: cancelled || undefined,
+        executionMs: _tackStats.executionMs ?? undefined,
+        kind: _tackCountdownKind || "tack",
+      });
+    }
   }
   function _tackStatsHide() {
     const g = document.getElementById("tack-stats-hud");
@@ -4424,6 +5226,9 @@
   function _tackStatsOnStateChange(newState) {
     // Detect the completion transition: was in a non-none tack state,
     // now back to none. Skip the very first render (undefined -> none).
+    // Rev355 (Carlos, 2026-09-30): fires for local AND external — the
+    // Rev353 external gate was rolled back per user request. Sailor
+    // wants stats regardless of who initiated the tack.
     if (_tackStats.lastTackState && _tackStats.lastTackState !== "none"
         && (!newState || newState === "none")) {
       _tackStatsOnTackCompleted();
@@ -4550,9 +5355,12 @@
   // Layout is two rows so long names never collide with the next row:
   //   [name .............................. value]
   //   [ -10 ] [ -1 ] [========slider========] [ +1 ] [ +10 ]
-  // The nudge step is the slider's own `step`, so gain sliders (step 0.0001)
-  // become truly fine-tuning and RangeSettings (step (max-min)/200) scale
-  // naturally with their own range.
+  // Rev334 (Carlos, 2026-09-28): earlier the nudges were `1*step` and
+  // `10*step` — for a gain slider with step 0.0001 that meant "+1"
+  // literally added 0.0001, and the label lied. Now the small nudge is
+  // the max of `step` and a natural unit (1 for RangeSettings whose
+  // range is > 10, `step` otherwise). Labels reflect the *actual* delta
+  // so the sailor knows what they get.
   function _buildSliderRow(opts) {
     // opts: { name, min, max, step, decimals, cur, onChange }
     const step = opts.step;
@@ -4565,18 +5373,53 @@
     // Rev45: dedicated span for the baseline value shown in orange while
     // unlocked, so the user always sees "was: X" next to "now: Y".
     // Hidden until unlock captures a snapshot of the current value.
+    // Rev333 (Carlos, 2026-09-28): title uses the human-readable name
+    // from `tune.gain.<key>.title` (i18n) with fallback to the raw
+    // pypilot short name. Escape defensively — translations are trusted
+    // but a future dev may glue user-supplied strings in.
+    const displayName = _gainDisplayName(opts.name);
+    const displayNameEsc = String(displayName).replace(/[<>&"']/g, (c) => (
+      { "<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;","'":"&#39;" }[c]
+    ));
+    // Rev334 (Carlos, 2026-09-28): magnitude-aware nudges.
+    //   small = 1 if the range spans > 10 (natural unit for angles, kn,
+    //           degrees...); otherwise = step so tiny gains still tune
+    //           at their own resolution.
+    //   big   = small * 10, always.
+    // The click handler now adds the raw delta (not `k * step`) and the
+    // labels show the actual amount.
+    const range = Math.max(0, max - min);
+    const nudgeSmall = range > 10 ? 1 : step;
+    const nudgeBig   = nudgeSmall * 10;
+    const fmtNudge = (d) => {
+      if (d >= 1) return d.toString();
+      // Trim trailing zeros but keep at least one significant digit.
+      const s = d.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+      return s;
+    };
+    const nudgeSmallStr = fmtNudge(nudgeSmall);
+    const nudgeBigStr   = fmtNudge(nudgeBig);
+    // Rev337 (Carlos, 2026-09-28): unit symbol next to the value.
+    const unitStr = _gainUnits(opts.name);
+    const unitHtml = unitStr
+      ? ` <span class="unit" style="font-size:11px;color:var(--fg-dim);margin-left:3px;font-weight:400">${unitStr}</span>`
+      : "";
+    // Rev341 (Carlos, 2026-09-28): badge PERFIL / GLOBAL al lado del
+    // nombre para que el sailor sepa si el ajuste cambiará al elegir
+    // otro perfil o si es global.
+    const scopeBadge = _scopeBadgeHtml(opts.name);
     row.innerHTML =
       `<div class="gain-top">` +
-      `  <div class="name">${opts.name}</div>` +
+      `  <div class="name" title="${String(opts.name).replace(/[<>&"']/g,"")}">${displayNameEsc}${scopeBadge}</div>` +
       `  <div class="baseline" data-baseline="" hidden></div>` +
-      `  <div class="value">${opts.cur == null ? "--" : Number(opts.cur).toFixed(decimals)}</div>` +
+      `  <div class="value">${opts.cur == null ? "--" : Number(opts.cur).toFixed(decimals)}${unitHtml}</div>` +
       `</div>` +
       `<div class="gain-bot">` +
-      `  <button type="button" class="nudge-btn" data-nudge="-10" title="-10 steps">-10</button>` +
-      `  <button type="button" class="nudge-btn" data-nudge="-1"  title="-1 step">-1</button>` +
+      `  <button type="button" class="nudge-btn" data-nudge="${-nudgeBig}"   title="-${nudgeBigStr}">-${nudgeBigStr}</button>` +
+      `  <button type="button" class="nudge-btn" data-nudge="${-nudgeSmall}" title="-${nudgeSmallStr}">-${nudgeSmallStr}</button>` +
       `  <input type="range" min="${min}" max="${max}" step="${step}" value="${opts.cur ?? min}">` +
-      `  <button type="button" class="nudge-btn" data-nudge="1"  title="+1 step">+1</button>` +
-      `  <button type="button" class="nudge-btn" data-nudge="10" title="+10 steps">+10</button>` +
+      `  <button type="button" class="nudge-btn" data-nudge="${nudgeSmall}"  title="+${nudgeSmallStr}">+${nudgeSmallStr}</button>` +
+      `  <button type="button" class="nudge-btn" data-nudge="${nudgeBig}"    title="+${nudgeBigStr}">+${nudgeBigStr}</button>` +
       `</div>`;
     const rng = row.querySelector("input[type=range]");
     const val = row.querySelector(".value");
@@ -4585,7 +5428,9 @@
     row.dataset.decimals = String(decimals);
     const commit = (v) => {
       rng.value = String(v);
-      val.textContent = Number(v).toFixed(decimals);
+      // Rev337: rebuild the value cell preserving the unit span so a
+      // slider commit does not wipe the °/s/%/A suffix.
+      val.innerHTML = `${Number(v).toFixed(decimals)}${unitHtml}`;
       try { opts.onChange(Number(v)); } catch { /* silent */ }
     };
     rng.addEventListener("pointerdown", () => {
@@ -4596,13 +5441,16 @@
       document.body.classList.remove("adjusting");
       row.classList.remove("active");
     });
-    rng.addEventListener("input", () => { val.textContent = Number(rng.value).toFixed(decimals); });
+    rng.addEventListener("input", () => { val.innerHTML = `${Number(rng.value).toFixed(decimals)}${unitHtml}`; });
     rng.addEventListener("change", () => { try { opts.onChange(Number(rng.value)); } catch { /* silent */ } });
     row.querySelectorAll(".nudge-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const k = Number(btn.getAttribute("data-nudge"));
+        // Rev334 (Carlos, 2026-09-28): data-nudge is the ACTUAL delta,
+        // not a multiplier. Buttons already carry the right magnitude
+        // per the nudgeSmall/nudgeBig computation above.
+        const delta = Number(btn.getAttribute("data-nudge"));
         const cur = Number(rng.value) || 0;
-        const next = clamp(cur + k * step);
+        const next = clamp(cur + delta);
         commit(next);
       });
     });
@@ -4641,24 +5489,136 @@
     cont.textContent = "";
     const cat = state.catalog;
     if (!cat) return;
+    // Rev338 (Carlos, 2026-09-28): agrupar RangeSettings por categoría
+    // en <details> colapsables ("desplegable para no apabullar con
+    // opciones al usuario, se tocan muy pocas veces"). Cada grupo
+    // arranca cerrado. Los P/I/D del pilot activo siguen apareciendo
+    // fuera de los desplegables por render_gains(), no aquí.
+    const groupOf = (name) => {
+      if (name.startsWith("ap.tack.")) return "tack";
+      if (name.startsWith("servo.") || name.startsWith("motor."))  return "servo";
+      if (name === "wind.offset" || name === "truewind.offset"
+        || name.startsWith("wind.") || name.startsWith("truewind.")) return "wind";
+      if (name.startsWith("imu.") || name.startsWith("rudder.")) return "imu";
+      return "other";
+    };
+    const groups = { tack: [], servo: [], wind: [], imu: [], other: [] };
     const names = Object.keys(cat).filter((k) => cat[k]?.type === "RangeSetting");
     names.sort();
-    for (const name of names) {
-      const meta = cat[name];
-      const step = (meta.max - meta.min) / 200 || 0.001;
-      const cur = (state.pypilotValues || {})[name];
-      const { row } = _buildSliderRow({
-        name,
-        min: meta.min, max: meta.max, step,
-        decimals: 3,
-        cur,
-        onChange: (v) => pluginRaw(name, v),
+    for (const name of names) groups[groupOf(name)].push(name);
+    const groupOrder = ["tack", "servo", "wind", "imu", "other"];
+    const labels = {
+      tack:  t("tune.group.tack")  || "Tack",
+      servo: t("tune.group.servo") || "Servo",
+      wind:  t("tune.group.wind")  || "Wind",
+      imu:   t("tune.group.imu")   || "IMU",
+      other: t("tune.group.other") || "Other",
+    };
+    for (const g of groupOrder) {
+      const items = groups[g];
+      if (!items.length) continue;
+      const details = document.createElement("details");
+      details.className = "tune-group";
+      details.dataset.groupKey = g;
+      details.style.cssText = "margin:8px 0;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--bg-3)";
+      const summary = document.createElement("summary");
+      summary.style.cssText = "cursor:pointer;font-weight:600;padding:6px 4px;color:var(--fg);user-select:none;display:flex;align-items:center;gap:10px";
+      // Rev339 (Carlos, 2026-09-28): unlock POR ACORDEÓN — el sailor
+      // solo abre el grupo que quiere editar y solo ese grupo desbloquea
+      // sus sliders. Se acabaron los desbloqueos accidentales del resto
+      // de ajustes.
+      const label = document.createElement("span");
+      label.textContent = `${labels[g]}  (${items.length})`;
+      label.style.cssText = "flex:1";
+      const unlockLbl = document.createElement("label");
+      unlockLbl.style.cssText = "display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:400;color:var(--fg-dim);user-select:none";
+      unlockLbl.innerHTML = `<input type="checkbox" class="tune-group-unlock" /> <span class="lock-lbl">🔒</span>`;
+      summary.appendChild(label);
+      summary.appendChild(unlockLbl);
+      // Click on the checkbox must not toggle the <details> — that would
+      // fold the group right after unlocking.
+      unlockLbl.addEventListener("click", (ev) => ev.stopPropagation());
+      details.appendChild(summary);
+      const body = document.createElement("div");
+      body.style.cssText = "padding-top:6px";
+      for (const name of items) {
+        const meta = cat[name];
+        const step = (meta.max - meta.min) / 200 || 0.001;
+        const cur = (state.pypilotValues || {})[name];
+        // Rev340 (Carlos, 2026-09-28): baseline capture — igual patrón
+        // que los gains P/I/D. La primera vez que se ve un valor, se
+        // congela como baseline; el botón ↺ restaura ese valor. Reusa
+        // el Map _calBaselines que ya persiste RangeSetting baselines
+        // (era del bloque Setup → Calibración antiguo).
+        if (typeof cur === "number" && isFinite(cur) && !_calBaselines.has(name)) {
+          _calBaselines.set(name, cur);
+        }
+        const { row, rng, val } = _buildSliderRow({
+          name,
+          min: meta.min, max: meta.max, step,
+          decimals: 3,
+          cur,
+          onChange: (v) => pluginRaw(name, v),
+          unlocked: false, // Rev339: los grupos gestionan su propio lock
+        });
+        row.dataset.pypilot = name;
+        // Rev338: cada slider en Ajustes también trae su explicación
+        // corta + botón ? (larga) — antes solo aparecían en el bloque
+        // gains. La misma i18n key `tune.gain.<key>.short/long`.
+        try { _attachGainHelp(row, name); } catch { /* silent */ }
+        // Rev340 (Carlos, 2026-09-28): botón ↺ restore al valor
+        // anterior, como en los gains P/I/D. El disable se lo aplica
+        // _applyGroupUnlock cuando refresca (misma clase .tune-reset-btn).
+        const resetBtn = document.createElement("button");
+        resetBtn.type = "button";
+        resetBtn.className = "tune-reset-btn nudge-btn";
+        resetBtn.setAttribute("aria-label", t("cal.slider.restore") || "Restore");
+        resetBtn.setAttribute("title", t("cal.slider.restore") || "Restore");
+        resetBtn.textContent = "↺";
+        resetBtn.addEventListener("click", () => {
+          const b = _calBaselines.get(name);
+          if (b == null) return;
+          rng.value = String(b);
+          const unitStr = _gainUnits(name);
+          const unitHtml = unitStr
+            ? ` <span class="unit" style="font-size:11px;color:var(--fg-dim);margin-left:3px;font-weight:400">${unitStr}</span>`
+            : "";
+          val.innerHTML = `${Number(b).toFixed(3)}${unitHtml}`;
+          pluginRaw(name, b);
+          _stampCalAdjust();
+        });
+        const bot = row.querySelector(".gain-bot");
+        if (bot) bot.appendChild(resetBtn);
+        body.appendChild(row);
+      }
+      details.appendChild(body);
+      // Force locked at build time (regardless of the global tune-unlock)
+      // then let the per-group checkbox drive it from here on.
+      _applyGroupUnlock(details, false);
+      const groupCb = unlockLbl.querySelector("input");
+      groupCb.addEventListener("change", () => {
+        _applyGroupUnlock(details, groupCb.checked);
       });
-      row.dataset.pypilot = name;
-      cont.appendChild(row);
+      cont.appendChild(details);
     }
-    // Rev116: also refresh the Calibration mirror in Setup.
-    renderCalibrationSliders();
+  }
+  // Rev339 (Carlos, 2026-09-28): per-accordion enable. Sets/removes
+  // `disabled` on every slider + nudge/reset button inside a group.
+  function _applyGroupUnlock(details, unlocked) {
+    const lockIcon = details.querySelector(".lock-lbl");
+    if (lockIcon) lockIcon.textContent = unlocked ? "🔓" : "🔒";
+    const rows = details.querySelectorAll(".gain-row");
+    for (const row of rows) {
+      const rng = row.querySelector("input[type=range]");
+      const btns = row.querySelectorAll(".nudge-btn, .tune-reset-btn");
+      if (unlocked) {
+        if (rng) rng.removeAttribute("disabled");
+        btns.forEach((b) => b.removeAttribute("disabled"));
+      } else {
+        if (rng) rng.setAttribute("disabled", "");
+        btns.forEach((b) => b.setAttribute("disabled", ""));
+      }
+    }
   }
 
   // Rev116-118 (Carlos): render every pypilot RangeSetting inside the
@@ -4953,7 +5913,16 @@
     const cat = state.catalog;
     const pilot = state.pilot;
     renderConfigSliders();
-    if (!pilot) return;
+    if (!pilot) {
+      // Rev334 (Carlos, 2026-09-28): antes se dejaba silencioso y el
+      // sailor pensaba que faltaban los sliders. Ahora placeholder
+      // visible.
+      const placeholder = document.createElement("div");
+      placeholder.style.cssText = "opacity:0.6;font-size:13px;padding:14px 0;text-align:center;color:var(--fg-dim)";
+      placeholder.textContent = t("tune.gain.tune.emptyPilot") || "Waiting for pilot data…";
+      cont.appendChild(placeholder);
+      return;
+    }
     // Rev38: pull fresh values shortly after (re-)rendering so the sliders
     // always reflect what pypilot has now, not what was cached in the SK
     // stream when the previous pilot/profile was active.
@@ -5259,7 +6228,13 @@
   async function isAuthValid() {
     if (!getToken()) return false;
     try {
-      const r = await fetch("/plugins/pypilot-newui/status", {
+      // Rev356 (Carlos, 2026-09-30, log audit): was hardcoded to
+      // "/plugins/pypilot-newui/status" (missing the "signalk-"
+      // prefix) so it always returned 404 in the browser network
+      // tab. The 404 counted as "at least reachable" so auth still
+      // worked accidentally, but the noise appeared in every session
+      // log. Use the PLUGIN_ID constant so the endpoint is real.
+      const r = await fetch(`/plugins/${PLUGIN_ID}/status`, {
         headers: authHeaders(),
         credentials: "include",
       });
@@ -5532,6 +6507,39 @@
       body: JSON.stringify({ value: mode }),
     }));
   }
+  // Rev359 (Carlos, 2026-09-30, Sprint K P0 #1): apSetMode returns
+  // when SK accepted the PUT (HTTP 200) — NOT when pypilot has
+  // actually applied the mode. Pypilot needs 100-500 ms to receive
+  // the set, process it, and emit the ap.mode delta back through
+  // our subscription. A subsequent apSetTargetRad sent inside that
+  // gap gets interpreted with the OLD mode: target=0 while still in
+  // compass mode means "steer to heading 0" instead of "AWA=0", so
+  // the boat swings to compass 0° instead of head-to-wind.
+  //
+  // Sea trial 2026-09-28 evidence (see [[sea-trial-bugs-2026-09-28]]
+  // bug #1): aproado_pick trace showed pre mode=compass tgt=126° →
+  // post mode=compass tgt=180° (still compass!). Boat rotated to
+  // 180° absolute, not head-to-wind.
+  //
+  // Fix: after PUT, poll state.mode (fed by the SK delta subscription)
+  // until it matches the requested value. Cap at timeoutMs so we do
+  // not block forever if pypilot never acknowledges. state.mode is
+  // updated by handleDelta's case "steering.autopilot.mode".
+  async function apSetModeAndWait(mode, timeoutMs = 2500) {
+    const r = await apSetMode(mode);
+    const start = Date.now();
+    const target = String(mode).toLowerCase();
+    while (Date.now() - start < timeoutMs) {
+      if (String(state.mode || "").toLowerCase() === target) {
+        console.info(`[apSetModeAndWait] mode="${mode}" confirmed in ${Date.now() - start} ms`);
+        return r;
+      }
+      await new Promise((res) => setTimeout(res, 50));
+    }
+    console.warn(`[apSetModeAndWait] timeout ${timeoutMs} ms waiting for state.mode="${mode}" (current: "${state.mode}") — continuing anyway`);
+    _mtLog("other", { via: "apSetModeAndWait", name: "timeout", requested: mode, current: state.mode });
+    return r;
+  }
   async function apSetTargetRad(rad) {
     if (!await ensureAutopilotId()) return;
     _mtLog("target_put", { rad, deg: (rad * 180 / Math.PI).toFixed(1) });
@@ -5545,6 +6553,9 @@
   async function apTack(direction) {
     if (!await ensureAutopilotId()) return;
     _mtLog("tack_tap", { direction });
+    // Rev346: stamp so the delta observer knows this tack originated
+    // from our visor (not from the mando físico / UI nativo).
+    _lastVisorTackWriteTs = Date.now();
     const chk = await _pypilotPingCheck();
     if (!chk.ok) { _pypilotPingFailToast(chk.reason); return { ok: false, status: 503, blocked: true, reason: chk.reason }; }
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/tack/${direction}`;
@@ -5738,7 +6749,10 @@
         : t("aproado.transit.title.stern");
     }
     try {
-      await apSetMode("wind");
+      // Rev359: wait for state.mode="wind" echo before writing target,
+      // otherwise pypilot interprets target=0 as compass heading 0
+      // instead of AWA=0 (bug #1 Sprint K sea trial 2026-09-28).
+      await apSetModeAndWait("wind");
       if (apr.direction === "bow" || state.windAngle == null) {
         // PROA: shortest path (pypilot's default) is bow-through when
         // starting from close-hauled or reaching. Also fallback for POPA
@@ -6102,14 +7116,23 @@
       } catch (e) { console.warn("empopado: profile swap failed", e); }
     }
     try {
-      await apSetMode("wind");
-      // Target AWA = π - 0.001 (viento por popa). Usamos ligeramente
+      // Rev367 (Carlos, 2026-09-30, sea-trial feedback): empopado
+      // use TRUE WIND mode (TWA control) instead of "wind" (AWA
+      // control). En viento de popa el AWA es errático (viento
+      // relativo casi = velocidad del barco) y pypilot no puede
+      // fijarse. TWA es el ángulo respecto al viento real, estable
+      // aunque el barco varíe de rumbo. Pypilot core soporta "true
+      // wind" como mode string (con espacio; ver SW_MODE_MAP en
+      // src/index.ts). Rev359 apSetModeAndWait espera el eco antes
+      // del target write.
+      await apSetModeAndWait("true wind");
+      // Target TWA = π - 0.001 (viento por popa). Usamos ligeramente
       // menos de π para evitar que pypilot normalice al opuesto.
       const targetRad = Math.PI - 0.001;
       await apSetTargetRad(targetRad);
       ap._targetIsFinal = true;
       if (!state.engaged) await apEngage();
-      console.info(`empopado: dir=${ap.direction} mode=wind target=${targetRad.toFixed(3)} engage sent`);
+      console.info(`empopado: dir=${ap.direction} mode="true wind" target=${targetRad.toFixed(3)} engage sent`);
     } catch (e) {
       console.warn("empopado: mode/target/engage failed", e);
     }
@@ -6419,6 +7442,23 @@
   // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
   // profiles, calibration, tack detail), route through our own /raw endpoint.
   async function pluginRaw(name, value) {
+    // Rev344 (Carlos, 2026-09-28 port test): tack en modo wind viaja
+    // por este endpoint (ap.tack.direction + ap.tack.state=begin), no
+    // por apTack(). Como no emitía trace, en el forensics del sea trial
+    // los tacks eran invisibles. Marcamos los writes relacionados con
+    // maniobra para verlos en el maneuver-trace y verificar si pypilot
+    // los aceptó (post snapshot).
+    if (typeof _mtLog === "function") {
+      if (name === "ap.tack.direction" || name === "ap.tack.state") {
+        _mtLog("tack_tap", { via: "pluginRaw", name, value });
+        // Rev346 (Carlos, 2026-09-28): stamp so the delta handler can
+        // distinguish tack.state changes we caused from ones triggered
+        // by an external source (mando físico / UI nativo).
+        _lastVisorTackWriteTs = Date.now();
+      } else if (name === "ap.heading_command" || name === "ap.mode" || name === "ap.enabled") {
+        _mtLog("other", { via: "pluginRaw", name, value });
+      }
+    }
     const url = `/plugins/${PLUGIN_ID}/raw`;
     const res = await skFetch(url, {
       method: "PUT",
@@ -6426,7 +7466,15 @@
       body: JSON.stringify({ name, value }),
     });
     handleAuth(res);
-    if (!res.ok) console.warn("raw PUT failed", name, res.status, await res.text());
+    if (!res.ok) {
+      const bodyTxt = await res.text().catch(() => "");
+      console.warn("raw PUT failed", name, res.status, bodyTxt);
+      // Rev344: also mark the failure in the trace so we do not have
+      // to correlate console output with the JSONL post-hoc.
+      if (typeof _mtLog === "function") {
+        _mtLog("other", { via: "pluginRaw", name, value, error: true, status: res.status, body: bodyTxt.slice(0, 200) });
+      }
+    }
     return res;
   }
   // Rev205 (Carlos): SK API v2 clamps target to [-pi, pi] AND pypilot
@@ -6551,6 +7599,19 @@
         const now = Date.now();
         if (!state.engaged) {
           b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
+          return;
+        }
+        // Rev354 (Carlos, 2026-09-30, QA Rev353): if the current
+        // maneuver is a MIRROR of an external tack (mando/nativo),
+        // the visor must not write to pypilot mid-tack. A nudge would
+        // eventually call apSetTargetRad() through the executing-phase
+        // branch below, and pypilot receiving a new heading_command
+        // during ap.tack.state != none aborts the maneuver on both
+        // UIs. Mirror = observer-only. Flash the button to acknowledge
+        // the tap without acting.
+        if (_externalManeuver) {
+          b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
+          console.info("[nudge] blocked while mirror active (external tack in progress)");
           return;
         }
         if (now - state.lastNudgeTs > 1000 || state.localTargetRad == null) {
@@ -7052,6 +8113,10 @@
       // Rev210: invalidate any pending nudge debounce timer so a stale
       // callback does not overwrite the freshly-set target after cancel.
       if (_nudgeSendTimer) { clearTimeout(_nudgeSendTimer); _nudgeSendTimer = null; }
+      // Rev355 (Carlos, 2026-09-30, QA Rev354): fire cancelled stats
+      // before the hide so the HUD opens with the pre-tack data and a
+      // "CANCELADO" verdict.
+      try { _tackStatsOnTackCancelled(); } catch (e) { console.warn("[stats cancel btn]", e); }
       _tackCountdownHide();
       if (!wasExecuting && typeof preTackTarget === "number") {
         state.target = preTackTarget;
@@ -7689,7 +8754,7 @@
   function _watchInspectorStart() {
     _refreshWatchInspector();
     if (_watchInspectorTimer) clearInterval(_watchInspectorTimer);
-    _watchInspectorTimer = setInterval(_refreshWatchInspector, 3000);
+    _watchInspectorTimer = setInterval(_refreshWatchInspector, 10000);  // Rev355: 3s -> 10s (Setup panel, no need for HUD-level frequency)
   }
 
   // Rev143 (Carlos): navigation session recorder panel. Lives inside
@@ -8145,7 +9210,7 @@
     }
     _smartLoadConfig().then(() => _smartRefreshStatus());
     if (_smartRefreshTimer) clearInterval(_smartRefreshTimer);
-    _smartRefreshTimer = setInterval(_smartRefreshStatus, 3000);
+    _smartRefreshTimer = setInterval(_smartRefreshStatus, 10000);  // Rev355: 3s -> 10s (supervisor status in Setup)
   }
 
   // Rev299: alarms selection card. Renders one checkbox per rule
@@ -8217,6 +9282,131 @@
   // Setup tab is visible, so a trip that just closed shows up without
   // a manual refresh.
   let _tripsRefreshTimer = null;
+  // Rev329 (Carlos, 2026-09-28): full trip list cache so filter /
+  // sort inputs can re-render client-side without hitting the backend.
+  let _tripsCache = [];
+  // Rev330 (Carlos, 2026-09-28): "menos es más" — filtros numéricos
+  // y date range fuera. Se conserva solo la búsqueda por nombre y el
+  // dropdown de orden. La búsqueda va contra name + id (substring).
+  function _tripsGetFilterCfg() {
+    const val = (id) => (document.getElementById(id)?.value || "").trim();
+    return {
+      name: val("trips-filter-name").toLowerCase(),
+      sort: val("trips-sort") || "date-desc",
+    };
+  }
+  function _tripsApplyFilterSort(trips) {
+    const cfg = _tripsGetFilterCfg();
+    const filtered = trips.filter((tr) => {
+      if (cfg.name) {
+        const hay = ((tr.name || "") + " " + (tr.id || "")).toLowerCase();
+        if (!hay.includes(cfg.name)) return false;
+      }
+      return true;
+    });
+    const keyOf = {
+      "date":   (t) => t.summary?.startTs    ?? 0,
+      "dist":   (t) => t.summary?.distanceNm ?? -1,
+      "dur":    (t) => t.summary?.durationMs ?? -1,
+      "sogAvg": (t) => t.summary?.sogAvgKn   ?? -1,
+      "sogMax": (t) => t.summary?.sogMaxKn   ?? -1,
+      "twsMax": (t) => t.summary?.twsMaxKn   ?? -1,
+    };
+    const [field, dir] = cfg.sort.split("-");
+    const k = keyOf[field] || keyOf.date;
+    const sign = dir === "asc" ? 1 : -1;
+    filtered.sort((a, b) => (k(a) - k(b)) * sign);
+    return filtered;
+  }
+  function _tripsRerenderFromCache() {
+    // Rebuild the visible list from the cached trips using the current
+    // filter/sort inputs. No backend call.
+    if (!_tripsCache) return;
+    const list = document.getElementById("trips-list");
+    if (!list) return;
+    const filtered = _tripsApplyFilterSort(_tripsCache);
+    const countEl = document.getElementById("trips-filter-count");
+    if (countEl) {
+      const suffix = t("trips.filter.count") || "matching / total";
+      countEl.textContent = `${filtered.length} / ${_tripsCache.length} ${suffix}`;
+    }
+    list.textContent = "";
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="opacity:0.6;font-size:13px;padding:14px 0">${t("trips.filter.none") || "No trips match the current filters."}</div>`;
+      return;
+    }
+    for (const trip of filtered) _tripsAppendRow(list, trip);
+  }
+  function _tripsAppendRow(list, trip) {
+    const s = trip.summary;
+    const row = document.createElement("div");
+    row.className = "trip-row";
+    row.style.cssText = "display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px 16px;border-radius:10px;background:var(--bg-3);border:1px solid var(--border);align-items:center;cursor:pointer;transition:background 0.12s";
+    row.addEventListener("mouseenter", () => { row.style.background = "color-mix(in srgb, var(--accent, #4dd4ff) 8%, var(--bg-3))"; });
+    row.addEventListener("mouseleave", () => { row.style.background = "var(--bg-3)"; });
+    row.addEventListener("click", () => _tripsOpenDetail(trip.id));
+    const started = s && s.startTs ? new Date(s.startTs) : null;
+    const dateStr = started
+      ? `${String(started.getDate()).padStart(2,"0")}/${String(started.getMonth()+1).padStart(2,"0")}/${started.getFullYear()} ${String(started.getHours()).padStart(2,"0")}:${String(started.getMinutes()).padStart(2,"0")}`
+      : trip.id;
+    const durMin = s ? Math.round(s.durationMs / 60000) : 0;
+    const distNm = s ? s.distanceNm.toFixed(1) : "?";
+    const sog = s?.sogAvgKn != null ? s.sogAvgKn.toFixed(1) : "?";
+    const tws = s?.twsAvgKn != null ? s.twsAvgKn.toFixed(1) : "?";
+    const tacks = s?.tacks ?? 0;
+    const avg = t("trips.caption.avg");
+    const bordos = t("trips.caption.tacks").toLowerCase();
+    const nameEsc = trip.name ? String(trip.name).replace(/[<>&"']/g, (c) => ({ "<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;","'":"&#39;" })[c]) : "";
+    // Rev330 (Carlos, 2026-09-28): tipografía más grande + colores del
+    // sistema (--fg, --fg-dim, --accent). Nombre en accent cuando
+    // existe, fecha siempre en fg-dim.
+    const titleHtml = nameEsc
+      ? `<div style="font-size:16px;font-weight:600;color:var(--accent,#4dd4ff);line-height:1.2">${nameEsc}</div>
+         <div style="font-size:13px;color:var(--fg-dim);margin-top:2px">${dateStr}</div>`
+      : `<div style="font-size:15px;font-weight:600;color:var(--fg);line-height:1.2">${dateStr}</div>`;
+    const kpiHtml = s
+      ? `<div style="font-size:13px;color:var(--fg);margin-top:6px"><b>${distNm} nm</b> · ${durMin} min · SOG ${avg} ${sog} kn</div>
+         <div style="font-size:12px;color:var(--fg-dim);margin-top:2px">TWS ${avg} ${tws} kn · ${tacks} ${bordos} · peak SOG ${s.sogMaxKn?.toFixed(1) ?? "?"} kn · peak TWS ${s.twsMaxKn?.toFixed(1) ?? "?"} kn</div>`
+      : `<div style="font-size:12px;color:var(--fg-dim);margin-top:6px">${t("trips.noSummary")}</div>`;
+    // Rev331 (Carlos, 2026-09-28): botón WhatsApp compartir por fila,
+    // a la izquierda del chevron. Click NO abre el detalle (stop).
+    const waSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.94 11.94 0 0 0 12.02 0C5.4 0 .07 5.33.07 11.94c0 2.1.55 4.15 1.6 5.97L0 24l6.24-1.64a11.9 11.9 0 0 0 5.78 1.47h.01c6.61 0 11.94-5.33 11.94-11.94 0-3.19-1.24-6.19-3.45-8.41zM12.02 21.8h-.01a9.9 9.9 0 0 1-5.05-1.38l-.36-.21-3.7.97.99-3.6-.24-.37a9.87 9.87 0 0 1-1.52-5.27c0-5.47 4.45-9.92 9.92-9.92 2.65 0 5.14 1.03 7.02 2.9a9.87 9.87 0 0 1 2.9 7.02c0 5.47-4.45 9.92-9.95 9.92zm5.44-7.42c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47a8.9 8.9 0 0 1-1.65-2.05c-.17-.3 0-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.47 1.07 2.88 1.22 3.08.15.2 2.11 3.22 5.11 4.51.71.31 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2.01-1.42.25-.7.25-1.29.17-1.42-.07-.13-.27-.2-.57-.35z"/></svg>`;
+    const shareBtn = `<button class="trip-row-share" type="button" title="${t("trips.share.wa") || "Share to WhatsApp"}" style="background:transparent;border:none;color:#25d366;padding:4px 8px;cursor:pointer;display:flex;align-items:center">${waSvg}</button>`;
+    row.innerHTML =
+      `<div>${titleHtml}${kpiHtml}</div>` +
+      `<div style="display:flex;align-items:center;gap:2px">${shareBtn}<div style="font-size:22px;color:var(--fg-dim);opacity:0.6">›</div></div>`;
+    const btn = row.querySelector(".trip-row-share");
+    if (btn) btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      _tripsShareText(trip.id);
+    });
+    list.appendChild(row);
+  }
+  // Rev328 (Carlos, 2026-09-28): toggle "grabar bitácora" wired to
+  // the backend POST /trip-recorder/enable. Optimistic UI + backend
+  // confirms via /trip-recorder/status on the next poll.
+  async function _tripRecorderToggle(ev) {
+    const cb = ev.target;
+    const on = !!cb.checked;
+    cb.__mtBusy = true;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/trip-recorder/enable`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: on }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert((t("setup.trips.enableFail") || "Toggle failed") + ": " + (j.error || `HTTP ${r.status}`));
+        cb.checked = !on;
+      }
+    } catch (e) {
+      alert((t("setup.trips.enableFail") || "Toggle failed") + ": " + e);
+      cb.checked = !on;
+    }
+    cb.__mtBusy = false;
+    _tripsRefresh();
+  }
   function _tripsWire() {
     _tripsRefresh();
     if (_tripsRefreshTimer) clearInterval(_tripsRefreshTimer);
@@ -8224,6 +9414,24 @@
       const setupTab = document.getElementById("tab-setup");
       if (setupTab && setupTab.classList.contains("active")) _tripsRefresh();
     }, 30000);
+    const enableCb = document.getElementById("trip-recorder-enable");
+    if (enableCb && !enableCb.__wired) {
+      enableCb.__wired = true;
+      enableCb.addEventListener("change", _tripRecorderToggle);
+    }
+    // Rev329 → Rev330: solo búsqueda por nombre + orden. Se rerender
+    // el listado desde cache al cambiar cualquiera.
+    for (const id of ["trips-filter-name", "trips-sort"]) {
+      const el = document.getElementById(id);
+      if (el && !el.__wired) {
+        el.__wired = true;
+        el.addEventListener("input", _tripsRerenderFromCache);
+        el.addEventListener("change", _tripsRerenderFromCache);
+      }
+    }
+    // Placeholder i18n for the search input.
+    const searchEl = document.getElementById("trips-filter-name");
+    if (searchEl) searchEl.placeholder = t("trips.filter.search") || "🔍 Buscar…";
     const dl = document.getElementById("trip-detail-download");
     if (dl && !dl.__wired) {
       dl.__wired = true;
@@ -8317,16 +9525,26 @@
     const heelMax = summary.heelMaxDeg?.toFixed(0) ?? "?";
     const tacks = summary.tacks;
     const voltMin = summary.voltMinV?.toFixed(2) ?? "?";
+    // Rev331 (Carlos, 2026-09-28): include the sailor-given name on the
+    // top line (falls back to the timestamp). Replace the "sags" trailer
+    // by Ah when the pilot integrated something. Credit line rewritten.
+    const titleLine = summary.name
+      ? `*${summary.name}* — ${dateStr}`
+      : `*${t("trips.caption.title")} ${dateStr}*`;
     const lines = [
-      `*${t("trips.caption.title")} ${dateStr}*`,
+      titleLine,
       `${t("trips.caption.distance")}: ${distNm} nm ${t("trips.caption.in")} ${durMin} min`,
       `SOG ${t("trips.caption.avg")} ${sogAvg} kn (${t("trips.caption.max")} ${sogMax})`,
       `TWS ${t("trips.caption.avg")} ${twsAvg} kn (${t("trips.caption.max")} ${twsMax})`,
       `${t("trips.caption.heelMax")} ${heelMax}°`,
       `${t("trips.caption.tacks")}: ${tacks}`,
-      `${t("trips.caption.voltMin")} ${voltMin} V${summary.voltSagsBelow115 > 0 ? ` (${summary.voltSagsBelow115} ${t("trips.caption.sags")})` : ""}`,
+      `${t("trips.caption.voltMin")} ${voltMin} V`,
     ];
-    return lines.join("\n") + "\n\n-- PyPilot New-UI";
+    if (typeof summary.energyAh === "number" && summary.energyAh > 0) {
+      lines.push(`${t("trips.kpi.energyAh") || "Ah"}: ${summary.energyAh.toFixed(2)} Ah`);
+    }
+    const credit = t("trips.credit") || "Generado por PyPilot New-UI";
+    return lines.join("\n") + `\n\n— ${credit}`;
   }
 
   // Path A: render the PNG report card and hand it to the sailor.
@@ -8349,14 +9567,38 @@
     catch { alert(t("trips.captureLibFail")); return; }
     const node = document.querySelector("#trip-detail-pop .popup-box");
     if (!node) return;
-    // Small opacity twiddle so the buttons at the bottom look normal
-    // in the capture (they are otherwise fine).
+    // Rev331 (Carlos, 2026-09-28): capturar TODA la ventana de resumen,
+    // no solo lo visible. El .popup-box tiene overflow-y:auto y un
+    // max-height del viewport; html2canvas por defecto solo captura lo
+    // que está en el rectángulo visible. Temporalmente quitamos el cap
+    // + overflow para forzar el layout completo, guardamos scroll,
+    // capturamos con scrollHeight explícito, restauramos todo.
+    const prevMaxH    = node.style.maxHeight;
+    const prevHeight  = node.style.height;
+    const prevOverflow = node.style.overflow;
+    const prevScroll  = node.scrollTop;
+    node.style.maxHeight = "none";
+    node.style.height    = "auto";
+    node.style.overflow  = "visible";
+    node.scrollTop       = 0;
     let canvas;
     try {
-      canvas = await h2c(node, { backgroundColor: "#0a1220", useCORS: true, scale: 1.5, logging: false });
+      canvas = await h2c(node, {
+        backgroundColor: "#0a1220",
+        useCORS: true,
+        scale: 1.5,
+        logging: false,
+        height: node.scrollHeight,
+        windowHeight: node.scrollHeight,
+      });
     } catch (e) {
       alert(t("trips.captureFail") + " " + (e?.message || e));
       return;
+    } finally {
+      node.style.maxHeight = prevMaxH;
+      node.style.height    = prevHeight;
+      node.style.overflow  = prevOverflow;
+      node.scrollTop       = prevScroll;
     }
     const blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png", 0.95));
     await _tripsDeliverBlob(blob, `trip-${id}-screenshot.png`, caption, t("trips.shareScreenshot"));
@@ -8525,10 +9767,10 @@
       // Draw trace as coloured segments.
       const colFor = (kn) => {
         if (kn == null) return "#8b98a5";
-        if (kn < 2) return "#5ca7ff";
-        if (kn < 4) return "#5ce8c0";
-        if (kn < 6) return "#ffd54a";
-        return "#ff9500";
+        if (kn < 2) return "#ff6dd0";
+        if (kn < 4) return "#ffd54a";
+        if (kn < 6) return "#ff9500";
+        return "#ff2d55";
       };
       ctx.lineWidth = 3;
       for (let i = 1; i < samples.length; i += 1) {
@@ -8581,65 +9823,126 @@
   }
   async function _tripsRefresh() {
     const list = document.getElementById("trips-list");
-    const status = document.getElementById("trips-status");
+    const enableCb = document.getElementById("trip-recorder-enable");
     if (!list) return;
     let data = null;
+    let stat = null;
     try {
       const [rTrips, rStatus] = await Promise.all([
         skFetch(`/plugins/${PLUGIN_ID}/trip-recorder/list`),
         skFetch(`/plugins/${PLUGIN_ID}/trip-recorder/status`),
       ]);
       data = await rTrips.json();
-      const stat = await rStatus.json();
-      if (status) {
-        if (stat.recording) {
-          const durMin = Math.floor((Date.now() - (stat.startTs || Date.now())) / 60000);
-          status.textContent = `${t("trips.status.recording")} ${durMin} min (${t("trips.status.navState")}: ${stat.navState || "?"}, ${stat.samples || 0} samples)`;
-          status.style.color = "#4dd982";
-        } else {
-          status.textContent = `${t("trips.status.navState")}: ${stat.navState || "moored"} — ${t("trips.status.noneOpen")}`;
-          status.style.color = "";
-        }
-      }
+      stat = await rStatus.json();
     } catch (e) {
       list.innerHTML = `<div style="opacity:0.6;font-size:13px">${t("trips.loadFail")}</div>`;
       return;
     }
+    if (enableCb && !enableCb.__mtBusy) {
+      const on = stat.enabled !== false;
+      if (enableCb.checked !== on) enableCb.checked = on;
+    }
     const trips = (data && data.trips) || [];
+    const newest = trips.length > 0 ? trips[0] : null;
+    // Rev330 (Carlos, 2026-09-28): use the native .setup-block-summary
+    // chip auto-injected by initSetupTiles(). Same look as every other
+    // card. Colour is driven by the level arg: good=green, warn=orange.
+    //   OFF        → grey neutral "OFF"
+    //   Recording  → warn (orange)  "GRABANDO · X min"
+    //   Idle       → good (green)   "<name|date> · dist · dur"
+    const fmtDateShort = (ms) => {
+      const d = new Date(ms);
+      const pad = n => String(n).padStart(2,"0");
+      return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    if (stat.enabled === false) {
+      _updateSetupSummary("trips", t("trips.status.disabled") || "OFF", "");
+    } else if (stat.recording) {
+      const durMin = Math.floor((Date.now() - (stat.startTs || Date.now())) / 60000);
+      const recLbl = (t("trips.status.recording") || "RECORDING").toUpperCase();
+      _updateSetupSummary("trips", `${recLbl} · ${durMin} min`, "warn");
+    } else if (newest && newest.summary) {
+      const s = newest.summary;
+      const label = newest.name
+        ? String(newest.name).slice(0, 40)
+        : fmtDateShort(s.startTs);
+      const parts = [label];
+      if (s.distanceNm != null) parts.push(`${s.distanceNm.toFixed(1)} nm`);
+      if (s.durationMs != null) parts.push(`${Math.round(s.durationMs / 60000)} min`);
+      _updateSetupSummary("trips", parts.join(" · "), "good");
+    } else {
+      _updateSetupSummary("trips", t("trips.empty") || "—", "");
+    }
     if (trips.length === 0) {
       list.innerHTML = `<div style="opacity:0.6;font-size:13px;padding:14px 0">${t("trips.empty")}</div>`;
+      _tripsCache = [];
+      return;
+    }
+    // Rev329 (Carlos, 2026-09-28): cache the full listing so filter /
+    // sort inputs can re-render locally without refetching.
+    _tripsCache = trips;
+    const filtered = _tripsApplyFilterSort(trips);
+    const countEl = document.getElementById("trips-filter-count");
+    if (countEl) {
+      const suffix = t("trips.filter.count") || "matching / total";
+      countEl.textContent = `${filtered.length} / ${trips.length} ${suffix}`;
+    }
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="opacity:0.6;font-size:13px;padding:14px 0">${t("trips.filter.none") || "No trips match the current filters."}</div>`;
       return;
     }
     list.textContent = "";
-    for (const trip of trips) {
-      const s = trip.summary;
-      const row = document.createElement("div");
-      row.className = "trip-row";
-      row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:10px 12px;border-radius:8px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#2b3542);align-items:center;cursor:pointer";
-      row.addEventListener("click", () => _tripsOpenDetail(trip.id));
-      const started = s && s.startTs ? new Date(s.startTs) : null;
-      const dateStr = started
-        ? `${String(started.getDate()).padStart(2,"0")}/${String(started.getMonth()+1).padStart(2,"0")} ${String(started.getHours()).padStart(2,"0")}:${String(started.getMinutes()).padStart(2,"0")}`
-        : trip.id;
-      const durMin = s ? Math.round(s.durationMs / 60000) : 0;
-      const distNm = s ? s.distanceNm.toFixed(1) : "?";
-      const sog = s?.sogAvgKn != null ? s.sogAvgKn.toFixed(1) : "?";
-      const tws = s?.twsAvgKn != null ? s.twsAvgKn.toFixed(1) : "?";
-      const tacks = s?.tacks ?? 0;
-      const avg = t("trips.caption.avg");
-      const bordos = t("trips.caption.tacks").toLowerCase();
-      const summaryHtml = s
-        ? `<div style="display:flex;flex-direction:column;gap:2px">
-             <div style="font-size:13px"><b>${distNm} nm</b> · ${durMin} min · SOG ${avg} ${sog} kn</div>
-             <div style="font-size:11px;opacity:0.7">TWS ${avg} ${tws} kn · ${tacks} ${bordos} · peak SOG ${s.sogMaxKn?.toFixed(1) ?? "?"} kn · peak TWS ${s.twsMaxKn?.toFixed(1) ?? "?"} kn</div>
-           </div>`
-        : `<div style="font-size:12px;opacity:0.6">${t("trips.noSummary")}</div>`;
-      row.innerHTML =
-        `<div style="font-size:12px;opacity:0.75;font-family:ui-monospace,monospace;min-width:80px">${dateStr}</div>` +
-        summaryHtml +
-        `<div style="font-size:18px;opacity:0.5">›</div>`;
-      list.appendChild(row);
+    for (const trip of filtered) _tripsAppendRow(list, trip);
+  }
+  // Rev327 (Carlos, 2026-09-28): rename a trip. Prompt + PATCH + refresh.
+  // Empty name clears the sidecar so the fallback (date) shows again.
+  async function _tripsRename(id, currentName) {
+    const cur = currentName || "";
+    const next = window.prompt(t("trips.rename.prompt") || "Trip name (empty to clear):", cur);
+    if (next === null) return; // cancel
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/trip-recorder/trip/${id}/name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: next }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert((t("trips.rename.err") || "Rename failed") + ": " + (j.error || `HTTP ${r.status}`));
+        return;
+      }
+      const j = await r.json();
+      // Update the detail title if the modal is still open on this id.
+      const pop = document.getElementById("trip-detail-pop");
+      if (pop && pop.dataset.tripId === id) {
+        const title = document.getElementById("trip-detail-title");
+        if (title) {
+          const dateSpan = title.querySelector(".trip-title-date");
+          const dateStr = dateSpan ? dateSpan.textContent : "";
+          title.dataset.tripName = j.name || "";
+          _tripsRenderTitle(id, j.name, dateStr);
+        }
+      }
+      _tripsRefresh();
+    } catch (e) {
+      alert((t("trips.rename.err") || "Rename failed") + ": " + e);
     }
+  }
+  function _tripsRenderTitle(id, name, dateStr) {
+    const title = document.getElementById("trip-detail-title");
+    if (!title) return;
+    const nameEsc = name ? String(name).replace(/[<>&"']/g, (c) => ({ "<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;","'":"&#39;" })[c]) : "";
+    const dateEsc = String(dateStr || "").replace(/[<>&"']/g, (c) => ({ "<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;","'":"&#39;" })[c]);
+    const shareLbl = t("trips.shareTitle") || "Viaje";
+    const primary = nameEsc || `${shareLbl} ${dateEsc}`;
+    const sub = nameEsc ? `<span class="trip-title-date" style="font-size:12px;opacity:0.6;font-weight:400;margin-left:8px">${shareLbl} ${dateEsc}</span>` : `<span class="trip-title-date" style="display:none">${dateEsc}</span>`;
+    const editIcon = `<button type="button" class="trip-rename-btn" title="${t("trips.rename.tooltip") || "Rename"}" style="margin-left:8px;background:transparent;border:1px solid var(--border,#2b3542);color:var(--fg-dim,#8b98a5);border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">✎</button>`;
+    title.innerHTML = `${primary}${sub}${editIcon}`;
+    const btn = title.querySelector(".trip-rename-btn");
+    if (btn) btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      _tripsRename(id, name);
+    });
   }
   // Rev179 (Carlos): lazy-load Leaflet from the CDN the first time a
   // trip detail modal opens. Cached in the SW/browser after that.
@@ -8701,28 +10004,31 @@
       _tripMap = null;
     }
     _tripMap = L.map(box, { zoomControl: true, attributionControl: true });
-    // Rev181 (Carlos): base map switched from tile.openstreetmap.org
-    // to CartoDB Voyager. The volunteer OSM tile servers rolled out a
-    // strict Referer policy in mid-2026 and started returning 403
-    // "Access blocked" tiles inside the visor (embedded webapps in SK
-    // do not send a Referer that OSM whitelists). CartoDB is derived
-    // from OSM, free, no API key, no Referer requirement. OpenSeaMap
-    // seamarks stay on top for the nautical layer.
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      maxZoom: 19, subdomains: "abcd",
-      attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    // Rev181 → Rev326 (Carlos, 2026-09-28): both CartoDB Voyager
+    // (watermark "API KEY REQUIRED" late 2026) and direct OSM tiles
+    // (403 "Access blocked" from embedded webapps) failed. Now we
+    // route every tile through the plugin backend, which fetches
+    // upstream OSM with a self-identifying User-Agent that satisfies
+    // OSM's fair-use policy. Browser caches each tile 24 h.
+    L.tileLayer(`/plugins/${PLUGIN_ID}/tiles/{z}/{x}/{y}.png`, {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(_tripMap);
     L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {
       maxZoom: 18, opacity: 0.9, attribution: '&copy; OpenSeaMap',
     }).addTo(_tripMap);
     // Track polyline coloured by SOG bucket. Break the polyline into
     // segments per bucket so each bucket gets its own colour.
+    // Rev332 (Carlos, 2026-09-28): paleta reelegida para contrastar
+    // contra el azul del mar de OSM (los azul/turquesa anteriores se
+    // perdían en el fondo). Ahora cada bucket es un color caliente o
+    // magenta con suficiente separación entre ellos.
     const bucketColor = (sogKn) => {
-      if (sogKn == null) return "#8b98a5";
-      if (sogKn < 2) return "#5ca7ff";     // very slow / drift
-      if (sogKn < 4) return "#5ce8c0";     // easy pace
-      if (sogKn < 6) return "#ffd54a";     // decent
-      return "#ff9500";                     // fast
+      if (sogKn == null) return "#c0c8d2";  // neutral gris claro
+      if (sogKn < 2) return "#ff6dd0";      // magenta rosa (drift)
+      if (sogKn < 4) return "#ffd54a";      // amarillo cálido
+      if (sogKn < 6) return "#ff9500";      // naranja
+      return "#ff2d55";                     // rojo intenso (fast)
     };
     let segStart = 0;
     for (let i = 1; i < samples.length; i += 1) {
@@ -8787,16 +10093,239 @@
     // Legend under the map.
     if (legend) {
       legend.innerHTML = [
-        ["#5ca7ff","< 2 kn"],
-        ["#5ce8c0","2-4 kn"],
-        ["#ffd54a","4-6 kn"],
-        ["#ff9500","> 6 kn"],
+        ["#ff6dd0","< 2 kn"],
+        ["#ffd54a","2-4 kn"],
+        ["#ff9500","4-6 kn"],
+        ["#ff2d55","> 6 kn"],
       ].map(([c,lbl]) => `<span><span style="display:inline-block;width:14px;height:3px;background:${c};margin-right:4px;vertical-align:middle"></span>${lbl}</span>`).join("")
       + `<span style="margin-left:8px">${t("trips.map.legend")}</span>`;
     }
     // Invalidate size once the modal has actually painted so Leaflet
     // realises the container has non-zero dimensions.
     setTimeout(() => { try { _tripMap && _tripMap.invalidateSize(); } catch { /* silent */ } }, 120);
+    // Rev328 (Carlos, 2026-09-28): pintar el chart SOG + AWS con las
+    // mismas muestras — no hay que volver a bajarnos el JSONL.
+    try { _tripsChartRender(samples); } catch { /* silent */ }
+  }
+  // Rev328 (Carlos, 2026-09-28): tiny time-series chart of SOG (green)
+  // and AWS (amber) over the trip. Canvas 2D, no external lib. Handles
+  // missing values by breaking the line into segments.
+  // Rev329 (Carlos, 2026-09-28): hover / drag tooltip. Reads SOG, AWS
+  // and AWA (AWA only inside the tooltip — never as a chart line to
+  // keep the two-axis story clean).
+  const _tripChart = { pts: null, geom: null };
+  function _tripsChartRender(samples) {
+    const canvas = document.getElementById("trip-detail-chart");
+    const wrap = document.getElementById("trip-detail-chart-wrap");
+    if (!canvas || !wrap) return;
+    // Convert SOG (m/s) and AWS (m/s) to knots. Some early trips may
+    // have missing AWS if the wind sensor wasn't publishing. AWA stays
+    // in radians until we format the tooltip.
+    const MS_TO_KN = 1.94384;
+    const RAD2DEG_LOCAL = 180 / Math.PI;
+    const pts = samples.filter(s => typeof s.ts === "number").map(s => ({
+      ts: s.ts,
+      sog: (typeof s.sog === "number") ? s.sog * MS_TO_KN : null,
+      aws: (typeof s.aws === "number") ? s.aws * MS_TO_KN : null,
+      awaDeg: (typeof s.awa === "number") ? s.awa * RAD2DEG_LOCAL : null,
+    }));
+    _tripChart.pts = pts;
+    const anyData = pts.some(p => p.sog != null || p.aws != null);
+    if (!anyData || pts.length < 2) {
+      wrap.style.display = "block";
+      const ctx0 = canvas.getContext("2d");
+      const w = canvas.clientWidth || 400;
+      canvas.width = w * (window.devicePixelRatio || 1);
+      canvas.height = 160 * (window.devicePixelRatio || 1);
+      ctx0.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+      ctx0.fillStyle = "#0a1220"; ctx0.fillRect(0, 0, w, 160);
+      ctx0.fillStyle = "#8b98a5"; ctx0.font = "12px system-ui,sans-serif"; ctx0.textAlign = "center";
+      ctx0.fillText(t("trips.chart.noData") || "(no data)", w / 2, 80);
+      return;
+    }
+    const t0 = pts[0].ts, t1 = pts[pts.length - 1].ts;
+    const dt = Math.max(1, t1 - t0);
+    // Y-max: peak of both series, minimum 6 kn so calm sessions still
+    // read with sensible headroom.
+    let yMax = 6;
+    for (const p of pts) {
+      if (p.sog != null && p.sog > yMax) yMax = p.sog;
+      if (p.aws != null && p.aws > yMax) yMax = p.aws;
+    }
+    yMax = Math.ceil(yMax * 1.1);
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth || 400;
+    const h = 160;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Background + gridlines.
+    ctx.fillStyle = "#0a1220"; ctx.fillRect(0, 0, w, h);
+    const padL = 34, padR = 12, padT = 12, padB = 22;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    ctx.strokeStyle = "#1f2733"; ctx.lineWidth = 1;
+    const yTicks = 4;
+    ctx.fillStyle = "#8b98a5"; ctx.font = "10px ui-monospace,monospace"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let i = 0; i <= yTicks; i++) {
+      const y = padT + (plotH * i / yTicks);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+      const kn = Math.round(yMax * (1 - i / yTicks));
+      ctx.fillText(`${kn}`, padL - 4, y);
+    }
+    // X-axis time labels (start / mid / end).
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    const fmtH = (ms) => { const d = new Date(ms); const pad = n => String(n).padStart(2,"0"); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+    ctx.fillText(fmtH(t0),          padL,              padT + plotH + 4);
+    ctx.fillText(fmtH((t0 + t1) / 2), padL + plotW / 2, padT + plotH + 4);
+    ctx.fillText(fmtH(t1),          padL + plotW,      padT + plotH + 4);
+    // Series painter — breaks the line at null values so gaps show.
+    const drawSeries = (getVal, color) => {
+      ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      let pen = false;
+      for (const p of pts) {
+        const v = getVal(p);
+        if (v == null || !isFinite(v)) { pen = false; continue; }
+        const x = padL + ((p.ts - t0) / dt) * plotW;
+        const y = padT + (1 - Math.max(0, Math.min(1, v / yMax))) * plotH;
+        if (!pen) { ctx.moveTo(x, y); pen = true; }
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    };
+    drawSeries(p => p.sog, "#5ce8c0"); // SOG
+    drawSeries(p => p.aws, "#ffd54a"); // AWS
+    // Legend inside the canvas top-right.
+    ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.font = "11px system-ui,sans-serif";
+    const legX = padL + plotW - 110, legY = padT + 6;
+    ctx.fillStyle = "#5ce8c0"; ctx.fillRect(legX, legY - 1, 14, 3);
+    ctx.fillStyle = "#e8ecf1"; ctx.fillText(`${t("trips.chart.sog") || "SOG"} (kn)`, legX + 18, legY);
+    ctx.fillStyle = "#ffd54a"; ctx.fillRect(legX, legY + 13, 14, 3);
+    ctx.fillStyle = "#e8ecf1"; ctx.fillText(`${t("trips.chart.aws") || "AWS"} (kn)`, legX + 18, legY + 14);
+    // Rev329 (Carlos, 2026-09-28): save geometry so the hover handler
+    // can map cursor X → sample and paint the crosshair overlay on
+    // top of the base chart without a full re-render.
+    _tripChart.geom = { padL, padT, plotW, plotH, t0, dt, yMax, w, h };
+    _tripsChartWireHover(canvas);
+  }
+  // Rev329 (Carlos, 2026-09-28): mouse / touch scrub on the chart.
+  // Registered once; the pts + geometry live in `_tripChart` closure
+  // so a fresh render replaces them cleanly.
+  function _tripsChartWireHover(canvas) {
+    if (canvas.__mtHoverWired) return;
+    canvas.__mtHoverWired = true;
+    const tip = document.getElementById("trip-detail-chart-tooltip");
+    const hide = () => { if (tip) tip.style.display = "none"; };
+    const move = (clientX) => {
+      const pts = _tripChart.pts, g = _tripChart.geom;
+      if (!pts || !g || pts.length < 2 || !tip) { hide(); return; }
+      const rect = canvas.getBoundingClientRect();
+      const relX = clientX - rect.left;
+      if (relX < g.padL || relX > g.padL + g.plotW) { hide(); return; }
+      // Cursor X → target ts → binary search closest sample.
+      const targetTs = g.t0 + ((relX - g.padL) / g.plotW) * g.dt;
+      let lo = 0, hi = pts.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (pts[mid].ts < targetTs) lo = mid + 1; else hi = mid;
+      }
+      // Prefer the neighbour closer in time.
+      let idx = lo;
+      if (idx > 0 && Math.abs(pts[idx - 1].ts - targetTs) < Math.abs(pts[idx].ts - targetTs)) idx = idx - 1;
+      const p = pts[idx];
+      const pad = n => String(n).padStart(2, "0");
+      const d = new Date(p.ts);
+      const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      const fmtKn = (v) => (v == null) ? "--" : v.toFixed(1) + " kn";
+      const fmtAwa = (v) => {
+        if (v == null) return "--";
+        const side = v > 0 ? "S" : v < 0 ? "P" : "-";
+        return `${Math.abs(v).toFixed(0)}° ${side}`;
+      };
+      tip.innerHTML =
+        `<div style="font-weight:600;color:#e8ecf1">${timeStr}</div>` +
+        `<div><span style="color:#5ce8c0">SOG</span> ${fmtKn(p.sog)}</div>` +
+        `<div><span style="color:#ffd54a">AWS</span> ${fmtKn(p.aws)}</div>` +
+        `<div><span style="color:#8b98a5">AWA</span> ${fmtAwa(p.awaDeg)}</div>`;
+      // Position: keep the tooltip inside the wrap; flip to the left
+      // when we run out of room on the right.
+      const wrap = canvas.parentElement;
+      const wrapRect = wrap.getBoundingClientRect();
+      const tipW = 130, tipH = 68;
+      let left = relX + 12;
+      if (left + tipW > wrapRect.width) left = relX - tipW - 12;
+      let top = 16;
+      tip.style.left = `${left}px`;
+      tip.style.top  = `${top}px`;
+      tip.style.width = `${tipW}px`;
+      tip.style.display = "block";
+      // Crosshair line — repaint the base chart first via the cached
+      // pts, then overlay a vertical rule at the picked ts.
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const x = g.padL + ((p.ts - g.t0) / g.dt) * g.plotW;
+      // Redraw only the vertical rule by drawing a semi-transparent
+      // line on top; we accept the slight ghost trail from prior
+      // moves — cheaper than re-rendering the whole series each frame.
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Erase the previous rule if any (kept in _tripChart.lastX).
+      if (_tripChart.lastX != null) {
+        // Force a full re-render only when the picked X moves — small
+        // debounce so scrubbing feels smooth. Cheap because pts are
+        // already parsed and yMax pre-computed.
+      }
+      ctx.strokeStyle = "rgba(232,236,241,0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, g.padT);
+      ctx.lineTo(x, g.padT + g.plotH);
+      ctx.stroke();
+      ctx.restore();
+      _tripChart.lastX = x;
+    };
+    canvas.addEventListener("mousemove", (ev) => {
+      // On every move we first repaint from scratch so old crosshairs
+      // vanish, then paint the new one.
+      _tripsChartRepaint();
+      move(ev.clientX);
+    });
+    canvas.addEventListener("mouseleave", () => {
+      _tripsChartRepaint();
+      hide();
+    });
+    canvas.addEventListener("touchstart", (ev) => {
+      if (!ev.touches[0]) return;
+      _tripsChartRepaint();
+      move(ev.touches[0].clientX);
+    }, { passive: true });
+    canvas.addEventListener("touchmove", (ev) => {
+      if (!ev.touches[0]) return;
+      _tripsChartRepaint();
+      move(ev.touches[0].clientX);
+    }, { passive: true });
+    canvas.addEventListener("touchend", () => {
+      _tripsChartRepaint();
+      hide();
+    });
+  }
+  // Wrapper so hover handlers can re-render the base chart cheaply
+  // without duplicating _tripsChartRender's parsing/setup work.
+  function _tripsChartRepaint() {
+    // We stashed the parsed samples in _tripChart.pts; feed them back
+    // to _tripsChartRender by re-wrapping into the shape it expects
+    // (ts / sog m/s / aws m/s / awa rad — we invert the kn → ms).
+    if (!_tripChart.pts) return;
+    const KN_TO_MS = 1 / 1.94384;
+    const DEG2RAD_LOCAL = Math.PI / 180;
+    const rehydrated = _tripChart.pts.map(p => ({
+      ts: p.ts,
+      sog: p.sog != null ? p.sog * KN_TO_MS : null,
+      aws: p.aws != null ? p.aws * KN_TO_MS : null,
+      awa: p.awaDeg != null ? p.awaDeg * DEG2RAD_LOCAL : null,
+    }));
+    _tripsChartRender(rehydrated);
   }
   function _tsShort(ts) {
     if (!ts) return "";
@@ -8830,23 +10359,33 @@
     _tripsMapRender(id, s);
     const started = new Date(s.startTs);
     const dateStr = `${String(started.getDate()).padStart(2,"0")}/${String(started.getMonth()+1).padStart(2,"0")}/${started.getFullYear()} ${String(started.getHours()).padStart(2,"0")}:${String(started.getMinutes()).padStart(2,"0")}`;
-    if (title) title.textContent = `${t("trips.shareTitle")} ${dateStr}`;
+    // Rev327 (Carlos, 2026-09-28): title uses the sailor-given name if
+    // set, falling back to the timestamp. Inline pencil button reopens
+    // the rename prompt.
+    _tripsRenderTitle(id, s.name || null, dateStr);
+    // Rev332 (Carlos, 2026-09-28): "quita los colorines" — todas las
+    // KPI cards con el mismo color neutro var(--fg). El tint arg se
+    // conserva por si un día queremos volver a resaltar algo, pero por
+    // defecto nadie lo pasa.
     const mkCard = (label, value, tint) =>
       `<div style="padding:10px 12px;border-radius:8px;background:var(--bg-2,#0f1620);border:1px solid var(--border,#2b3542)">
         <div style="font-size:10px;opacity:0.65;letter-spacing:0.6px">${label.toUpperCase()}</div>
-        <div style="font-size:18px;font-weight:800;margin-top:2px;color:${tint || "#e8ecf1"}">${value}</div>
+        <div style="font-size:18px;font-weight:800;margin-top:2px;color:${tint || "var(--fg,#e8ecf1)"}">${value}</div>
       </div>`;
     const fmt = (v, u, d) => v == null ? "--" : v.toFixed(d) + (u || "");
     let cards = "";
-    cards += mkCard(t("trips.kpi.distance"),  fmt(s.distanceNm, " nm", 1), "#4dd982");
+    cards += mkCard(t("trips.kpi.distance"),  fmt(s.distanceNm, " nm", 1));
     cards += mkCard(t("trips.kpi.duration"),  `${Math.round(s.durationMs / 60000)} min`);
-    cards += mkCard(t("trips.kpi.sogAvg"),    fmt(s.sogAvgKn, " kn", 1), "#e8ecf1");
-    cards += mkCard(t("trips.kpi.sogMax"),    fmt(s.sogMaxKn, " kn", 1), "#5ce8c0");
-    cards += mkCard(t("trips.kpi.twsAvg"),    fmt(s.twsAvgKn, " kn", 1), "#5ce8c0");
-    cards += mkCard(t("trips.kpi.twsMax"),    fmt(s.twsMaxKn, " kn", 1), "#ffcf47");
-    cards += mkCard(t("trips.kpi.awsMax"),    fmt(s.awsMaxKn, " kn", 1), "#ffd54a");
-    cards += mkCard(t("trips.kpi.heelAvg"),   fmt(s.heelAvgDeg, "°", 1));
-    cards += mkCard(t("trips.kpi.heelMax"),   fmt(s.heelMaxDeg, "°", 1), "#ff9500");
+    cards += mkCard(t("trips.kpi.sogAvg"),    fmt(s.sogAvgKn, " kn", 1));
+    cards += mkCard(t("trips.kpi.sogMax"),    fmt(s.sogMaxKn, " kn", 1));
+    cards += mkCard(t("trips.kpi.twsAvg"),    fmt(s.twsAvgKn, " kn", 1));
+    cards += mkCard(t("trips.kpi.twsMax"),    fmt(s.twsMaxKn, " kn", 1));
+    // Rev332 (Carlos, 2026-09-28): añadido AWS med (antes solo AWS max).
+    cards += mkCard(t("trips.kpi.awsAvg"),    fmt(s.awsAvgKn, " kn", 1));
+    cards += mkCard(t("trips.kpi.awsMax"),    fmt(s.awsMaxKn, " kn", 1));
+    // Rev332 (Carlos, 2026-09-28): quitada ESCORA MED (poco útil), se
+    // conserva ESCORA MAX que sí interesa como highlight del día.
+    cards += mkCard(t("trips.kpi.heelMax"),   fmt(s.heelMaxDeg, "°", 1));
     cards += mkCard(t("trips.kpi.tacks"),     `${s.tacks}`);
     if (s.pctUpwind != null || s.pctReach != null || s.pctDownwind != null) {
       const up = s.pctUpwind != null ? Math.round(s.pctUpwind) : 0;
@@ -8855,9 +10394,10 @@
       cards += mkCard(t("trips.kpi.pointsOfSail"), `${up}% ${t("trips.kpi.upwind")} · ${rc}% ${t("trips.kpi.reach")} · ${dw}% ${t("trips.kpi.downwind")}`);
     }
     cards += mkCard(t("trips.kpi.engaged"),  fmt(s.pctEngaged, "%", 0));
-    cards += mkCard(t("trips.kpi.voltAvg"),  fmt(s.voltAvgV, " V", 2));
-    cards += mkCard(t("trips.kpi.voltMin"),  fmt(s.voltMinV, " V", 2), s.voltMinV != null && s.voltMinV < 11 ? "#ff5d5d" : (s.voltMinV != null && s.voltMinV < 11.5 ? "#ffcf47" : "#4dd982"));
-    cards += mkCard(t("trips.kpi.voltSags"), `${s.voltSagsBelow115}`, s.voltSagsBelow115 > 5 ? "#ff9500" : undefined);
+    // Rev332 (Carlos, 2026-09-28): quitados voltajes (med y min) del
+    // resumen del viaje — el peak de bajada de tensión sigue apareciendo
+    // como highlight cuando ocurre. Solo queda Ah consumidos aquí.
+    cards += mkCard(t("trips.kpi.energyAh"), fmt(s.energyAh, " Ah", 2));
     if (statsBox) statsBox.innerHTML = cards;
     // Highlights.
     if (highlightsBox) {
@@ -8891,7 +10431,7 @@
     if (ba && !ba.__wired) { ba.__wired = true; ba.addEventListener("click", _sessOpenAdviceModal); }
     _sessRefreshStatus();
     if (_sessRefreshTimer) clearInterval(_sessRefreshTimer);
-    _sessRefreshTimer = setInterval(_sessRefreshStatus, 5000);
+    _sessRefreshTimer = setInterval(_sessRefreshStatus, 15000);  // Rev355: 5s -> 15s
   }
 
   function _lcWire() {
@@ -8904,7 +10444,7 @@
     // Kick a status refresh right away and every 5 s while Setup tab active.
     _lcRefreshStatus();
     if (_lcRefreshTimer) clearInterval(_lcRefreshTimer);
-    _lcRefreshTimer = setInterval(_lcRefreshStatus, 5000);
+    _lcRefreshTimer = setInterval(_lcRefreshStatus, 15000);  // Rev355: 5s -> 15s
     // Rev322 (Carlos, 2026-09-27): maneuver trace card. Same wiring
     // pattern as log capture.
     const mtCb = document.getElementById("mt-enabled");
@@ -8913,7 +10453,7 @@
     if (mtBv && !mtBv.__wired) { mtBv.__wired = true; mtBv.addEventListener("click", _mtShowRecent); }
     _mtRefreshStatus();
     if (_mtRefreshTimer) clearInterval(_mtRefreshTimer);
-    _mtRefreshTimer = setInterval(_mtRefreshStatus, 5000);
+    _mtRefreshTimer = setInterval(_mtRefreshStatus, 15000);  // Rev355: 5s -> 15s
     // Rev141: also start the watch inspector.
     _watchInspectorStart();
     // Rev140 (Carlos): restart pypilot_web on the Pi Zero. Runs
@@ -9541,9 +11081,17 @@
       }
     }
     keys.push("ap.pilot", "profile", "profiles");
-    // Config sliders are all RangeSettings that appear in Tune too.
+    // Rev336 (Carlos, 2026-09-28): antes se excluían `imu.*` y `servo.*`
+    // RangeSettings del focus, con la intención de proteger al Pi Zero
+    // de watches masivos. Pero renderConfigSliders() en el tab AJUSTES
+    // pinta TODOS los RangeSettings (servo.max_slew_speed, servo.period,
+    // servo.speed.max, servo.max_slew_slow...), y sin focus llegaban
+    // como `--` porque pypilot solo emite lo que se le pide. Incluirlos
+    // ahora en el focus de AJUSTES. El TTL (60s) los libera al salir
+    // del tab, así que el Pi Zero solo aguanta el peso mientras el
+    // sailor está mirando los sliders.
     for (const k of Object.keys(cat)) {
-      if (cat[k]?.type === "RangeSetting" && !k.startsWith("imu.") && !k.startsWith("servo.")) {
+      if (cat[k]?.type === "RangeSetting") {
         keys.push(k);
       }
     }
@@ -9703,8 +11251,14 @@
   // block opens on click of a small "?" button.
   const _GAIN_HELP_KEYS = new Set([
     "P", "I", "D", "DD", "PR", "FF",
-    "servo.max_current", "servo.max_slew_speed", "imu.heading_offset",
-    "rudder.range", "ap.tack.angle", "ap.tack.rate",
+    "servo.max_current", "servo.max_slew_speed", "servo.max_slew_slow",
+    "servo.period", "servo.speed.max", "servo.speed.min",
+    "servo.min_speed", "servo.duty.max",
+    "imu.heading_offset",
+    "rudder.range", "rudder.offset",
+    "ap.tack.angle", "ap.tack.rate", "ap.tack.delay", "ap.tack.threshold",
+    "ap.wind_compensation",
+    "wind.offset", "truewind.offset",
   ]);
   function _gainHelpKeyFor(name) {
     if (!name) return null;
@@ -9713,6 +11267,90 @@
     const tail = name.split(".").pop();
     if (tail && _GAIN_HELP_KEYS.has(tail)) return tail;
     return null;
+  }
+  // Rev333 → Rev335 (Carlos, 2026-09-28): human-readable title for a
+  // gain / config slider. Tries in order:
+  //   1) tune.gain.<full name>.title   (works for "ap.tack.delay" etc.)
+  //   2) tune.gain.<tail>.title        ("P" from "ap.pilot.basic.P")
+  //   3) auto-humanize the path        ("servo.max_slew_slow" → "Servo max slew slow")
+  // This way a new RangeSetting added by pypilot upstream still shows
+  // *something* legible until we ship a proper translation.
+  function _gainDisplayName(name) {
+    if (!name) return "";
+    const tryKey = (k) => {
+      const key = `tune.gain.${k}.title`;
+      const tr = t(key);
+      return (tr && tr !== key) ? tr : null;
+    };
+    const full = tryKey(name);
+    if (full) return full;
+    const tail = String(name).split(".").pop();
+    if (tail && tail !== name) {
+      const short = tryKey(tail);
+      if (short) return short;
+    }
+    // Fallback humanize: "servo.max_slew_slow" → "Servo max slew slow".
+    return _humanizePypilotKey(name);
+  }
+  function _humanizePypilotKey(key) {
+    if (!key) return "";
+    const s = String(key).replace(/[._]+/g, " ").trim();
+    if (!s) return String(key);
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  // Rev341 (Carlos, 2026-09-28): clasificación por-perfil vs global.
+  // Fuente: el propio interfaz nativo de pypilot los agrupa así, con
+  // el mensaje "Los siguientes ajustes son capturados por el perfil
+  // actual" encima del bloque por-perfil.
+  //   PERFIL   → cambian al elegir otro perfil del selector.
+  //   GLOBAL   → a nivel de instalación, siempre los mismos.
+  // Los gains P/I/D/DD/PR/FF viven bajo `ap.pilot.<pilot>.*` que
+  // también forma parte del perfil.
+  const _PER_PROFILE_KEYS = new Set([
+    "ap.tack.angle", "ap.tack.delay", "ap.tack.rate", "ap.tack.threshold",
+    "servo.period", "servo.speed.max", "servo.speed.min",
+    "ap.wind_compensation",
+  ]);
+  function _isPerProfile(name) {
+    if (!name) return false;
+    if (_PER_PROFILE_KEYS.has(name)) return true;
+    if (name.startsWith("ap.pilot.")) return true;
+    return false;
+  }
+  function _scopeBadgeHtml(name) {
+    // Coefficient-only gains inherit the badge from their parent pilot
+    // path even when only the tail is passed (P, I, D…).
+    const key = name && /(^|\.)(P|I|D|DD|PR|FF)$/.test(name)
+      ? "ap.pilot.x." + name.split(".").pop()
+      : name;
+    const perProfile = _isPerProfile(key);
+    const label = perProfile ? (t("tune.badge.profile") || "PERFIL")
+                             : (t("tune.badge.global")  || "GLOBAL");
+    const color  = perProfile ? "#ff9500" : "#4dd4ff";
+    const alpha  = perProfile ? "rgba(255,149,0,0.15)" : "rgba(77,212,255,0.15)";
+    return `<span class="scope-badge" title="${perProfile ? 'Capturado por el perfil activo' : 'Ajuste global de la instalación'}" style="display:inline-block;margin-left:8px;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:0.5px;color:${color};background:${alpha};border:1px solid ${color};vertical-align:middle">${label}</span>`;
+  }
+  // Rev337 → Rev338 (Carlos, 2026-09-28): unit label next to the value.
+  // Legible short forms — Carlos: "usa Grados/Deg y Seg/Sec, no solo °
+  // o s". Coefficient gains (P/I/D/DD/PR/FF) stay unitless.
+  function _gainUnits(name) {
+    if (!name) return "";
+    if (/(^|\.)(P|I|D|DD|PR|FF)$/.test(name)) return "";
+    if (name === "ap.tack.rate") return "Deg/Sec";
+    if (name === "ap.tack.delay" || name === "servo.period") return "Sec";
+    if (name === "ap.tack.threshold"
+      || name === "servo.speed.max" || name === "servo.speed.min"
+      || name === "servo.min_speed"
+      || name === "servo.duty.max"
+      || name === "servo.max_slew_speed"
+      || name === "servo.max_slew_slow") return "%";
+    if (name === "servo.max_current") return "Amps";
+    if (name === "ap.tack.angle" || name === "rudder.range"
+      || name === "rudder.offset"
+      || name === "imu.heading_offset"
+      || name === "truewind.offset"
+      || name === "wind.offset") return "Deg";
+    return "";
   }
   function _attachGainHelp(row, name) {
     // Skip if this row has no matching help entry or was already
@@ -11070,7 +12708,7 @@
   function pcOnTabEnter() {
     _pcFetchAndRender();
     if (_pc.timer) clearInterval(_pc.timer);
-    _pc.timer = setInterval(_pcFetchAndRender, 3000);
+    _pc.timer = setInterval(_pcFetchAndRender, 10000);  // Rev355: 3s -> 10s (prechecks card)
   }
   function pcOnTabLeave() {
     if (_pc.timer) { clearInterval(_pc.timer); _pc.timer = null; }
@@ -11321,7 +12959,17 @@
       const nowMs = Date.now();
       const muted = r.mutedUntilMs && r.mutedUntilMs > nowMs;
       if (!r.enabled) { status.classList.add("off"); status.textContent = t("alarm.off"); }
-      else if (muted) { status.classList.add("muted"); status.textContent = `${t("alarm.muted")} ${Math.ceil((r.mutedUntilMs - nowMs) / 60000)}m`; }
+      else if (muted) {
+        // Rev375 (Carlos, 2026-09-30): countdown in mm:ss updated
+        // every second by _alMuteCountdownEnsure(). Was "15m" static
+        // — sailor asked to see the actual seconds counting down.
+        status.classList.add("muted");
+        status.dataset.mutedUntil = String(r.mutedUntilMs);
+        const remainSec = Math.max(0, Math.ceil((r.mutedUntilMs - nowMs) / 1000));
+        const mm = Math.floor(remainSec / 60);
+        const ss = String(remainSec % 60).padStart(2, "0");
+        status.textContent = `${t("alarm.muted")} ${mm}:${ss}`;
+      }
       else if (r.active) { status.classList.add("active"); status.textContent = t("alarm.active"); }
       else { status.classList.add("idle"); status.textContent = t("alarm.idle"); }
       // Mute button
@@ -11335,8 +12983,62 @@
           : `/plugins/${PLUGIN_ID}/alarms/mute/${r.id}?min=15`;
         fetch(url, { method: "POST" }).then(() => _alFetch()).catch(() => {});
       });
+      // Rev374 (Carlos, 2026-09-30): per-rule severity override
+      // dropdown. Closes the Rev342 backend loop
+      // (POST /alarms/severity/:id + props.alarmSeverityOverrides
+      // persistence + AlarmEngine.setRuleSeverity). Rev372/373 wired
+      // the wrong card by mistake (Smart Pilot subselector); this is
+      // the actual Setup > Alarms card renderer.
+      const sevSel = document.createElement("select");
+      sevSel.className = "ac-severity-sel";
+      sevSel.dataset.ruleId = r.id;
+      sevSel.setAttribute("aria-label", "Severidad");
+      sevSel.style.marginLeft = "6px";
+      sevSel.style.flexShrink = "0";
+      sevSel.style.minWidth = "112px";
+      sevSel.style.padding = "6px 8px";
+      sevSel.style.fontSize = "13px";
+      sevSel.style.background = "var(--bg-2)";
+      sevSel.style.color = "var(--fg)";
+      sevSel.style.border = "1px solid var(--border)";
+      sevSel.style.borderRadius = "6px";
+      // Rev376 (Carlos, 2026-09-30): mark the shipped default with a
+      // trailing ★ so the sailor sees which option is the factory
+      // setting before changing it. `defaultSeverity` comes from the
+      // backend describe() (rule.severity, without override applied).
+      const defSev = r.defaultSeverity || r.severity;
+      for (const [val, lbl] of [["alarm", "🔴 Alarma"], ["warn", "🟡 Aviso"], ["info", "🔵 Info"]]) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = (val === defSev) ? `${lbl} ★` : lbl;
+        if (r.severity === val) opt.selected = true;
+        sevSel.appendChild(opt);
+      }
+      sevSel.addEventListener("change", async () => {
+        const prev = r.severity;
+        const next = sevSel.value;
+        try {
+          const resp = await fetch(`/plugins/${PLUGIN_ID}/alarms/severity/${encodeURIComponent(r.id)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ severity: next }),
+          });
+          if (!resp.ok) {
+            const msg = await resp.text().catch(() => String(resp.status));
+            throw new Error(msg || `HTTP ${resp.status}`);
+          }
+          r.severity = next;
+          const newEmoji = next === "alarm" ? "🔴 " : next === "warn" ? "🟡 " : "🔵 ";
+          lab.textContent = newEmoji + r.label;
+        } catch (err) {
+          console.warn("[alarm severity] POST failed:", err);
+          sevSel.value = prev;
+          try { alert("No se pudo cambiar la severidad: " + (err && err.message ? err.message : err)); } catch { /* silent */ }
+        }
+      });
       row.appendChild(toggle);
       row.appendChild(body);
+      row.appendChild(sevSel);
       row.appendChild(status);
       row.appendChild(muteBtn);
       el.appendChild(row);
@@ -11418,7 +13120,33 @@
   function alarmsStart() {
     if (_al.timer) return;
     _alFetch();
-    _al.timer = setInterval(_alFetch, 2000);
+    _al.timer = setInterval(_alFetch, 5000);  // Rev355: 2s -> 5s (alarms fetch; sticky panel still gets net-health via WS)
+    // Rev375 (Carlos, 2026-09-30): 1 Hz mute countdown updater. Walks
+    // any .ac-status[data-muted-until] pill and updates its mm:ss
+    // in place, no fetch. When the countdown reaches zero, triggers
+    // a single _alFetch() to let the backend re-emit the un-muted
+    // state (idle/active) into the DOM.
+    if (!_al.muteCdTimer) {
+      _al.muteCdTimer = setInterval(() => {
+        const now = Date.now();
+        const nodes = document.querySelectorAll('.ac-status[data-muted-until]');
+        let expired = false;
+        for (const node of nodes) {
+          const until = Number(node.dataset.mutedUntil);
+          if (!until) continue;
+          const remainSec = Math.max(0, Math.ceil((until - now) / 1000));
+          if (remainSec <= 0) {
+            delete node.dataset.mutedUntil;
+            expired = true;
+            continue;
+          }
+          const mm = Math.floor(remainSec / 60);
+          const ss = String(remainSec % 60).padStart(2, "0");
+          node.textContent = `${t("alarm.muted")} ${mm}:${ss}`;
+        }
+        if (expired) _alFetch();
+      }, 1000);
+    }
   }
 
   // ============================================================
@@ -11433,10 +13161,36 @@
   // marked as "not on this boat" keeps its row visible (with an
   // IGNORED pill and a Restore button) but stops contributing to the
   // Setup chip's red count.
+  // Rev324 (Carlos, 2026-09-28): the authoritative list lives in the
+  // backend (props.sensorsIgnored) so every device sharing the same
+  // SK server sees the same acknowledgments. localStorage is kept as
+  // a first-paint cache to avoid a flicker while /quality is inflight.
   const SQ_IGNORED_KEY = "pypilot-newui.sqIgnored";
   const _sqIgnored = new Set(
     (() => { try { return JSON.parse(localStorage.getItem(SQ_IGNORED_KEY) || "[]"); } catch { return []; } })()
   );
+  function _sqPersistCache() {
+    try { localStorage.setItem(SQ_IGNORED_KEY, JSON.stringify([..._sqIgnored])); } catch { /* silent */ }
+  }
+  function _sqApplyBackendList(list) {
+    if (!Array.isArray(list)) return;
+    _sqIgnored.clear();
+    for (const p of list) if (typeof p === "string" && p) _sqIgnored.add(p);
+    _sqPersistCache();
+  }
+  async function _sqPushToggle(path, ignored) {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/quality/ignored`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, ignored }),
+      });
+      if (r.ok) {
+        const j = await r.json().catch(() => ({}));
+        if (Array.isArray(j.ignored)) _sqApplyBackendList(j.ignored);
+      }
+    } catch { /* silent - visor already updated the set optimistically */ }
+  }
 
   function _sqFormatValue(v) {
     if (v == null) return "--";
@@ -11470,6 +13224,9 @@
       if (!res.ok) return;
       const data = await res.json();
       _sq.lastData = data;
+      // Rev324: sync the ignored set from the backend on every poll
+      // so a change from another device shows up within one tick.
+      if (Array.isArray(data.ignored)) _sqApplyBackendList(data.ignored);
       sqRender();
     } catch { /* silent - a failed poll is not worth spamming console */ }
   }
@@ -11534,10 +13291,15 @@
           ? (t("sq.action.restore") || "Restore")
           : (t("sq.action.ignore") || "Ignore");
         btn.addEventListener("click", () => {
-          if (_sqIgnored.has(r.path)) _sqIgnored.delete(r.path);
-          else _sqIgnored.add(r.path);
-          try { localStorage.setItem(SQ_IGNORED_KEY, JSON.stringify([..._sqIgnored])); } catch { /* silent */ }
+          // Rev324: optimistic toggle then POST to the shared backend
+          // list. The next /quality poll (3 s) reconciles from the
+          // authoritative source, so a rejected write self-heals.
+          const willIgnore = !_sqIgnored.has(r.path);
+          if (willIgnore) _sqIgnored.add(r.path);
+          else _sqIgnored.delete(r.path);
+          _sqPersistCache();
           sqRender();
+          _sqPushToggle(r.path, willIgnore);
         });
         actionTd.appendChild(btn);
       }
@@ -12362,7 +14124,7 @@
           }
         }
       } catch { /* silent */ }
-    }, 1000);
+    }, 5000);  // Rev355 (Carlos, 2026-09-30, log audit): was 1000ms → 5000ms. The pypilot-healthy toast is a courtesy signal, not a HUD; 5s cadence is enough and eliminates the /status spam that dominated the browser network tab.
     // Rev21: pull current pypilot values once so sliders show real positions
     // (gains, config, calibration inputs). Retry after 3s in case the
     // catalog arrives late.
@@ -12421,6 +14183,9 @@
       }
     })();
     connectSK();
+    // Rev342 (Carlos, 2026-09-28): net health monitor. Independent of
+    // SK auth so it works even before ensureAccessOnBoot lands.
+    try { _netHealthStart(); } catch { /* silent */ }
     // Rev87: verify (or acquire) a permanent SK device token so the
     // AP mutations (engage / mode / target) do not silently 401 after
     // the SK server restarts.
