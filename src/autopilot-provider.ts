@@ -490,6 +490,22 @@ export class AutopilotProvider {
   }
 
   private async setMode(mode: string): Promise<void> {
+    // Rev390: same guard as setTarget — reject external mode changes
+    // while the FSM is driving. If the sailor really wants to abort
+    // the maneuver, they tap TACK a second time or call /virtual-tack/
+    // cancel, which flows through cancelVirtualTack and rolls back
+    // cleanly.
+    if (this._virtualTack && !this._vtInternalWrite) {
+      const active = this._virtualTack.phase !== "idle"
+        && this._virtualTack.phase !== "completed"
+        && this._virtualTack.phase !== "cancelled"
+        && this._virtualTack.phase !== "failed";
+      if (active) {
+        // eslint-disable-next-line no-console
+        console.log(`[virtual-tack] rejected external setMode '${mode}' (FSM is driving)`);
+        return;
+      }
+    }
     if (
       this.data.options.modes.length > 0 &&
       !this.data.options.modes.includes(mode)
@@ -566,7 +582,31 @@ export class AutopilotProvider {
     }
   }
 
+  /** Rev390: internal flag set by _runVirtualTack around its own
+   *  setMode/setTarget calls, so the external-write guard below can
+   *  distinguish our FSM's writes from frontend writes (nudges,
+   *  adjust target, legacy countdown) that would compete with the
+   *  maneuver. */
+  private _vtInternalWrite = false;
+
   private async setTarget(rad: number): Promise<void> {
+    // Rev390 (Carlos, 2026-10-01, QA Rev389): reject external target
+    // writes while a virtual tack is driving the pilot. Rev389 QA
+    // caught a mid-maneuver `setTarget rad=0.9250 deg=53.00` that
+    // competed with the FSM's own intermediate (`rad=0.4498 deg=25.77`)
+    // and ultimately corrupted the maneuver. We now swallow any
+    // target write that didn't originate from _runVirtualTack itself.
+    if (this._virtualTack && !this._vtInternalWrite) {
+      const active = this._virtualTack.phase !== "idle"
+        && this._virtualTack.phase !== "completed"
+        && this._virtualTack.phase !== "cancelled"
+        && this._virtualTack.phase !== "failed";
+      if (active) {
+        // eslint-disable-next-line no-console
+        console.log(`[virtual-tack] rejected external setTarget rad=${rad.toFixed(4)} (FSM is driving)`);
+        return;
+      }
+    }
     // Rev272 (audit R07): reject at the boundary. Downstream callers
     // (pypilot, echo cancellation, shortestArcRad) all assume a finite
     // radian value in a sane range. An integration accidentally
@@ -851,7 +891,8 @@ export class AutopilotProvider {
           `delta=${(geometry.deltaHRad * RAD_TO_DEG).toFixed(1)}deg ` +
           `steps=${geometry.intermediatesRad.length}`,
       );
-      await this.setMode("compass");
+      this._vtInternalWrite = true;
+      try { await this.setMode("compass"); } finally { this._vtInternalWrite = false; }
       const compassReady = await waitForPypilotEcho("ap.mode", "compass", 1500);
       if (!compassReady) {
         // eslint-disable-next-line no-console
@@ -864,7 +905,8 @@ export class AutopilotProvider {
         this._virtualTack.stepIndex = i;
         this._virtualTack.phase1StepStartedAtMs = Date.now();
         const stepTargetRad = geometry.intermediatesRad[i];
-        await this.setTarget(stepTargetRad);
+        this._vtInternalWrite = true;
+        try { await this.setTarget(stepTargetRad); } finally { this._vtInternalWrite = false; }
         // Poll heading until we reach the intermediate within tolerance.
         const stepStart = Date.now();
         while (true) {
@@ -891,13 +933,15 @@ export class AutopilotProvider {
 
       // ─── Phase handover → settling: back to wind mode, final target ───
       setPhase("handover");
-      await this.setMode(windMode);
+      this._vtInternalWrite = true;
+      try { await this.setMode(windMode); } finally { this._vtInternalWrite = false; }
       const windReady = await waitForPypilotEcho("ap.mode", windMode, 1500);
       if (!windReady) {
         // eslint-disable-next-line no-console
         console.log(`[virtual-tack ${vtId}] WARN: ap.mode=${windMode} echo not seen in 1.5s, continuing`);
       }
-      await this.setTarget(geometry.angleNewRad);
+      this._vtInternalWrite = true;
+      try { await this.setTarget(geometry.angleNewRad); } finally { this._vtInternalWrite = false; }
 
       // Rev387: new `settling` phase. Entering wind mode isn't the end
       // of the maneuver — pypilot still needs to drive the last few
@@ -954,12 +998,10 @@ export class AutopilotProvider {
       const msg = String(err?.message || err || "");
       const isUserCancel = /cancelled by external cancel/.test(msg);
       setPhase("cancelling", msg);
-      try {
-        await this.setMode(windMode);
-      } catch { /* best-effort */ }
-      try {
-        await this.setTarget(originalAngleRad);
-      } catch { /* best-effort */ }
+      this._vtInternalWrite = true;
+      try { await this.setMode(windMode); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+      this._vtInternalWrite = true;
+      try { await this.setTarget(originalAngleRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
       setPhase(isUserCancel ? "cancelled" : "failed", msg);
       throw err;
     } finally {

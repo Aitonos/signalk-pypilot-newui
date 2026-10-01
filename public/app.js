@@ -2573,6 +2573,11 @@
         if (!wasActive && isActive) {
           if (typeof state.virtualTack.finalWindTargetRad === "number") {
             state.target = state.virtualTack.finalWindTargetRad;
+            // Rev390: re-render the rose so the amber arrow actually
+            // jumps to the FINAL AWA at the moment the FSM starts.
+            // Rev389 missed this call — the state var changed but the
+            // rose kept painting the old target.
+            try { renderTargetArrow(); } catch {}
           }
           // Keep selector pinned to the maneuver's original windMode
           // regardless of what pypilot echoes during phase1/compass.
