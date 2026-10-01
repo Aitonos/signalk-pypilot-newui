@@ -1,5 +1,88 @@
 # Changelog
 
+## 2.11.0 — 2026-09-30 — Sea-trial Sprint K fixes + severity override + portrait layout
+
+Rolls up Rev324 through Rev376. Between 2.10.0 (Rev323) and 2.11.0 the
+plugin went through a second sea trial (2026-09-28, 27 min on Tunatunes)
+that surfaced 13 bugs. The ones not requiring open water are fixed in
+this release; the remainder (aproado/empopado true-wind, mando-físico
+HUD mirror) are implemented and awaiting sea-trial QA.
+
+### Added
+
+- **Per-rule alarm severity override** (Rev342 backend + Rev374 frontend).
+  Each rule in Setup > Alarms now has an inline `🔴 Alarma / 🟡 Aviso /
+  🔵 Info` dropdown. Changes are persisted via `props.alarmSeverityOverrides`
+  so they survive restarts. The shipped default is marked with `★` so the
+  sailor can see which option is the factory setting before changing it.
+  Endpoint: `POST /alarms/severity/:id {severity}`.
+- **Mute countdown mm:ss** (Rev375). The muted-rule status pill now shows
+  real-time `MM:SS` (updated every second) instead of coarse `N minutes`.
+- **Maneuver HUD mirror for external tacks** (Rev348 → Rev355). When a
+  tack is triggered from the pypilot native UI or physical remote, the
+  visor opens the overlay, animates the orange buttons, and emits the
+  post-tack stats panel — the same experience as a visor-initiated tack.
+- **Tack cancellation stats** (Rev355). Cancelling mid-tack shows the HUD
+  immediately with `pre` + "CANCELADO" and no post window.
+- **Pypilot-silence watchdog** (Rev367). If pypilot stops sending `ap.tack.state`
+  deltas for more than 60 s during a maneuver, the visor closes the mirror
+  overlay itself so the UI doesn't hang indefinitely on a lost connection.
+- **Observability instrumentation** (Rev346). `maneuver-trace` now logs
+  stage events (`wallTs + monoTs`) for frontier debugging, plus `mtLog`
+  calls in `pluginRaw` and the `ap.tack.state/direction` handleDelta
+  branch tag the event source as `external` vs visor-local.
+- **Heap diagnostics** sidecar (preserved from Rev885-equivalent work):
+  internal structure sizes under `/api/diagnostic.heapAudit` for
+  long-term RSS tracking.
+
+### Changed
+
+- **Tack stats post window shortened** 60 s → 15 s (Rev371). Was 30 s
+  wait + 30 s measurement; now 5 s wait + 10 s measurement. 10 samples at
+  1 Hz still yield a stable TWS/AWA/SOG average.
+- **Rate-of-turn fallback more conservative** (Rev345). Minimum completion
+  threshold raised to `max(20°, total × 0.4)` so brief rotations don't
+  trigger a premature "tack completed" verdict.
+- **Portrait tablet layout** (Rev370). `font-size` media queries at
+  900 / 1200 / 1600 / 2000 px heights cascade through `em` units to
+  scale both the rose and the surrounding buttons on tall tablets.
+  Confirmed working on Opera Mobile (where `zoom` had no effect).
+- **Button labels in wind mode** (Rev343). `±100°` becomes `VIRAR ← / →`
+  when the pilot is in `wind` or `truewind`, matching the actual
+  semantics.
+- **Cancel labels during active maneuver** (Rev343). The orange buttons
+  show `CANCELAR VIRADA` or `CANCELAR TRASLUCHADA` instead of their
+  normal text so the sailor knows what tapping them will do.
+
+### Fixed
+
+- **Diamond target stuck on external tacks** (Rev347). The
+  `_countdownPlannedTargetRad` variable now only masks `state.target`
+  when the countdown overlay is actually visible; stale values from
+  previously aborted visor tacks are cleared belt-and-suspenders.
+- **Severity dropdown reverted to default on every poll** (Rev375,
+  `alarms.ts` `describe()`). Was returning `rule.severity` (the factory
+  default) instead of `s.severity` (the runtime value with override
+  applied). Fixed to return `s.severity`.
+- **Visor countdown mask over authoritative state** (Rev347 lesson,
+  documented pattern). Any JS variable that fronts an authoritative
+  bus value must be gated by a visible UI signal, not by a cleanup
+  that may not fire on every abort path.
+
+### Known limitations
+
+- Aproado / empopado true-wind flow (`apSetMode("wind")` with
+  `await state.mode = "wind"` before `apSetTargetRad`) is implemented
+  but awaits sea-trial QA.
+- Physical-remote tack → HUD mirror hook (bug #7 from the 2026-09-28
+  trial) is implemented via `observeTackTransition` + `external` flag
+  but awaits sea-trial validation.
+- The pypilot-core direction rewrite for short-arc wind tacks is
+  upstream (not our plugin) and remains open; a GitHub issue is drafted
+  but not yet posted to Sean D'Epagnier.
+
+---
+
 ## 2.10.0 — 2026-09-27 — Sea-trial wind-mode fixes + maneuver forensics
 
 Rolls up Rev309 through Rev323. Between 2.9.0 (Rev280) and 2.10.0 the
