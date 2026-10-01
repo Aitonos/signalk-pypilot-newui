@@ -122,20 +122,55 @@ describe("virtual-tack / computeTackGeometry — downwind quadrant (fractionatio
 });
 
 describe("virtual-tack / computeTackGeometry — degenerate / edge cases", () => {
-  it("near head-to-wind (AWA ~0) clamps magnitude to 30deg so we rotate out of irons", () => {
+  it("near head-to-wind (AWA ~0): bow swings the requested side 30deg", () => {
+    // Rev383: in irons, direction dictates sign (bow goes stbd = +30 CW).
     const g = computeTackGeometry({
       angleStartRad: deg(1),
       hStartRad: deg(0),
       direction: "starboard",
     });
-    // angleNew should be -30deg (because the dir=starboard sign dominates).
-    assert.ok(Math.abs(g.angleNewRad + deg(30)) < EPS);
-    // deltaH = angleStart - angleNew; angleStart is 1deg, angleNew is -30deg,
-    // so deltaH = 1 - (-30) = 31deg.
     assert.ok(
-      Math.abs(g.deltaHRad - deg(31)) < EPS,
-      `deltaH expected +31, got ${g.deltaHRad * RAD2DEG}`,
+      Math.abs(g.deltaHRad - deg(30)) < EPS,
+      `deltaH expected +30, got ${g.deltaHRad * RAD2DEG}`,
     );
+    // angleNew = angleStart - deltaH = 1 - 30 = -29
+    assert.ok(
+      Math.abs(g.angleNewRad - deg(-29)) < EPS,
+      `angleNew expected -29, got ${g.angleNewRad * RAD2DEG}`,
+    );
+  });
+
+  it("Rev383 Carlos QA: TACK PORT from port tack (AWA=+52) → long-way jibe CCW", () => {
+    // Carlos pressed TACK PORT while already on port tack (AWA=+52).
+    // Direction=port means bow swings CCW. Natural short tack would be
+    // +104 CW (crossing the wind). The CCW route around the stern is
+    // 104 - 360 = -256 CCW.
+    const g = computeTackGeometry({
+      angleStartRad: deg(52),
+      hStartRad: deg(0),
+      direction: "port",
+    });
+    assert.ok(
+      Math.abs(g.deltaHRad - deg(-256)) < EPS,
+      `deltaH expected -256, got ${g.deltaHRad * RAD2DEG}`,
+    );
+    // angleNew = -angleStart = -52 (final amura is wind-by-port either way).
+    assert.ok(Math.abs(g.angleNewRad - deg(-52)) < EPS);
+    // |256| / 170 = 1.5 → 2 steps.
+    assert.equal(g.intermediatesRad.length, 2);
+  });
+
+  it("Rev383 Carlos QA: TACK STARBOARD from port tack (AWA=+52) → natural short-arc tack CW", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(52),
+      hStartRad: deg(0),
+      direction: "starboard",
+    });
+    assert.ok(
+      Math.abs(g.deltaHRad - deg(104)) < EPS,
+      `deltaH expected +104, got ${g.deltaHRad * RAD2DEG}`,
+    );
+    assert.ok(Math.abs(g.angleNewRad - deg(-52)) < EPS);
   });
 
   it("direction and magnitude both honored when AWA sign matches request", () => {

@@ -132,30 +132,44 @@ export function computeTackGeometry(opts: {
   const maxStepRad = (opts.maxStepDeg ?? DEFAULT_MAX_STEP_DEG) * DEG;
   const dirSign = opts.direction === "starboard" ? +1 : -1;
 
-  // Normalize source angle to (-pi, +pi].
+  // Rev383 (Carlos, 2026-10-01): `direction` is the DIRECTION THE BOW
+  // SWINGS TO, not the final amura. port = CCW rotation (delta_H < 0),
+  // starboard = CW rotation (delta_H > 0). The compass delta magnitude
+  // depends on whether the requested rotation side matches the natural
+  // tack (cross the wind by the short arc) or forces a jibe (cross the
+  // stern by the long arc).
   const angleStartSigned = normalizeSignedPi(opts.angleStartRad);
+  const absStart = Math.abs(angleStartSigned);
 
-  // Base magnitude of the current amura (how far off head-to-wind we are).
-  // Clamp to a conservative floor so a tiny AWA near 0 does not produce
-  // a degenerate 0deg tack — in that case we rotate at least ~30deg to
-  // get out of irons.
-  const magnitude = Math.max(Math.abs(angleStartSigned), 30 * DEG);
+  let angleNewRad: number;
+  let deltaHRad: number;
 
-  // The post-tack source angle has the sign of the requested side
-  // (direction=starboard means we want wind FROM port after the tack,
-  // which is a negative TWA under the "positive = from starboard" convention).
-  const angleNewRad = -dirSign * magnitude;
-
-  // Compass rotation needed to achieve that flip. We take the signed
-  // difference angleStart - angleNew: positive = clockwise = starboard rotation.
-  // The sign of deltaHRad agrees with `direction` by construction.
-  let deltaHRad = angleStartSigned - angleNewRad;
-  // Preserve sign: do NOT wrap deltaHRad to (-pi, +pi] because tacks in
-  // the downwind quadrants may legitimately need > 180deg of rotation,
-  // and the fractionation step below depends on knowing the real signed
-  // magnitude.
-  // However, cap it at the full circle minus epsilon — anything larger
-  // is a degenerate input.
+  if (absStart < 15 * DEG) {
+    // Near head-to-wind (in irons). The natural delta is tiny and its
+    // sign is noisy; let the requested direction dictate the rotation,
+    // and swing out to a defined 30deg amura on the OPPOSITE side so
+    // the sailor exits irons cleanly.
+    deltaHRad = dirSign * 30 * DEG;
+    angleNewRad = angleStartSigned - deltaHRad;
+  } else {
+    // Normal case: a tack flips the sign of the wind angle so
+    // angleNew = -angleStart, and the natural compass rotation is
+    // naturalDelta = angleStart - angleNew = 2 * angleStart.
+    angleNewRad = -angleStartSigned;
+    const naturalDelta = 2 * angleStartSigned;
+    if (Math.sign(naturalDelta) === dirSign) {
+      // Natural tack rotation matches the requested side (short arc,
+      // crosses the wind through the bow).
+      deltaHRad = naturalDelta;
+    } else {
+      // Requested side is opposite the natural rotation → sailor wants
+      // the LONG WAY around (crosses the stern = jibe). Both routes
+      // reach the same final heading; this one just points the bow
+      // where the button said it should go.
+      deltaHRad = naturalDelta - Math.sign(naturalDelta) * TWO_PI;
+    }
+  }
+  // Defensive cap: anything beyond a full circle is a degenerate input.
   if (deltaHRad > TWO_PI) deltaHRad -= TWO_PI;
   if (deltaHRad < -TWO_PI) deltaHRad += TWO_PI;
 
