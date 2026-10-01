@@ -50,6 +50,12 @@ export interface TackGeometry {
   hTargetRad: number;
   /** Phase 1 intermediate compass targets, radians (0..2pi), in order. */
   intermediatesRad: number[];
+  /** Rev394: "tack" if the rotation crosses the BOW (through head to wind);
+   *  "jibe" if it crosses the STERN. Derived from direction vs natural
+   *  rotation sign — not from |AWA| vs 90°, which is wrong in long-arc
+   *  cases (TACK STBD from AWA=+146° goes +292° CW crossing the bow and
+   *  that's still a tack, not a jibe). */
+  maneuverKind: "tack" | "jibe";
 }
 
 /** Cached geometry + runtime state for one virtual tack cycle. */
@@ -190,6 +196,18 @@ export function computeTackGeometry(opts: {
   const hStartRad = normalizeTwoPi(opts.hStartRad);
   const hTargetRad = normalizeTwoPi(hStartRad + deltaHRad);
 
+  // Rev394: maneuver kind — did we cross the bow (tack) or the stern (jibe)?
+  // The natural short-arc rotation flips the wind-angle sign crossing bow
+  // when |angleStart| < 90, and crossing stern when |angleStart| > 90. If
+  // the sailor picked the direction that matches that natural rotation
+  // we're on the short arc; the opposite picks the long arc, which crosses
+  // the OTHER side of the wind.
+  const naturalSign = angleStartSigned === 0 ? dirSign : Math.sign(angleStartSigned);
+  const naturalCrossesBow = Math.abs(angleStartSigned) < Math.PI / 2;
+  const takingNaturalArc = naturalSign === dirSign;
+  const crossesBow = takingNaturalArc ? naturalCrossesBow : !naturalCrossesBow;
+  const maneuverKind: "tack" | "jibe" = crossesBow ? "tack" : "jibe";
+
   // Fractionate the rotation so no single step exceeds maxStepRad.
   // Pypilot in compass mode picks the SHORT arc automatically, so a
   // single-shot target with |delta| > 180deg would spin the hull the
@@ -208,6 +226,7 @@ export function computeTackGeometry(opts: {
     hStartRad,
     hTargetRad,
     intermediatesRad,
+    maneuverKind,
   };
 }
 

@@ -142,7 +142,7 @@ export class AutopilotProvider {
   // both fields; whichever landed second would clobber the other with
   // its now-stale copy of the sibling field (the classic "DIA jumps
   // to 115° then back to 75°" race Carlos reported on Rev82).
-  private onDataChanged?: (fields?: "engaged" | "target" | "all") => void;
+  private onDataChanged?: (fields?: "engaged" | "target" | "all" | "virtualTack") => void;
   // Rev350 (Carlos, 2026-09-29): optional callback that receives
   // per-frontier observability events. Wired to ManeuverTraceLog
   // in index.ts when the trace is enabled. No-op when undefined so
@@ -155,7 +155,7 @@ export class AutopilotProvider {
     private app: any,
     opts?: {
       allowDodge?: boolean;
-      onDataChanged?: (fields?: "engaged" | "target" | "all") => void;
+      onDataChanged?: (fields?: "engaged" | "target" | "all" | "virtualTack") => void;
       onStageEvent?: (stage: string, event: Record<string, unknown>) => void;
     }
   ) {
@@ -164,7 +164,7 @@ export class AutopilotProvider {
     this.onStageEvent = opts?.onStageEvent;
   }
 
-  private notifyChanged(fields?: "engaged" | "target" | "all"): void {
+  private notifyChanged(fields?: "engaged" | "target" | "all" | "virtualTack"): void {
     try { this.onDataChanged?.(fields || "all"); } catch { /* silent */ }
   }
 
@@ -1022,10 +1022,14 @@ export class AutopilotProvider {
           ["completed", "cancelled", "failed"].includes(this._virtualTack.phase)
         ) {
           this._virtualTack = null;
-          // DO NOT notifyChanged here — the visor already consumed the
-          // terminal snapshot and restored its display. Firing another
-          // delta would re-apply canonical mode/target from
-          // apProvider.data which may still carry stale pypilot echoes.
+          // Rev394: emit an EXPLICIT virtualTack=null delta so the visor
+          // knows it can lower its shield. We publish ONLY the virtualTack
+          // path (fields='virtualTack') — not 'all' — so canonical
+          // mode/target do NOT get republished (that was the Rev392
+          // 'second jump' trigger). The visor's shield check is now
+          // `state.virtualTack != null`; it drops when this null delta
+          // arrives, and the next canonical delta is accepted normally.
+          try { this.notifyChanged("virtualTack"); } catch { /* noop */ }
         }
       }, 5000);
     }

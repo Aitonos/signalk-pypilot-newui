@@ -2487,15 +2487,16 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.mode", value, prev: state.mode, monoTs: performance.now() }); } catch { /* silent */ }
         }
-        // Rev392 (Carlos, 2026-10-01, QA Rev391): swallow canonical mode
-        // deltas during ANY active VT phase (preparing/turning/handover/
-        // settling/cancelling). Rev391 QA caught that letting them
-        // through during handover/cancelling painted the compass
-        // intermediate as the wind target for one or two frames before
-        // the proper rollback delta arrived — the "target bailando"
-        // report. Terminal restoration happens in the virtualTack delta
-        // handler using _targetBeforeVt + the FSM's own finalWindTargetRad.
-        if (state.virtualTack && state.virtualTack.active) {
+        // Rev394 (Carlos, 2026-10-01, Gemini round 2): shield up until
+        // the backend explicitly nulls the virtualTack path. Rev392 only
+        // guarded while active=true, which left a ~5s window (terminal
+        // phase + linger) during which late pypilot echoes repainted
+        // the amber arrow. Now we swallow any mode delta while
+        // state.virtualTack exists (any phase, incl. terminal). The
+        // backend emits { virtualTack: null } once the 5s cleanup fires;
+        // at that point state.virtualTack becomes null and canonical
+        // deltas flow through normally.
+        if (state.virtualTack) {
           break;
         }
         // Rev249 (Carlos): swallow a stale mode delta that arrives
@@ -2544,8 +2545,8 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.target", value, prev: state.target, monoTs: performance.now() }); } catch { /* silent */ }
         }
-        // Rev392: swallow during ANY active VT phase. See mode case.
-        if (state.virtualTack && state.virtualTack.active) {
+        // Rev394: see mode case. Shield up until virtualTack is null.
+        if (state.virtualTack) {
           break;
         }
         state.target = numericOrNull(value);

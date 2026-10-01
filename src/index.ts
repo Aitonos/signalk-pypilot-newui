@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev393";
+const PLUGIN_REVISION = "Rev394";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3487,7 +3487,7 @@ module.exports = function (app: any) {
     return typeof v === "number" && isFinite(v) ? v : 0;
   }
 
-  function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
+  function pushAutopilotUpdate(fields: "engaged" | "target" | "all" | "virtualTack" = "all"): void {
     if (!apProvider) return;
     // Rev387 (Carlos, 2026-10-01, GPT/Gemini consult): REVERTED Rev386
     // masking. Both LLMs flagged it as a bus pollution bug — other SK
@@ -3497,24 +3497,30 @@ module.exports = function (app: any) {
     // the dedicated `steering.autopilot.virtualTack` path we now publish
     // alongside the canonical deltas. Rev388 frontend will do the
     // display-side override.
-    try {
-      if (typeof app.autopilotUpdate === "function") {
-        const apUpdate: any = {};
-        if (fields === "all" || fields === "engaged") {
-          apUpdate.state = apProvider.data.state;
-          apUpdate.engaged = apProvider.data.engaged;
-          apUpdate.actions = apProvider.data.options.actions;
+    // Rev394: 'virtualTack' is a VT-only notification — skip the
+    // autopilotUpdate call and the canonical delta block below, only
+    // emit the virtualTack path itself (which may now carry `null`
+    // telling the visor to drop its shield).
+    if (fields !== "virtualTack") {
+      try {
+        if (typeof app.autopilotUpdate === "function") {
+          const apUpdate: any = {};
+          if (fields === "all" || fields === "engaged") {
+            apUpdate.state = apProvider.data.state;
+            apUpdate.engaged = apProvider.data.engaged;
+            apUpdate.actions = apProvider.data.options.actions;
+          }
+          if (fields === "all" || fields === "target") {
+            apUpdate.target = apProvider.data.target;
+          }
+          if (fields === "all") {
+            apUpdate.mode = apProvider.data.mode;
+          }
+          app.autopilotUpdate(apProvider.deviceId, apUpdate);
         }
-        if (fields === "all" || fields === "target") {
-          apUpdate.target = apProvider.data.target;
-        }
-        if (fields === "all") {
-          apUpdate.mode = apProvider.data.mode;
-        }
-        app.autopilotUpdate(apProvider.deviceId, apUpdate);
+      } catch (e: any) {
+        app.debug(`[absorb] autopilotUpdate failed: ${e?.message || e}`);
       }
-    } catch (e: any) {
-      app.debug(`[absorb] autopilotUpdate failed: ${e?.message || e}`);
     }
     // Rev84: canonical SK deltas now filtered by the same field mask.
     // setTarget publishes ONLY steering.autopilot.target, setState
@@ -3546,7 +3552,12 @@ module.exports = function (app: any) {
     // values that KIP and other clients rely on.
     try {
       const vt = (apProvider as any).getVirtualTackState?.();
-      if (vt && vt.phase !== "idle") {
+      // Rev394: explicit null delta on cleanup so the visor's shield
+      // can drop. 'virtualTack' is the dedicated field used by the
+      // cleanup timer; it must publish something even when vt is null.
+      if (fields === "virtualTack" && !vt) {
+        values.push({ path: "steering.autopilot.virtualTack", value: null });
+      } else if (vt && vt.phase !== "idle") {
         const g = vt.geometry;
         const RAD2DEG = 180 / Math.PI;
         let hNowRad: number | null = null;
@@ -3571,6 +3582,10 @@ module.exports = function (app: any) {
             cancellable: activePhases.includes(vt.phase) && vt.phase !== "cancelling",
             direction: vt.direction,
             windMode: vt.windMode,
+            // Rev394: backend-computed kind so visor doesn't misdetect
+            // from |AWA| vs 90°. "tack" = rotation crosses bow; "jibe"
+            // = crosses stern.
+            maneuverKind: g?.maneuverKind ?? null,
             finalWindTargetRad: g?.angleNewRad ?? null,
             elapsedMs: vt.startedAtMs ? Date.now() - vt.startedAtMs : 0,
             stepIndex: vt.stepIndex,
