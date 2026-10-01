@@ -77,7 +77,11 @@ export const DEFAULT_PHASE1_SWITCH_DEG = 20;
 export const DEFAULT_MAX_STEP_DEG = 170;
 export const DEFAULT_MODE_SWITCH_SETTLE_MS = 150;
 export const DEFAULT_MODE_SWITCH_TIMEOUT_MS = 500;
-export const DEFAULT_PHASE1_STEP_TIMEOUT_MS = 60_000;
+// Rev384 (Carlos, 2026-10-01): 60s was too long during harbour QA
+// (moored boat never rotates → always timed out at 60s, cluttered the
+// test cycle). 20s is enough for real sea trial steps (a close-hauled
+// tack settles in 10-15s) while giving a fast abort in harbour.
+export const DEFAULT_PHASE1_STEP_TIMEOUT_MS = 20_000;
 
 /**
  * Normalize radians to [0, 2pi).

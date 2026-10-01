@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev383";
+const PLUGIN_REVISION = "Rev384";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1815,14 +1815,41 @@ module.exports = function (app: any) {
         if (!apProvider) return res.json({ active: false });
         const vt = (apProvider as any).getVirtualTackState?.();
         if (!vt) return res.json({ active: false });
+        // Rev384 (Carlos, 2026-10-01): expose intermediate target +
+        // current heading so the sailor can see "where the FSM is
+        // trying to steer" vs "where the hull actually is" in real
+        // time during a tack. Useful in harbour QA to confirm the
+        // intermediate math; useful in sea trial to spot when the
+        // boat is lagging.
+        const RAD2DEG = 180 / Math.PI;
+        const g = vt.geometry;
+        const stepRad = g?.intermediatesRad?.[vt.stepIndex];
+        const stepDeg = typeof stepRad === "number" ? stepRad * RAD2DEG : null;
+        let hNowDeg: number | null = null;
+        try {
+          const h = (app as any).getSelfPath?.("navigation.headingTrue");
+          const v = h?.value;
+          if (typeof v === "number") hNowDeg = v * RAD2DEG;
+        } catch { /* noop */ }
         res.json({
           active: vt.phase !== "idle" && vt.phase !== "done" && vt.phase !== "abort",
           phase: vt.phase,
           direction: vt.direction,
           windMode: vt.windMode,
           stepIndex: vt.stepIndex,
-          totalSteps: vt.geometry?.intermediatesRad?.length ?? 0,
+          totalSteps: g?.intermediatesRad?.length ?? 0,
           startedAtMs: vt.startedAtMs,
+          elapsedMs: vt.startedAtMs ? Date.now() - vt.startedAtMs : 0,
+          angleStartDeg: g ? g.angleStartRad * RAD2DEG : null,
+          angleNewDeg: g ? g.angleNewRad * RAD2DEG : null,
+          deltaHDeg: g ? g.deltaHRad * RAD2DEG : null,
+          hStartDeg: g ? g.hStartRad * RAD2DEG : null,
+          hTargetDeg: g ? g.hTargetRad * RAD2DEG : null,
+          intermediateDeg: stepDeg,
+          headingNowDeg: hNowDeg,
+          remainingDeg: (stepDeg !== null && hNowDeg !== null)
+            ? Math.abs(((stepDeg - hNowDeg + 540) % 360) - 180)
+            : null,
         });
       });
       router.post("/virtual-tack/cancel", (_req: any, res: any) => {
