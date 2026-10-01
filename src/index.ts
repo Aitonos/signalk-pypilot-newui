@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev381";
+const PLUGIN_REVISION = "Rev382";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1675,6 +1675,19 @@ module.exports = function (app: any) {
         // tack in parallel). The direction write that typically precedes
         // "begin" by a few ms is harmless — pypilot stores it but our
         // FSM derives direction from its own argument.
+        // Rev382 (Carlos, 2026-10-01): memorise the direction the
+        // frontend sends in the ap.tack.direction raw write so the
+        // state=begin that follows ~100ms later uses the FRESH value.
+        // Rev381 QA on Tunatunes read ap.tack.direction from the
+        // pypilot values cache which still carried the previous tack's
+        // "starboard" when the user had just pressed "port" — the
+        // intercept launched the wrong direction (16:58:42 journal).
+        if (name === "ap.tack.direction" && (value === "port" || value === "starboard")) {
+          (app as any)._pypilotNewuiLastTackDirection = {
+            value,
+            setAt: Date.now(),
+          };
+        }
         if (
           name === "ap.tack.state" &&
           value === "begin" &&
@@ -1682,10 +1695,15 @@ module.exports = function (app: any) {
         ) {
           const modeStr = String((apProvider as any).data?.mode || "").toLowerCase();
           if (modeStr === "wind" || modeStr === "true wind") {
+            const cached = (app as any)._pypilotNewuiLastTackDirection;
+            const freshEnough = cached && (Date.now() - cached.setAt) < 1000;
+            const dirCache = freshEnough ? cached.value : null;
             const dirRaw = (client as any).getValues?.()["ap.tack.direction"];
-            const dir = dirRaw === "port" || dirRaw === "starboard" ? dirRaw : "starboard";
+            const dir = dirCache
+              ? dirCache
+              : (dirRaw === "port" || dirRaw === "starboard" ? dirRaw : "starboard");
             // eslint-disable-next-line no-console
-            console.log(`[/raw tack intercept] mode=${modeStr} dir=${dir} → virtual-tack`);
+            console.log(`[/raw tack intercept] mode=${modeStr} dir=${dir} (cache=${dirCache ?? "n/a"} cache=${dirRaw ?? "n/a"}) → virtual-tack`);
             (apProvider as any)
               .toProviderInterface()
               .tack(dir, (apProvider as any).deviceId)

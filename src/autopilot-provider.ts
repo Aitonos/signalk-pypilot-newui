@@ -709,20 +709,39 @@ export class AutopilotProvider {
     windMode: WindMode,
   ): Promise<void> {
     const values = (this.client as any).getValues?.() || {};
-    // Rev380 (Carlos, 2026-10-01): fallback chain for heading source.
-    // Rev378 only read ap.heading which the pypilot-client does NOT
-    // subscribe to by default on this install, so the FSM threw
-    // silently and the frontend got a 500 before any mode change
-    // reached pypilot. imu.heading is already in the stream (line 3653
-    // in index.ts uses it) and carries the same compass value.
-    const headingDeg = (typeof values["ap.heading"] === "number" && Number.isFinite(values["ap.heading"]))
-      ? (values["ap.heading"] as number)
-      : (typeof values["imu.heading"] === "number" && Number.isFinite(values["imu.heading"]))
-        ? (values["imu.heading"] as number)
-        : null;
-    if (headingDeg === null) {
-      throw new Error("virtual-tack: ap.heading / imu.heading not available");
+    // Rev382 (Carlos, 2026-10-01): heading source cascade.
+    // Rev380 QA 2026-10-01 16:58 showed both ap.heading AND imu.heading
+    // undefined in the pypilot client cache on Tunatunes — the FSM
+    // threw and virtual-tack never ran. The authoritative source is
+    // the SK bus (navigation.headingTrue / Magnetic), which the trace
+    // module already uses (seen in trace-20261001-165218 pre.heading
+    // field populated). Prefer the bus; fall back to pypilot client
+    // paths; only throw if ALL sources are absent.
+    let headingRad: number | null = null;
+    try {
+      const skHeading = this.app?.getSelfPath?.("navigation.headingTrue");
+      const v = skHeading?.value;
+      if (typeof v === "number" && Number.isFinite(v)) headingRad = v;
+    } catch { /* noop */ }
+    if (headingRad === null) {
+      try {
+        const skHeading = this.app?.getSelfPath?.("navigation.headingMagnetic");
+        const v = skHeading?.value;
+        if (typeof v === "number" && Number.isFinite(v)) headingRad = v;
+      } catch { /* noop */ }
     }
+    if (headingRad === null) {
+      const h = (typeof values["ap.heading"] === "number" && Number.isFinite(values["ap.heading"]))
+        ? (values["ap.heading"] as number)
+        : (typeof values["imu.heading"] === "number" && Number.isFinite(values["imu.heading"]))
+          ? (values["imu.heading"] as number)
+          : null;
+      if (h !== null) headingRad = h * DEG_TO_RAD;
+    }
+    if (headingRad === null) {
+      throw new Error("virtual-tack: heading not available (SK bus + pypilot cache both empty)");
+    }
+    const headingDeg = headingRad * RAD_TO_DEG;
     if (this.data.target == null || !Number.isFinite(this.data.target)) {
       throw new Error("virtual-tack: data.target not available");
     }
