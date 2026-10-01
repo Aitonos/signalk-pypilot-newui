@@ -266,3 +266,96 @@ modelo de tablet + orientación.
 - **Bug UX menores** — terminología sonda/corredera, umbrales
   heel-extreme, profile name trim, etc. Necesito detalle para cada
   uno.
+
+---
+
+## QA agua pendiente — 2.11.0 (Rev324 → Rev376, 2026-10-01)
+
+Rev desplegada al Pi: **Rev376**. Features implementadas y validadas
+en puerto; estos puntos sólo se cierran cuando haya navegación real.
+
+### Tacks externos — mirror HUD
+
+1. **Tack desde mando físico** (Sprint K #7, Rev348 → Rev355).
+   Con AP engaged en modo compass y rumbo estable, pulsa el botón de
+   trasluchada / virada en el mando físico de pypilot.
+   - ✅ OK: en el visor aparece el overlay del tack (orange buttons +
+     wind arrows animadas) **como si lo hubieras pulsado tú**. Al
+     terminar, el panel de stats pre/post se abre solo.
+   - ❌ Mal: pypilot gira pero el visor no muestra nada.
+
+2. **Tack desde UI nativo pypilot** (`http://192.168.1.115`).
+   Mismo caso que el anterior pero disparando desde la UI nativa.
+   - ✅ OK: overlay visor + diamante target refresca sin lag (ver
+     Rev347).
+
+3. **Cancelación mid-tack** (Rev355).
+   Lanza un tack desde el visor y a mitad de camino cancela
+   (segundo tap sobre el botón naranja o cerrar el overlay).
+   - ✅ OK: panel de stats aparece inmediatamente marcado
+     "CANCELADO" con `pre` + sin `post`.
+
+### Aproado / Empopado en viento verdadero
+
+4. **Empopado true-wind** (Rev367).
+   Con AP engaged en modo true-wind, pulsa `EMPOPADO`.
+   - ✅ OK: el pilot pasa a `true wind` y pone target TWA ≈ 180°.
+     Mainsail flogging mínimo, HUD empopado activo.
+   - ❌ Mal: pilot no cambia modo o pone target en compás.
+
+5. **Aproado true-wind**.
+   Mismo con `APROADO`. target TWA ≈ 0°.
+
+6. **Salir aproado/empopado restaura gains y modo**.
+   Pulsa `SALIR` en cualquier aproado/empopado activo.
+   - ✅ OK: profile vuelve al previo, modo vuelve al previo, gains
+     restaurados (P/D hot).
+   - ❌ Mal: queda con gains hot o modo nuevo.
+
+### Rendimiento post-tack
+
+7. **TACK_STATS post window 15 s** (Rev371).
+   Haz una virada normal.
+   - ✅ OK: HUD aparece INMEDIATAMENTE con `pre` + `post="—"`;
+     ~15 s después el HUD actualiza con los valores `post` reales
+     (antes eran 60 s).
+   - ❌ Mal: el HUD no se actualiza nunca, o tarda > 20 s.
+
+### Pypilot silence watchdog
+
+8. **Pérdida conexión pypilot durante tack** (Rev367).
+   Simular: forzar un corte wifi al TinyPilot mid-tack (o esperar
+   a que lo haga él mismo como en 2026-09-28 18:37).
+   - ✅ OK: tras 60 s sin recibir `ap.tack.state`, el visor cierra
+     automáticamente el overlay con un `console.warn` de watchdog.
+     No se queda colgado para siempre.
+
+### Alarmas severidad y mute
+
+9. **Severity override persiste** (Rev375, bug fix `describe()`).
+   En Setup → Alarms, cambia la severidad de una regla (p.ej.
+   `attitude-heel-extreme` de 🔴 Alarma → 🟡 Aviso). Espera 30 s,
+   recarga el visor.
+   - ✅ OK: la regla sigue en 🟡 Aviso. Tras `sudo systemctl restart
+     signalk`, sigue en 🟡 Aviso.
+   - ❌ Mal: vuelve a 🔴 Alarma al cabo de pocos segundos (bug
+     Rev342 original).
+
+10. **Marcador de default `★`** (Rev376).
+    En el dropdown de severidad, la opción con `★` es el default
+    de fábrica. Útil para saber si estás tocando el default.
+
+11. **Mute countdown mm:ss** (Rev375).
+    Mutea una regla 15 min.
+    - ✅ OK: el pill muestra `14:59 → 14:58 → ...` actualizándose
+      cada segundo. Al llegar a `00:00` vuelve a `idle` solo.
+
+### Portrait tablet
+
+12. **Layout vertical** (Rev370).
+    Gira la tablet a vertical (portrait).
+    - ✅ OK: rosa + botones ocupan toda la pantalla, sin huecos
+      negros. Botones escalan con la altura (más grandes en tablets
+      altas gracias a `font-size + em cascade`).
+    - ❌ Mal: solo la rose se adapta, botones quedan pequeños, hay
+      hueco negro bajo el rudder scale.

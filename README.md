@@ -316,6 +316,7 @@ that isolated TinyPilot.
 | `POST` | `/plugins/signalk-pypilot-newui/alarms/ack/:id`     | Acknowledge one active alarm (silences the sound, banner stays visible). |
 | `POST` | `/plugins/signalk-pypilot-newui/alarms/mute/:id`    | Mute the RULE for N minutes (query `?min=15`). |
 | `POST` | `/plugins/signalk-pypilot-newui/alarms/enable/:id`  | Enable / disable a rule (query `?on=1\|0`). |
+| `POST` | `/plugins/signalk-pypilot-newui/alarms/severity/:id` | Override the severity of one rule. Body: `{ "severity": "info\|warn\|alarm" }`. Persists via `props.alarmSeverityOverrides` so it survives restart. |
 | `GET`  | `/plugins/signalk-pypilot-newui/prechecks`     | Pre-departure autopilot check verdict: `ready` / `ready-with-caveats` / `do-not-engage` + per-item detail. |
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/start`  | Start a diagnostic session (query `?duration=180`). Requires AP engaged. |
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/cancel` | Cancel the current session. |
