@@ -2487,16 +2487,17 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.mode", value, prev: state.mode, monoTs: performance.now() }); } catch { /* silent */ }
         }
-        // Rev388 (Carlos, 2026-10-01, Fase B): while a virtual tack is
-        // in flight the backend FSM temporarily switches pypilot to
-        // compass then back to wind. The bus publishes those real
-        // transitions. The sailor must NOT see them in the mode selector
-        // or on the rose — keep the visible mode pinned to the maneuver's
-        // original windMode. We still cache the real value in a shadow
-        // so applyValue can restore it when the FSM terminates.
-        if (state.virtualTack && state.virtualTack.active) {
-          state._modeRealShadow = value;
-          console.log(`[virtual-tack] swallow real mode delta '${value}' (display stays '${state.virtualTack.windMode}')`);
+        // Rev391 (Carlos, 2026-10-01, QA Rev390): while VT is in
+        // 'preparing' or 'turning' (bow actively swinging via compass),
+        // swallow the real mode delta so the selector stays pinned to
+        // wind. From 'handover' onward (backend is coming back to wind)
+        // we ACCEPT the delta so when VT ends the mode is already
+        // correct on screen. We do NOT cache the swallowed value —
+        // the canonical delta that follows the rollback / completion
+        // repaints the truth on its own.
+        if (state.virtualTack && state.virtualTack.active &&
+            (state.virtualTack.phase === "preparing" || state.virtualTack.phase === "turning")) {
+          console.log(`[virtual-tack] swallow real mode delta '${value}' (phase=${state.virtualTack.phase})`);
           break;
         }
         // Rev249 (Carlos): swallow a stale mode delta that arrives
@@ -2545,14 +2546,13 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.target", value, prev: state.target, monoTs: performance.now() }); } catch { /* silent */ }
         }
-        // Rev388 Fase B: during a virtual tack, the backend writes the
-        // real compass intermediate to ap.heading_command, but the sailor
-        // must see the FINAL wind target from the first instant. Cache
-        // the real target in a shadow; keep state.target pinned at the
-        // VT finalWindTargetRad set when the FSM published its first
-        // snapshot.
-        if (state.virtualTack && state.virtualTack.active) {
-          state._targetRealShadow = numericOrNull(value);
+        // Rev391: same policy as mode above. Only swallow target deltas
+        // while VT is in the compass-intermediate phases. From handover
+        // onward (backend already writing the final wind target /
+        // rollback) accept the delta so the amber arrow lands on the
+        // true post-maneuver position.
+        if (state.virtualTack && state.virtualTack.active &&
+            (state.virtualTack.phase === "preparing" || state.virtualTack.phase === "turning")) {
           break;
         }
         state.target = numericOrNull(value);
@@ -2585,22 +2585,14 @@
           try { _lastTackDirSeen = state.virtualTack.direction; } catch {}
           try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(); } catch (e) { console.warn("[vt] open overlay", e); }
         }
-        // Mid-flight: nothing special — the overlay stays open; the mode
-        // and target are already pinned via the swallow-shadow logic.
-        // On TERMINAL snapshot: close the overlay and apply any pending
-        // shadow values so the visor re-syncs with reality.
+        // Rev391: on TERMINAL snapshot just close the overlay. No shadow
+        // apply — Rev390 wrongly cached intermediates and painted them
+        // as wind targets at close time, making the amber arrow jump to
+        // nonsense positions. The canonical steering.autopilot.{mode,
+        // target} deltas that follow the backend rollback (within tens
+        // of ms) repaint the truth on their own.
         if (wasActive && !isActive) {
-          if (typeof state._modeRealShadow !== "undefined" && state._modeRealShadow !== null) {
-            state.mode = state._modeRealShadow;
-            try { setSelect("#mode-select", state._modeRealShadow); } catch {}
-            delete state._modeRealShadow;
-          }
-          if (typeof state._targetRealShadow === "number") {
-            state.target = state._targetRealShadow;
-            delete state._targetRealShadow;
-          }
           try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch (e) { console.warn("[vt] close overlay", e); }
-          renderTargetArrow();
         }
         break;
       }
