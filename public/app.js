@@ -4218,8 +4218,13 @@
       //     la maniobra. El pypilot core cierra el tack él mismo
       //     cuando la rotación llega, o lo cancela el sailor con el
       //     círculo del overlay.
+      // Rev379 (Carlos, 2026-10-01): hoisted `now` out of the rot-fallback
+      // branch so the pypilotSilent watchdog below can read it even when
+      // the rot branch skips (e.g. heading unknown or elapsed < 4). The
+      // bug surfaced as `ReferenceError: now is not defined` every tick
+      // on tack button press (Rev378 log, 2026-10-01 14:08:30+).
+      const now = Date.now();
       if (!arrived && elapsed >= 4 && typeof state.heading === "number") {
-        const now = Date.now();
         if (_tackRotLastHdg != null && _tackRotLastTs != null) {
           const dtSec = (now - _tackRotLastTs) / 1000;
           if (dtSec > 0) {
