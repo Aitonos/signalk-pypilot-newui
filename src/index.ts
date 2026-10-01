@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev386";
+const PLUGIN_REVISION = "Rev387";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1858,6 +1858,26 @@ module.exports = function (app: any) {
         (apProvider as any).cancelVirtualTack?.();
         res.json({ ok: true });
       });
+      // Rev387 (Carlos, 2026-10-01): idempotent start endpoint.
+      // Body: { direction: "port"|"starboard", requestId?: string }.
+      // The visor Rev388 will use this instead of the two-PUT /raw
+      // sequence (ap.tack.direction + ap.tack.state=begin) to eliminate
+      // the inter-request race and the maneuver trace confusion.
+      router.post("/virtual-tack/start", async (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        if (!apProvider) return res.status(503).json({ error: "no ap provider" });
+        const dir = req.body?.direction;
+        if (dir !== "port" && dir !== "starboard") {
+          return res.status(400).json({ error: "direction must be 'port' or 'starboard'" });
+        }
+        const requestId = typeof req.body?.requestId === "string" ? req.body.requestId : null;
+        try {
+          const r = await (apProvider as any).startVirtualTack({ direction: dir, requestId });
+          res.json(r);
+        } catch (e: any) {
+          res.status(409).json({ error: e?.message || String(e) });
+        }
+      });
 
       router.post("/pause", (_req: any, res: any) => {
         try {
@@ -3469,32 +3489,15 @@ module.exports = function (app: any) {
 
   function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
     if (!apProvider) return;
-    // Rev386 (Carlos, 2026-10-01): virtual-tack transparency.
-    // While the FSM is driving a tack through compass+wind phases, the
-    // frontend must NEVER see the compass intermediate — it has to look
-    // exactly like a normal wind-mode target change to the FINAL AWA.
-    // Rev377-385 kept propagating the pypilot echoes (mode=compass +
-    // target=intermediate) verbatim, which made the diamond "dance" and
-    // the sailor see a compass diamante where there should only be the
-    // amber wind arrow at its final position.
-    //
-    // Mask the mode + target published to BOTH the Autopilot API and
-    // the canonical SK deltas while virtualTack is active (phase1 or
-    // phase2). Pypilot still gets the real commands via setMode/
-    // setTarget. The sailor sees: mode stays "wind", target jumps to
-    // the final AWA, AWA then rotates toward it — exactly what Carlos
-    // specified ("el usuario ni debe ver absolutamente NADA").
-    const vt = (apProvider as any).getVirtualTackState?.();
-    const vtActive = vt && vt.phase !== "idle" && vt.phase !== "done" && vt.phase !== "abort";
-    const effectiveMode = vtActive && vt.windMode ? vt.windMode : apProvider.data.mode;
-    const effectiveTarget = (vtActive && vt.geometry && typeof vt.geometry.angleNewRad === "number")
-      ? vt.geometry.angleNewRad
-      : apProvider.data.target;
+    // Rev387 (Carlos, 2026-10-01, GPT/Gemini consult): REVERTED Rev386
+    // masking. Both LLMs flagged it as a bus pollution bug — other SK
+    // clients (KIP, derived-data, etc.) subscribe to steering.autopilot.*
+    // and need the TRUTH about mode/target, not a convenient visor-side
+    // lie. Masking belongs in the VISOR's presentation layer, consuming
+    // the dedicated `steering.autopilot.virtualTack` path we now publish
+    // alongside the canonical deltas. Rev388 frontend will do the
+    // display-side override.
     try {
-      // Push structured update through the SK Autopilot API.
-      // The App API accepts partial updates - only include changed fields
-      // so a target-only or engaged-only notify does not overwrite the
-      // sibling field's provider-visible value with a stale copy.
       if (typeof app.autopilotUpdate === "function") {
         const apUpdate: any = {};
         if (fields === "all" || fields === "engaged") {
@@ -3503,10 +3506,10 @@ module.exports = function (app: any) {
           apUpdate.actions = apProvider.data.options.actions;
         }
         if (fields === "all" || fields === "target") {
-          apUpdate.target = effectiveTarget;
+          apUpdate.target = apProvider.data.target;
         }
         if (fields === "all") {
-          apUpdate.mode = effectiveMode;
+          apUpdate.mode = apProvider.data.mode;
         }
         app.autopilotUpdate(apProvider.deviceId, apUpdate);
       }
@@ -3531,11 +3534,53 @@ module.exports = function (app: any) {
       );
     }
     if (fields === "all" || fields === "target") {
-      values.push({ path: "steering.autopilot.target",  value: effectiveTarget });
+      values.push({ path: "steering.autopilot.target",  value: apProvider.data.target });
     }
     if (fields === "all") {
-      values.push({ path: "steering.autopilot.mode",    value: effectiveMode });
+      values.push({ path: "steering.autopilot.mode",    value: apProvider.data.mode });
     }
+    // Rev387 (Carlos, 2026-10-01): publish virtual-tack status as a
+    // structured object on its own SK path. The visor subscribes to
+    // this and uses it to mask the mode selector + rose rendering
+    // without touching the canonical steering.autopilot.{mode,target}
+    // values that KIP and other clients rely on.
+    try {
+      const vt = (apProvider as any).getVirtualTackState?.();
+      if (vt && vt.phase !== "idle") {
+        const g = vt.geometry;
+        const RAD2DEG = 180 / Math.PI;
+        let hNowRad: number | null = null;
+        try {
+          const h = (app as any).getSelfPath?.("navigation.headingTrue");
+          const v = h?.value;
+          if (typeof v === "number") hNowRad = v;
+        } catch { /* noop */ }
+        const stepRad = g?.intermediatesRad?.[vt.stepIndex];
+        const remainingDeg = (typeof stepRad === "number" && hNowRad !== null)
+          ? Math.abs(((stepRad - hNowRad) * RAD2DEG + 540) % 360 - 180)
+          : null;
+        const activePhases = ["preparing","turning","handover","settling","cancelling","phase1","phase2","calc"];
+        const terminalPhases = ["completed","cancelled","failed","done","abort"];
+        values.push({
+          path: "steering.autopilot.virtualTack",
+          value: {
+            id: vt.id ?? null,
+            phase: vt.phase,
+            active: activePhases.includes(vt.phase),
+            terminal: terminalPhases.includes(vt.phase),
+            cancellable: activePhases.includes(vt.phase) && vt.phase !== "cancelling",
+            direction: vt.direction,
+            windMode: vt.windMode,
+            finalWindTargetRad: g?.angleNewRad ?? null,
+            elapsedMs: vt.startedAtMs ? Date.now() - vt.startedAtMs : 0,
+            stepIndex: vt.stepIndex,
+            totalSteps: g?.intermediatesRad?.length ?? 0,
+            remainingDeg,
+            outcomeReason: vt.outcomeReason ?? null,
+          },
+        });
+      }
+    } catch { /* silent */ }
     if (values.length === 0) return;
     // Rev350: stage=publish for the CANONICAL pilot deltas (state,
     // engaged, target, mode). Complements the wildcard publisher log

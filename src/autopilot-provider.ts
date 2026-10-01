@@ -658,6 +658,48 @@ export class AutopilotProvider {
     return next;
   }
 
+  /** Rev387: public idempotent start entry-point for the new
+   *  POST /virtual-tack/start endpoint. Rejects a start when another
+   *  virtual tack is already active (not terminal). If called with the
+   *  same requestId as the active tack, returns its id without starting
+   *  a new one — makes the frontend safe to retry the request. */
+  async startVirtualTack(opts: {
+    direction: TackDirection;
+    requestId?: string | null;
+  }): Promise<{ id: string; alreadyRunning: boolean; windMode: WindMode }> {
+    const current = this._virtualTack;
+    if (current) {
+      const terminal = ["completed", "cancelled", "failed"];
+      if (!terminal.includes(current.phase)) {
+        if (opts.requestId && current.requestId === opts.requestId) {
+          return { id: current.id, alreadyRunning: true, windMode: current.windMode as WindMode };
+        }
+        throw new Error(`virtual-tack already active (phase=${current.phase}, id=${current.id})`);
+      }
+    }
+    const modeStr = String(this.data.mode || "").toLowerCase();
+    if (modeStr !== "wind" && modeStr !== "true wind") {
+      throw new Error(`virtual-tack only valid in wind modes (current=${modeStr})`);
+    }
+    if (!this.data.engaged) throw new Error("virtual-tack requires engaged autopilot");
+    // Fire-and-forget. The HTTP handler returns immediately once the
+    // id is minted. Progress is observable via the SK
+    // steering.autopilot.virtualTack path and GET /virtual-tack/status.
+    // We await just enough for the FSM to publish its initial state.
+    const windMode = modeStr as WindMode;
+    this._runVirtualTack(opts.direction, windMode).catch((e: any) => {
+      // eslint-disable-next-line no-console
+      console.log(`[startVirtualTack] driver threw: ${e?.message || e}`);
+    });
+    // Attach the requestId to the just-created VT state (the FSM has
+    // populated this._virtualTack synchronously before the first await).
+    if (this._virtualTack && opts.requestId) {
+      this._virtualTack.requestId = opts.requestId;
+    }
+    const id = this._virtualTack?.id ?? "";
+    return { id, alreadyRunning: false, windMode };
+  }
+
   private async tack(direction: "port" | "starboard"): Promise<void> {
     // Rev192 (Carlos): synthetic tack. In sea trial on Tunatunes (2026-09-10)
     // pypilot 0.x on the Pi Zero received `ap.tack.state=begin` and looped
@@ -755,9 +797,11 @@ export class AutopilotProvider {
     });
 
     const now = Date.now();
+    const vtId = `vt-${now}-${Math.random().toString(36).slice(2, 8)}`;
     this._virtualTack = {
       ...makeVirtualTackInitialState(),
-      phase: "calc",
+      id: vtId,
+      phase: "preparing",
       windMode,
       direction,
       geometry,
@@ -767,29 +811,56 @@ export class AutopilotProvider {
     };
     this.notifyChanged("all");
 
-    const setPhase = (p: VirtualTackPhase) => {
+    const setPhase = (p: VirtualTackPhase, reason?: string) => {
       if (!this._virtualTack) return;
       this._virtualTack.phase = p;
+      if (reason) this._virtualTack.outcomeReason = reason;
       this.notifyChanged("all");
     };
 
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+    // Rev387 (Carlos, 2026-10-01, GPT-Codex + Gemini consensus):
+    // Replace the blind `sleep(150)` after setMode with an event-driven
+    // wait on the pypilot ap.mode echo. Pypilot core may run its own
+    // `compute_heading_error()` re-anchor on mode change that overrides
+    // our next setTarget if we write too early. Waiting for the echo
+    // guarantees the mode has actually taken effect in pypilot's
+    // internal state machine before we send the intermediate target.
+    const waitForPypilotEcho = async (
+      key: string,
+      expected: unknown,
+      timeoutMs: number,
+    ): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < timeoutMs) {
+        const v = (this.client as any).getValues?.() || {};
+        if (v[key] === expected) return true;
+        await sleep(50);
+        if (!this._virtualTack) throw new Error("virtual-tack cancelled");
+      }
+      return false;
+    };
+
     try {
-      // ─── Phase 1: compass + fractionated rotation ───
-      setPhase("phase1");
+      // ─── Phase turning: compass + fractionated rotation ───
       // eslint-disable-next-line no-console
       console.log(
-        `[virtual-tack] phase1 dir=${direction} fromMode=${windMode} ` +
+        `[virtual-tack ${vtId}] turning dir=${direction} fromMode=${windMode} ` +
           `angle=${(originalAngleRad * RAD_TO_DEG).toFixed(1)}deg ` +
           `delta=${(geometry.deltaHRad * RAD_TO_DEG).toFixed(1)}deg ` +
           `steps=${geometry.intermediatesRad.length}`,
       );
       await this.setMode("compass");
-      await sleep(DEFAULT_MODE_SWITCH_SETTLE_MS);
+      const compassReady = await waitForPypilotEcho("ap.mode", "compass", 1500);
+      if (!compassReady) {
+        // eslint-disable-next-line no-console
+        console.log(`[virtual-tack ${vtId}] WARN: ap.mode=compass echo not seen in 1.5s, continuing`);
+      }
+      setPhase("turning");
 
       for (let i = 0; i < geometry.intermediatesRad.length; i++) {
-        if (!this._virtualTack) throw new Error("virtual-tack cancelled");
+        if (!this._virtualTack) throw new Error("virtual-tack cancelled by external cancel");
         this._virtualTack.stepIndex = i;
         this._virtualTack.phase1StepStartedAtMs = Date.now();
         const stepTargetRad = geometry.intermediatesRad[i];
@@ -811,44 +882,93 @@ export class AutopilotProvider {
               break;
           }
           if (Date.now() - stepStart > DEFAULT_PHASE1_STEP_TIMEOUT_MS) {
-            throw new Error(`virtual-tack: phase1 step ${i} timeout`);
+            throw new Error(`turning step ${i} timeout (no rotation in ${DEFAULT_PHASE1_STEP_TIMEOUT_MS/1000}s)`);
           }
           await sleep(500);
-          if (!this._virtualTack) throw new Error("virtual-tack cancelled");
+          if (!this._virtualTack) throw new Error("virtual-tack cancelled by external cancel");
         }
       }
 
-      // ─── Phase 2: back to the original wind mode, final angle ───
-      setPhase("phase2");
+      // ─── Phase handover → settling: back to wind mode, final target ───
+      setPhase("handover");
       await this.setMode(windMode);
-      await sleep(DEFAULT_MODE_SWITCH_SETTLE_MS);
+      const windReady = await waitForPypilotEcho("ap.mode", windMode, 1500);
+      if (!windReady) {
+        // eslint-disable-next-line no-console
+        console.log(`[virtual-tack ${vtId}] WARN: ap.mode=${windMode} echo not seen in 1.5s, continuing`);
+      }
       await this.setTarget(geometry.angleNewRad);
 
-      setPhase("done");
+      // Rev387: new `settling` phase. Entering wind mode isn't the end
+      // of the maneuver — pypilot still needs to drive the last few
+      // degrees. We watch the wind angle error until it stays under
+      // tolerance for a short dwell, then declare completed.
+      setPhase("settling");
+      const settleStart = Date.now();
+      const SETTLE_TOLERANCE_DEG = 10;
+      const SETTLE_DWELL_MS = 2000;
+      const SETTLE_TIMEOUT_MS = 15000;
+      const windKey = windMode === "wind" ? "ap.wind.compass_direction" : "ap.wind.true_direction";
+      // Rev387: we track AWA / TWA via the target space of ap.heading_command
+      // itself. In wind modes pypilot's heading_command is in AWA/TWA degrees,
+      // which is also what state.target holds. So current wind-angle error
+      // ≈ state.target_received - state.target_requested. Since both are our
+      // own writes, we instead sample windAngle (AWA) directly from the SK bus.
+      let dwellStart: number | null = null;
+      while (true) {
+        if (!this._virtualTack) throw new Error("virtual-tack cancelled by external cancel");
+        const skPath = windMode === "wind" ? "environment.wind.angleApparent" : "environment.wind.angleTrueWater";
+        let windNowRad: number | null = null;
+        try {
+          const p = this.app?.getSelfPath?.(skPath);
+          const v = p?.value;
+          if (typeof v === "number" && Number.isFinite(v)) windNowRad = v;
+        } catch { /* noop */ }
+        if (windNowRad !== null) {
+          const errDeg = Math.abs(
+            ((((windNowRad - geometry.angleNewRad) * RAD_TO_DEG) + 540) % 360) - 180,
+          );
+          if (errDeg < SETTLE_TOLERANCE_DEG) {
+            if (dwellStart === null) dwellStart = Date.now();
+            else if (Date.now() - dwellStart > SETTLE_DWELL_MS) break;
+          } else {
+            dwellStart = null;
+          }
+        }
+        if (Date.now() - settleStart > SETTLE_TIMEOUT_MS) {
+          // eslint-disable-next-line no-console
+          console.log(`[virtual-tack ${vtId}] settling timeout; declaring completed anyway`);
+          break;
+        }
+        await sleep(300);
+      }
+
+      setPhase("completed", "ok");
       // eslint-disable-next-line no-console
-      console.log(
-        `[virtual-tack] done in ${((Date.now() - now) / 1000).toFixed(1)}s`,
-      );
+      console.log(`[virtual-tack ${vtId}] completed in ${((Date.now() - now) / 1000).toFixed(1)}s`);
     } catch (err: any) {
-      // Rollback — best-effort restore to the pre-tack mode + target so
-      // the sailor is never left in compass with a random heading.
       // eslint-disable-next-line no-console
-      console.log(`[virtual-tack] abort: ${err?.message || err}`);
-      setPhase("abort");
+      console.log(`[virtual-tack ${vtId}] ${err?.message || err}`);
+      // Rev387: distinguish user cancel from error. Cancel = user asked
+      // to stop; failed = unexpected throw.
+      const msg = String(err?.message || err || "");
+      const isUserCancel = /cancelled by external cancel/.test(msg);
+      setPhase("cancelling", msg);
       try {
         await this.setMode(windMode);
       } catch { /* best-effort */ }
       try {
         await this.setTarget(originalAngleRad);
       } catch { /* best-effort */ }
+      setPhase(isUserCancel ? "cancelled" : "failed", msg);
       throw err;
     } finally {
-      // Keep the terminal state visible for ~5 s so the frontend sees
-      // done/abort transition, then clear.
+      // Keep the terminal state visible for ~5 s so the visor sees
+      // the final transition, then clear.
       setTimeout(() => {
         if (
           this._virtualTack &&
-          (this._virtualTack.phase === "done" || this._virtualTack.phase === "abort")
+          ["completed", "cancelled", "failed"].includes(this._virtualTack.phase)
         ) {
           this._virtualTack = null;
           this.notifyChanged("all");
@@ -863,10 +983,12 @@ export class AutopilotProvider {
    *  rolls back on its next await. */
   cancelVirtualTack(): void {
     if (!this._virtualTack) return;
-    if (this._virtualTack.phase === "done" || this._virtualTack.phase === "abort") return;
+    const terminal = ["completed", "cancelled", "failed"];
+    if (terminal.includes(this._virtualTack.phase)) return;
     // eslint-disable-next-line no-console
     console.log(`[virtual-tack] external cancel at phase=${this._virtualTack.phase}`);
-    this._virtualTack.phase = "abort";
+    this._virtualTack.phase = "cancelling";
+    this._virtualTack.outcomeReason = "user cancelled";
     this.notifyChanged("all");
   }
 

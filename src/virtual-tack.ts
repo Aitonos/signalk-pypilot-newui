@@ -28,11 +28,14 @@ export type TackDirection = "port" | "starboard";
 
 export type VirtualTackPhase =
   | "idle"
-  | "calc"
-  | "phase1"
-  | "phase2"
-  | "done"
-  | "abort";
+  | "preparing"   // Rev387: setup / mode-change arming, before any rotation
+  | "turning"     // Rev387 (was "phase1"): driving compass intermediates
+  | "handover"   // Rev387: within 20deg of final target, switching back to wind
+  | "settling"   // Rev387 (new): wind mode set, waiting for AWA/TWA error < tol
+  | "completed"  // Rev387 (was "done"): maneuver finished successfully
+  | "cancelling" // Rev387 (new): abort requested, rollback in flight
+  | "cancelled"  // Rev387 (was part of "abort"): user cancelled, rollback done
+  | "failed";    // Rev387 (was part of "abort"): error / timeout, rollback best-effort
 
 export interface TackGeometry {
   /** The signed source angle at tack start, radians. Positive = starboard. */
@@ -51,6 +54,9 @@ export interface TackGeometry {
 
 /** Cached geometry + runtime state for one virtual tack cycle. */
 export interface VirtualTackState {
+  /** Rev387: stable per-maneuver UUID so the visor can anchor its HUD
+   *  and reject stale snapshots. */
+  id: string;
   phase: VirtualTackPhase;
   windMode: WindMode | null;
   direction: TackDirection | null;
@@ -65,6 +71,10 @@ export interface VirtualTackState {
   lastSeenModeChangeTargetAtMs: number;
   /** For phase 1 stuck detection. */
   phase1StepStartedAtMs: number;
+  /** Rev387: last transition reason for the UI (timeout, user, error). */
+  outcomeReason: string | null;
+  /** Rev387: user-provided requestId for idempotent start. */
+  requestId: string | null;
 }
 
 export const TWO_PI = Math.PI * 2;
@@ -243,6 +253,7 @@ export function fractionateRotation(opts: {
  */
 export function makeInitialState(): VirtualTackState {
   return {
+    id: "",
     phase: "idle",
     windMode: null,
     direction: null,
@@ -253,6 +264,8 @@ export function makeInitialState(): VirtualTackState {
     originalAngleRad: null,
     lastSeenModeChangeTargetAtMs: 0,
     phase1StepStartedAtMs: 0,
+    outcomeReason: null,
+    requestId: null,
   };
 }
 
