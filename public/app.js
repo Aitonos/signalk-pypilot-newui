@@ -2484,6 +2484,18 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.mode", value, prev: state.mode, monoTs: performance.now() }); } catch { /* silent */ }
         }
+        // Rev388 (Carlos, 2026-10-01, Fase B): while a virtual tack is
+        // in flight the backend FSM temporarily switches pypilot to
+        // compass then back to wind. The bus publishes those real
+        // transitions. The sailor must NOT see them in the mode selector
+        // or on the rose — keep the visible mode pinned to the maneuver's
+        // original windMode. We still cache the real value in a shadow
+        // so applyValue can restore it when the FSM terminates.
+        if (state.virtualTack && state.virtualTack.active) {
+          state._modeRealShadow = value;
+          console.log(`[virtual-tack] swallow real mode delta '${value}' (display stays '${state.virtualTack.windMode}')`);
+          break;
+        }
         // Rev249 (Carlos): swallow a stale mode delta that arrives
         // shortly after the user changed the selector locally. If the
         // incoming value differs from the just-picked one, it is a
@@ -2530,9 +2542,60 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.target", value, prev: state.target, monoTs: performance.now() }); } catch { /* silent */ }
         }
+        // Rev388 Fase B: during a virtual tack, the backend writes the
+        // real compass intermediate to ap.heading_command, but the sailor
+        // must see the FINAL wind target from the first instant. Cache
+        // the real target in a shadow; keep state.target pinned at the
+        // VT finalWindTargetRad set when the FSM published its first
+        // snapshot.
+        if (state.virtualTack && state.virtualTack.active) {
+          state._targetRealShadow = numericOrNull(value);
+          break;
+        }
         state.target = numericOrNull(value);
         renderTargetArrow();
         break;
+      case "steering.autopilot.virtualTack": {
+        // Rev388 Fase B: structured snapshot from the backend FSM.
+        // Open the HUD overlay on first active snapshot, close it on
+        // terminal phase. The visor also uses state.virtualTack to
+        // mask mode + target cases above.
+        const prev = state.virtualTack;
+        const wasActive = prev && prev.active;
+        state.virtualTack = value || null;
+        const isActive = state.virtualTack && state.virtualTack.active;
+        // On FIRST active snapshot: pin display target to finalWindTarget,
+        // pin display mode to windMode. Open the external-tack overlay
+        // (read-only HUD, no countdown writes).
+        if (!wasActive && isActive) {
+          if (typeof state.virtualTack.finalWindTargetRad === "number") {
+            state.target = state.virtualTack.finalWindTargetRad;
+          }
+          // Keep selector pinned to the maneuver's original windMode
+          // regardless of what pypilot echoes during phase1/compass.
+          try { setSelect("#mode-select", state.virtualTack.windMode || state.mode); } catch {}
+          try { _lastTackDirSeen = state.virtualTack.direction; } catch {}
+          try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(); } catch (e) { console.warn("[vt] open overlay", e); }
+        }
+        // Mid-flight: nothing special — the overlay stays open; the mode
+        // and target are already pinned via the swallow-shadow logic.
+        // On TERMINAL snapshot: close the overlay and apply any pending
+        // shadow values so the visor re-syncs with reality.
+        if (wasActive && !isActive) {
+          if (typeof state._modeRealShadow !== "undefined" && state._modeRealShadow !== null) {
+            state.mode = state._modeRealShadow;
+            try { setSelect("#mode-select", state._modeRealShadow); } catch {}
+            delete state._modeRealShadow;
+          }
+          if (typeof state._targetRealShadow === "number") {
+            state.target = state._targetRealShadow;
+            delete state._targetRealShadow;
+          }
+          try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch (e) { console.warn("[vt] close overlay", e); }
+          renderTargetArrow();
+        }
+        break;
+      }
       case "steering.autopilot.engaged": {
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.engaged", value, prev: state.engaged, monoTs: performance.now() }); } catch { /* silent */ }
@@ -8155,31 +8218,30 @@
       // gps, wind, true wind). The audit-inspired guard was defensive
       // dead code; cleaner UI without it.
       const isWind = modeStr.includes("wind");
-      // Rev385 (Carlos, 2026-10-01): in wind / true wind modes the
-      // BACKEND virtual-tack FSM owns the maneuver (switches to compass,
-      // steers through fractionated intermediates, falls back to wind
-      // on arrival). Rev384 QA showed the frontend countdown kept
-      // writing adjustTarget / nudge pulses in parallel, which made
-      // the diamond "dance" between 124°, 75°, 79°, 80°, 70° in 21s.
-      // Short-circuit here: emit the raw ap.tack.direction + state=begin
-      // (the backend /raw intercept re-routes to the FSM) and do NOT
-      // start the frontend countdown. The visor rose will follow the
-      // backend's own setMode/setTarget echoes as any other mode change.
+      // Rev388 Fase B (Carlos, 2026-10-01): in wind modes, dispatch the
+      // backend virtual-tack FSM via its own idempotent endpoint, not
+      // the legacy two-PUT /raw sequence. The FSM publishes its state
+      // on steering.autopilot.virtualTack; the HUD overlay opens via
+      // the delta handler for that path (applyValue case), and this
+      // tack-start path simply fires-and-forgets. The frontend countdown
+      // + nudge/adjust loop is NOT started (would conflict with the FSM).
       if (isWind) {
         try {
-          await skFetch(`/plugins/${PLUGIN_ID}/raw`, {
-            method: "PUT",
+          const requestId = `vt-visor-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+          const r = await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/start`, {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: "ap.tack.direction", value: dir }),
+            body: JSON.stringify({ direction: dir, requestId }),
           });
-          await skFetch(`/plugins/${PLUGIN_ID}/raw`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: "ap.tack.state", value: "begin" }),
-          });
-          console.info(`[tack] wind-mode: delegated to backend virtual-tack (dir=${dir})`);
+          if (!r.ok) {
+            const err = await r.text().catch(() => String(r.status));
+            console.warn(`[vt] start failed: ${err}`);
+            _flashTackFailed(dir);
+          } else {
+            console.info(`[vt] start ok (dir=${dir} requestId=${requestId})`);
+          }
         } catch (e) {
-          console.warn("[tack] wind-mode delegation failed:", e);
+          console.warn("[vt] start exception:", e);
           _flashTackFailed(dir);
         }
         return;
@@ -8253,6 +8315,18 @@
           b.classList.add("failed");
           setTimeout(() => b.classList.remove("failed"), 1200);
         }
+        return;
+      }
+      // Rev388 Fase B: second tap during an active virtual tack cancels
+      // the backend FSM via the dedicated endpoint. We do NOT emit a raw
+      // ap.tack.state=none here, because the FSM is driving compass /
+      // intermediate writes that must be rolled back cleanly before
+      // pypilot gets any further orders.
+      if (state.virtualTack && state.virtualTack.active && state.virtualTack.cancellable) {
+        try {
+          await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/cancel`, { method: "POST" });
+          console.info("[vt] cancel requested on second tap");
+        } catch (e) { console.warn("[vt] cancel failed:", e); }
         return;
       }
       const overlay = document.getElementById("tack-countdown-overlay");
