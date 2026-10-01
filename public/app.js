@@ -2574,28 +2574,33 @@
           try { _lastTackDirSeen = state.virtualTack.direction; } catch {}
           try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(); } catch (e) { console.warn("[vt] open overlay", e); }
         }
-        // Rev392: on TERMINAL snapshot restore target explicitly based
-        // on how the maneuver ended. Rev391 relied on canonical deltas
-        // arriving after the terminal snapshot to repaint truth, but
-        // the race between terminal snapshot + rollback canonical
-        // writes left the amber arrow bouncing. Explicit restoration:
-        //   completed → the FSM reached the new amura → finalWindTargetRad
-        //   cancelled/failed → the FSM rolled back → pre-VT target
+        // Rev393 (Carlos, 2026-10-01, Round-2 GPT-Codex H6):
+        // Dedupe terminal snapshots by VT id. The 5s linger timer on
+        // the backend sends another notifyChanged('all') which republishes
+        // the terminal snapshot. If we restored from _targetBeforeVt and
+        // then deleted it, a second terminal with the same id would
+        // reassign state.target = undefined — explains the "jumped to
+        // another position" symptom. Only run the terminal restore ONCE
+        // per maneuver id.
         if (wasActive && !isActive) {
+          const terminalId = state.virtualTack?.id;
           const terminalPhase = state.virtualTack?.phase;
-          if (terminalPhase === "completed" && typeof state.virtualTack?.finalWindTargetRad === "number") {
-            state.target = state.virtualTack.finalWindTargetRad;
-          } else if (typeof state._targetBeforeVt === "number") {
-            state.target = state._targetBeforeVt;
+          if (terminalId && state._lastHandledTerminalVtId !== terminalId) {
+            state._lastHandledTerminalVtId = terminalId;
+            if (terminalPhase === "completed" && typeof state.virtualTack?.finalWindTargetRad === "number") {
+              state.target = state.virtualTack.finalWindTargetRad;
+            } else if (typeof state._targetBeforeVt === "number") {
+              state.target = state._targetBeforeVt;
+            }
+            if (typeof state._modeBeforeVt === "string") {
+              state.mode = state._modeBeforeVt;
+              try { setSelect("#mode-select", state._modeBeforeVt); } catch {}
+            }
+            delete state._modeBeforeVt;
+            delete state._targetBeforeVt;
+            try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch (e) { console.warn("[vt] close overlay", e); }
+            try { renderTargetArrow(); } catch {}
           }
-          if (typeof state._modeBeforeVt === "string") {
-            state.mode = state._modeBeforeVt;
-            try { setSelect("#mode-select", state._modeBeforeVt); } catch {}
-          }
-          delete state._modeBeforeVt;
-          delete state._targetBeforeVt;
-          try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch (e) { console.warn("[vt] close overlay", e); }
-          try { renderTargetArrow(); } catch {}
         }
         break;
       }

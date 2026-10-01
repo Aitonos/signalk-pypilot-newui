@@ -1005,15 +1005,27 @@ export class AutopilotProvider {
       setPhase(isUserCancel ? "cancelled" : "failed", msg);
       throw err;
     } finally {
-      // Keep the terminal state visible for ~5 s so the visor sees
-      // the final transition, then clear.
+      // Rev393 (Carlos, 2026-10-01, GPT-Codex round 2): capture the id
+      // at this moment and only clear if it still matches when the
+      // timer fires. Rev392's 5s linger was the main source of the
+      // "second jump" — the final notifyChanged('all') republished a
+      // canonical delta the visor was no longer protected from. Keep
+      // the linger (overlay sees terminal snapshot for a short while)
+      // but NEVER re-publish on cleanup; just drop _virtualTack silently
+      // and the visor's dedupe guard (Rev393 frontend) ignores anything
+      // else.
+      const settledId = this._virtualTack?.id;
       setTimeout(() => {
         if (
           this._virtualTack &&
+          this._virtualTack.id === settledId &&
           ["completed", "cancelled", "failed"].includes(this._virtualTack.phase)
         ) {
           this._virtualTack = null;
-          this.notifyChanged("all");
+          // DO NOT notifyChanged here — the visor already consumed the
+          // terminal snapshot and restored its display. Firing another
+          // delta would re-apply canonical mode/target from
+          // apProvider.data which may still carry stale pypilot echoes.
         }
       }, 5000);
     }
