@@ -2349,6 +2349,9 @@
       "steering.autopilot.target",
       "steering.autopilot.engaged",
       "steering.autopilot.availableActions",
+      // Rev388 Fase B: backend FSM publishes snapshots here; visor
+      // opens the read-only HUD + pins mode/target when active.
+      "steering.autopilot.virtualTack",
       "steering.autopilot.pypilot.ap.tack.state",
       "steering.autopilot.pypilot.ap.tack.direction",
       "steering.autopilot.pypilot.ap.mode",
