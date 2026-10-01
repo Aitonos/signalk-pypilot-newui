@@ -8155,6 +8155,35 @@
       // gps, wind, true wind). The audit-inspired guard was defensive
       // dead code; cleaner UI without it.
       const isWind = modeStr.includes("wind");
+      // Rev385 (Carlos, 2026-10-01): in wind / true wind modes the
+      // BACKEND virtual-tack FSM owns the maneuver (switches to compass,
+      // steers through fractionated intermediates, falls back to wind
+      // on arrival). Rev384 QA showed the frontend countdown kept
+      // writing adjustTarget / nudge pulses in parallel, which made
+      // the diamond "dance" between 124°, 75°, 79°, 80°, 70° in 21s.
+      // Short-circuit here: emit the raw ap.tack.direction + state=begin
+      // (the backend /raw intercept re-routes to the FSM) and do NOT
+      // start the frontend countdown. The visor rose will follow the
+      // backend's own setMode/setTarget echoes as any other mode change.
+      if (isWind) {
+        try {
+          await skFetch(`/plugins/${PLUGIN_ID}/raw`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "ap.tack.direction", value: dir }),
+          });
+          await skFetch(`/plugins/${PLUGIN_ID}/raw`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "ap.tack.state", value: "begin" }),
+          });
+          console.info(`[tack] wind-mode: delegated to backend virtual-tack (dir=${dir})`);
+        } catch (e) {
+          console.warn("[tack] wind-mode delegation failed:", e);
+          _flashTackFailed(dir);
+        }
+        return;
+      }
       const useTrue = modeStr.includes("true");
       const angleDeg = _tackAngleDeg();
       // Reference at start (mode-dependent).
