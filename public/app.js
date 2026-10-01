@@ -2487,17 +2487,15 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.mode", value, prev: state.mode, monoTs: performance.now() }); } catch { /* silent */ }
         }
-        // Rev391 (Carlos, 2026-10-01, QA Rev390): while VT is in
-        // 'preparing' or 'turning' (bow actively swinging via compass),
-        // swallow the real mode delta so the selector stays pinned to
-        // wind. From 'handover' onward (backend is coming back to wind)
-        // we ACCEPT the delta so when VT ends the mode is already
-        // correct on screen. We do NOT cache the swallowed value —
-        // the canonical delta that follows the rollback / completion
-        // repaints the truth on its own.
-        if (state.virtualTack && state.virtualTack.active &&
-            (state.virtualTack.phase === "preparing" || state.virtualTack.phase === "turning")) {
-          console.log(`[virtual-tack] swallow real mode delta '${value}' (phase=${state.virtualTack.phase})`);
+        // Rev392 (Carlos, 2026-10-01, QA Rev391): swallow canonical mode
+        // deltas during ANY active VT phase (preparing/turning/handover/
+        // settling/cancelling). Rev391 QA caught that letting them
+        // through during handover/cancelling painted the compass
+        // intermediate as the wind target for one or two frames before
+        // the proper rollback delta arrived — the "target bailando"
+        // report. Terminal restoration happens in the virtualTack delta
+        // handler using _targetBeforeVt + the FSM's own finalWindTargetRad.
+        if (state.virtualTack && state.virtualTack.active) {
           break;
         }
         // Rev249 (Carlos): swallow a stale mode delta that arrives
@@ -2546,13 +2544,8 @@
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.target", value, prev: state.target, monoTs: performance.now() }); } catch { /* silent */ }
         }
-        // Rev391: same policy as mode above. Only swallow target deltas
-        // while VT is in the compass-intermediate phases. From handover
-        // onward (backend already writing the final wind target /
-        // rollback) accept the delta so the amber arrow lands on the
-        // true post-maneuver position.
-        if (state.virtualTack && state.virtualTack.active &&
-            (state.virtualTack.phase === "preparing" || state.virtualTack.phase === "turning")) {
+        // Rev392: swallow during ANY active VT phase. See mode case.
+        if (state.virtualTack && state.virtualTack.active) {
           break;
         }
         state.target = numericOrNull(value);
@@ -2567,32 +2560,42 @@
         const wasActive = prev && prev.active;
         state.virtualTack = value || null;
         const isActive = state.virtualTack && state.virtualTack.active;
-        // On FIRST active snapshot: pin display target to finalWindTarget,
-        // pin display mode to windMode. Open the external-tack overlay
-        // (read-only HUD, no countdown writes).
+        // On FIRST active snapshot: remember pre-VT mode/target (needed
+        // for rollback restoration), pin display to finalWindTargetRad,
+        // open the read-only HUD overlay.
         if (!wasActive && isActive) {
+          state._modeBeforeVt = state.mode;
+          state._targetBeforeVt = state.target;
           if (typeof state.virtualTack.finalWindTargetRad === "number") {
             state.target = state.virtualTack.finalWindTargetRad;
-            // Rev390: re-render the rose so the amber arrow actually
-            // jumps to the FINAL AWA at the moment the FSM starts.
-            // Rev389 missed this call — the state var changed but the
-            // rose kept painting the old target.
             try { renderTargetArrow(); } catch {}
           }
-          // Keep selector pinned to the maneuver's original windMode
-          // regardless of what pypilot echoes during phase1/compass.
           try { setSelect("#mode-select", state.virtualTack.windMode || state.mode); } catch {}
           try { _lastTackDirSeen = state.virtualTack.direction; } catch {}
           try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(); } catch (e) { console.warn("[vt] open overlay", e); }
         }
-        // Rev391: on TERMINAL snapshot just close the overlay. No shadow
-        // apply — Rev390 wrongly cached intermediates and painted them
-        // as wind targets at close time, making the amber arrow jump to
-        // nonsense positions. The canonical steering.autopilot.{mode,
-        // target} deltas that follow the backend rollback (within tens
-        // of ms) repaint the truth on their own.
+        // Rev392: on TERMINAL snapshot restore target explicitly based
+        // on how the maneuver ended. Rev391 relied on canonical deltas
+        // arriving after the terminal snapshot to repaint truth, but
+        // the race between terminal snapshot + rollback canonical
+        // writes left the amber arrow bouncing. Explicit restoration:
+        //   completed → the FSM reached the new amura → finalWindTargetRad
+        //   cancelled/failed → the FSM rolled back → pre-VT target
         if (wasActive && !isActive) {
+          const terminalPhase = state.virtualTack?.phase;
+          if (terminalPhase === "completed" && typeof state.virtualTack?.finalWindTargetRad === "number") {
+            state.target = state.virtualTack.finalWindTargetRad;
+          } else if (typeof state._targetBeforeVt === "number") {
+            state.target = state._targetBeforeVt;
+          }
+          if (typeof state._modeBeforeVt === "string") {
+            state.mode = state._modeBeforeVt;
+            try { setSelect("#mode-select", state._modeBeforeVt); } catch {}
+          }
+          delete state._modeBeforeVt;
+          delete state._targetBeforeVt;
           try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch (e) { console.warn("[vt] close overlay", e); }
+          try { renderTargetArrow(); } catch {}
         }
         break;
       }
