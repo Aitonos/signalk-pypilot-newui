@@ -709,9 +709,19 @@ export class AutopilotProvider {
     windMode: WindMode,
   ): Promise<void> {
     const values = (this.client as any).getValues?.() || {};
-    const headingDeg = values["ap.heading"];
-    if (typeof headingDeg !== "number" || !Number.isFinite(headingDeg)) {
-      throw new Error("virtual-tack: ap.heading not available");
+    // Rev380 (Carlos, 2026-10-01): fallback chain for heading source.
+    // Rev378 only read ap.heading which the pypilot-client does NOT
+    // subscribe to by default on this install, so the FSM threw
+    // silently and the frontend got a 500 before any mode change
+    // reached pypilot. imu.heading is already in the stream (line 3653
+    // in index.ts uses it) and carries the same compass value.
+    const headingDeg = (typeof values["ap.heading"] === "number" && Number.isFinite(values["ap.heading"]))
+      ? (values["ap.heading"] as number)
+      : (typeof values["imu.heading"] === "number" && Number.isFinite(values["imu.heading"]))
+        ? (values["imu.heading"] as number)
+        : null;
+    if (headingDeg === null) {
+      throw new Error("virtual-tack: ap.heading / imu.heading not available");
     }
     if (this.data.target == null || !Number.isFinite(this.data.target)) {
       throw new Error("virtual-tack: data.target not available");
