@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev385";
+const PLUGIN_REVISION = "Rev386";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3469,6 +3469,27 @@ module.exports = function (app: any) {
 
   function pushAutopilotUpdate(fields: "engaged" | "target" | "all" = "all"): void {
     if (!apProvider) return;
+    // Rev386 (Carlos, 2026-10-01): virtual-tack transparency.
+    // While the FSM is driving a tack through compass+wind phases, the
+    // frontend must NEVER see the compass intermediate — it has to look
+    // exactly like a normal wind-mode target change to the FINAL AWA.
+    // Rev377-385 kept propagating the pypilot echoes (mode=compass +
+    // target=intermediate) verbatim, which made the diamond "dance" and
+    // the sailor see a compass diamante where there should only be the
+    // amber wind arrow at its final position.
+    //
+    // Mask the mode + target published to BOTH the Autopilot API and
+    // the canonical SK deltas while virtualTack is active (phase1 or
+    // phase2). Pypilot still gets the real commands via setMode/
+    // setTarget. The sailor sees: mode stays "wind", target jumps to
+    // the final AWA, AWA then rotates toward it — exactly what Carlos
+    // specified ("el usuario ni debe ver absolutamente NADA").
+    const vt = (apProvider as any).getVirtualTackState?.();
+    const vtActive = vt && vt.phase !== "idle" && vt.phase !== "done" && vt.phase !== "abort";
+    const effectiveMode = vtActive && vt.windMode ? vt.windMode : apProvider.data.mode;
+    const effectiveTarget = (vtActive && vt.geometry && typeof vt.geometry.angleNewRad === "number")
+      ? vt.geometry.angleNewRad
+      : apProvider.data.target;
     try {
       // Push structured update through the SK Autopilot API.
       // The App API accepts partial updates - only include changed fields
@@ -3482,10 +3503,10 @@ module.exports = function (app: any) {
           apUpdate.actions = apProvider.data.options.actions;
         }
         if (fields === "all" || fields === "target") {
-          apUpdate.target = apProvider.data.target;
+          apUpdate.target = effectiveTarget;
         }
         if (fields === "all") {
-          apUpdate.mode = apProvider.data.mode;
+          apUpdate.mode = effectiveMode;
         }
         app.autopilotUpdate(apProvider.deviceId, apUpdate);
       }
@@ -3510,10 +3531,10 @@ module.exports = function (app: any) {
       );
     }
     if (fields === "all" || fields === "target") {
-      values.push({ path: "steering.autopilot.target",  value: apProvider.data.target });
+      values.push({ path: "steering.autopilot.target",  value: effectiveTarget });
     }
     if (fields === "all") {
-      values.push({ path: "steering.autopilot.mode",    value: apProvider.data.mode });
+      values.push({ path: "steering.autopilot.mode",    value: effectiveMode });
     }
     if (values.length === 0) return;
     // Rev350: stage=publish for the CANONICAL pilot deltas (state,
