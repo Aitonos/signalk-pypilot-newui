@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev380";
+const PLUGIN_REVISION = "Rev381";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1659,6 +1659,42 @@ module.exports = function (app: any) {
         if (name === "profile" && typeof value === "string") {
           try { profileChangeLog.markPlannedWrite(value, "user", "PUT /raw"); }
           catch { /* silent */ }
+        }
+        // Rev381 (Carlos, 2026-10-01): intercept tack-begin via /raw.
+        // The frontend tackHandler issues two raw writes:
+        //   PUT /raw { name: "ap.tack.direction", value: "port|starboard" }
+        //   PUT /raw { name: "ap.tack.state",     value: "begin" }
+        // Rev378-380 put the virtual-tack FSM behind the POST /ap/tack/:dir
+        // endpoint, but the frontend never calls it — the raw path bypassed
+        // our provider.tack() entirely (seen in trace-20261001-161853 QA
+        // 2026-10-01 16:49: ap.tack.state=begin forwarded to pypilot
+        // unchanged, mode stayed "wind" throughout, no virtual-tack).
+        // Fix: when a "begin" lands in wind modes and the apProvider is
+        // active, re-route it through the FSM and DO NOT forward the raw
+        // write to pypilot (otherwise pypilot runs its own buggy wind
+        // tack in parallel). The direction write that typically precedes
+        // "begin" by a few ms is harmless — pypilot stores it but our
+        // FSM derives direction from its own argument.
+        if (
+          name === "ap.tack.state" &&
+          value === "begin" &&
+          apProvider
+        ) {
+          const modeStr = String((apProvider as any).data?.mode || "").toLowerCase();
+          if (modeStr === "wind" || modeStr === "true wind") {
+            const dirRaw = (client as any).getValues?.()["ap.tack.direction"];
+            const dir = dirRaw === "port" || dirRaw === "starboard" ? dirRaw : "starboard";
+            // eslint-disable-next-line no-console
+            console.log(`[/raw tack intercept] mode=${modeStr} dir=${dir} → virtual-tack`);
+            (apProvider as any)
+              .toProviderInterface()
+              .tack(dir, (apProvider as any).deviceId)
+              .catch((e: any) => {
+                // eslint-disable-next-line no-console
+                console.log(`[/raw tack intercept] virtual-tack failed: ${e?.message || e}`);
+              });
+            return res.json({ ok: true, name, value, virtualTack: true });
+          }
         }
         client.set(name, value);
         res.json({ ok: true, name, value });
