@@ -11,6 +11,19 @@
 
 import { PypilotClient } from "./pypilot-client";
 import { decideReAnchor } from "./mode-reanchor";
+import {
+  computeTackGeometry,
+  isAtTarget,
+  normalizeTwoPi,
+  DEFAULT_MODE_SWITCH_SETTLE_MS,
+  DEFAULT_PHASE1_STEP_TIMEOUT_MS,
+  DEFAULT_PHASE_TOLERANCE_DEG,
+  TackDirection,
+  VirtualTackPhase,
+  VirtualTackState,
+  WindMode,
+  makeInitialState as makeVirtualTackInitialState,
+} from "./virtual-tack";
 
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
@@ -103,6 +116,11 @@ export class AutopilotProvider {
   // on the two other write paths.
   private targetGen = 0;
   private modeGen = 0;
+  // Rev378 (Carlos, 2026-10-01): virtual-tack FSM state. Non-null while
+  // a two-phase (compass → wind) tack is in progress or recently
+  // completed. See src/virtual-tack.ts for geometry + types, and
+  // _runVirtualTack below for the driver that advances it.
+  private _virtualTack: VirtualTackState | null = null;
   private navPendingTimer: NodeJS.Timeout | null = null;
   // Rev272 (audit R06): adjustTarget reads data.target BEFORE awaiting
   // the write, so two concurrent +Δ calls could both start from the
@@ -643,35 +661,184 @@ export class AutopilotProvider {
   private async tack(direction: "port" | "starboard"): Promise<void> {
     // Rev192 (Carlos): synthetic tack. In sea trial on Tunatunes (2026-09-10)
     // pypilot 0.x on the Pi Zero received `ap.tack.state=begin` and looped
-    // it straight back to "none" without ever rotating heading_command
-    // (traced via journalctl: heading_command stayed at 291.7 deg across
-    // three consecutive tack POSTs). Instead of relying on pypilot's own
-    // tack primitive, we rotate the target ourselves:
-    //   - compass / GPS modes: shift heading_command by tackAngle (default
-    //     100 deg from `ap.tack.angle`, capped 30..170), sign per direction.
-    //   - wind / true wind modes: flip AWA/TWA sign (target -> -target).
-    // The frontend already provides the pre-tack countdown UI + circle-tap
-    // cancel, so we do not need pypilot's own delay/state machine.
+    // it straight back to "none" without ever rotating heading_command.
+    // Instead of relying on pypilot's own tack primitive we rotate the
+    // target ourselves.
+    //
+    // Rev378 (Carlos, 2026-10-01): WIND / TRUE WIND path now uses a
+    // two-phase virtual tack (compass → wind) via `_runVirtualTack` to
+    // defuse the pypilot core "direction rewrite on short arc" bug in
+    // the downwind quadrants. Compass / GPS / nav modes keep the simple
+    // target-shift behaviour because pypilot's short-arc choice already
+    // matches the requested direction when the rotation is < 180°.
     if (!this.data.engaged || this.data.target == null) return;
+    const modeStr = String(this.data.mode || "").toLowerCase();
+    const isWind = modeStr === "wind" || modeStr === "true wind";
+    if (isWind) {
+      await this._runVirtualTack(direction, modeStr as WindMode);
+      return;
+    }
     const values = (this.client as any).getValues?.() || {};
     const rawAngle = values["ap.tack.angle"];
     const tackAngleDeg = (typeof rawAngle === "number" && rawAngle >= 30 && rawAngle <= 170)
       ? rawAngle
       : 100;
-    const modeStr = String(this.data.mode || "").toLowerCase();
-    const isWind = modeStr.includes("wind");
-    let newRad: number;
-    if (isWind) {
-      newRad = -this.data.target;
-    } else {
-      const sign = direction === "port" ? -1 : 1;
-      newRad = this.data.target + sign * tackAngleDeg * DEG_TO_RAD;
-      while (newRad > Math.PI)  newRad -= 2 * Math.PI;
-      while (newRad < -Math.PI) newRad += 2 * Math.PI;
-    }
+    const sign = direction === "port" ? -1 : 1;
+    let newRad = this.data.target + sign * tackAngleDeg * DEG_TO_RAD;
+    while (newRad > Math.PI)  newRad -= 2 * Math.PI;
+    while (newRad < -Math.PI) newRad += 2 * Math.PI;
     // eslint-disable-next-line no-console
     console.log(`[apProvider.tack] dir=${direction} mode=${modeStr} angle=${tackAngleDeg} tgt ${this.data.target.toFixed(3)} -> ${newRad.toFixed(3)} rad`);
     await this.setTarget(newRad);
+  }
+
+  /**
+   * Rev378: public read-only snapshot of the current virtual-tack cycle.
+   * Returns `null` when there is no virtual tack in progress or recently
+   * completed. The index.ts HTTP endpoint consumes this for the
+   * frontend's mode-selector masking (see Rev379).
+   */
+  getVirtualTackState(): Readonly<VirtualTackState> | null {
+    return this._virtualTack;
+  }
+
+  /** Rev378: the two-phase virtual tack driver. Runs the FSM declared
+   *  in src/virtual-tack.ts against this.setMode / this.setTarget. */
+  private async _runVirtualTack(
+    direction: TackDirection,
+    windMode: WindMode,
+  ): Promise<void> {
+    const values = (this.client as any).getValues?.() || {};
+    const headingDeg = values["ap.heading"];
+    if (typeof headingDeg !== "number" || !Number.isFinite(headingDeg)) {
+      throw new Error("virtual-tack: ap.heading not available");
+    }
+    if (this.data.target == null || !Number.isFinite(this.data.target)) {
+      throw new Error("virtual-tack: data.target not available");
+    }
+    const originalAngleRad = this.data.target;
+    const hStartRad = headingDeg * DEG_TO_RAD;
+
+    const geometry = computeTackGeometry({
+      angleStartRad: originalAngleRad,
+      hStartRad,
+      direction,
+    });
+
+    const now = Date.now();
+    this._virtualTack = {
+      ...makeVirtualTackInitialState(),
+      phase: "calc",
+      windMode,
+      direction,
+      geometry,
+      startedAtMs: now,
+      originalMode: windMode,
+      originalAngleRad,
+    };
+    this.notifyChanged("all");
+
+    const setPhase = (p: VirtualTackPhase) => {
+      if (!this._virtualTack) return;
+      this._virtualTack.phase = p;
+      this.notifyChanged("all");
+    };
+
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+    try {
+      // ─── Phase 1: compass + fractionated rotation ───
+      setPhase("phase1");
+      // eslint-disable-next-line no-console
+      console.log(
+        `[virtual-tack] phase1 dir=${direction} fromMode=${windMode} ` +
+          `angle=${(originalAngleRad * RAD_TO_DEG).toFixed(1)}deg ` +
+          `delta=${(geometry.deltaHRad * RAD_TO_DEG).toFixed(1)}deg ` +
+          `steps=${geometry.intermediatesRad.length}`,
+      );
+      await this.setMode("compass");
+      await sleep(DEFAULT_MODE_SWITCH_SETTLE_MS);
+
+      for (let i = 0; i < geometry.intermediatesRad.length; i++) {
+        if (!this._virtualTack) throw new Error("virtual-tack cancelled");
+        this._virtualTack.stepIndex = i;
+        this._virtualTack.phase1StepStartedAtMs = Date.now();
+        const stepTargetRad = geometry.intermediatesRad[i];
+        await this.setTarget(stepTargetRad);
+        // Poll heading until we reach the intermediate within tolerance.
+        const stepStart = Date.now();
+        while (true) {
+          const v = (this.client as any).getValues?.() || {};
+          const hNowDeg = v["ap.heading"];
+          if (typeof hNowDeg === "number") {
+            const hNowRad = normalizeTwoPi(hNowDeg * DEG_TO_RAD);
+            if (
+              isAtTarget({
+                hNowRad,
+                hTargetRad: stepTargetRad,
+                toleranceDeg: DEFAULT_PHASE_TOLERANCE_DEG,
+              })
+            )
+              break;
+          }
+          if (Date.now() - stepStart > DEFAULT_PHASE1_STEP_TIMEOUT_MS) {
+            throw new Error(`virtual-tack: phase1 step ${i} timeout`);
+          }
+          await sleep(500);
+          if (!this._virtualTack) throw new Error("virtual-tack cancelled");
+        }
+      }
+
+      // ─── Phase 2: back to the original wind mode, final angle ───
+      setPhase("phase2");
+      await this.setMode(windMode);
+      await sleep(DEFAULT_MODE_SWITCH_SETTLE_MS);
+      await this.setTarget(geometry.angleNewRad);
+
+      setPhase("done");
+      // eslint-disable-next-line no-console
+      console.log(
+        `[virtual-tack] done in ${((Date.now() - now) / 1000).toFixed(1)}s`,
+      );
+    } catch (err: any) {
+      // Rollback — best-effort restore to the pre-tack mode + target so
+      // the sailor is never left in compass with a random heading.
+      // eslint-disable-next-line no-console
+      console.log(`[virtual-tack] abort: ${err?.message || err}`);
+      setPhase("abort");
+      try {
+        await this.setMode(windMode);
+      } catch { /* best-effort */ }
+      try {
+        await this.setTarget(originalAngleRad);
+      } catch { /* best-effort */ }
+      throw err;
+    } finally {
+      // Keep the terminal state visible for ~5 s so the frontend sees
+      // done/abort transition, then clear.
+      setTimeout(() => {
+        if (
+          this._virtualTack &&
+          (this._virtualTack.phase === "done" || this._virtualTack.phase === "abort")
+        ) {
+          this._virtualTack = null;
+          this.notifyChanged("all");
+        }
+      }, 5000);
+    }
+  }
+
+  /** Rev378: external cancel entry-point. Called from the HTTP route
+   *  when the sailor taps the tack button a second time (frontend
+   *  Rev379). Sets phase to "abort" so the running driver bails and
+   *  rolls back on its next await. */
+  cancelVirtualTack(): void {
+    if (!this._virtualTack) return;
+    if (this._virtualTack.phase === "done" || this._virtualTack.phase === "abort") return;
+    // eslint-disable-next-line no-console
+    console.log(`[virtual-tack] external cancel at phase=${this._virtualTack.phase}`);
+    this._virtualTack.phase = "abort";
+    this.notifyChanged("all");
   }
 
   private async engage(): Promise<void> {

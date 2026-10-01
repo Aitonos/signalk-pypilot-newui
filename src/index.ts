@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev377";
+const PLUGIN_REVISION = "Rev378";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1749,6 +1749,33 @@ module.exports = function (app: any) {
           }
           res.json({ ok: true });
         } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+      });
+
+      // Rev378 (Carlos, 2026-10-01): virtual-tack observability + cancel.
+      // The frontend polls /virtual-tack/status at 2 Hz during a tack
+      // in wind modes so it can mask the mode selector while the
+      // backend momentarily switches to compass (phase 1). Cancel is
+      // called when the sailor taps the orange tack button a second
+      // time; the driver rolls back on its next await.
+      router.get("/virtual-tack/status", (_req: any, res: any) => {
+        if (!apProvider) return res.json({ active: false });
+        const vt = (apProvider as any).getVirtualTackState?.();
+        if (!vt) return res.json({ active: false });
+        res.json({
+          active: vt.phase !== "idle" && vt.phase !== "done" && vt.phase !== "abort",
+          phase: vt.phase,
+          direction: vt.direction,
+          windMode: vt.windMode,
+          stepIndex: vt.stepIndex,
+          totalSteps: vt.geometry?.intermediatesRad?.length ?? 0,
+          startedAtMs: vt.startedAtMs,
+        });
+      });
+      router.post("/virtual-tack/cancel", (_req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        if (!apProvider) return res.status(503).json({ error: "no ap provider" });
+        (apProvider as any).cancelVirtualTack?.();
+        res.json({ ok: true });
       });
 
       router.post("/pause", (_req: any, res: any) => {
