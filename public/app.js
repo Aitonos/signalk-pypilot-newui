@@ -11955,6 +11955,11 @@
   }
   // Rev404: exportar el profile ACTIVO (gains + metadata) como JSON.
   // Usa share nativo cuando hay (móviles) y descarga como fallback.
+  // Rev405 (Carlos QA Rev404): si state.values no tiene los gains
+  // cacheados (WS stream aún no los emitió, ej. el modal se abrió sin
+  // pasar por los sliders de Tune), caemos a state.pypilotValues
+  // (HTTP cache por el endpoint /values). Si tampoco está, forzamos
+  // un refresh HTTP y reintentamos.
   async function _exportActiveProfile() {
     const pilot = state.pilot;
     const profile = state.profile;
@@ -11962,13 +11967,20 @@
       alert(t("profile.export.noActive") || "No hay perfil activo.");
       return;
     }
+    // Garantiza que tenemos la cache HTTP más reciente como fallback.
+    try { await refreshPypilotValues({ replace: false }); } catch { /* best effort */ }
     const cat = state.catalog || {};
     const prefix = `ap.pilot.${pilot}.`;
+    const pv = state.pypilotValues || {};
     const gains = {};
     for (const k of Object.keys(cat)) {
       if (!k.startsWith(prefix) || !cat[k]?.AutopilotGain) continue;
       const skPath = `steering.autopilot.pypilot.${k}`;
-      const v = state.values[skPath];
+      // 1) WS stream (más reciente); 2) HTTP cache (pypilotValues).
+      let v = state.values[skPath];
+      if (!(typeof v === "number" && isFinite(v))) {
+        v = pv[k];
+      }
       if (typeof v === "number" && isFinite(v)) {
         gains[k.slice(prefix.length)] = v;
       }
