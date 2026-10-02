@@ -4731,6 +4731,35 @@
     const onCancel = async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
+      // Rev400 (Carlos, 2026-10-02 QA Rev399, screenshot): when a virtual-tack
+      // is running, tapping the rose (this overlay) must cancel the FSM via
+      // the dedicated endpoint and do the SAME optimistic restore that the
+      // tack-button second-tap handler does. Rev398/399 fixed the button
+      // path but left the overlay path going through the legacy
+      // pluginRaw+apSetTargetRad flow — which sends to pypilot (rejected
+      // because FSM is driving) and never touches state.target locally,
+      // leaving the diamond stuck at the destination until the backend
+      // terminal snapshot arrived "al rato" (Carlos QA screenshot).
+      if (state.virtualTack && state.virtualTack.active && state.virtualTack.cancellable) {
+        try {
+          const restoreRadVt =
+            (typeof state.virtualTack.originalWindTargetRad === "number")
+              ? state.virtualTack.originalWindTargetRad
+              : (typeof state._targetBeforeVt === "number" ? state._targetBeforeVt : null);
+          if (typeof restoreRadVt === "number") {
+            state.target = restoreRadVt;
+            _countdownPlannedTargetRad = null;
+          }
+          try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch { /* silent */ }
+          try { renderTargetArrow(); } catch { /* silent */ }
+        } catch { /* silent */ }
+        try {
+          await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/cancel`, { method: "POST" });
+          console.info("[vt] cancel requested on rose tap");
+        } catch (e) { console.warn("[vt] cancel from rose failed:", e); }
+        return;
+      }
+      // Legacy local tack path (no VT): keep the original behaviour.
       const wasExecuting = _tackCountdownPhase === "executing";
       const preTackTarget = _tackTargetBeforeStart;
       const modeStr = String(_maneuverModeAtStart || state.mode || "").toLowerCase();
@@ -8310,7 +8339,11 @@
           // only flash fail on persistent failure. Other HTTP errors
           // (400/500/network) still fail immediately.
           const vtStart = async () => {
-            const MAX_409_RETRIES = 4;
+            // Rev400 (Carlos QA Rev399): subo retries 4→10 (~5s total).
+            // Rev399 QA mostró casos donde el VT previo tardaba >2s en
+            // limpieza y Carlos necesitaba 2-3 taps. 5s cubre linger
+            // 5s + echo-wait 1.5s + margen.
+            const MAX_409_RETRIES = 10;
             const RETRY_DELAY_MS = 500;
             for (let i = 0; i <= MAX_409_RETRIES; i++) {
               const r = await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/start`, {
