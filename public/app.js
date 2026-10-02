@@ -8396,6 +8396,30 @@
       // intermediate writes that must be rolled back cleanly before
       // pypilot gets any further orders.
       if (state.virtualTack && state.virtualTack.active && state.virtualTack.cancellable) {
+        // Rev398 (Carlos, 2026-10-02, Round-4 QA pulido): optimistic
+        // visor restore the instant the sailor taps cancel. The backend
+        // round-trip (cancel route → FSM abort → setMode wind + setTarget
+        // original + pypilot echo) takes ~1 s even with Rev397's prompt
+        // abort. The user already decided to abort; the diamond should
+        // reflect the eventual steady state immediately, not drag along
+        // behind the FSM. We paint using the backend-authoritative
+        // originalWindTargetRad (Rev396) if present, else the pre-tack
+        // snapshot the visor kept.
+        try {
+          const restoreRad =
+            (typeof state.virtualTack.originalWindTargetRad === "number")
+              ? state.virtualTack.originalWindTargetRad
+              : (typeof state._targetBeforeVt === "number" ? state._targetBeforeVt : null);
+          if (typeof restoreRad === "number") {
+            state.target = restoreRad;
+            // _countdownPlannedTargetRad was pinned to finalWindTargetRad
+            // when the overlay opened; renderTargetArrow prefers that
+            // over state.target while the overlay is visible. Clear it
+            // so the diamond immediately shows the restored target.
+            _countdownPlannedTargetRad = null;
+            try { renderTargetArrow(); } catch { /* silent */ }
+          }
+        } catch { /* silent */ }
         try {
           await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/cancel`, { method: "POST" });
           console.info("[vt] cancel requested on second tap");
