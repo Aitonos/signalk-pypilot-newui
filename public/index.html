@@ -845,6 +845,7 @@
         <div class="row">
           <label data-i18n="tune.profile">Profile</label>
           <select id="profile-select"></select>
+          <button id="profile-manage" class="ghost" title="Gestionar perfiles">⚙</button>
           <button id="profile-add" class="ghost" title="Añadir nuevo">+</button>
           <button id="profile-rename" class="ghost" title="Renombrar">✎</button>
           <button id="profile-export" class="ghost" title="Exportar">↓</button>
@@ -2267,6 +2268,26 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev402"></script>
+  <!-- Rev403: Modal "Gestionar perfiles" (draggable cards, multi-select) -->
+  <div id="pm-modal" class="pm-modal" hidden>
+    <div class="pm-backdrop" data-pm-close></div>
+    <div class="pm-card" role="dialog" aria-labelledby="pm-title">
+      <header class="pm-header">
+        <h3 id="pm-title" data-i18n="pm.title">Gestionar perfiles</h3>
+        <button type="button" class="pm-close ghost" data-pm-close aria-label="Cerrar">✕</button>
+      </header>
+      <ul id="pm-list" class="pm-list" aria-label="Perfiles"></ul>
+      <footer class="pm-footer">
+        <button type="button" id="pm-new" class="ghost" data-i18n="pm.new">+ Nuevo</button>
+        <button type="button" id="pm-rename" class="ghost" disabled data-i18n="pm.rename">✎ Renombrar</button>
+        <button type="button" id="pm-export" class="ghost" disabled data-i18n="pm.export">↓ Exportar</button>
+        <button type="button" id="pm-import" class="ghost" data-i18n="pm.import">↑ Importar</button>
+        <button type="button" id="pm-delete" class="ghost danger" disabled data-i18n="pm.delete">🗑 Eliminar</button>
+      </footer>
+      <input type="file" id="pm-import-file" accept="application/json,.json" style="display:none" />
+    </div>
+  </div>
+
+  <script src="app.js?v=Rev403"></script>
 </body>
 </html>

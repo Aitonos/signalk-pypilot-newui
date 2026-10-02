@@ -743,6 +743,15 @@
       "profile.import.pilotMismatch": "The exported profile belongs to pilot '{src}' but the active pilot is '{dst}'. Import anyway?",
       "profile.import.done": "Profile '{name}' imported. {applied} gains applied, {skipped} skipped.",
       "profile.import.failed": "Import error: {err}",
+      "profile.export.needsSwitch": "Exporting '{name}' requires switching to it. Continue?",
+      "pm.title": "Manage profiles",
+      "pm.new": "+ New",
+      "pm.rename": "✎ Rename",
+      "pm.export": "↓ Export",
+      "pm.import": "↑ Import",
+      "pm.delete": "🗑 Delete",
+      "pm.confirmDelete": "Delete {n} profile(s)?\n\n{list}",
+      "pm.deleteFailed": "Could not delete profiles.",
       "prompt.pasteCfg": "Paste the exported configuration JSON:",
       // Setup SSH + restart status
       "setup.ssh.status.emptyPwd": "Empty password. Type it before Save (you have to retype it every time for safety).",
@@ -1573,6 +1582,15 @@
       "profile.import.pilotMismatch": "El perfil exportado es del pilot '{src}' pero el pilot activo es '{dst}'. ¿Importar de todas formas?",
       "profile.import.done": "Perfil '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.",
       "profile.import.failed": "Error al importar: {err}",
+      "profile.export.needsSwitch": "Para exportar '{name}' hay que activarlo (cambiar a él). ¿Continuar?",
+      "pm.title": "Gestionar perfiles",
+      "pm.new": "+ Nuevo",
+      "pm.rename": "✎ Renombrar",
+      "pm.export": "↓ Exportar",
+      "pm.import": "↑ Importar",
+      "pm.delete": "🗑 Eliminar",
+      "pm.confirmDelete": "¿Eliminar {n} perfil(es)?\n\n{list}",
+      "pm.deleteFailed": "No se pudieron eliminar los perfiles.",
       "prompt.profileName": "Nombre del perfil",
       "prompt.pasteCfg": "Pega el JSON de configuración exportado:",
       // Setup SSH + restart status
@@ -8710,6 +8728,36 @@
         }
       });
     }
+    // Rev403 (Carlos, 2026-10-03): Profile Manager modal — cards finas,
+    // drag & drop para reordenar (pointer events = touch + mouse),
+    // multi-select con checkboxes + eliminar múltiples. Reemplaza el
+    // flujo "fork modal al tocar ganancia" que Carlos encontraba
+    // confuso. Botones individuales del header (+,✎,↓,↑,-) se dejan
+    // como shortcuts rápidos; el ⚙ abre el panel completo.
+    const _pmBtn = document.getElementById("profile-manage");
+    if (_pmBtn) _pmBtn.addEventListener("click", _pmOpen);
+    const _pmModal = document.getElementById("pm-modal");
+    if (_pmModal) {
+      _pmModal.querySelectorAll("[data-pm-close]").forEach((el) =>
+        el.addEventListener("click", _pmClose));
+    }
+    const _pmNewBtn = document.getElementById("pm-new");
+    if (_pmNewBtn) _pmNewBtn.addEventListener("click", _pmActionNew);
+    const _pmRenameBtn = document.getElementById("pm-rename");
+    if (_pmRenameBtn) _pmRenameBtn.addEventListener("click", _pmActionRename);
+    const _pmExportBtn = document.getElementById("pm-export");
+    if (_pmExportBtn) _pmExportBtn.addEventListener("click", _pmActionExport);
+    const _pmDeleteBtn = document.getElementById("pm-delete");
+    if (_pmDeleteBtn) _pmDeleteBtn.addEventListener("click", _pmActionDelete);
+    const _pmImportBtn2 = document.getElementById("pm-import");
+    const _pmImportFI = document.getElementById("pm-import-file");
+    if (_pmImportBtn2 && _pmImportFI) {
+      _pmImportBtn2.addEventListener("click", () => _pmImportFI.click());
+      _pmImportFI.addEventListener("change", async () => {
+        await _pmActionImport(_pmImportFI.files && _pmImportFI.files[0]);
+        _pmImportFI.value = "";
+      });
+    }
     $("#cal-level").addEventListener("click", () => {
       pluginRaw("imu.alignmentCounter", 100);
     });
@@ -11925,6 +11973,306 @@
         _updateSetupSummary("calibration", t("setup.status.calNeverShort") || "not adjusted yet", "warn");
       }
     }
+  }
+
+  // =========================================================
+  // Rev403 (Carlos, 2026-10-03): Profile Manager modal
+  // =========================================================
+  const _pmSelected = new Set();
+
+  function _pmOpen() {
+    const m = document.getElementById("pm-modal");
+    if (!m) return;
+    _pmSelected.clear();
+    _pmRender();
+    m.hidden = false;
+  }
+  function _pmClose() {
+    const m = document.getElementById("pm-modal");
+    if (!m) return;
+    m.hidden = true;
+    _pmSelected.clear();
+  }
+  function _pmIsReserved(name) {
+    return name === "basic" || name === "default";
+  }
+  function _pmRender() {
+    const list = document.getElementById("pm-list");
+    if (!list) return;
+    list.innerHTML = "";
+    const profiles = Array.isArray(state.profiles) ? state.profiles : [];
+    for (const name of profiles) {
+      const li = document.createElement("li");
+      li.className = "pm-item";
+      li.dataset.name = name;
+      if (name === state.profile) li.classList.add("active");
+      // Drag handle
+      const handle = document.createElement("span");
+      handle.className = "pm-handle";
+      handle.textContent = "⋮⋮";
+      handle.setAttribute("aria-label", "Reordenar");
+      li.appendChild(handle);
+      // Checkbox (reserved profiles can't be selected for delete)
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.className = "pm-check";
+      chk.checked = _pmSelected.has(name);
+      if (_pmIsReserved(name)) {
+        chk.disabled = true;
+        chk.title = "Perfil reservado (no se puede eliminar)";
+      }
+      chk.addEventListener("change", (e) => {
+        e.stopPropagation();
+        if (chk.checked) _pmSelected.add(name);
+        else _pmSelected.delete(name);
+        _pmUpdateButtons();
+      });
+      li.appendChild(chk);
+      // Name (tap to switch active)
+      const nameEl = document.createElement("div");
+      nameEl.className = "pm-name";
+      nameEl.textContent = name;
+      nameEl.addEventListener("click", async () => {
+        if (name === state.profile) return;
+        try {
+          await pluginRaw("profile", name);
+          // Mark active locally for instant feedback; delta will confirm.
+          state.profile = name;
+          _pmRender();
+        } catch (e) { console.warn("[pm] switch failed:", e); }
+      });
+      li.appendChild(nameEl);
+      // Active badge
+      if (name === state.profile) {
+        const b = document.createElement("span");
+        b.className = "pm-badge";
+        b.textContent = "ACTIVO";
+        li.appendChild(b);
+      }
+      _pmWireDrag(li, handle);
+      list.appendChild(li);
+    }
+    _pmUpdateButtons();
+  }
+  function _pmUpdateButtons() {
+    const n = _pmSelected.size;
+    const selected = Array.from(_pmSelected);
+    const anySelReserved = selected.some(_pmIsReserved);
+    const btnRename = document.getElementById("pm-rename");
+    const btnExport = document.getElementById("pm-export");
+    const btnDelete = document.getElementById("pm-delete");
+    if (btnRename) btnRename.disabled = !(n === 1 && !anySelReserved);
+    if (btnExport) btnExport.disabled = !(n === 1 || n === 0);
+    if (btnDelete) btnDelete.disabled = !(n >= 1 && !anySelReserved);
+  }
+  async function _pmActionNew() {
+    const label = (t("prompt.profileName") || "Nombre del perfil") + ":";
+    const raw = prompt(label);
+    if (!raw) return;
+    const name = raw.trim().replace(/\s+/g, " ");
+    if (!name) return;
+    if ((state.profiles || []).includes(name)) {
+      alert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
+      return;
+    }
+    try {
+      await pluginRaw("profile", name);
+      state.profile = name;
+      // Allow the delta to catch up before re-render.
+      setTimeout(_pmRender, 400);
+    } catch (e) { console.warn("[pm] new failed:", e); }
+  }
+  async function _pmActionRename() {
+    if (_pmSelected.size !== 1) return;
+    const oldName = Array.from(_pmSelected)[0];
+    if (_pmIsReserved(oldName)) return;
+    const label = (t("prompt.profileRenameTo") || "Nuevo nombre para '{old}':").replace("{old}", oldName);
+    const raw = prompt(label, oldName);
+    if (raw == null) return;
+    const newName = raw.trim().replace(/\s+/g, " ");
+    if (!newName || newName === oldName) return;
+    if ((state.profiles || []).includes(newName)) {
+      alert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
+      return;
+    }
+    try {
+      // If the renamed profile is NOT active, switch first (pluginRaw
+      // "profile", X clones the active profile under name X and switches
+      // to it). We can't rename an inactive profile directly on pypilot.
+      if (state.profile !== oldName) {
+        await pluginRaw("profile", oldName);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      await pluginRaw("profile", newName);
+      await new Promise((r) => setTimeout(r, 400));
+      const remaining = (state.profiles || []).filter((p) => p !== oldName);
+      await pluginRaw("profiles", remaining);
+      _pmSelected.clear();
+      setTimeout(_pmRender, 300);
+    } catch (e) {
+      console.warn("[pm] rename failed:", e);
+      alert(t("profile.rename.failed") || "No se pudo renombrar el perfil.");
+    }
+  }
+  async function _pmActionExport() {
+    const name = _pmSelected.size === 1
+      ? Array.from(_pmSelected)[0]
+      : state.profile;
+    if (!name) return;
+    // Export of a non-active profile requires switching to it first so
+    // the gains are available in state.values; the sailor must accept.
+    if (name !== state.profile) {
+      const ok = confirm(
+        (t("profile.export.needsSwitch") || "Para exportar '{name}' hay que activarlo (= cambiar a él). ¿Continuar?")
+          .replace("{name}", name)
+      );
+      if (!ok) return;
+      try {
+        await pluginRaw("profile", name);
+        state.profile = name;
+        await new Promise((r) => setTimeout(r, 600));
+      } catch { /* best effort */ }
+    }
+    // Reuse the same export flow as the header button.
+    const expBtn = document.getElementById("profile-export");
+    if (expBtn) expBtn.click();
+  }
+  async function _pmActionImport(file) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const obj = JSON.parse(text);
+      if (!obj || obj.type !== "pilot-profile" || !obj.gains || typeof obj.gains !== "object") {
+        alert(t("profile.import.bad") || "El archivo no es un perfil de pypilot válido.");
+        return;
+      }
+      if (obj.pilot && state.pilot && obj.pilot !== state.pilot) {
+        const ok = confirm(
+          (t("profile.import.pilotMismatch") || "El perfil es del pilot '{src}' pero el pilot activo es '{dst}'. ¿Importar?")
+            .replace("{src}", obj.pilot)
+            .replace("{dst}", state.pilot)
+        );
+        if (!ok) return;
+      }
+      const defaultName = String(obj.profile || "imported").replace(/[^\w\-\.]+/g, "_");
+      const label = (t("prompt.profileImportName") || "Nombre para el perfil importado:");
+      const raw = prompt(label, defaultName);
+      if (raw == null) return;
+      const newName = raw.trim().replace(/\s+/g, " ");
+      if (!newName) return;
+      if ((state.profiles || []).includes(newName)) {
+        alert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
+        return;
+      }
+      await pluginRaw("profile", newName);
+      await new Promise((r) => setTimeout(r, 500));
+      const prefix = `ap.pilot.${state.pilot || obj.pilot}.`;
+      const cat = state.catalog || {};
+      let applied = 0, skipped = 0;
+      for (const tail of Object.keys(obj.gains)) {
+        const key = prefix + tail;
+        let val = obj.gains[tail];
+        if (typeof val !== "number" || !isFinite(val)) { skipped++; continue; }
+        const meta = cat[key];
+        if (meta && typeof meta.min === "number" && val < meta.min) val = meta.min;
+        if (meta && typeof meta.max === "number" && val > meta.max) val = meta.max;
+        try { await pluginRaw(key, val); applied++; } catch { skipped++; }
+      }
+      alert((t("profile.import.done") || "Perfil '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.")
+        .replace("{name}", newName)
+        .replace("{applied}", applied)
+        .replace("{skipped}", skipped));
+      setTimeout(_pmRender, 300);
+    } catch (e) {
+      console.warn("[pm] import failed:", e);
+      alert((t("profile.import.failed") || "Error al importar: {err}").replace("{err}", String(e)));
+    }
+  }
+  async function _pmActionDelete() {
+    const sel = Array.from(_pmSelected).filter((n) => !_pmIsReserved(n));
+    if (sel.length === 0) return;
+    const label = (t("pm.confirmDelete") || "¿Eliminar {n} perfil(es)?\n\n{list}")
+      .replace("{n}", sel.length)
+      .replace("{list}", sel.join(", "));
+    if (!confirm(label)) return;
+    // If the active profile is in the deletion list, pypilot will pick
+    // a different one on its own. We only send the new "profiles" list.
+    try {
+      const remaining = (state.profiles || []).filter((p) => !sel.includes(p));
+      await pluginRaw("profiles", remaining);
+      _pmSelected.clear();
+      setTimeout(_pmRender, 300);
+    } catch (e) {
+      console.warn("[pm] delete failed:", e);
+      alert(t("pm.deleteFailed") || "No se pudieron eliminar los perfiles.");
+    }
+  }
+  // Drag & drop with Pointer Events (works for touch + mouse).
+  function _pmWireDrag(li, handle) {
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      const list = li.parentElement;
+      const startY = e.clientY;
+      const siblings = Array.from(list.children);
+      const originalIndex = siblings.indexOf(li);
+      const itemHeight = li.getBoundingClientRect().height + 12; // +margins
+      let offset = 0;
+      li.classList.add("dragging");
+      try { handle.setPointerCapture(e.pointerId); } catch { /* silent */ }
+
+      const onMove = (e2) => {
+        offset = e2.clientY - startY;
+        li.style.transform = `translateY(${offset}px)`;
+        // Live reorder based on where the center of the dragged item sits.
+        const draggedCenter = li.getBoundingClientRect().top + li.offsetHeight / 2;
+        const current = Array.from(list.children);
+        for (const other of current) {
+          if (other === li) continue;
+          const r = other.getBoundingClientRect();
+          const otherCenter = r.top + r.height / 2;
+          if (draggedCenter < otherCenter && other.previousElementSibling !== li) {
+            list.insertBefore(li, other);
+            // Reset the visual offset relative to the new DOM position.
+            const newStart = e2.clientY;
+            li.style.transform = "translateY(0px)";
+            // Re-anchor so continued movement stays smooth.
+            e._pmResetY = newStart;
+            break;
+          } else if (draggedCenter > otherCenter && other.nextElementSibling !== li) {
+            if (other === list.lastElementChild || li.nextElementSibling !== other) {
+              list.insertBefore(li, other.nextElementSibling);
+              li.style.transform = "translateY(0px)";
+              break;
+            }
+          }
+        }
+      };
+      const onUp = async () => {
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+        handle.removeEventListener("pointercancel", onUp);
+        try { handle.releasePointerCapture(e.pointerId); } catch { /* silent */ }
+        li.classList.remove("dragging");
+        li.style.transform = "";
+        // Commit the new order to pypilot.
+        const finalOrder = Array.from(list.children).map((el) => el.dataset.name);
+        const original = state.profiles || [];
+        const changed = finalOrder.length === original.length &&
+          finalOrder.some((n, i) => n !== original[i]);
+        if (changed) {
+          try {
+            await pluginRaw("profiles", finalOrder);
+            // Backend echo will refresh state.profiles.
+          } catch (err) {
+            console.warn("[pm] reorder commit failed:", err);
+            _pmRender(); // Revert visual to current state.profiles.
+          }
+        }
+      };
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+      handle.addEventListener("pointercancel", onUp);
+    });
   }
 
   // Rev129 (Carlos): on the first gain change of an unlock session,
