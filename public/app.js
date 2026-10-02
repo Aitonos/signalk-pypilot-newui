@@ -8543,191 +8543,9 @@
       if (v === state.profile) return;
       pluginRaw("profile", v);
     });
-    $("#profile-add").addEventListener("click", async () => {
-      const raw = prompt(t("prompt.profileName"));
-      if (!raw) return;
-      // Rev316 (Carlos log 2026-09-25): el prompt dejaba espacios al
-      // final ("Mar plana, viento flojo "), lo que rompe comparaciones
-      // exactas y sale feo en los headers de los JSONL de sesión.
-      // Trim + collapse whitespace en un solo espacio.
-      const name = raw.trim().replace(/\s+/g, " ");
-      if (!name) return;
-      if (state.profiles.includes(name)) return alert("Already exists");
-      await pluginRaw("profile", name);
-    });
-    $("#profile-remove").addEventListener("click", async () => {
-      if (!confirm(t("confirm.removeProfile"))) return;
-      const remaining = state.profiles.filter((p) => p !== state.profile);
-      await pluginRaw("profiles", remaining);
-    });
-    // Rev402 (Carlos, 2026-10-03): botón renombrar profile. pypilot no
-    // tiene un endpoint "rename" dedicado — lo hacemos "copia al nuevo
-    // nombre + borra el viejo". pluginRaw("profile", newName) crea
-    // newName clonado del active (= el que estamos renombrando) y
-    // switchea al nuevo. Luego pluginRaw("profiles", lista_sin_viejo)
-    // elimina el nombre antiguo. Profiles reservados por pypilot
-    // ("basic", "default") no se tocan.
-    const _profileRenameBtn = document.getElementById("profile-rename");
-    if (_profileRenameBtn) {
-      _profileRenameBtn.addEventListener("click", async () => {
-        const oldName = state.profile;
-        if (!oldName) return;
-        if (oldName === "basic" || oldName === "default") {
-          alert(t("profile.rename.reserved") || "No se puede renombrar un profile reservado (basic/default).");
-          return;
-        }
-        const label = (t("prompt.profileRenameTo") || "Nuevo nombre para '{old}':").replace("{old}", oldName);
-        const raw = prompt(label, oldName);
-        if (raw == null) return;
-        const newName = raw.trim().replace(/\s+/g, " ");
-        if (!newName || newName === oldName) return;
-        if (state.profiles.includes(newName)) {
-          alert(t("profile.rename.exists") || "Ya existe un profile con ese nombre.");
-          return;
-        }
-        try {
-          await pluginRaw("profile", newName);
-          // Pequeño delay para que pypilot registre el nuevo profile
-          // antes de pedirle que borre el viejo.
-          await new Promise((r) => setTimeout(r, 400));
-          const remaining = state.profiles.filter((p) => p !== oldName);
-          await pluginRaw("profiles", remaining);
-        } catch (e) {
-          console.warn("[profile rename] failed:", e);
-          alert(t("profile.rename.failed") || "No se pudo renombrar el profile.");
-        }
-      });
-    }
-    // Rev402 (Carlos, 2026-10-03): export/import de UN profile individual
-    // (= nombre + ganancias PID del profile activo). Útil para compartir
-    // ajustes entre barcos o para backup antes de experimentar.
-    const _profileExportBtn = document.getElementById("profile-export");
-    if (_profileExportBtn) {
-      _profileExportBtn.addEventListener("click", async () => {
-        const pilot = state.pilot;
-        const profile = state.profile;
-        if (!pilot || !profile) {
-          alert(t("profile.export.noActive") || "No hay profile activo.");
-          return;
-        }
-        const cat = state.catalog || {};
-        const prefix = `ap.pilot.${pilot}.`;
-        const gains = {};
-        for (const k of Object.keys(cat)) {
-          if (!k.startsWith(prefix) || !cat[k]?.AutopilotGain) continue;
-          const skPath = `steering.autopilot.pypilot.${k}`;
-          const v = state.values[skPath];
-          if (typeof v === "number" && isFinite(v)) {
-            // Guardamos la cola (ej. "P", "I", "D", "DD") sin el prefijo del pilot
-            // para que al importar funcione aunque cambies de pilot (si los
-            // gains se llaman igual) o para interpretarlo claramente.
-            const tail = k.slice(prefix.length);
-            gains[tail] = v;
-          }
-        }
-        if (Object.keys(gains).length === 0) {
-          alert(t("profile.export.noGains") || "No hay ganancias disponibles para exportar. Abre la pestaña Tune primero para que se carguen.");
-          return;
-        }
-        const payload = {
-          app: "signalk-pypilot-newui",
-          type: "pilot-profile",
-          version: 1,
-          pilot,
-          profile,
-          gains,
-          exportedAt: new Date().toISOString(),
-        };
-        const json = JSON.stringify(payload, null, 2);
-        const safeName = String(profile).replace(/[^\w\-\.]+/g, "_");
-        const filename = `pypilot-profile-${safeName}-${payload.exportedAt.slice(0,10)}.json`;
-        // Intenta share nativo primero (móvil); fallback a descarga.
-        try {
-          if (navigator.canShare) {
-            const file = new File([json], filename, { type: "application/json" });
-            if (navigator.canShare({ files: [file] })) {
-              await navigator.share({ files: [file], title: `Pypilot profile ${profile}`, text: `Profile ${profile} (pilot ${pilot})` });
-              return;
-            }
-          }
-          if (navigator.share) {
-            await navigator.share({ title: `Pypilot profile ${profile}`, text: json });
-            return;
-          }
-        } catch (e) {
-          if (!String(e).includes("AbortError")) {
-            // Fall through a download.
-          } else {
-            return;
-          }
-        }
-        _downloadFile(filename, json);
-      });
-    }
-    const _profileImportBtn = document.getElementById("profile-import");
-    const _profileImportFI = document.getElementById("profile-import-file");
-    if (_profileImportBtn && _profileImportFI) {
-      _profileImportBtn.addEventListener("click", () => _profileImportFI.click());
-      _profileImportFI.addEventListener("change", async () => {
-        const f = _profileImportFI.files && _profileImportFI.files[0];
-        if (!f) return;
-        try {
-          const text = await f.text();
-          const obj = JSON.parse(text);
-          if (!obj || obj.type !== "pilot-profile" || !obj.gains || typeof obj.gains !== "object") {
-            alert(t("profile.import.bad") || "El archivo no es un profile de pypilot válido.");
-            return;
-          }
-          const expectedPilot = state.pilot;
-          if (obj.pilot && expectedPilot && obj.pilot !== expectedPilot) {
-            const ok = confirm(
-              (t("profile.import.pilotMismatch") || "El profile exportado es del pilot '{src}' pero el pilot activo es '{dst}'. ¿Importar de todas formas?")
-                .replace("{src}", obj.pilot)
-                .replace("{dst}", expectedPilot)
-            );
-            if (!ok) return;
-          }
-          const defaultName = String(obj.profile || "imported").replace(/[^\w\-\.]+/g, "_");
-          const label = (t("prompt.profileImportName") || "Nombre para el profile importado:");
-          const raw = prompt(label, defaultName);
-          if (raw == null) return;
-          const newName = raw.trim().replace(/\s+/g, " ");
-          if (!newName) return;
-          if (state.profiles.includes(newName)) {
-            alert(t("profile.rename.exists") || "Ya existe un profile con ese nombre.");
-            return;
-          }
-          // Crea el profile (pluginRaw lo clona del activo y hace switch).
-          await pluginRaw("profile", newName);
-          // Delay para que el backend registre el profile antes de aplicar gains.
-          await new Promise((r) => setTimeout(r, 500));
-          // Aplica cada gain. Las claves son tails (ej. "P", "I", ...).
-          const prefix = `ap.pilot.${state.pilot || obj.pilot}.`;
-          const cat = state.catalog || {};
-          let applied = 0, skipped = 0;
-          for (const tail of Object.keys(obj.gains)) {
-            const key = prefix + tail;
-            const v = obj.gains[tail];
-            if (typeof v !== "number" || !isFinite(v)) { skipped++; continue; }
-            // Clamp al rango del catálogo si existe.
-            const meta = cat[key];
-            let val = v;
-            if (meta && typeof meta.min === "number" && val < meta.min) val = meta.min;
-            if (meta && typeof meta.max === "number" && val > meta.max) val = meta.max;
-            try { await pluginRaw(key, val); applied++; } catch { skipped++; }
-          }
-          alert((t("profile.import.done") || "Profile '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.")
-            .replace("{name}", newName)
-            .replace("{applied}", applied)
-            .replace("{skipped}", skipped));
-        } catch (e) {
-          console.warn("[profile import] failed:", e);
-          alert((t("profile.import.failed") || "Error al importar: {err}").replace("{err}", String(e)));
-        } finally {
-          _profileImportFI.value = "";
-        }
-      });
-    }
+    // Rev404 (Carlos QA Rev403): individual header buttons (+, ✎, ↓,
+    // ↑, −) removed. "Son redundantes" — todo vive ahora en el
+    // Profile Manager modal (⚙). El <select> queda como quick switch.
     // Rev403 (Carlos, 2026-10-03): Profile Manager modal — cards finas,
     // drag & drop para reordenar (pointer events = touch + mouse),
     // multi-select con checkboxes + eliminar múltiples. Reemplaza el
@@ -12123,7 +11941,7 @@
     // the gains are available in state.values; the sailor must accept.
     if (name !== state.profile) {
       const ok = confirm(
-        (t("profile.export.needsSwitch") || "Para exportar '{name}' hay que activarlo (= cambiar a él). ¿Continuar?")
+        (t("profile.export.needsSwitch") || "Para exportar '{name}' hay que activarlo (cambiar a él). ¿Continuar?")
           .replace("{name}", name)
       );
       if (!ok) return;
@@ -12133,9 +11951,60 @@
         await new Promise((r) => setTimeout(r, 600));
       } catch { /* best effort */ }
     }
-    // Reuse the same export flow as the header button.
-    const expBtn = document.getElementById("profile-export");
-    if (expBtn) expBtn.click();
+    await _exportActiveProfile();
+  }
+  // Rev404: exportar el profile ACTIVO (gains + metadata) como JSON.
+  // Usa share nativo cuando hay (móviles) y descarga como fallback.
+  async function _exportActiveProfile() {
+    const pilot = state.pilot;
+    const profile = state.profile;
+    if (!pilot || !profile) {
+      alert(t("profile.export.noActive") || "No hay perfil activo.");
+      return;
+    }
+    const cat = state.catalog || {};
+    const prefix = `ap.pilot.${pilot}.`;
+    const gains = {};
+    for (const k of Object.keys(cat)) {
+      if (!k.startsWith(prefix) || !cat[k]?.AutopilotGain) continue;
+      const skPath = `steering.autopilot.pypilot.${k}`;
+      const v = state.values[skPath];
+      if (typeof v === "number" && isFinite(v)) {
+        gains[k.slice(prefix.length)] = v;
+      }
+    }
+    if (Object.keys(gains).length === 0) {
+      alert(t("profile.export.noGains") || "No hay ganancias disponibles. Abre la pestaña Tune primero para que se carguen.");
+      return;
+    }
+    const payload = {
+      app: "signalk-pypilot-newui",
+      type: "pilot-profile",
+      version: 1,
+      pilot,
+      profile,
+      gains,
+      exportedAt: new Date().toISOString(),
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const safeName = String(profile).replace(/[^\w\-\.]+/g, "_");
+    const filename = `pypilot-profile-${safeName}-${payload.exportedAt.slice(0,10)}.json`;
+    try {
+      if (navigator.canShare) {
+        const file = new File([json], filename, { type: "application/json" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: `Pypilot profile ${profile}`, text: `Profile ${profile} (pilot ${pilot})` });
+          return;
+        }
+      }
+      if (navigator.share) {
+        await navigator.share({ title: `Pypilot profile ${profile}`, text: json });
+        return;
+      }
+    } catch (e) {
+      if (String(e).includes("AbortError")) return;
+    }
+    _downloadFile(filename, json);
   }
   async function _pmActionImport(file) {
     if (!file) return;
@@ -12195,13 +12064,36 @@
       .replace("{n}", sel.length)
       .replace("{list}", sel.join(", "));
     if (!confirm(label)) return;
-    // If the active profile is in the deletion list, pypilot will pick
-    // a different one on its own. We only send the new "profiles" list.
     try {
-      const remaining = (state.profiles || []).filter((p) => !sel.includes(p));
+      const allProfiles = state.profiles || [];
+      const remaining = allProfiles.filter((p) => !sel.includes(p));
+      // Rev404 (Carlos QA Rev403): "elegia muchos perfiles y no se
+      // eliminaban todos a la vez". Causa raíz: si el ACTIVO está en
+      // los seleccionados, pypilot puede rechazar la lista o
+      // re-insertar el activo porque siempre necesita uno. Fix:
+      // antes del delete, si el activo está marcado, hacemos switch
+      // a uno que NO esté marcado (fallback "basic") y damos tiempo
+      // al backend a confirmar. Luego mandamos la lista final.
+      if (sel.includes(state.profile)) {
+        const fallback = remaining.find((p) => !_pmIsReserved(p)) || "basic";
+        if (fallback !== state.profile) {
+          try {
+            await pluginRaw("profile", fallback);
+            state.profile = fallback;
+            await new Promise((r) => setTimeout(r, 600));
+          } catch { /* best effort */ }
+        }
+      }
       await pluginRaw("profiles", remaining);
+      // Rev404: delay más largo (1200 ms) para que lleguen los deltas
+      // del backend confirmando el nuevo state.profiles antes de
+      // re-renderizar; evita el "parece que no se eliminó todo".
       _pmSelected.clear();
-      setTimeout(_pmRender, 300);
+      // Actualización optimista local para feedback instantáneo.
+      state.profiles = remaining;
+      _pmRender();
+      // Y re-render diferido por si el backend reorganiza algo.
+      setTimeout(_pmRender, 1200);
     } catch (e) {
       console.warn("[pm] delete failed:", e);
       alert(t("pm.deleteFailed") || "No se pudieron eliminar los perfiles.");
