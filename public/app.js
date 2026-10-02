@@ -3429,35 +3429,6 @@
     const targetRad = (overlayActive && _countdownPlannedTargetRad != null)
       ? _countdownPlannedTargetRad
       : state.target;
-    // Rev395 (Carlos, 2026-10-02, Round-3 GPT-Codex instrumentation):
-    // trace every render so a late "second jump" after VT=null can be
-    // attributed to the correct source. Three distinguishable modes:
-    //   (A) state.target changed → some writer bypassed the shield
-    //   (B) state.target unchanged, _countdownPlannedTargetRad changed
-    //       → a legacy timer/callback revived the planned target
-    //   (C) all inputs unchanged, selectedTarget differs → precedence
-    //       inside renderTargetArrow picked a stale branch
-    // Only logs when there is a VT snapshot alive OR a tack overlay is
-    // open, to keep noise low.
-    try {
-      if ((state.virtualTack || overlayActive) && typeof targetRad === "number") {
-        const sel = Math.round(targetRad * RAD2DEG * 10) / 10;
-        if (sel !== _lastVtRenderSelectedDeg) {
-          _lastVtRenderSelectedDeg = sel;
-          console.debug("[vt-target-render]", {
-            vtId: state.virtualTack?.id || null,
-            vtPhase: state.virtualTack?.phase || null,
-            vtActive: !!state.virtualTack?.active,
-            stateTargetDeg: typeof state.target === "number" ? Math.round(state.target * RAD2DEG * 10) / 10 : null,
-            plannedDeg: typeof _countdownPlannedTargetRad === "number" ? Math.round(_countdownPlannedTargetRad * RAD2DEG * 10) / 10 : null,
-            legacyBeforeStartDeg: typeof _tackTargetBeforeStart === "number" ? Math.round(_tackTargetBeforeStart * RAD2DEG * 10) / 10 : null,
-            targetBeforeVtDeg: typeof state._targetBeforeVt === "number" ? Math.round(state._targetBeforeVt * RAD2DEG * 10) / 10 : null,
-            overlayActive,
-            selectedDeg: sel,
-          });
-        }
-      }
-    } catch { /* silent */ }
     // Rev267 (Carlos): también ocultar el diamond cuando perdemos
     // conexión con pypilot. Aunque state.engaged siga true (no llega
     // el delta de disengage porque el socket cayó), el target ya no
@@ -4481,10 +4452,6 @@
   // that planned rad; renderTargetArrow uses it in preference to
   // state.target while set. Cleared on countdown hide.
   let _countdownPlannedTargetRad = null;
-  // Rev395 (Round-3 instrumentation): last VT target rendered to dedupe
-  // the trace log so each distinct selected target is printed once per
-  // transition — avoids 100ms-timer spam while still catching all jumps.
-  let _lastVtRenderSelectedDeg = null;
   // Rev210 (Carlos + LLM audit): mode captured at maneuver start so
   // cancel picks the right reference frame even if the AP mode has
   // changed since the tap.
