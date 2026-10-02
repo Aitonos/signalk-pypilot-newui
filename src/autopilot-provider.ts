@@ -922,7 +922,17 @@ export class AutopilotProvider {
       setPhase("turning");
 
       for (let i = 0; i < geometry.intermediatesRad.length; i++) {
-        if (!this._virtualTack) throw new Error("virtual-tack cancelled by external cancel");
+        // Rev397 (Carlos, 2026-10-02): abort check also honours the
+        // "cancelling" phase set by cancelVirtualTack(). Before Rev397
+        // the loop only aborted on _virtualTack === null, which never
+        // happens on an external cancel — the FSM state object stays
+        // alive, only its phase flips to "cancelling". The user then
+        // waited up to 20 s for the natural step timeout to fire before
+        // the restore ran. "Cuando cancelo de forma manual el target
+        // tarda en volver a su sitio" — Carlos QA 2026-10-02.
+        if (!this._virtualTack || this._virtualTack.phase === "cancelling") {
+          throw new Error("virtual-tack cancelled by external cancel");
+        }
         this._virtualTack.stepIndex = i;
         this._virtualTack.phase1StepStartedAtMs = Date.now();
         const stepTargetRad = geometry.intermediatesRad[i];
@@ -948,7 +958,14 @@ export class AutopilotProvider {
             throw new Error(`turning step ${i} timeout (no rotation in ${DEFAULT_PHASE1_STEP_TIMEOUT_MS/1000}s)`);
           }
           await sleep(500);
-          if (!this._virtualTack) throw new Error("virtual-tack cancelled by external cancel");
+          // Rev397: see above. Honour the "cancelling" phase so the
+          // user does not wait up to 20 s + 1.5 s for the restore.
+          // Cast to string because TS narrows phase to != "cancelling"
+          // from the top-of-loop check and does not model external
+          // mutation via cancelVirtualTack().
+          if (!this._virtualTack || (this._virtualTack.phase as string) === "cancelling") {
+            throw new Error("virtual-tack cancelled by external cancel");
+          }
         }
       }
 
@@ -981,7 +998,11 @@ export class AutopilotProvider {
       // own writes, we instead sample windAngle (AWA) directly from the SK bus.
       let dwellStart: number | null = null;
       while (true) {
-        if (!this._virtualTack) throw new Error("virtual-tack cancelled by external cancel");
+        // Rev397: honour "cancelling" phase for prompt abort during
+        // the settling wait too (user tap on cancel during the dwell).
+        if (!this._virtualTack || this._virtualTack.phase === "cancelling") {
+          throw new Error("virtual-tack cancelled by external cancel");
+        }
         const skPath = windMode === "wind" ? "environment.wind.angleApparent" : "environment.wind.angleTrueWater";
         let windNowRad: number | null = null;
         try {
@@ -1044,21 +1065,25 @@ export class AutopilotProvider {
       } catch { /* best-effort */ }
       this._vtInternalWrite = true;
       try { await this.setTarget(originalAngleRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
-      // Rev396: numeric echo wait on the target. 0.5deg tolerance (~0.009 rad)
-      // is tight enough to catch stale pypilot overrides and loose enough
-      // to handle float round-trip precision between visor PUT and pypilot
-      // echo.
+      // Rev396+Rev397: numeric echo wait on the target. pypilot stores
+      // ap.heading_command in DEGREES (setTarget writes `deg = rad *
+      // RAD_TO_DEG` on line ~618) so we must compare degrees here, not
+      // radians. Rev396 Round-4 QA log confirmed the mismatch — WARN
+      // fired on every cancel even when pypilot DID echo correctly.
+      // 0.5deg tolerance is tight enough to catch stale overrides and
+      // loose enough to handle float round-trip precision.
       try {
-        const RESTORE_TOL_RAD = 0.5 * (Math.PI / 180);
+        const RESTORE_TOL_DEG = 0.5;
+        const originalAngleDeg = originalAngleRad * RAD_TO_DEG;
         const targetRestored = await waitForPypilotNumericEcho(
           "ap.heading_command",
-          originalAngleRad,
-          RESTORE_TOL_RAD,
+          originalAngleDeg,
+          RESTORE_TOL_DEG,
           1500,
         );
         if (!targetRestored) {
           // eslint-disable-next-line no-console
-          console.log(`[virtual-tack ${vtId}] WARN: cancelling target=${originalAngleRad.toFixed(4)}rad echo not seen in 1.5s, continuing`);
+          console.log(`[virtual-tack ${vtId}] WARN: cancelling target=${originalAngleDeg.toFixed(2)}deg echo not seen in 1.5s, continuing`);
         }
       } catch { /* best-effort */ }
       setPhase(isUserCancel ? "cancelled" : "failed", msg);
