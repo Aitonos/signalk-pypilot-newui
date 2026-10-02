@@ -8301,11 +8301,29 @@
       if (isWind) {
         try {
           const requestId = `vt-visor-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
-          const r = await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/start`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ direction: dir, requestId }),
-          });
+          // Rev399 (Carlos, 2026-10-02 QA Rev398): retry on 409 Conflict.
+          // When the sailor taps TACK right after a cancel, the previous
+          // VT may still be in phase="cancelling" (backend restore in
+          // flight ~1s). Rev396 added 409 for idempotency; this made
+          // rapid-fire tacks flash the button red. Retry up to 4 times
+          // (500ms each → ~2s total) swallowing 409s silently, then
+          // only flash fail on persistent failure. Other HTTP errors
+          // (400/500/network) still fail immediately.
+          const vtStart = async () => {
+            const MAX_409_RETRIES = 4;
+            const RETRY_DELAY_MS = 500;
+            for (let i = 0; i <= MAX_409_RETRIES; i++) {
+              const r = await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/start`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ direction: dir, requestId }),
+              });
+              if (r.ok) return r;
+              if (r.status !== 409 || i === MAX_409_RETRIES) return r;
+              await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
+            }
+          };
+          const r = await vtStart();
           if (!r.ok) {
             const err = await r.text().catch(() => String(r.status));
             console.warn(`[vt] start failed: ${err}`);
@@ -8417,8 +8435,16 @@
             // over state.target while the overlay is visible. Clear it
             // so the diamond immediately shows the restored target.
             _countdownPlannedTargetRad = null;
-            try { renderTargetArrow(); } catch { /* silent */ }
           }
+          // Rev399 (Carlos, 2026-10-02 QA Rev398): also close the HUD
+          // overlay immediately. Rev398 fixed the diamond but the big
+          // central "VIRADA/TRASLUCHADA EN CURSO" HUD stayed up for ~1s
+          // until the backend terminal snapshot arrived, so the sailor
+          // kept seeing "maneuver in progress" and reported "no vuelve".
+          // Close locally; the terminal snapshot will try to close again
+          // (idempotent).
+          try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch { /* silent */ }
+          try { renderTargetArrow(); } catch { /* silent */ }
         } catch { /* silent */ }
         try {
           await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/cancel`, { method: "POST" });
