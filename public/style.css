@@ -3778,3 +3778,42 @@ body.pypilot-offline .pypilot-write {
 .pm-footer button.danger:not([disabled]) {
   background: #5a1f1f; color: #ffb0b0; border-color: #773030;
 }
+
+/* Rev406: Diálogo reutilizable (prompt/alert/confirm estilizado). */
+.pm-dialog-card { max-width: 380px; }
+.pm-dialog-body {
+  padding: 10px 2px 12px;
+  color: #d8d8d8;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.pm-dialog-input {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+  background: #0f1116;
+  color: #f0f0f0;
+  border: 1px solid #333a44;
+  border-radius: 6px;
+  font-size: 15px;
+}
+.pm-dialog-input:focus {
+  outline: none;
+  border-color: #e8c23a;
+}
+.pm-dialog-actions {
+  justify-content: flex-end;
+}
+.pm-dialog-actions button {
+  flex: 0 0 auto;
+  min-width: 90px;
+}
+.pm-dialog-actions button.primary {
+  background: #e8c23a;
+  color: #1a1d22;
+  border-color: #c99c1b;
+  font-weight: 600;
+}
+.pm-dialog-actions button.primary:hover { background: #f0d04e; }

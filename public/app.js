@@ -11798,6 +11798,83 @@
   // =========================================================
   const _pmSelected = new Set();
 
+  // Rev406 (Carlos QA Rev405): reemplazamos prompt/alert/confirm nativos
+  // del navegador (que salen con CSS del sistema operativo y rompen el
+  // tema dark) por un diálogo estilizado reutilizable. _pmPrompt,
+  // _pmConfirm, _pmAlert devuelven Promises.
+  function _pmDialogShow(kind, { title = "", body = "", defaultValue = "", okLabel, cancelLabel } = {}) {
+    return new Promise((resolve) => {
+      const d = document.getElementById("pm-dialog");
+      if (!d) {
+        // Fallback a nativo si el DOM no está preparado.
+        if (kind === "prompt") resolve(window.prompt(title + (body ? "\n\n" + body : ""), defaultValue));
+        else if (kind === "confirm") resolve(window.confirm(title + (body ? "\n\n" + body : "")));
+        else { window.alert(title + (body ? "\n\n" + body : "")); resolve(); }
+        return;
+      }
+      const titleEl = document.getElementById("pm-dialog-title");
+      const bodyEl = document.getElementById("pm-dialog-body");
+      const inputEl = document.getElementById("pm-dialog-input");
+      const okBtn = document.getElementById("pm-dialog-ok");
+      const cancelBtn = document.getElementById("pm-dialog-cancel");
+      titleEl.textContent = title || "";
+      bodyEl.textContent = body || "";
+      bodyEl.style.display = body ? "" : "none";
+      inputEl.style.display = kind === "prompt" ? "" : "none";
+      inputEl.value = kind === "prompt" ? (defaultValue != null ? String(defaultValue) : "") : "";
+      cancelBtn.style.display = kind === "alert" ? "none" : "";
+      okBtn.textContent = okLabel || (kind === "confirm" ? "Sí" : "OK");
+      cancelBtn.textContent = cancelLabel || "Cancelar";
+      let settled = false;
+      const settle = (value) => {
+        if (settled) return;
+        settled = true;
+        d.hidden = true;
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+        inputEl.onkeydown = null;
+        d.querySelectorAll("[data-pmd-close]").forEach((el) => { el.onclick = null; });
+        resolve(value);
+      };
+      okBtn.onclick = () => {
+        if (kind === "prompt") settle(inputEl.value);
+        else if (kind === "confirm") settle(true);
+        else settle();
+      };
+      cancelBtn.onclick = () => {
+        if (kind === "prompt") settle(null);
+        else if (kind === "confirm") settle(false);
+        else settle();
+      };
+      d.querySelectorAll("[data-pmd-close]").forEach((el) => {
+        el.onclick = () => {
+          if (kind === "prompt") settle(null);
+          else if (kind === "confirm") settle(false);
+          else settle();
+        };
+      });
+      inputEl.onkeydown = (e) => {
+        if (e.key === "Enter") { e.preventDefault(); okBtn.click(); }
+        else if (e.key === "Escape") { e.preventDefault(); cancelBtn.click(); }
+      };
+      d.hidden = false;
+      if (kind === "prompt") {
+        try { setTimeout(() => { inputEl.focus(); inputEl.select(); }, 40); } catch { /* silent */ }
+      } else {
+        try { setTimeout(() => { okBtn.focus(); }, 40); } catch { /* silent */ }
+      }
+    });
+  }
+  function _pmPrompt(title, defaultValue, body) {
+    return _pmDialogShow("prompt", { title, body: body || "", defaultValue });
+  }
+  function _pmConfirm(title, body) {
+    return _pmDialogShow("confirm", { title, body: body || "", okLabel: t("dlg.yes") || "Sí", cancelLabel: t("dlg.no") || "No" });
+  }
+  function _pmAlert(title, body) {
+    return _pmDialogShow("alert", { title, body: body || "" });
+  }
+
   function _pmOpen() {
     const m = document.getElementById("pm-modal");
     if (!m) return;
@@ -11884,13 +11961,13 @@
     if (btnDelete) btnDelete.disabled = !(n >= 1 && !anySelReserved);
   }
   async function _pmActionNew() {
-    const label = (t("prompt.profileName") || "Nombre del perfil") + ":";
-    const raw = prompt(label);
+    const label = t("prompt.profileName") || "Nombre del perfil";
+    const raw = await _pmPrompt(label);
     if (!raw) return;
     const name = raw.trim().replace(/\s+/g, " ");
     if (!name) return;
     if ((state.profiles || []).includes(name)) {
-      alert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
+      await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
       return;
     }
     try {
@@ -11905,12 +11982,12 @@
     const oldName = Array.from(_pmSelected)[0];
     if (_pmIsReserved(oldName)) return;
     const label = (t("prompt.profileRenameTo") || "Nuevo nombre para '{old}':").replace("{old}", oldName);
-    const raw = prompt(label, oldName);
+    const raw = await _pmPrompt(label, oldName);
     if (raw == null) return;
     const newName = raw.trim().replace(/\s+/g, " ");
     if (!newName || newName === oldName) return;
     if ((state.profiles || []).includes(newName)) {
-      alert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
+      await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
       return;
     }
     try {
@@ -11929,7 +12006,7 @@
       setTimeout(_pmRender, 300);
     } catch (e) {
       console.warn("[pm] rename failed:", e);
-      alert(t("profile.rename.failed") || "No se pudo renombrar el perfil.");
+      await _pmAlert(t("profile.rename.failed") || "No se pudo renombrar el perfil.");
     }
   }
   async function _pmActionExport() {
@@ -11940,7 +12017,7 @@
     // Export of a non-active profile requires switching to it first so
     // the gains are available in state.values; the sailor must accept.
     if (name !== state.profile) {
-      const ok = confirm(
+      const ok = await _pmConfirm(
         (t("profile.export.needsSwitch") || "Para exportar '{name}' hay que activarlo (cambiar a él). ¿Continuar?")
           .replace("{name}", name)
       );
@@ -11964,7 +12041,7 @@
     const pilot = state.pilot;
     const profile = state.profile;
     if (!pilot || !profile) {
-      alert(t("profile.export.noActive") || "No hay perfil activo.");
+      await _pmAlert(t("profile.export.noActive") || "No hay perfil activo.");
       return;
     }
     // Garantiza que tenemos la cache HTTP más reciente como fallback.
@@ -11986,7 +12063,7 @@
       }
     }
     if (Object.keys(gains).length === 0) {
-      alert(t("profile.export.noGains") || "No hay ganancias disponibles. Abre la pestaña Tune primero para que se carguen.");
+      await _pmAlert(t("profile.export.noGains") || "No hay ganancias disponibles. Abre la pestaña Tune primero para que se carguen.");
       return;
     }
     const payload = {
@@ -12024,11 +12101,11 @@
       const text = await file.text();
       const obj = JSON.parse(text);
       if (!obj || obj.type !== "pilot-profile" || !obj.gains || typeof obj.gains !== "object") {
-        alert(t("profile.import.bad") || "El archivo no es un perfil de pypilot válido.");
+        await _pmAlert(t("profile.import.bad") || "El archivo no es un perfil de pypilot válido.");
         return;
       }
       if (obj.pilot && state.pilot && obj.pilot !== state.pilot) {
-        const ok = confirm(
+        const ok = await _pmConfirm(
           (t("profile.import.pilotMismatch") || "El perfil es del pilot '{src}' pero el pilot activo es '{dst}'. ¿Importar?")
             .replace("{src}", obj.pilot)
             .replace("{dst}", state.pilot)
@@ -12036,13 +12113,13 @@
         if (!ok) return;
       }
       const defaultName = String(obj.profile || "imported").replace(/[^\w\-\.]+/g, "_");
-      const label = (t("prompt.profileImportName") || "Nombre para el perfil importado:");
-      const raw = prompt(label, defaultName);
+      const label = t("prompt.profileImportName") || "Nombre para el perfil importado:";
+      const raw = await _pmPrompt(label, defaultName);
       if (raw == null) return;
       const newName = raw.trim().replace(/\s+/g, " ");
       if (!newName) return;
       if ((state.profiles || []).includes(newName)) {
-        alert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
+        await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
         return;
       }
       await pluginRaw("profile", newName);
@@ -12059,14 +12136,14 @@
         if (meta && typeof meta.max === "number" && val > meta.max) val = meta.max;
         try { await pluginRaw(key, val); applied++; } catch { skipped++; }
       }
-      alert((t("profile.import.done") || "Perfil '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.")
+      await _pmAlert((t("profile.import.done") || "Perfil '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.")
         .replace("{name}", newName)
         .replace("{applied}", applied)
         .replace("{skipped}", skipped));
       setTimeout(_pmRender, 300);
     } catch (e) {
       console.warn("[pm] import failed:", e);
-      alert((t("profile.import.failed") || "Error al importar: {err}").replace("{err}", String(e)));
+      await _pmAlert((t("profile.import.failed") || "Error al importar: {err}").replace("{err}", String(e)));
     }
   }
   async function _pmActionDelete() {
@@ -12075,7 +12152,7 @@
     const label = (t("pm.confirmDelete") || "¿Eliminar {n} perfil(es)?\n\n{list}")
       .replace("{n}", sel.length)
       .replace("{list}", sel.join(", "));
-    if (!confirm(label)) return;
+    if (!(await _pmConfirm(label))) return;
     try {
       const allProfiles = state.profiles || [];
       const remaining = allProfiles.filter((p) => !sel.includes(p));
@@ -12108,7 +12185,7 @@
       setTimeout(_pmRender, 1200);
     } catch (e) {
       console.warn("[pm] delete failed:", e);
-      alert(t("pm.deleteFailed") || "No se pudieron eliminar los perfiles.");
+      await _pmAlert(t("pm.deleteFailed") || "No se pudieron eliminar los perfiles.");
     }
   }
   // Drag & drop with Pointer Events (works for touch + mouse).

@@ -2262,6 +2262,22 @@
     </div>
   </div>
 
+  <!-- Rev406: Diálogo reutilizable con tema del visor (reemplaza prompt/alert/confirm nativos). -->
+  <div id="pm-dialog" class="pm-modal" hidden>
+    <div class="pm-backdrop" data-pmd-close></div>
+    <div class="pm-card pm-dialog-card" role="dialog" aria-labelledby="pm-dialog-title">
+      <header class="pm-header">
+        <h3 id="pm-dialog-title"></h3>
+      </header>
+      <div id="pm-dialog-body" class="pm-dialog-body"></div>
+      <input id="pm-dialog-input" type="text" class="pm-dialog-input" style="display:none" />
+      <footer class="pm-footer pm-dialog-actions">
+        <button type="button" id="pm-dialog-cancel" class="ghost"></button>
+        <button type="button" id="pm-dialog-ok" class="primary"></button>
+      </footer>
+    </div>
+  </div>
+
   <!-- Rev403: Modal "Gestionar perfiles" (draggable cards, multi-select) -->
   <div id="pm-modal" class="pm-modal" hidden>
     <div class="pm-backdrop" data-pm-close></div>
@@ -2282,6 +2298,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev405"></script>
+  <script src="app.js?v=Rev406"></script>
 </body>
 </html>
