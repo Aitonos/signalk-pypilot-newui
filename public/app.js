@@ -67,10 +67,12 @@
       "cal.stampReset":     "Reset history",
       "tune.fork.title":    "Save gain changes",
       "tune.fork.body":     "You just tweaked a gain. Where should the change live?",
+      "tune.fork.nameLabel": "Name:",
       "tune.fork.keep":     "Keep in '{pilot}'",
       "tune.fork.new":      "Save in new '{name}'",
+      "tune.fork.newBtn":   "Save in new",
       "tune.fork.cancel":   "Cancel",
-      "tune.fork.hint":     "'New' clones the active profile and switches to it, so the original stays untouched. Cancel keeps the modal from popping again until you re-lock.",
+      "tune.fork.hint":     "'Save in new' clones the active profile under the name you type and switches to it, so the original stays untouched. Cancel keeps the modal from popping again until you re-lock.",
       "setup.status.language":  "Active:",
       "setup.status.host":      "TinyPilot:",
       "setup.status.hostMissing": "not configured",
@@ -730,6 +732,17 @@
       "confirm.restartPypilot": "Restart pypilot on the TinyPilot? The connection will drop ~10 s while it comes back up.",
       "confirm.resetCfg": "Delete all visor configuration (corners, arrows, polars, custom paths)? Pilot settings on the TinyPilot are NOT touched.",
       "prompt.profileName": "Profile name",
+      "prompt.profileRenameTo": "New name for '{old}':",
+      "prompt.profileImportName": "Name for the imported profile:",
+      "profile.rename.reserved": "Cannot rename a reserved profile (basic/default).",
+      "profile.rename.exists": "A profile with that name already exists.",
+      "profile.rename.failed": "Could not rename the profile.",
+      "profile.export.noActive": "No active profile to export.",
+      "profile.export.noGains": "No gains available to export. Open the Tune tab first so they load.",
+      "profile.import.bad": "The file is not a valid pypilot profile.",
+      "profile.import.pilotMismatch": "The exported profile belongs to pilot '{src}' but the active pilot is '{dst}'. Import anyway?",
+      "profile.import.done": "Profile '{name}' imported. {applied} gains applied, {skipped} skipped.",
+      "profile.import.failed": "Import error: {err}",
       "prompt.pasteCfg": "Paste the exported configuration JSON:",
       // Setup SSH + restart status
       "setup.ssh.status.emptyPwd": "Empty password. Type it before Save (you have to retype it every time for safety).",
@@ -884,10 +897,12 @@
       "cal.stampReset":     "Reset historial",
       "tune.fork.title":    "Guardar cambios de ganancia",
       "tune.fork.body":     "Has movido una ganancia. Donde quieres que se guarde?",
+      "tune.fork.nameLabel": "Nombre:",
       "tune.fork.keep":     "Guardar en '{pilot}'",
       "tune.fork.new":      "Crear nuevo '{name}'",
+      "tune.fork.newBtn":   "Crear nuevo",
       "tune.fork.cancel":   "Cancelar",
-      "tune.fork.hint":     "'Crear nuevo' clona el perfil activo y cambia a el, dejando el original intacto. Cancelar cierra el aviso hasta que vuelvas a bloquear.",
+      "tune.fork.hint":     "'Crear nuevo' clona el perfil activo con el nombre que escribas y cambia a el, dejando el original intacto. Cancelar cierra el aviso hasta que vuelvas a bloquear.",
       "setup.status.language":  "Activo:",
       "setup.status.host":      "TinyPilot:",
       "setup.status.hostMissing": "sin configurar",
@@ -1547,6 +1562,17 @@
       "confirm.removeProfile": "Borrar el perfil actual?",
       "confirm.restartPypilot": "Reiniciar pypilot en la TinyPilot? La conexión se cortara ~10 s mientras vuelve.",
       "confirm.resetCfg": "Borrar toda la configuración del visor (esquinas, flechas, polares, custom paths)? Los ajustes del piloto en la TinyPilot NO se tocan.",
+      "prompt.profileRenameTo": "Nuevo nombre para '{old}':",
+      "prompt.profileImportName": "Nombre para el perfil importado:",
+      "profile.rename.reserved": "No se puede renombrar un perfil reservado (basic/default).",
+      "profile.rename.exists": "Ya existe un perfil con ese nombre.",
+      "profile.rename.failed": "No se pudo renombrar el perfil.",
+      "profile.export.noActive": "No hay perfil activo para exportar.",
+      "profile.export.noGains": "No hay ganancias disponibles. Abre la pestaña Tune primero para que se carguen.",
+      "profile.import.bad": "El archivo no es un perfil de pypilot válido.",
+      "profile.import.pilotMismatch": "El perfil exportado es del pilot '{src}' pero el pilot activo es '{dst}'. ¿Importar de todas formas?",
+      "profile.import.done": "Perfil '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.",
+      "profile.import.failed": "Error al importar: {err}",
       "prompt.profileName": "Nombre del perfil",
       "prompt.pasteCfg": "Pega el JSON de configuración exportado:",
       // Setup SSH + restart status
@@ -8516,6 +8542,174 @@
       const remaining = state.profiles.filter((p) => p !== state.profile);
       await pluginRaw("profiles", remaining);
     });
+    // Rev402 (Carlos, 2026-10-03): botón renombrar profile. pypilot no
+    // tiene un endpoint "rename" dedicado — lo hacemos "copia al nuevo
+    // nombre + borra el viejo". pluginRaw("profile", newName) crea
+    // newName clonado del active (= el que estamos renombrando) y
+    // switchea al nuevo. Luego pluginRaw("profiles", lista_sin_viejo)
+    // elimina el nombre antiguo. Profiles reservados por pypilot
+    // ("basic", "default") no se tocan.
+    const _profileRenameBtn = document.getElementById("profile-rename");
+    if (_profileRenameBtn) {
+      _profileRenameBtn.addEventListener("click", async () => {
+        const oldName = state.profile;
+        if (!oldName) return;
+        if (oldName === "basic" || oldName === "default") {
+          alert(t("profile.rename.reserved") || "No se puede renombrar un profile reservado (basic/default).");
+          return;
+        }
+        const label = (t("prompt.profileRenameTo") || "Nuevo nombre para '{old}':").replace("{old}", oldName);
+        const raw = prompt(label, oldName);
+        if (raw == null) return;
+        const newName = raw.trim().replace(/\s+/g, " ");
+        if (!newName || newName === oldName) return;
+        if (state.profiles.includes(newName)) {
+          alert(t("profile.rename.exists") || "Ya existe un profile con ese nombre.");
+          return;
+        }
+        try {
+          await pluginRaw("profile", newName);
+          // Pequeño delay para que pypilot registre el nuevo profile
+          // antes de pedirle que borre el viejo.
+          await new Promise((r) => setTimeout(r, 400));
+          const remaining = state.profiles.filter((p) => p !== oldName);
+          await pluginRaw("profiles", remaining);
+        } catch (e) {
+          console.warn("[profile rename] failed:", e);
+          alert(t("profile.rename.failed") || "No se pudo renombrar el profile.");
+        }
+      });
+    }
+    // Rev402 (Carlos, 2026-10-03): export/import de UN profile individual
+    // (= nombre + ganancias PID del profile activo). Útil para compartir
+    // ajustes entre barcos o para backup antes de experimentar.
+    const _profileExportBtn = document.getElementById("profile-export");
+    if (_profileExportBtn) {
+      _profileExportBtn.addEventListener("click", async () => {
+        const pilot = state.pilot;
+        const profile = state.profile;
+        if (!pilot || !profile) {
+          alert(t("profile.export.noActive") || "No hay profile activo.");
+          return;
+        }
+        const cat = state.catalog || {};
+        const prefix = `ap.pilot.${pilot}.`;
+        const gains = {};
+        for (const k of Object.keys(cat)) {
+          if (!k.startsWith(prefix) || !cat[k]?.AutopilotGain) continue;
+          const skPath = `steering.autopilot.pypilot.${k}`;
+          const v = state.values[skPath];
+          if (typeof v === "number" && isFinite(v)) {
+            // Guardamos la cola (ej. "P", "I", "D", "DD") sin el prefijo del pilot
+            // para que al importar funcione aunque cambies de pilot (si los
+            // gains se llaman igual) o para interpretarlo claramente.
+            const tail = k.slice(prefix.length);
+            gains[tail] = v;
+          }
+        }
+        if (Object.keys(gains).length === 0) {
+          alert(t("profile.export.noGains") || "No hay ganancias disponibles para exportar. Abre la pestaña Tune primero para que se carguen.");
+          return;
+        }
+        const payload = {
+          app: "signalk-pypilot-newui",
+          type: "pilot-profile",
+          version: 1,
+          pilot,
+          profile,
+          gains,
+          exportedAt: new Date().toISOString(),
+        };
+        const json = JSON.stringify(payload, null, 2);
+        const safeName = String(profile).replace(/[^\w\-\.]+/g, "_");
+        const filename = `pypilot-profile-${safeName}-${payload.exportedAt.slice(0,10)}.json`;
+        // Intenta share nativo primero (móvil); fallback a descarga.
+        try {
+          if (navigator.canShare) {
+            const file = new File([json], filename, { type: "application/json" });
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: `Pypilot profile ${profile}`, text: `Profile ${profile} (pilot ${pilot})` });
+              return;
+            }
+          }
+          if (navigator.share) {
+            await navigator.share({ title: `Pypilot profile ${profile}`, text: json });
+            return;
+          }
+        } catch (e) {
+          if (!String(e).includes("AbortError")) {
+            // Fall through a download.
+          } else {
+            return;
+          }
+        }
+        _downloadFile(filename, json);
+      });
+    }
+    const _profileImportBtn = document.getElementById("profile-import");
+    const _profileImportFI = document.getElementById("profile-import-file");
+    if (_profileImportBtn && _profileImportFI) {
+      _profileImportBtn.addEventListener("click", () => _profileImportFI.click());
+      _profileImportFI.addEventListener("change", async () => {
+        const f = _profileImportFI.files && _profileImportFI.files[0];
+        if (!f) return;
+        try {
+          const text = await f.text();
+          const obj = JSON.parse(text);
+          if (!obj || obj.type !== "pilot-profile" || !obj.gains || typeof obj.gains !== "object") {
+            alert(t("profile.import.bad") || "El archivo no es un profile de pypilot válido.");
+            return;
+          }
+          const expectedPilot = state.pilot;
+          if (obj.pilot && expectedPilot && obj.pilot !== expectedPilot) {
+            const ok = confirm(
+              (t("profile.import.pilotMismatch") || "El profile exportado es del pilot '{src}' pero el pilot activo es '{dst}'. ¿Importar de todas formas?")
+                .replace("{src}", obj.pilot)
+                .replace("{dst}", expectedPilot)
+            );
+            if (!ok) return;
+          }
+          const defaultName = String(obj.profile || "imported").replace(/[^\w\-\.]+/g, "_");
+          const label = (t("prompt.profileImportName") || "Nombre para el profile importado:");
+          const raw = prompt(label, defaultName);
+          if (raw == null) return;
+          const newName = raw.trim().replace(/\s+/g, " ");
+          if (!newName) return;
+          if (state.profiles.includes(newName)) {
+            alert(t("profile.rename.exists") || "Ya existe un profile con ese nombre.");
+            return;
+          }
+          // Crea el profile (pluginRaw lo clona del activo y hace switch).
+          await pluginRaw("profile", newName);
+          // Delay para que el backend registre el profile antes de aplicar gains.
+          await new Promise((r) => setTimeout(r, 500));
+          // Aplica cada gain. Las claves son tails (ej. "P", "I", ...).
+          const prefix = `ap.pilot.${state.pilot || obj.pilot}.`;
+          const cat = state.catalog || {};
+          let applied = 0, skipped = 0;
+          for (const tail of Object.keys(obj.gains)) {
+            const key = prefix + tail;
+            const v = obj.gains[tail];
+            if (typeof v !== "number" || !isFinite(v)) { skipped++; continue; }
+            // Clamp al rango del catálogo si existe.
+            const meta = cat[key];
+            let val = v;
+            if (meta && typeof meta.min === "number" && val < meta.min) val = meta.min;
+            if (meta && typeof meta.max === "number" && val > meta.max) val = meta.max;
+            try { await pluginRaw(key, val); applied++; } catch { skipped++; }
+          }
+          alert((t("profile.import.done") || "Profile '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.")
+            .replace("{name}", newName)
+            .replace("{applied}", applied)
+            .replace("{skipped}", skipped));
+        } catch (e) {
+          console.warn("[profile import] failed:", e);
+          alert((t("profile.import.failed") || "Error al importar: {err}").replace("{err}", String(e)));
+        } finally {
+          _profileImportFI.value = "";
+        }
+      });
+    }
     $("#cal-level").addEventListener("click", () => {
       pluginRaw("imu.alignmentCounter", 100);
     });
@@ -11761,10 +11955,19 @@
       m = document.createElement("div");
       m.id = "tune-fork-modal";
       m.className = "tune-fork-backdrop";
+      // Rev402 (Carlos, 2026-10-03): añadido input editable para el
+      // nombre del nuevo profile. Antes el modal solo mostraba el
+      // nombre auto-generado ("tune-YYYYMMDD-HHMM") en el botón, sin
+      // forma de cambiarlo. Carlos pedía nombres lógicos y comprensibles
+      // ("ceñida fuerte", "popa suave", etc.). El input viene prellenado
+      // con el nombre auto-generado para no romper el flujo rápido de
+      // los que no quieran escribir nada.
       m.innerHTML =
         `<div class="modal-card">` +
         `  <h3 data-i18n="tune.fork.title">Save gain changes</h3>` +
         `  <p data-i18n="tune.fork.body">You just tweaked a gain. Where should the change live?</p>` +
+        `  <label for="tune-fork-name" style="font-size:12px;color:var(--fg-dim);display:block;margin-top:8px" data-i18n="tune.fork.nameLabel">Name:</label>` +
+        `  <input type="text" id="tune-fork-name" style="width:100%;padding:6px;box-sizing:border-box;margin:4px 0 8px;background:#111;color:var(--fg);border:1px solid #333;border-radius:4px" />` +
         `  <div class="tune-fork-actions">` +
         `    <button type="button" id="tune-fork-new" class="primary"></button>` +
         `    <button type="button" id="tune-fork-keep" class="secondary"></button>` +
@@ -11778,16 +11981,36 @@
     const newBtn = m.querySelector("#tune-fork-new");
     const cancelBtn = m.querySelector("#tune-fork-cancel");
     const note = m.querySelector("#tune-fork-note");
+    const nameInput = m.querySelector("#tune-fork-name");
     keepBtn.textContent = (t("tune.fork.keep") || "Keep in '{pilot}'").replace("{pilot}", pilot);
-    newBtn.textContent = (t("tune.fork.new") || "Save in new '{name}'").replace("{name}", forkName);
+    // Rev402: botón "Crear nuevo" ya no incluye el nombre (lo lee del input).
+    newBtn.textContent = t("tune.fork.newBtn") || t("tune.fork.new")?.replace(" '{name}'", "") || "Save in new";
     if (cancelBtn) cancelBtn.textContent = t("tune.fork.cancel") || "Cancel";
     if (note) note.textContent = t("tune.fork.hint") || "";
+    if (nameInput) {
+      nameInput.value = forkName;
+      // Pre-seleccionar el texto para que al pulsar sea reemplazar directamente.
+      try { setTimeout(() => { nameInput.focus(); nameInput.select(); }, 50); } catch { /* silent */ }
+    }
     m.hidden = false;
     m.classList.add("open");
     const close = () => { m.hidden = true; m.classList.remove("open"); };
     keepBtn.onclick = () => { close(); };
     newBtn.onclick = () => {
-      try { pluginRaw("profile", forkName); } catch { /* silent */ }
+      // Rev402: leer el nombre del input (editable por el usuario).
+      // Fallback al forkName auto-generado si el input está vacío.
+      const raw = nameInput ? nameInput.value : forkName;
+      const chosenName = String(raw || "").trim().replace(/\s+/g, " ");
+      if (!chosenName) {
+        try { nameInput && nameInput.focus(); } catch { /* silent */ }
+        return;
+      }
+      if (state.profiles && state.profiles.includes(chosenName)) {
+        alert(t("profile.rename.exists") || "Ya existe un profile con ese nombre.");
+        try { nameInput && nameInput.focus(); nameInput && nameInput.select(); } catch { /* silent */ }
+        return;
+      }
+      try { pluginRaw("profile", chosenName); } catch { /* silent */ }
       close();
     };
     if (cancelBtn) cancelBtn.onclick = () => {

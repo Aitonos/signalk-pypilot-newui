@@ -845,8 +845,12 @@
         <div class="row">
           <label data-i18n="tune.profile">Profile</label>
           <select id="profile-select"></select>
-          <button id="profile-add" class="ghost">+</button>
-          <button id="profile-remove" class="ghost">-</button>
+          <button id="profile-add" class="ghost" title="Añadir nuevo">+</button>
+          <button id="profile-rename" class="ghost" title="Renombrar">✎</button>
+          <button id="profile-export" class="ghost" title="Exportar">↓</button>
+          <button id="profile-import" class="ghost" title="Importar">↑</button>
+          <input type="file" id="profile-import-file" accept="application/json,.json" style="display:none" />
+          <button id="profile-remove" class="ghost" title="Eliminar">-</button>
         </div>
       </div>
 
@@ -2263,6 +2267,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev401"></script>
+  <script src="app.js?v=Rev402"></script>
 </body>
 </html>
