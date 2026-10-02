@@ -2573,7 +2573,7 @@
           }
           try { setSelect("#mode-select", state.virtualTack.windMode || state.mode); } catch {}
           try { _lastTackDirSeen = state.virtualTack.direction; } catch {}
-          try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(); } catch (e) { console.warn("[vt] open overlay", e); }
+          try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(state.virtualTack); } catch (e) { console.warn("[vt] open overlay", e); }
         }
         // Rev393 (Carlos, 2026-10-01, Round-2 GPT-Codex H6):
         // Dedupe terminal snapshots by VT id. The 5s linger timer on
@@ -3420,6 +3420,35 @@
     const targetRad = (overlayActive && _countdownPlannedTargetRad != null)
       ? _countdownPlannedTargetRad
       : state.target;
+    // Rev395 (Carlos, 2026-10-02, Round-3 GPT-Codex instrumentation):
+    // trace every render so a late "second jump" after VT=null can be
+    // attributed to the correct source. Three distinguishable modes:
+    //   (A) state.target changed → some writer bypassed the shield
+    //   (B) state.target unchanged, _countdownPlannedTargetRad changed
+    //       → a legacy timer/callback revived the planned target
+    //   (C) all inputs unchanged, selectedTarget differs → precedence
+    //       inside renderTargetArrow picked a stale branch
+    // Only logs when there is a VT snapshot alive OR a tack overlay is
+    // open, to keep noise low.
+    try {
+      if ((state.virtualTack || overlayActive) && typeof targetRad === "number") {
+        const sel = Math.round(targetRad * RAD2DEG * 10) / 10;
+        if (sel !== _lastVtRenderSelectedDeg) {
+          _lastVtRenderSelectedDeg = sel;
+          console.debug("[vt-target-render]", {
+            vtId: state.virtualTack?.id || null,
+            vtPhase: state.virtualTack?.phase || null,
+            vtActive: !!state.virtualTack?.active,
+            stateTargetDeg: typeof state.target === "number" ? Math.round(state.target * RAD2DEG * 10) / 10 : null,
+            plannedDeg: typeof _countdownPlannedTargetRad === "number" ? Math.round(_countdownPlannedTargetRad * RAD2DEG * 10) / 10 : null,
+            legacyBeforeStartDeg: typeof _tackTargetBeforeStart === "number" ? Math.round(_tackTargetBeforeStart * RAD2DEG * 10) / 10 : null,
+            targetBeforeVtDeg: typeof state._targetBeforeVt === "number" ? Math.round(state._targetBeforeVt * RAD2DEG * 10) / 10 : null,
+            overlayActive,
+            selectedDeg: sel,
+          });
+        }
+      }
+    } catch { /* silent */ }
     // Rev267 (Carlos): también ocultar el diamond cuando perdemos
     // conexión con pypilot. Aunque state.engaged siga true (no llega
     // el delta de disengage porque el socket cayó), el target ya no
@@ -4008,45 +4037,67 @@
       _closeExternalTackOverlay();
     }
   }
-  function _openExternalTackOverlay() {
+  function _openExternalTackOverlay(vt = null) {
     // Rev358 (Carlos, 2026-09-30, QA Rev355): a new external maneuver
     // arrived — close any prior stats HUD so it does not stay behind
     // the mirror overlay and get overwritten later when this new tack
     // completes.
     try { if (_tackStats.hideAt) _tackStatsHide(); } catch { /* silent */ }
-    // Direction may not have landed yet. Fall back to _lastTackDirSeen
-    // (which the ap.tack.direction handler updates on every delta),
-    // or to a generic "MANIOBRA" label if still unknown.
-    const dir = _lastTackDirSeen === "port" ? "port"
+    // Rev395 (Carlos, 2026-10-02, Round-3): prefer the backend snapshot
+    // over local heuristics for direction, mode and maneuverKind. The
+    // backend knows WHICH side it is driving and WHICH classification
+    // the geometry gives (bow-cross vs stern-cross). Local heuristics
+    // were wrong in Rev394 for AWS≈0 (noisy AWA) and in geometries where
+    // |AWA|>90° with long-arc rotation.
+    const dir = vt?.direction === "port" ? "port"
+              : vt?.direction === "starboard" ? "starboard"
+              : _lastTackDirSeen === "port" ? "port"
               : _lastTackDirSeen === "starboard" ? "starboard"
               : null;
-    const modeStr = String(state.mode || "").toLowerCase();
+    const modeStr = String(vt?.windMode ?? state.mode ?? "").toLowerCase();
     const isWind = modeStr.includes("wind");
     const useTrue = modeStr.includes("true");
     let refRad = null;
     if (isWind) refRad = useTrue ? state.windAngleTrue : state.windAngle;
     else refRad = state.heading;
-    // Planned target (best-effort, may be off if direction rewrite
-    // upstream bug hits — that's a display issue, not a control one).
-    let planned = null;
+    // Local planned (fallback only — used when VT snapshot does not carry
+    // finalWindTargetRad, e.g. a legacy external maneuver without FSM).
+    let plannedLocal = null;
     if (dir && typeof refRad === "number") {
       const sign = dir === "port" ? -1 : 1;
       if (isWind) {
-        planned = -refRad;
+        plannedLocal = -refRad;
       } else {
         const angleDeg = _tackAngleDeg();
-        planned = refRad + angleDeg * DEG2RAD * sign;
-        while (planned >  Math.PI) planned -= 2 * Math.PI;
-        while (planned < -Math.PI) planned += 2 * Math.PI;
+        plannedLocal = refRad + angleDeg * DEG2RAD * sign;
+        while (plannedLocal >  Math.PI) plannedLocal -= 2 * Math.PI;
+        while (plannedLocal < -Math.PI) plannedLocal += 2 * Math.PI;
       }
     }
     _externalManeuver = true;
     _tackCountdownDir = dir;
     _maneuverModeAtStart = modeStr;
-    _tackTargetBeforeStart = state.target;
-    _countdownPlannedTargetRad = planned;
-    // Kind is "tack" by default; refresh once direction/AWA are known.
-    _tackCountdownKind = dir ? _detectManeuverKind() : "tack";
+    // Rev395 (GPT-Codex Round-3): previously `state.target` had ALREADY
+    // been overwritten with finalWindTargetRad by the VT handler just
+    // before calling us (line 2571). Snapshotting it here poisoned
+    // _tackTargetBeforeStart with the FINAL target — any legacy restore
+    // reading this would re-apply the destination. Prefer the clean
+    // pre-VT target that the handler stored in state._targetBeforeVt.
+    _tackTargetBeforeStart = (typeof state._targetBeforeVt === "number")
+      ? state._targetBeforeVt
+      : state.target;
+    // Rev395 (Gemini + GPT-Codex Round-3): use the backend-authoritative
+    // target instead of recomputing from state.windAngle (which is noisy
+    // when AWS≈0 and can differ from the backend by several degrees).
+    _countdownPlannedTargetRad = Number.isFinite(vt?.finalWindTargetRad)
+      ? vt.finalWindTargetRad
+      : plannedLocal;
+    // Rev395 (Gemini + GPT-Codex Round-3): HUD label from backend
+    // classification when available. Rev394 ignored the snapshot and
+    // used the local _detectManeuverKind() which could disagree.
+    _tackCountdownKind = (vt?.maneuverKind === "tack" || vt?.maneuverKind === "jibe")
+      ? vt.maneuverKind
+      : (dir ? _detectManeuverKind() : "tack");
     _tackDiamondBlink = true;
     // Overlay visible, phase=executing (pypilot is already running).
     const overlay = document.getElementById("tack-countdown-overlay");
@@ -4421,6 +4472,10 @@
   // that planned rad; renderTargetArrow uses it in preference to
   // state.target while set. Cleared on countdown hide.
   let _countdownPlannedTargetRad = null;
+  // Rev395 (Round-3 instrumentation): last VT target rendered to dedupe
+  // the trace log so each distinct selected target is printed once per
+  // transition — avoids 100ms-timer spam while still catching all jumps.
+  let _lastVtRenderSelectedDeg = null;
   // Rev210 (Carlos + LLM audit): mode captured at maneuver start so
   // cancel picks the right reference frame even if the AP mode has
   // changed since the tap.

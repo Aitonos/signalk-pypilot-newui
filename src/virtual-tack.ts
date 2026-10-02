@@ -196,17 +196,35 @@ export function computeTackGeometry(opts: {
   const hStartRad = normalizeTwoPi(opts.hStartRad);
   const hTargetRad = normalizeTwoPi(hStartRad + deltaHRad);
 
-  // Rev394: maneuver kind — did we cross the bow (tack) or the stern (jibe)?
-  // The natural short-arc rotation flips the wind-angle sign crossing bow
-  // when |angleStart| < 90, and crossing stern when |angleStart| > 90. If
-  // the sailor picked the direction that matches that natural rotation
-  // we're on the short arc; the opposite picks the long arc, which crosses
-  // the OTHER side of the wind.
-  const naturalSign = angleStartSigned === 0 ? dirSign : Math.sign(angleStartSigned);
-  const naturalCrossesBow = Math.abs(angleStartSigned) < Math.PI / 2;
-  const takingNaturalArc = naturalSign === dirSign;
-  const crossesBow = takingNaturalArc ? naturalCrossesBow : !naturalCrossesBow;
-  const maneuverKind: "tack" | "jibe" = crossesBow ? "tack" : "jibe";
+  // Rev395 (Carlos, 2026-10-02, Round-3 GPT-Codex): the Rev394 classifier
+  // confused "short arc" with "crosses bow". For |AWA_0| > 90° with the
+  // direction that matches the natural rotation sign, the AWA sweep spans
+  // more than 180° and crosses BOTH stern and bow — the classifier picked
+  // the wrong one. Concrete case (QA 2026-10-01 T2): AWA_0=-174°, dir=port
+  // → delta_H natural = -348° (long sweep CCW), AWA barre -174°→0°→+174°,
+  // cruza PROA en θ=-174° → virada, NO trasluchada.
+  //
+  // Correct test: for the symmetric mirror maneuver, the direction we
+  // requested determines whether the AWA sweep passes through 0 (bow) or
+  // ±180 (stern) first. That is simply sign(AWA_0) === dirSign.
+  //
+  // Validated cases (unit tests below):
+  //   AWA=-174°, port  → tack   (long arc CCW, crosses bow)
+  //   AWA=-174°, stbd  → jibe   (short arc CW,  crosses stern)
+  //   AWA=+120°, stbd  → tack   (long arc CW,  crosses bow)
+  //   AWA=+120°, port  → jibe   (short arc CCW, crosses stern)
+  //   AWA= +30°, stbd  → tack   (close-hauled, classic)
+  //   AWA= +30°, port  → jibe   (long way round via stern)
+  let maneuverKind: "tack" | "jibe";
+  if (absStart < 15 * DEG) {
+    // Near head-to-wind: we're exiting irons by rotating out on the
+    // requested side. Always a tack regardless of sign noise.
+    maneuverKind = "tack";
+  } else {
+    const sgnAWA = angleStartSigned === 0 ? dirSign : Math.sign(angleStartSigned);
+    const crossesBow = sgnAWA === dirSign;
+    maneuverKind = crossesBow ? "tack" : "jibe";
+  }
 
   // Fractionate the rotation so no single step exceeds maxStepRad.
   // Pypilot in compass mode picks the SHORT arc automatically, so a

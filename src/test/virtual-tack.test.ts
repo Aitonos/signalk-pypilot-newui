@@ -289,3 +289,73 @@ describe("virtual-tack / default thresholds unchanged", () => {
     assert.equal(DEFAULT_MAX_STEP_DEG, 170);
   });
 });
+
+describe("virtual-tack / maneuverKind classification (Rev395 Round-3 fix)", () => {
+  // Rev394 shipped a broken classifier that returned "jibe" for the
+  // T2 case below (AWA=-174°, port). The fix is: sign(AWA_0) === dirSign
+  // means the AWA sweep passes through 0 (bow) → tack; otherwise jibe.
+  it("AWA=-174°, port → tack (long arc CCW crosses bow)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(-174),
+      hStartRad: deg(0),
+      direction: "port",
+    });
+    assert.equal(g.maneuverKind, "tack");
+  });
+  it("AWA=-174°, starboard → jibe (short arc CW crosses stern)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(-174),
+      hStartRad: deg(0),
+      direction: "starboard",
+    });
+    assert.equal(g.maneuverKind, "jibe");
+  });
+  it("AWA=+120°, starboard → tack (long arc CW crosses bow)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(120),
+      hStartRad: deg(0),
+      direction: "starboard",
+    });
+    assert.equal(g.maneuverKind, "tack");
+  });
+  it("AWA=+120°, port → jibe (short arc CCW crosses stern)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(120),
+      hStartRad: deg(0),
+      direction: "port",
+    });
+    assert.equal(g.maneuverKind, "jibe");
+  });
+  it("AWA=+30°, starboard → tack (close-hauled classic)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(30),
+      hStartRad: deg(0),
+      direction: "starboard",
+    });
+    assert.equal(g.maneuverKind, "tack");
+  });
+  it("AWA=+30°, port → jibe (long way round via stern)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(30),
+      hStartRad: deg(0),
+      direction: "port",
+    });
+    assert.equal(g.maneuverKind, "jibe");
+  });
+  it("AWA=0° (head-to-wind), port → tack (exiting irons)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(0),
+      hStartRad: deg(0),
+      direction: "port",
+    });
+    assert.equal(g.maneuverKind, "tack");
+  });
+  it("AWA=+5° (near head-to-wind), port → tack (exiting irons)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(5),
+      hStartRad: deg(0),
+      direction: "port",
+    });
+    assert.equal(g.maneuverKind, "tack");
+  });
+});
