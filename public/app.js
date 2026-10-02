@@ -2566,7 +2566,16 @@
         // open the read-only HUD overlay.
         if (!wasActive && isActive) {
           state._modeBeforeVt = state.mode;
-          state._targetBeforeVt = state.target;
+          // Rev396 (Carlos, 2026-10-02, Round-4): prefer the backend
+          // snapshot's originalWindTargetRad over local state.target.
+          // state.target can be stale (e.g. shield-blocked target delta
+          // from a chained maneuver) at the moment this handler runs;
+          // the backend captured the real pre-tack value synchronously
+          // at startVirtualTack time and publishes it on every snapshot.
+          state._targetBeforeVt =
+            (typeof state.virtualTack.originalWindTargetRad === "number")
+              ? state.virtualTack.originalWindTargetRad
+              : state.target;
           if (typeof state.virtualTack.finalWindTargetRad === "number") {
             state.target = state.virtualTack.finalWindTargetRad;
             try { renderTargetArrow(); } catch {}

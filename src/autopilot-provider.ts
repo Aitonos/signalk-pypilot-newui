@@ -881,6 +881,27 @@ export class AutopilotProvider {
       }
       return false;
     };
+    // Rev396 (Carlos, 2026-10-02): float-tolerant echo wait for numeric
+    // paths like ap.heading_command. Also does NOT throw on _virtualTack
+    // becoming null — we use it from the error/cleanup branch, where the
+    // caller may have already dropped the FSM state.
+    const waitForPypilotNumericEcho = async (
+      key: string,
+      expected: number,
+      toleranceRad: number,
+      timeoutMs: number,
+    ): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < timeoutMs) {
+        const v = (this.client as any).getValues?.() || {};
+        const raw = v[key];
+        if (typeof raw === "number" && Math.abs(raw - expected) <= toleranceRad) {
+          return true;
+        }
+        await sleep(50);
+      }
+      return false;
+    };
 
     try {
       // ─── Phase turning: compass + fractionated rotation ───
@@ -1000,8 +1021,46 @@ export class AutopilotProvider {
       setPhase("cancelling", msg);
       this._vtInternalWrite = true;
       try { await this.setMode(windMode); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+      // Rev396 (Carlos, 2026-10-02, Round-4 Codex+Gemini): wait for pypilot
+      // to acknowledge the mode AND target restore before marking the
+      // maneuver terminal. QA Rev395 T1 showed a 515 ms window after our
+      // restore write where pypilot was still echoing a stale heading
+      // command (-23°) and it won the canonical state over our intended
+      // -96°. Visor shield masked it live, but when the 5 s cleanup
+      // dropped the shield the stale value was already on the bus, and
+      // the next render would reveal the "wrong restore" the sailor
+      // reported as "sitio equívoco". With these awaits, the terminal
+      // snapshot only fires once pypilot has confirmed BOTH new mode and
+      // target, so the shield comes down against a server state that
+      // matches our intent. Try/catch so a thrown "cancelled" from the
+      // echo helper (if _virtualTack is nulled mid-wait by a race) does
+      // not skip the setTarget restore.
+      try {
+        const modeRestored = await waitForPypilotEcho("ap.mode", windMode, 1500);
+        if (!modeRestored) {
+          // eslint-disable-next-line no-console
+          console.log(`[virtual-tack ${vtId}] WARN: cancelling mode=${windMode} echo not seen in 1.5s, continuing`);
+        }
+      } catch { /* best-effort */ }
       this._vtInternalWrite = true;
       try { await this.setTarget(originalAngleRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+      // Rev396: numeric echo wait on the target. 0.5deg tolerance (~0.009 rad)
+      // is tight enough to catch stale pypilot overrides and loose enough
+      // to handle float round-trip precision between visor PUT and pypilot
+      // echo.
+      try {
+        const RESTORE_TOL_RAD = 0.5 * (Math.PI / 180);
+        const targetRestored = await waitForPypilotNumericEcho(
+          "ap.heading_command",
+          originalAngleRad,
+          RESTORE_TOL_RAD,
+          1500,
+        );
+        if (!targetRestored) {
+          // eslint-disable-next-line no-console
+          console.log(`[virtual-tack ${vtId}] WARN: cancelling target=${originalAngleRad.toFixed(4)}rad echo not seen in 1.5s, continuing`);
+        }
+      } catch { /* best-effort */ }
       setPhase(isUserCancel ? "cancelled" : "failed", msg);
       throw err;
     } finally {

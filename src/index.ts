@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev395";
+const PLUGIN_REVISION = "Rev396";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3587,6 +3587,16 @@ module.exports = function (app: any) {
             // = crosses stern.
             maneuverKind: g?.maneuverKind ?? null,
             finalWindTargetRad: g?.angleNewRad ?? null,
+            // Rev396 (Carlos, 2026-10-02, Round-4 Codex+Gemini): publish
+            // the pre-tack wind angle so the visor does NOT have to snapshot
+            // state.target at snapshot-arrival time. The visor's local
+            // _targetBeforeVt capture races against the canonical target
+            // delta's shield in chained maneuvers (Round-4 investigation);
+            // reading originalWindTargetRad from the snapshot is immune to
+            // that race.
+            originalWindTargetRad: typeof vt.originalAngleRad === "number"
+              ? vt.originalAngleRad
+              : null,
             elapsedMs: vt.startedAtMs ? Date.now() - vt.startedAtMs : 0,
             stepIndex: vt.stepIndex,
             totalSteps: g?.intermediatesRad?.length ?? 0,
