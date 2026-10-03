@@ -3780,6 +3780,10 @@ body.pypilot-offline .pypilot-write {
 }
 
 /* Rev406: Diálogo reutilizable (prompt/alert/confirm estilizado). */
+/* Rev407: z-index 2000 para quedar por ENCIMA del Profile Manager
+   modal (que usa 1000). El diálogo se abre desde dentro del PM, así
+   que debe pintarse por delante o Carlos ve que no aparece. */
+#pm-dialog { z-index: 2000; }
 .pm-dialog-card { max-width: 380px; }
 .pm-dialog-body {
   padding: 10px 2px 12px;

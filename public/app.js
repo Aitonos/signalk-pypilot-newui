@@ -7443,7 +7443,15 @@
   async function empopadoFinish(opts) {
     const ap = state.empopado;
     if (!ap || (ap.phase !== "active" && ap.phase !== "transit")) return;
-    const restoreAll = !opts || opts.restoreAll !== false;
+    // Rev407 (Carlos sea trial 2026-10-03): default = no restore. The
+    // sailor stays on whatever heading the AP ended up at after the
+    // manoeuvre. Previously the default was true, which triggered an
+    // automatic mode+target+engage restore to the pre-empopado state.
+    // Carlos: "el salir del modo y volver a rumbo me parece peligrosísimo,
+    // es casi mejor quedarnos en el rumbo que estamos. [...] nos quedamos
+    // en ese rumbo" (sea trial 2026-10-03). The sailor explicitly opts in
+    // by passing { restoreAll: true } if they want the old behaviour.
+    const restoreAll = !!(opts && opts.restoreAll === true);
     const silent = !!(opts && opts.silent);
     if (ap._hudTimer) { clearInterval(ap._hudTimer); ap._hudTimer = null; }
     ap.endTs = Date.now();

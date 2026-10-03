@@ -307,6 +307,45 @@ export function makeInitialState(): VirtualTackState {
 }
 
 /**
+ * Rev407 (Carlos sea trial 2026-10-03, audit H): after each step
+ * reached, recompute the remaining intermediates from the REAL heading
+ * (not from the pre-computed plan). This solves the bug where a 20° step
+ * tolerance combined with a 170° step size left the next planned target
+ * at up to 190° of real heading — pypilot would then pick the SHORT arc
+ * (170°) in the WRONG direction. We rebuild the remaining chain from
+ * `hNow` to `finalCompassTargetRad`, respecting the originally requested
+ * rotation sign (so we don't quietly swap to the long way round when the
+ * sailor asked for port).
+ *
+ * All inputs in radians. Returns an array of absolute compass headings
+ * in [0, 2π). Empty array when no further steps are needed (|arc| < 1e-6).
+ */
+export function recomputeRemainingIntermediates(opts: {
+  hNowRad: number;
+  finalCompassTargetRad: number;
+  originalDeltaSign: number;
+  maxStepRad?: number;
+}): number[] {
+  const { hNowRad, finalCompassTargetRad, originalDeltaSign } = opts;
+  const maxStepRad = opts.maxStepRad ?? DEFAULT_MAX_STEP_DEG * DEG;
+  // Signed shortest arc from hNow to finalCompassTargetRad in (-π, π].
+  let signedArc = normalizeSignedPi(finalCompassTargetRad - hNowRad);
+  // If the short arc has the wrong sign (barco se pasó o va al revés),
+  // force the LONG way round in the originally requested direction.
+  if (originalDeltaSign !== 0 && Math.sign(signedArc) !== originalDeltaSign && signedArc !== 0) {
+    signedArc = signedArc > 0 ? signedArc - TWO_PI : signedArc + TWO_PI;
+  }
+  if (Math.abs(signedArc) < 1e-6) return [];
+  const stepsNeeded = Math.ceil(Math.abs(signedArc) / maxStepRad);
+  const perStep = signedArc / stepsNeeded;
+  const out: number[] = [];
+  for (let i = 1; i <= stepsNeeded; i++) {
+    out.push(normalizeTwoPi(hNowRad + perStep * i));
+  }
+  return out;
+}
+
+/**
  * Convenience: did the hull reach the current phase-1 intermediate
  * within `toleranceDeg`? Compared on the signed shortest arc so
  * wrap-around at 0/360 is handled.

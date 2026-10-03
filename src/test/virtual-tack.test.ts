@@ -9,6 +9,7 @@ import {
   signedAngleDelta,
   isAtTarget,
   isWindConverged,
+  recomputeRemainingIntermediates,
   DEG,
   RAD2DEG,
   DEFAULT_MAX_STEP_DEG,
@@ -357,5 +358,89 @@ describe("virtual-tack / maneuverKind classification (Rev395 Round-3 fix)", () =
       direction: "port",
     });
     assert.equal(g.maneuverKind, "tack");
+  });
+});
+
+describe("virtual-tack / recomputeRemainingIntermediates (Rev407 audit H)", () => {
+  // Context: after each step reached (±20° tolerance), we recompute the
+  // chain from the ACTUAL heading, so the next step can never land at
+  // >180° real distance (which would make pypilot go the wrong way).
+
+  it("empty when the boat has already reached the final heading", () => {
+    const out = recomputeRemainingIntermediates({
+      hNowRad: deg(90),
+      finalCompassTargetRad: deg(90),
+      originalDeltaSign: 1,
+    });
+    assert.deepEqual(out, []);
+  });
+
+  it("single step when remaining arc < DEFAULT_MAX_STEP_DEG", () => {
+    const out = recomputeRemainingIntermediates({
+      hNowRad: deg(0),
+      finalCompassTargetRad: deg(60),
+      originalDeltaSign: 1,
+    });
+    assert.equal(out.length, 1);
+    assert.ok(Math.abs(out[0] - deg(60)) < EPS, `got ${out[0] * RAD2DEG}`);
+  });
+
+  it("fractionates into equal steps when arc > DEFAULT_MAX_STEP_DEG", () => {
+    const out = recomputeRemainingIntermediates({
+      hNowRad: deg(0),
+      finalCompassTargetRad: deg(340),
+      originalDeltaSign: 1,
+    });
+    assert.equal(out.length, 2);
+    assert.ok(Math.abs(out[0] - deg(170)) < EPS);
+    assert.ok(Math.abs(out[1] - deg(340)) < EPS);
+  });
+
+  it("respects originalDeltaSign — forces long arc when short arc would go the WRONG way", () => {
+    // Starting at 10°, wanting to reach 350° via the LONG arc (CCW,
+    // negative). Short arc would be +340° (CW), which has sign +1 ≠
+    // originalDeltaSign (-1). So we must take -20° (long way through
+    // 0, 350) in CCW direction.
+    const out = recomputeRemainingIntermediates({
+      hNowRad: deg(10),
+      finalCompassTargetRad: deg(350),
+      originalDeltaSign: -1,
+    });
+    // Should produce a single-step CCW arc of -20° → 350°.
+    assert.equal(out.length, 1);
+    assert.ok(Math.abs(out[0] - deg(350)) < EPS, `got ${out[0] * RAD2DEG}`);
+  });
+
+  it("audit H bug — barco a 20° antes del step, siguiente step no cae a 190°", () => {
+    // Original plan was: step N at 170°. Boat reached 150° (20° short,
+    // acceptable by DEFAULT_PHASE_TOLERANCE_DEG). Original step N+1
+    // was planned at 340°. If we had NOT recomputed, step N+1 would be
+    // at 340 - 150 = 190° of real heading → pypilot picks short arc
+    // (170° in the OPPOSITE direction). With recompute, we rebuild
+    // from 150° toward final 340°, giving step at 320° (170° away in
+    // the SAME direction as the original rotation).
+    const out = recomputeRemainingIntermediates({
+      hNowRad: deg(150),
+      finalCompassTargetRad: deg(340),
+      originalDeltaSign: 1,
+    });
+    assert.equal(out.length, 2);
+    // First recomputed step is at 150 + 95 = 245° (half of remaining 190°).
+    // Both steps are CW from 150°, same direction as originalDelta.
+    assert.ok(out[0] > deg(150) && out[0] < deg(340),
+      `first step should be between 150 and 340, got ${out[0] * RAD2DEG}`);
+    assert.ok(Math.abs(out[1] - deg(340)) < EPS,
+      `final step should be 340, got ${out[1] * RAD2DEG}`);
+  });
+
+  it("wrap-around: hNow near 2π, target just past 0", () => {
+    // Boat at 350°, final target at 10°, CW rotation (short arc +20°).
+    const out = recomputeRemainingIntermediates({
+      hNowRad: deg(350),
+      finalCompassTargetRad: deg(10),
+      originalDeltaSign: 1,
+    });
+    assert.equal(out.length, 1);
+    assert.ok(Math.abs(out[0] - deg(10)) < EPS, `got ${out[0] * RAD2DEG}`);
   });
 });

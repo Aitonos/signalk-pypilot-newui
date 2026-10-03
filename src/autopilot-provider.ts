@@ -15,8 +15,7 @@ import {
   computeTackGeometry,
   isAtTarget,
   normalizeTwoPi,
-  DEFAULT_MODE_SWITCH_SETTLE_MS,
-  DEFAULT_PHASE1_STEP_TIMEOUT_MS,
+  recomputeRemainingIntermediates,
   DEFAULT_PHASE_TOLERANCE_DEG,
   TackDirection,
   VirtualTackPhase,
@@ -566,6 +565,19 @@ export class AutopilotProvider {
    *  to src/mode-reanchor.ts (pure, unit-tested). This method only
    *  glues that decision to the pypilot socket. */
   private _reAnchorTargetAfterModeChange(oldMode: string, newMode: string): void {
+    // Rev407 (Carlos sea trial 2026-10-03, audit O): respect the virtual
+    // tack's internal-write flag. If the FSM is driving the pilot, the
+    // re-anchor would write ap.heading_command = currentHeading right
+    // after our setMode(compass), which pypilot then holds for 1-2 s
+    // until our intermediate setTarget lands. Observed effect: the boat
+    // "doesn't move the first 1-2 s of the VT" because pypilot IS obeying
+    // — just not us. Skip re-anchor during VT; the FSM manages the target
+    // explicitly after every setMode.
+    if (this._vtInternalWrite) {
+      // eslint-disable-next-line no-console
+      console.log(`[apProvider.setMode] skip re-anchor: FSM driving`);
+      return;
+    }
     const values = (this.client as any).getValues?.() || {};
     const d = decideReAnchor(oldMode, newMode, values);
     // eslint-disable-next-line no-console
@@ -722,12 +734,21 @@ export class AutopilotProvider {
       throw new Error(`virtual-tack only valid in wind modes (current=${modeStr})`);
     }
     if (!this.data.engaged) throw new Error("virtual-tack requires engaged autopilot");
-    // Fire-and-forget. The HTTP handler returns immediately once the
-    // id is minted. Progress is observable via the SK
-    // steering.autopilot.virtualTack path and GET /virtual-tack/status.
-    // We await just enough for the FSM to publish its initial state.
+    // Rev407 (Carlos sea trial 2026-10-03, audit E+M): validate all
+    // preconditions BEFORE the fire-and-forget runner. Previously, missing
+    // heading made _runVirtualTack throw AFTER startVirtualTack had
+    // returned {id:"", alreadyRunning:false, windMode}; the HTTP route
+    // responded 200 and the sailor saw no virtual-tack, no error, nothing
+    // in the UI. Carlos sea trial showed this as "pypilot silent" cases.
+    const headingRad = this._readHeadingRad();
+    if (headingRad === null) {
+      throw new Error("virtual-tack: heading not available (SK bus + pypilot cache both empty)");
+    }
+    if (this.data.target == null || !Number.isFinite(this.data.target)) {
+      throw new Error("virtual-tack: current target not available");
+    }
     const windMode = modeStr as WindMode;
-    this._runVirtualTack(opts.direction, windMode).catch((e: any) => {
+    this._runVirtualTack(opts.direction, windMode, headingRad, this.data.target).catch((e: any) => {
       // eslint-disable-next-line no-console
       console.log(`[startVirtualTack] driver threw: ${e?.message || e}`);
     });
@@ -738,6 +759,30 @@ export class AutopilotProvider {
     }
     const id = this._virtualTack?.id ?? "";
     return { id, alreadyRunning: false, windMode };
+  }
+
+  /** Rev407 (audit B): unified heading reader. Cascades SK bus (true/mag)
+   *  → pypilot client cache (ap.heading / imu.heading). Returns radians or
+   *  null if ALL sources are empty. Used by BOTH startVirtualTack (as a
+   *  precondition) and the _runVirtualTack loop (so the loop sees the same
+   *  heading source the planner saw). */
+  private _readHeadingRad(): number | null {
+    try {
+      const skH = this.app?.getSelfPath?.("navigation.headingTrue");
+      const v = skH?.value;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+    } catch { /* noop */ }
+    try {
+      const skH = this.app?.getSelfPath?.("navigation.headingMagnetic");
+      const v = skH?.value;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+    } catch { /* noop */ }
+    const values = (this.client as any).getValues?.() || {};
+    const apH = values["ap.heading"];
+    if (typeof apH === "number" && Number.isFinite(apH)) return apH * DEG_TO_RAD;
+    const imuH = values["imu.heading"];
+    if (typeof imuH === "number" && Number.isFinite(imuH)) return imuH * DEG_TO_RAD;
+    return null;
   }
 
   private async tack(direction: "port" | "starboard"): Promise<void> {
@@ -757,7 +802,12 @@ export class AutopilotProvider {
     const modeStr = String(this.data.mode || "").toLowerCase();
     const isWind = modeStr === "wind" || modeStr === "true wind";
     if (isWind) {
-      await this._runVirtualTack(direction, modeStr as WindMode);
+      // Rev407: _runVirtualTack now takes heading + originalTarget as
+      // params (validated by caller). If no heading, abort silently
+      // — same policy as pre-Rev407 when _runVirtualTack would throw.
+      const headingRad = this._readHeadingRad();
+      if (headingRad === null) return;
+      await this._runVirtualTack(direction, modeStr as WindMode, headingRad, this.data.target);
       return;
     }
     const values = (this.client as any).getValues?.() || {};
@@ -785,50 +835,37 @@ export class AutopilotProvider {
   }
 
   /** Rev378: the two-phase virtual tack driver. Runs the FSM declared
-   *  in src/virtual-tack.ts against this.setMode / this.setTarget. */
+   *  in src/virtual-tack.ts against this.setMode / this.setTarget.
+   *
+   *  Rev407 (Carlos sea trial 2026-10-03): heavy refactor after sea trial
+   *  showed all wind-mode virads timing out at 20 s even while the boat
+   *  was rotating. Changes:
+   *   - Precond validation moved to startVirtualTack; this function
+   *     receives heading + target as parameters, already validated.
+   *   - No fixed rotation timeout: Carlos's call ("no quiero timeout
+   *     para las viradas"). We only abort on pypilot-stuck watchdog
+   *     (no heading change in 60 s = pypilot has died or is not
+   *     obeying) or on sailor cancel.
+   *   - Session lock (vtId) on every await: cleanup of a previous VT
+   *     cannot wipe the running one.
+   *   - setPhase refuses to overwrite "cancelling": prevents the known
+   *     race where cancelVirtualTack sets "cancelling" while the loop
+   *     is between awaits.
+   *   - Intermediates recomputed from REAL heading after each step
+   *     reached: avoids the "20° tolerance + 170° step → next target at
+   *     190° → short arc goes the wrong way" bug (audit H).
+   *   - On cancel/failed: do NOT restore the wind target. Switch to
+   *     compass mode and set target to CURRENT heading, so pypilot
+   *     holds the boat where it is. Sailor chooses what to do next. */
   private async _runVirtualTack(
     direction: TackDirection,
     windMode: WindMode,
+    headingRadParam: number,
+    originalAngleRadParam: number,
   ): Promise<void> {
-    const values = (this.client as any).getValues?.() || {};
-    // Rev382 (Carlos, 2026-10-01): heading source cascade.
-    // Rev380 QA 2026-10-01 16:58 showed both ap.heading AND imu.heading
-    // undefined in the pypilot client cache on Tunatunes — the FSM
-    // threw and virtual-tack never ran. The authoritative source is
-    // the SK bus (navigation.headingTrue / Magnetic), which the trace
-    // module already uses (seen in trace-20261001-165218 pre.heading
-    // field populated). Prefer the bus; fall back to pypilot client
-    // paths; only throw if ALL sources are absent.
-    let headingRad: number | null = null;
-    try {
-      const skHeading = this.app?.getSelfPath?.("navigation.headingTrue");
-      const v = skHeading?.value;
-      if (typeof v === "number" && Number.isFinite(v)) headingRad = v;
-    } catch { /* noop */ }
-    if (headingRad === null) {
-      try {
-        const skHeading = this.app?.getSelfPath?.("navigation.headingMagnetic");
-        const v = skHeading?.value;
-        if (typeof v === "number" && Number.isFinite(v)) headingRad = v;
-      } catch { /* noop */ }
-    }
-    if (headingRad === null) {
-      const h = (typeof values["ap.heading"] === "number" && Number.isFinite(values["ap.heading"]))
-        ? (values["ap.heading"] as number)
-        : (typeof values["imu.heading"] === "number" && Number.isFinite(values["imu.heading"]))
-          ? (values["imu.heading"] as number)
-          : null;
-      if (h !== null) headingRad = h * DEG_TO_RAD;
-    }
-    if (headingRad === null) {
-      throw new Error("virtual-tack: heading not available (SK bus + pypilot cache both empty)");
-    }
-    const headingDeg = headingRad * RAD_TO_DEG;
-    if (this.data.target == null || !Number.isFinite(this.data.target)) {
-      throw new Error("virtual-tack: data.target not available");
-    }
-    const originalAngleRad = this.data.target;
-    const hStartRad = headingDeg * DEG_TO_RAD;
+    const headingRad = headingRadParam;
+    const originalAngleRad = originalAngleRadParam;
+    const hStartRad = headingRad;
 
     const geometry = computeTackGeometry({
       angleStartRad: originalAngleRad,
@@ -851,22 +888,42 @@ export class AutopilotProvider {
     };
     this.notifyChanged("all");
 
+    // Rev407 (audit F): setPhase refuses to overwrite "cancelling".
+    // The classic race was: loop waits on an await, cancelVirtualTack
+    // sets phase="cancelling" from outside, the await resolves, the
+    // loop advances to setPhase("settling") and clobbers the cancel.
     const setPhase = (p: VirtualTackPhase, reason?: string) => {
-      if (!this._virtualTack) return;
+      if (!this._virtualTack || this._virtualTack.id !== vtId) return;
+      if (this._virtualTack.phase === "cancelling" && p !== "cancelled" && p !== "failed") {
+        return;
+      }
       this._virtualTack.phase = p;
       if (reason) this._virtualTack.outcomeReason = reason;
       this.notifyChanged("all");
     };
 
+    // Rev407 (audit G): session-lock check used after every await. If
+    // the global this._virtualTack has changed id or been nulled (e.g.
+    // by the 5 s cleanup of a previous run, or because another start
+    // took over), the current runner must stop silently without
+    // touching the new state.
+    const sessionAlive = (): boolean =>
+      !!this._virtualTack && this._virtualTack.id === vtId;
+    const checkCancelled = (): void => {
+      if (!sessionAlive()) {
+        throw new Error("virtual-tack session superseded");
+      }
+      if (this._virtualTack!.phase === "cancelling" ||
+          this._virtualTack!.phase === "cancelled") {
+        throw new Error("virtual-tack cancelled by external cancel");
+      }
+    };
+
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-    // Rev387 (Carlos, 2026-10-01, GPT-Codex + Gemini consensus):
-    // Replace the blind `sleep(150)` after setMode with an event-driven
-    // wait on the pypilot ap.mode echo. Pypilot core may run its own
-    // `compute_heading_error()` re-anchor on mode change that overrides
-    // our next setTarget if we write too early. Waiting for the echo
-    // guarantees the mode has actually taken effect in pypilot's
-    // internal state machine before we send the intermediate target.
+    // Rev387/Rev407: event-driven wait for pypilot echo. Honours
+    // session lock (vtId) and cancellation phase so a cancel between
+    // echoes aborts quickly without waiting for the timeout.
     const waitForPypilotEcho = async (
       key: string,
       expected: unknown,
@@ -877,31 +934,21 @@ export class AutopilotProvider {
         const v = (this.client as any).getValues?.() || {};
         if (v[key] === expected) return true;
         await sleep(50);
-        if (!this._virtualTack) throw new Error("virtual-tack cancelled");
+        checkCancelled();
       }
       return false;
     };
-    // Rev396 (Carlos, 2026-10-02): float-tolerant echo wait for numeric
-    // paths like ap.heading_command. Also does NOT throw on _virtualTack
-    // becoming null — we use it from the error/cleanup branch, where the
-    // caller may have already dropped the FSM state.
-    const waitForPypilotNumericEcho = async (
-      key: string,
-      expected: number,
-      toleranceRad: number,
-      timeoutMs: number,
-    ): Promise<boolean> => {
-      const t0 = Date.now();
-      while (Date.now() - t0 < timeoutMs) {
-        const v = (this.client as any).getValues?.() || {};
-        const raw = v[key];
-        if (typeof raw === "number" && Math.abs(raw - expected) <= toleranceRad) {
-          return true;
-        }
-        await sleep(50);
-      }
-      return false;
-    };
+
+    // Rev407 constants (replace the old DEFAULT_PHASE1_STEP_TIMEOUT_MS):
+    // PYPILOT_STUCK_MS = how long we tolerate heading NOT changing at
+    // all before concluding pypilot has died or is not obeying.
+    // Carlos: "no quiero timeout para las viradas" — this is a safety
+    // watchdog, not a maneuver clock. 60 s is deliberately generous:
+    // even a very light wind + low SOG virada still shows some heading
+    // drift. If pypilot really is stuck the sailor would notice much
+    // sooner and cancel manually.
+    const PYPILOT_STUCK_MS = 60_000;
+    const STUCK_HEADING_TOL_DEG = 0.5;
 
     try {
       // ─── Phase turning: compass + fractionated rotation ───
@@ -914,95 +961,117 @@ export class AutopilotProvider {
       );
       this._vtInternalWrite = true;
       try { await this.setMode("compass"); } finally { this._vtInternalWrite = false; }
+      checkCancelled();
       const compassReady = await waitForPypilotEcho("ap.mode", "compass", 1500);
       if (!compassReady) {
         // eslint-disable-next-line no-console
         console.log(`[virtual-tack ${vtId}] WARN: ap.mode=compass echo not seen in 1.5s, continuing`);
       }
+      checkCancelled();
       setPhase("turning");
 
-      for (let i = 0; i < geometry.intermediatesRad.length; i++) {
-        // Rev397 (Carlos, 2026-10-02): abort check also honours the
-        // "cancelling" phase set by cancelVirtualTack(). Before Rev397
-        // the loop only aborted on _virtualTack === null, which never
-        // happens on an external cancel — the FSM state object stays
-        // alive, only its phase flips to "cancelling". The user then
-        // waited up to 20 s for the natural step timeout to fire before
-        // the restore ran. "Cuando cancelo de forma manual el target
-        // tarda en volver a su sitio" — Carlos QA 2026-10-02.
-        if (!this._virtualTack || this._virtualTack.phase === "cancelling") {
-          throw new Error("virtual-tack cancelled by external cancel");
-        }
-        this._virtualTack.stepIndex = i;
-        this._virtualTack.phase1StepStartedAtMs = Date.now();
-        const stepTargetRad = geometry.intermediatesRad[i];
+      // Rev407 (audit H): intermediates are mutable now. After each
+      // step reached we recompute the REMAINING intermediates from the
+      // current (observed) heading, so the step N+1 target can never
+      // land at a distance > 180° of real heading (which would make
+      // pypilot pick the short arc in the WRONG direction).
+      let remainingIntermediates = geometry.intermediatesRad.slice();
+      let stepCounter = 0;
+      let finalCompassTargetRad = geometry.hTargetRad;
+
+      while (remainingIntermediates.length > 0) {
+        checkCancelled();
+        this._virtualTack!.stepIndex = stepCounter;
+        this._virtualTack!.phase1StepStartedAtMs = Date.now();
+        const stepTargetRad = remainingIntermediates[0];
         this._vtInternalWrite = true;
         try { await this.setTarget(stepTargetRad); } finally { this._vtInternalWrite = false; }
-        // Poll heading until we reach the intermediate within tolerance.
-        const stepStart = Date.now();
+        checkCancelled();
+
+        // Poll heading until we reach the intermediate within tolerance,
+        // OR pypilot has not moved the hull in PYPILOT_STUCK_MS → abort.
+        // Rev407: no fixed maneuver timeout. The sailor cancels manually
+        // if they want to abort for any other reason.
+        let lastHeadingRad: number | null = null;
+        let lastHeadingChangeTs = Date.now();
         while (true) {
-          const v = (this.client as any).getValues?.() || {};
-          const hNowDeg = v["ap.heading"];
-          if (typeof hNowDeg === "number") {
-            const hNowRad = normalizeTwoPi(hNowDeg * DEG_TO_RAD);
+          const hNow = this._readHeadingRad();
+          if (hNow !== null) {
             if (
               isAtTarget({
-                hNowRad,
+                hNowRad: hNow,
                 hTargetRad: stepTargetRad,
                 toleranceDeg: DEFAULT_PHASE_TOLERANCE_DEG,
               })
-            )
+            ) {
               break;
-          }
-          if (Date.now() - stepStart > DEFAULT_PHASE1_STEP_TIMEOUT_MS) {
-            throw new Error(`turning step ${i} timeout (no rotation in ${DEFAULT_PHASE1_STEP_TIMEOUT_MS/1000}s)`);
+            }
+            if (lastHeadingRad === null) {
+              lastHeadingRad = hNow;
+              lastHeadingChangeTs = Date.now();
+            } else {
+              const diffDeg = Math.abs(
+                normalizeTwoPi(hNow - lastHeadingRad + Math.PI) * RAD_TO_DEG - 180,
+              );
+              if (diffDeg > STUCK_HEADING_TOL_DEG) {
+                lastHeadingRad = hNow;
+                lastHeadingChangeTs = Date.now();
+              } else if (Date.now() - lastHeadingChangeTs > PYPILOT_STUCK_MS) {
+                throw new Error(
+                  `virtual-tack: pypilot stuck (no heading change in ${PYPILOT_STUCK_MS / 1000}s)`,
+                );
+              }
+            }
           }
           await sleep(500);
-          // Rev397: see above. Honour the "cancelling" phase so the
-          // user does not wait up to 20 s + 1.5 s for the restore.
-          // Cast to string because TS narrows phase to != "cancelling"
-          // from the top-of-loop check and does not model external
-          // mutation via cancelVirtualTack().
-          if (!this._virtualTack || (this._virtualTack.phase as string) === "cancelling") {
-            throw new Error("virtual-tack cancelled by external cancel");
+          checkCancelled();
+        }
+
+        // Step reached. Pop it and recompute the rest from REAL heading.
+        remainingIntermediates.shift();
+        stepCounter++;
+        if (remainingIntermediates.length > 0) {
+          const hNow = this._readHeadingRad();
+          if (hNow !== null) {
+            remainingIntermediates = recomputeRemainingIntermediates({
+              hNowRad: hNow,
+              finalCompassTargetRad,
+              originalDeltaSign: Math.sign(geometry.deltaHRad),
+            });
           }
         }
       }
 
       // ─── Phase handover → settling: back to wind mode, final target ───
+      checkCancelled();
       setPhase("handover");
       this._vtInternalWrite = true;
       try { await this.setMode(windMode); } finally { this._vtInternalWrite = false; }
+      checkCancelled();
       const windReady = await waitForPypilotEcho("ap.mode", windMode, 1500);
       if (!windReady) {
         // eslint-disable-next-line no-console
         console.log(`[virtual-tack ${vtId}] WARN: ap.mode=${windMode} echo not seen in 1.5s, continuing`);
       }
+      checkCancelled();
       this._vtInternalWrite = true;
       try { await this.setTarget(geometry.angleNewRad); } finally { this._vtInternalWrite = false; }
+      checkCancelled();
 
-      // Rev387: new `settling` phase. Entering wind mode isn't the end
-      // of the maneuver — pypilot still needs to drive the last few
-      // degrees. We watch the wind angle error until it stays under
-      // tolerance for a short dwell, then declare completed.
+      // Rev387: settling phase. Watches the wind angle error until
+      // it stays under tolerance for a short dwell.
+      // Rev407: no artificial "declaring completed anyway" fallback.
+      // If settling can't confirm within 30 s, we mark it as settling-
+      // timeout (NOT ok). The sailor sees it and decides.
       setPhase("settling");
       const settleStart = Date.now();
       const SETTLE_TOLERANCE_DEG = 10;
       const SETTLE_DWELL_MS = 2000;
-      const SETTLE_TIMEOUT_MS = 15000;
-      const windKey = windMode === "wind" ? "ap.wind.compass_direction" : "ap.wind.true_direction";
-      // Rev387: we track AWA / TWA via the target space of ap.heading_command
-      // itself. In wind modes pypilot's heading_command is in AWA/TWA degrees,
-      // which is also what state.target holds. So current wind-angle error
-      // ≈ state.target_received - state.target_requested. Since both are our
-      // own writes, we instead sample windAngle (AWA) directly from the SK bus.
+      const SETTLE_TIMEOUT_MS = 30000;
+      let settledOk = false;
       let dwellStart: number | null = null;
       while (true) {
-        // Rev397: honour "cancelling" phase for prompt abort during
-        // the settling wait too (user tap on cancel during the dwell).
-        if (!this._virtualTack || this._virtualTack.phase === "cancelling") {
-          throw new Error("virtual-tack cancelled by external cancel");
-        }
+        checkCancelled();
         const skPath = windMode === "wind" ? "environment.wind.angleApparent" : "environment.wind.angleTrueWater";
         let windNowRad: number | null = null;
         try {
@@ -1016,77 +1085,62 @@ export class AutopilotProvider {
           );
           if (errDeg < SETTLE_TOLERANCE_DEG) {
             if (dwellStart === null) dwellStart = Date.now();
-            else if (Date.now() - dwellStart > SETTLE_DWELL_MS) break;
+            else if (Date.now() - dwellStart > SETTLE_DWELL_MS) {
+              settledOk = true;
+              break;
+            }
           } else {
             dwellStart = null;
           }
         }
         if (Date.now() - settleStart > SETTLE_TIMEOUT_MS) {
           // eslint-disable-next-line no-console
-          console.log(`[virtual-tack ${vtId}] settling timeout; declaring completed anyway`);
+          console.log(`[virtual-tack ${vtId}] settling did not converge in ${SETTLE_TIMEOUT_MS/1000}s`);
           break;
         }
         await sleep(300);
       }
 
-      setPhase("completed", "ok");
+      setPhase("completed", settledOk ? "ok" : "settling-timeout");
       // eslint-disable-next-line no-console
-      console.log(`[virtual-tack ${vtId}] completed in ${((Date.now() - now) / 1000).toFixed(1)}s`);
+      console.log(`[virtual-tack ${vtId}] completed in ${((Date.now() - now) / 1000).toFixed(1)}s (settled=${settledOk})`);
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.log(`[virtual-tack ${vtId}] ${err?.message || err}`);
-      // Rev387: distinguish user cancel from error. Cancel = user asked
-      // to stop; failed = unexpected throw.
       const msg = String(err?.message || err || "");
       const isUserCancel = /cancelled by external cancel/.test(msg);
-      setPhase("cancelling", msg);
-      this._vtInternalWrite = true;
-      try { await this.setMode(windMode); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
-      // Rev396 (Carlos, 2026-10-02, Round-4 Codex+Gemini): wait for pypilot
-      // to acknowledge the mode AND target restore before marking the
-      // maneuver terminal. QA Rev395 T1 showed a 515 ms window after our
-      // restore write where pypilot was still echoing a stale heading
-      // command (-23°) and it won the canonical state over our intended
-      // -96°. Visor shield masked it live, but when the 5 s cleanup
-      // dropped the shield the stale value was already on the bus, and
-      // the next render would reveal the "wrong restore" the sailor
-      // reported as "sitio equívoco". With these awaits, the terminal
-      // snapshot only fires once pypilot has confirmed BOTH new mode and
-      // target, so the shield comes down against a server state that
-      // matches our intent. Try/catch so a thrown "cancelled" from the
-      // echo helper (if _virtualTack is nulled mid-wait by a race) does
-      // not skip the setTarget restore.
+      const isSuperseded = /session superseded/.test(msg);
+      // Rev407 (audit D): on cancel / failure / stuck / supersede, do
+      // NOT restore the original wind target. Carlos sea trial 2026-
+      // 10-03 showed pypilot picks the SHORT arc from the current
+      // heading back to the original AWA, often going the wrong way or
+      // making a full 360°. Instead switch to compass mode and set the
+      // target to the CURRENT heading, so pypilot holds the boat where
+      // it is. The sailor chooses what to do next.
+      // Session-superseded cases skip the restore entirely (another VT
+      // owns the state now).
+      if (isSuperseded) {
+        setPhase(isUserCancel ? "cancelled" : "failed", msg);
+        throw err;
+      }
+      // Only emit cancelling if we actually own the session.
+      if (sessionAlive()) {
+        setPhase("cancelling", msg);
+      }
       try {
-        const modeRestored = await waitForPypilotEcho("ap.mode", windMode, 1500);
-        if (!modeRestored) {
-          // eslint-disable-next-line no-console
-          console.log(`[virtual-tack ${vtId}] WARN: cancelling mode=${windMode} echo not seen in 1.5s, continuing`);
-        }
-      } catch { /* best-effort */ }
-      this._vtInternalWrite = true;
-      try { await this.setTarget(originalAngleRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
-      // Rev396+Rev397: numeric echo wait on the target. pypilot stores
-      // ap.heading_command in DEGREES (setTarget writes `deg = rad *
-      // RAD_TO_DEG` on line ~618) so we must compare degrees here, not
-      // radians. Rev396 Round-4 QA log confirmed the mismatch — WARN
-      // fired on every cancel even when pypilot DID echo correctly.
-      // 0.5deg tolerance is tight enough to catch stale overrides and
-      // loose enough to handle float round-trip precision.
+        this._vtInternalWrite = true;
+        try { await this.setMode("compass"); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+      } catch { /* swallow */ }
       try {
-        const RESTORE_TOL_DEG = 0.5;
-        const originalAngleDeg = originalAngleRad * RAD_TO_DEG;
-        const targetRestored = await waitForPypilotNumericEcho(
-          "ap.heading_command",
-          originalAngleDeg,
-          RESTORE_TOL_DEG,
-          1500,
-        );
-        if (!targetRestored) {
-          // eslint-disable-next-line no-console
-          console.log(`[virtual-tack ${vtId}] WARN: cancelling target=${originalAngleDeg.toFixed(2)}deg echo not seen in 1.5s, continuing`);
+        const hNowRad = this._readHeadingRad();
+        if (hNowRad !== null) {
+          this._vtInternalWrite = true;
+          try { await this.setTarget(hNowRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
         }
-      } catch { /* best-effort */ }
-      setPhase(isUserCancel ? "cancelled" : "failed", msg);
+      } catch { /* swallow */ }
+      if (sessionAlive()) {
+        setPhase(isUserCancel ? "cancelled" : "failed", msg);
+      }
       throw err;
     } finally {
       // Rev393 (Carlos, 2026-10-01, GPT-Codex round 2): capture the id
