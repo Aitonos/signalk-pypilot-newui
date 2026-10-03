@@ -1127,15 +1127,38 @@ export class AutopilotProvider {
       if (sessionAlive()) {
         setPhase("cancelling", msg);
       }
+      // Rev408 (Carlos QA Rev407 sea trial 2026-10-03): "stay on this
+      // course" means stay in the SAME wind mode with the CURRENT wind
+      // angle as target. Rev407 Commit 1 switched to compass+heading,
+      // which technically freezes the heading but broke the next TACK
+      // ("virtual-tack only valid in wind modes") because the AP was
+      // left in compass. In practice the sailor tacks several times in
+      // a row — "quedarse en el rumbo" has to leave the pilot in a
+      // state where another TACK works without manual mode change.
+      //
+      // In wind mode, target = current AWA keeps the boat at the AWA
+      // it has right now. If wind is stable, heading stays. If wind
+      // rotates, the AP follows the wind — same behaviour as any
+      // normal wind-mode leg, which is what the sailor expects.
       try {
+        // Make sure we are in the wind mode we started with. If we
+        // were caught mid-step still in compass, bring the AP back.
         this._vtInternalWrite = true;
-        try { await this.setMode("compass"); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+        try { await this.setMode(windMode); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
       } catch { /* swallow */ }
       try {
-        const hNowRad = this._readHeadingRad();
-        if (hNowRad !== null) {
+        const skPath = windMode === "wind"
+          ? "environment.wind.angleApparent"
+          : "environment.wind.angleTrueWater";
+        let awaRad: number | null = null;
+        try {
+          const p = this.app?.getSelfPath?.(skPath);
+          const v = p?.value;
+          if (typeof v === "number" && Number.isFinite(v)) awaRad = v;
+        } catch { /* noop */ }
+        if (awaRad !== null) {
           this._vtInternalWrite = true;
-          try { await this.setTarget(hNowRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+          try { await this.setTarget(awaRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
         }
       } catch { /* swallow */ }
       if (sessionAlive()) {
