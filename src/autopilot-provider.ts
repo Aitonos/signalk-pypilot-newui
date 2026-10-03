@@ -744,11 +744,40 @@ export class AutopilotProvider {
     if (headingRad === null) {
       throw new Error("virtual-tack: heading not available (SK bus + pypilot cache both empty)");
     }
-    if (this.data.target == null || !Number.isFinite(this.data.target)) {
-      throw new Error("virtual-tack: current target not available");
-    }
     const windMode = modeStr as WindMode;
-    this._runVirtualTack(opts.direction, windMode, headingRad, this.data.target).catch((e: any) => {
+    // Rev409 (Carlos QA Rev408 sea trial 2026-10-03 19:30): the "angle
+    // we mirror" has to be the CURRENT AWA from the sensor, NOT
+    // this.data.target. The sailor saw the diamond go to aleta babor
+    // casi popa (~-135°) when they expected través port (-90°).
+    //
+    // Root cause: Rev408 cancel leaves data.target = AWA at the moment
+    // of cancel. If the boat kept rotating a bit between cancel and the
+    // next tap, data.target is stale by that same amount, and the FSM
+    // mirrors the STALE angle. computeTackGeometry (angleNewRad =
+    // -angleStartSigned) is correct — the input was wrong.
+    //
+    // The visor's _tackStartFresh already uses state.windAngle (sensor
+    // direct). Mirroring that same source backend-side keeps them in
+    // sync and matches the physical "swap bordos" expectation.
+    const awaPath = windMode === "wind"
+      ? "environment.wind.angleApparent"
+      : "environment.wind.angleTrueWater";
+    let awaRad: number | null = null;
+    try {
+      const p = this.app?.getSelfPath?.(awaPath);
+      const v = p?.value;
+      if (typeof v === "number" && Number.isFinite(v)) awaRad = v;
+    } catch { /* noop */ }
+    if (awaRad === null) {
+      // Fallback to data.target so we don't break the manoeuvre when
+      // the SK bus is missing wind data (rare but possible on sensor
+      // dropouts). The FSM worked this way pre-Rev409.
+      if (this.data.target == null || !Number.isFinite(this.data.target)) {
+        throw new Error(`virtual-tack: wind angle unavailable (${awaPath} empty, no fallback target)`);
+      }
+      awaRad = this.data.target;
+    }
+    this._runVirtualTack(opts.direction, windMode, headingRad, awaRad).catch((e: any) => {
       // eslint-disable-next-line no-console
       console.log(`[startVirtualTack] driver threw: ${e?.message || e}`);
     });
@@ -802,12 +831,27 @@ export class AutopilotProvider {
     const modeStr = String(this.data.mode || "").toLowerCase();
     const isWind = modeStr === "wind" || modeStr === "true wind";
     if (isWind) {
-      // Rev407: _runVirtualTack now takes heading + originalTarget as
-      // params (validated by caller). If no heading, abort silently
-      // — same policy as pre-Rev407 when _runVirtualTack would throw.
+      // Rev407+Rev409: _runVirtualTack takes heading + originalAWA
+      // (sensor direct, not data.target — see startVirtualTack for the
+      // reason). If either source is missing, abort silently.
       const headingRad = this._readHeadingRad();
       if (headingRad === null) return;
-      await this._runVirtualTack(direction, modeStr as WindMode, headingRad, this.data.target);
+      const windMode = modeStr as WindMode;
+      const awaPath = windMode === "wind"
+        ? "environment.wind.angleApparent"
+        : "environment.wind.angleTrueWater";
+      let awaRad: number | null = null;
+      try {
+        const p = this.app?.getSelfPath?.(awaPath);
+        const v = p?.value;
+        if (typeof v === "number" && Number.isFinite(v)) awaRad = v;
+      } catch { /* noop */ }
+      if (awaRad === null) {
+        // Fallback same as startVirtualTack.
+        if (this.data.target == null || !Number.isFinite(this.data.target)) return;
+        awaRad = this.data.target;
+      }
+      await this._runVirtualTack(direction, windMode, headingRad, awaRad);
       return;
     }
     const values = (this.client as any).getValues?.() || {};
