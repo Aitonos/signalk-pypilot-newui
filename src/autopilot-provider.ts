@@ -12,6 +12,7 @@
 import { PypilotClient } from "./pypilot-client";
 import { decideReAnchor } from "./mode-reanchor";
 import {
+  awaEmaStep,
   computeTackGeometry,
   isAtTarget,
   normalizeSignedPi,
@@ -1139,15 +1140,17 @@ export class AutopilotProvider {
       const SETTLE_TOLERANCE_DEG = 10;
       const SETTLE_DWELL_MS = 2000;
       const SETTLE_TIMEOUT_MS = 30000;
-      // Rev414 (fix V.1, Carlos 2026-10-04, audit Commit 4): dampen the
-      // AWA sampled from the SK bus with a τ≈2s EMA before comparing
-      // against the final target. Raw AWA in low AWS or in wave slap
-      // flaps ±10° per tick and the previous "errDeg < 10° for 2s dwell"
-      // test could never confirm — producing the "settling-timeout"
-      // outcome Carlos saw in the 2026-10-03 sea trial. normalizeSignedPi
-      // on the delta is mandatory for angle wrap-around (otherwise EMA
-      // diverges when AWA crosses ±π).
+      // Rev414 (fix V.1): EMA τ≈2s on AWA to ignore raw sensor noise.
+      // Rev415 (Carlos sea trial 2026-10-04, obs #3): add a staleness
+      // guard. SK publishes a `timestamp` with every value — when the
+      // wifi link to the sensor drops and comes back, SK still returns
+      // the LAST value (frozen) until the next real update. Pre-Rev415
+      // the EMA kept dampening the stale value into the final target
+      // and could falsely declare settled while the sensor was dead.
+      // Now: if the sample timestamp is older than STALE_SAMPLE_MS,
+      // skip the EMA update, drop the dwell counter and keep waiting.
       const EMA_ALPHA = 0.13;
+      const STALE_SAMPLE_MS = 3000;
       let awaEmaRad: number | null = null;
       let settledOk = false;
       let dwellStart: number | null = null;
@@ -1155,17 +1158,20 @@ export class AutopilotProvider {
         checkCancelled();
         const skPath = windMode === "wind" ? "environment.wind.angleApparent" : "environment.wind.angleTrueWater";
         let windNowRad: number | null = null;
+        let sampleAgeMs: number | null = null;
         try {
           const p = this.app?.getSelfPath?.(skPath);
           const v = p?.value;
           if (typeof v === "number" && Number.isFinite(v)) windNowRad = v;
-        } catch { /* noop */ }
-        if (windNowRad !== null) {
-          if (awaEmaRad === null) {
-            awaEmaRad = windNowRad;
-          } else {
-            awaEmaRad = awaEmaRad + EMA_ALPHA * normalizeSignedPi(windNowRad - awaEmaRad);
+          const ts = p?.timestamp;
+          if (typeof ts === "string") {
+            const parsed = Date.parse(ts);
+            if (Number.isFinite(parsed)) sampleAgeMs = Date.now() - parsed;
           }
+        } catch { /* noop */ }
+        const sampleFresh = windNowRad !== null && (sampleAgeMs === null || sampleAgeMs < STALE_SAMPLE_MS);
+        if (sampleFresh) {
+          awaEmaRad = awaEmaStep(awaEmaRad, windNowRad!, EMA_ALPHA);
           const errDeg = Math.abs(
             ((((awaEmaRad - geometry.angleNewRad) * RAD_TO_DEG) + 540) % 360) - 180,
           );
@@ -1178,6 +1184,12 @@ export class AutopilotProvider {
           } else {
             dwellStart = null;
           }
+        } else if (sampleAgeMs !== null && sampleAgeMs >= STALE_SAMPLE_MS) {
+          // Sample frozen — drop the dwell so the "ok" can only come
+          // from a sustained window of FRESH data. Reset the EMA so the
+          // frozen value does not keep weighing in once wind comes back.
+          dwellStart = null;
+          awaEmaRad = null;
         }
         if (Date.now() - settleStart > SETTLE_TIMEOUT_MS) {
           // eslint-disable-next-line no-console

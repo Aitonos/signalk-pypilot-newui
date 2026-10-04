@@ -872,6 +872,7 @@
       "empopado.hud.hotbadge.failed": "PID failed",
       "tack.vtCompletedTimeout":      "Tack completed, wind not converged",
       "tack.vtCompletedTimeoutSpeak": "tack completed",
+      "tack.settling":                "settling",
     },
     es: {
       "tack": "VIRAR",
@@ -1716,6 +1717,7 @@
       "empopado.hud.hotbadge.failed": "PID fallo",
       "tack.vtCompletedTimeout":      "Virada completada, viento sin converger",
       "tack.vtCompletedTimeoutSpeak": "virada completada",
+      "tack.settling":                "ajustando",
     },
     de: {
       "tack": "WENDEN",
@@ -4266,10 +4268,17 @@
           // VT run (our own backend knows the rotation geometry). Fall
           // back to "— —" for legacy external maneuvers (mando físico
           // without VT — pypilot does not publish any remaining metric).
+          // Rev415 (sea trial 2026-10-04 obs #14): during handover /
+          // settling the compass rotation already finished, so
+          // `remainingDeg` is no longer the useful metric. Show a short
+          // "settling" label so Carlos reads the correct phase.
           const vt = state.virtualTack;
+          const inSettling = vt && (vt.phase === "handover" || vt.phase === "settling");
           const remDeg = (vt && vt.active && typeof vt.remainingDeg === "number")
             ? vt.remainingDeg : null;
-          if (remDeg !== null) {
+          if (inSettling) {
+            el.textContent = t("tack.settling") || "settling";
+          } else if (remDeg !== null) {
             el.textContent = `${Math.round(remDeg)}°`;
           } else {
             el.textContent = "— —";
@@ -6847,13 +6856,34 @@
   }
   async function apSetTargetRad(rad) {
     if (!await ensureAutopilotId()) return;
-    _mtLog("target_put", { rad, deg: (rad * 180 / Math.PI).toFixed(1) });
+    // Rev415 (Carlos sea trial 2026-10-04, obs #1 "nudges silenciosos"):
+    // enrich the target_put trace so a stale UI vs real-write mismatch
+    // is diagnosable without correlating by timestamp. Includes the
+    // current state snapshot BEFORE the write and the HTTP status
+    // AFTER. If Carlos sees the UI stuck on 110° while the trace shows
+    // targets at 100°/90°/..., we know the visor render path is the
+    // culprit.
+    const RAD2DEG_LOCAL = 180 / Math.PI;
+    const preDeg = (rad * RAD2DEG_LOCAL).toFixed(1);
+    const curTargetDeg = typeof state.target === "number" ? (state.target * RAD2DEG_LOCAL).toFixed(1) : null;
+    const headingDeg = typeof state.heading === "number" ? (state.heading * RAD2DEG_LOCAL).toFixed(1) : null;
+    const awaDeg = typeof state.windAngle === "number" ? (state.windAngle * RAD2DEG_LOCAL).toFixed(1) : null;
+    const twaDeg = typeof state.windAngleTrue === "number" ? (state.windAngleTrue * RAD2DEG_LOCAL).toFixed(1) : null;
+    _mtLog("target_put", {
+      rad, deg: preDeg,
+      curTargetDeg, headingDeg, awaDeg, twaDeg,
+      mode: state.mode, engaged: state.engaged,
+    });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/target`;
-    return handleAuth(await skFetch(url, {
+    const res = await handleAuth(await skFetch(url, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: rad }),
     }));
+    try {
+      _mtLog("target_put_resp", { deg: preDeg, status: res?.status, ok: res?.ok });
+    } catch { /* silent */ }
+    return res;
   }
   async function apTack(direction) {
     if (!await ensureAutopilotId()) return;
@@ -7557,7 +7587,14 @@
       if (Date.now() - ap._lostSinceTs < EMPOPADO_LOST_SUSTAIN_MS) return;
       console.warn(`empopado: lost stern (|TWA|=${twaAbsDeg.toFixed(0)}° <${EMPOPADO_LOST_DEG}°) — auto-cancel`);
       try { _alSpeak(t("empopado.lost") || "Empopado cancelado, viento cambió"); } catch { /* silent */ }
-      empopadoFinish({ restoreAll: true, silent: true });
+      // Rev415 (Carlos sea trial 2026-10-04, obs #11): "stern-lost"
+      // auto-cancel used to force restoreAll=true, i.e. snap the pilot
+      // back to the pre-empopado target. Carlos explicitly asked to
+      // disable that path — forcing a heading change the sailor was not
+      // expecting during an already-chaotic wind shift is dangerous.
+      // Stay on the current course; the voice toast tells the sailor
+      // what happened, they decide what to do next.
+      empopadoFinish({ restoreAll: false, silent: true });
     }
   }
   function updateEmpopadoHud() {
@@ -7705,7 +7742,7 @@
   // that was Carlos's "wind mode does not come back" bug). The dropdown
   // is also updated optimistically so the UI reflects the restore even
   // before pypilot's echo lands.
-  async function aproadoFinish() {
+  async function aproadoFinish(opts) {
     const apr = state.aproado;
     if (!apr || (apr.phase !== "active" && apr.phase !== "transit")) return;
     if (apr._hudTimer) { clearInterval(apr._hudTimer); apr._hudTimer = null; }
@@ -7721,23 +7758,33 @@
     if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
     _setPhase("summary");
     updateAproadoHud();
+    // Rev415 (Carlos sea trial 2026-10-04, obs #11): "hay que anular el
+    // restituir rumbo cuando salimos de aproado o empopado porque es
+    // peligroso". Default `restoreAll=false` matches what empopadoFinish
+    // did since Rev407 R. Keep the opt-in for the (rare) case where the
+    // sailor really wants the pre-aproado state back.
+    const restoreAll = !!(opts && opts.restoreAll === true);
     // Optimistic dropdown update so UI does not stay stuck on "aproado".
     const snap = apr.snapshot;
-    if (snap.mode) setSelect("#mode-select", snap.mode);
-    // Rev90: guard each step separately so one failure does not skip
-    // the others. Log successes for QA visibility.
-    if (snap.mode) {
-      try { await apSetMode(snap.mode); console.info("aproado: mode restored ->", snap.mode); }
-      catch (e) { console.warn("aproado: mode restore failed", e); }
-    }
-    if (snap.targetRad != null) {
-      try { await apSetTargetRad(snap.targetRad); console.info("aproado: target restored ->", snap.targetRad.toFixed(3), "rad"); }
-      catch (e) { console.warn("aproado: target restore failed", e); }
-    }
-    // If the AP was NOT engaged before aproado, disengage now (Rev88 #10).
-    if (!snap.engaged) {
-      try { await apDisengage(); console.info("aproado: AP disengaged (was OFF before aproado)"); }
-      catch (e) { console.warn("aproado: disengage failed", e); }
+    if (restoreAll) {
+      if (snap.mode) setSelect("#mode-select", snap.mode);
+      // Rev90: guard each step separately so one failure does not skip
+      // the others. Log successes for QA visibility.
+      if (snap.mode) {
+        try { await apSetMode(snap.mode); console.info("aproado: mode restored ->", snap.mode); }
+        catch (e) { console.warn("aproado: mode restore failed", e); }
+      }
+      if (snap.targetRad != null) {
+        try { await apSetTargetRad(snap.targetRad); console.info("aproado: target restored ->", snap.targetRad.toFixed(3), "rad"); }
+        catch (e) { console.warn("aproado: target restore failed", e); }
+      }
+      // If the AP was NOT engaged before aproado, disengage now (Rev88 #10).
+      if (!snap.engaged) {
+        try { await apDisengage(); console.info("aproado: AP disengaged (was OFF before aproado)"); }
+        catch (e) { console.warn("aproado: disengage failed", e); }
+      }
+    } else {
+      console.info("aproado: finish without restore (Rev415 default) — leaving pilot where it is");
     }
     apr._summaryTimer = setTimeout(() => {
       if (state.aproado === apr) {

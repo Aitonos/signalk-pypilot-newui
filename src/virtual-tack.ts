@@ -328,6 +328,27 @@ export function makeInitialState(): VirtualTackState {
  * All inputs in radians. Returns an array of absolute compass headings
  * in [0, 2π). Empty array when no further steps are needed (|arc| < 1e-6).
  */
+/**
+ * Rev414 (Carlos sea trial 2026-10-03, audit Commit 4): EMA step for
+ * the AWA sampled during settling. Takes the previous EMA state and
+ * a fresh sample, returns the new EMA. `null` previous means "first
+ * sample — seed the EMA directly".
+ *
+ * `normalizeSignedPi` on the delta is mandatory: without it the EMA
+ * diverges when the sample crosses ±π (apparent wind can wrap when
+ * the boat points head-to-wind). The result is wrapped back into
+ * (-π, +π] for consistency.
+ *
+ * Rev415 (Carlos sea trial 2026-10-04, obs #3): extracted to a pure
+ * function so settling behaviour is unit-testable; the AWA settling
+ * loop in autopilot-provider.ts now calls this helper.
+ */
+export function awaEmaStep(prevEmaRad: number | null, sampleRad: number, alpha: number): number {
+  if (prevEmaRad === null) return normalizeSignedPi(sampleRad);
+  const delta = normalizeSignedPi(sampleRad - prevEmaRad);
+  return normalizeSignedPi(prevEmaRad + alpha * delta);
+}
+
 export function recomputeRemainingIntermediates(opts: {
   hNowRad: number;
   finalCompassTargetRad: number;

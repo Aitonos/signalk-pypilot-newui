@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  awaEmaStep,
   computeTackGeometry,
   fractionateRotation,
   normalizeSignedPi,
@@ -442,5 +443,44 @@ describe("virtual-tack / recomputeRemainingIntermediates (Rev407 audit H)", () =
     });
     assert.equal(out.length, 1);
     assert.ok(Math.abs(out[0] - deg(10)) < EPS, `got ${out[0] * RAD2DEG}`);
+  });
+});
+
+describe("virtual-tack / awaEmaStep (Rev414/Rev415 settling EMA)", () => {
+  const ALPHA = 0.13;
+
+  it("seeds the EMA directly on the first sample", () => {
+    const out = awaEmaStep(null, deg(45), ALPHA);
+    assert.ok(Math.abs(out - deg(45)) < EPS,
+      `first sample seeds EMA, got ${out * RAD2DEG}`);
+  });
+
+  it("converges toward a constant input after enough ticks", () => {
+    let ema: number | null = null;
+    for (let i = 0; i < 200; i++) ema = awaEmaStep(ema, deg(45), ALPHA);
+    assert.ok(ema !== null && Math.abs(ema - deg(45)) < 1e-3,
+      `EMA converged, got ${ema! * RAD2DEG}`);
+  });
+
+  it("does NOT diverge when the sample crosses ±π (wrap-around)", () => {
+    // Steady wind at +179°. The next sample flips to -179° (angle
+    // wrapped). Without signed-pi normalisation the delta would be
+    // -358° and the EMA would snap backwards by ~46° toward +133°.
+    // With the normalisation it should barely move.
+    const prev = deg(179);
+    const sample = deg(-179);
+    const out = awaEmaStep(prev, sample, ALPHA);
+    // Shortest arc is +2° (CW from +179 to -179 = +2°), so the EMA
+    // steps by 0.13 * +2° = +0.26° past +180° → wraps to ~-179.7°.
+    const outDeg = out * RAD2DEG;
+    assert.ok(outDeg < -179 || outDeg > 179,
+      `EMA stayed near ±180° (should wrap), got ${outDeg.toFixed(3)}°`);
+  });
+
+  it("rejects garbage: alpha=0 returns previous unchanged (apart from wrap)", () => {
+    const prev = deg(30);
+    const out = awaEmaStep(prev, deg(90), 0);
+    assert.ok(Math.abs(out - prev) < EPS,
+      `alpha=0 is identity, got ${out * RAD2DEG}`);
   });
 });
