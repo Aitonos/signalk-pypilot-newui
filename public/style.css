@@ -3648,6 +3648,13 @@ body.pypilot-offline .pypilot-write {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+/* Rev413 fix C.3: warn (yellow) variant used for VT
+   completed-settling-timeout — less alarming than the default green
+   / red error semantics (toast is a reused element across events). */
+.pypilot-reconnect-toast.warn {
+  background: #f5c518;
+  color: #1a1a1a;
+}
 
 /* Rev268 (Carlos): banner no-modal para ofrecer restaurar target
    tras un corte de conexión con AP engaged. Aparece arriba del

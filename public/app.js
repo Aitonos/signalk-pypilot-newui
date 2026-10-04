@@ -870,6 +870,8 @@
       "empopado.hud.hotbadge.on":     "HOT PID",
       "empopado.hud.hotbadge.off":    "Normal PID",
       "empopado.hud.hotbadge.failed": "PID failed",
+      "tack.vtCompletedTimeout":      "Tack completed, wind not converged",
+      "tack.vtCompletedTimeoutSpeak": "tack completed",
     },
     es: {
       "tack": "VIRAR",
@@ -1712,6 +1714,8 @@
       "empopado.hud.hotbadge.on":     "PID agresivo",
       "empopado.hud.hotbadge.off":    "PID normal",
       "empopado.hud.hotbadge.failed": "PID fallo",
+      "tack.vtCompletedTimeout":      "Virada completada, viento sin converger",
+      "tack.vtCompletedTimeoutSpeak": "virada completada",
     },
     de: {
       "tack": "WENDEN",
@@ -2661,9 +2665,16 @@
             // time-since-delta heuristic. Fires on `failed` only — a
             // user-cancelled VT is not a surprise and does not warrant a
             // red toast.
+            // Rev413 (fix C.1, Carlos 2026-10-04): also surface a warn
+            // (yellow) toast when settling times out but the compass
+            // rotation finished. The target IS applied — only the AWA
+            // convergence did not confirm within 30 s. Common in noisy
+            // AWS≈0 wind; the sailor sees it and decides whether to
+            // re-nudge or trust the heading.
+            const outcomeReason = state.virtualTack?.outcomeReason || "";
             if (terminalPhase === "failed") {
               try {
-                const reason = state.virtualTack?.outcomeReason || "sin motivo";
+                const reason = outcomeReason || "sin motivo";
                 let el = document.getElementById("pypilot-reconnect-toast");
                 if (!el) {
                   el = document.createElement("div");
@@ -2671,11 +2682,28 @@
                   el.className = "pypilot-reconnect-toast";
                   document.body.appendChild(el);
                 }
+                el.classList.remove("warn");
                 el.textContent = `${t("tack.vtFailed") || "Virada fallida"}: ${reason}`;
                 el.classList.add("show");
                 clearTimeout(el._hideTimer);
                 el._hideTimer = setTimeout(() => { el.classList.remove("show"); }, 6000);
                 try { _alSpeak(t("tack.vtFailedSpeak") || "Virada fallida"); } catch { /* silent */ }
+              } catch { /* silent */ }
+            } else if (terminalPhase === "completed" && outcomeReason === "settling-timeout") {
+              try {
+                let el = document.getElementById("pypilot-reconnect-toast");
+                if (!el) {
+                  el = document.createElement("div");
+                  el.id = "pypilot-reconnect-toast";
+                  el.className = "pypilot-reconnect-toast";
+                  document.body.appendChild(el);
+                }
+                el.classList.add("warn");
+                el.textContent = t("tack.vtCompletedTimeout") || "Virada completada, viento sin converger";
+                el.classList.add("show");
+                clearTimeout(el._hideTimer);
+                el._hideTimer = setTimeout(() => { el.classList.remove("show"); el.classList.remove("warn"); }, 5000);
+                try { _alSpeak(t("tack.vtCompletedTimeoutSpeak") || "virada completada"); } catch { /* silent */ }
               } catch { /* silent */ }
             }
             delete state._modeBeforeVt;
