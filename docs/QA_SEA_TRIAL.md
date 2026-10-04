@@ -359,3 +359,23 @@ en puerto; estos puntos sólo se cierran cuando haya navegación real.
       altas gracias a `font-size + em cascade`).
     - ❌ Mal: solo la rose se adapta, botones quedan pequeños, hay
       hueco negro bajo el rudder scale.
+
+---
+
+## Rev410 — pendiente verificar en agua / escenario stuck
+
+Puntos del audit Commit 2 que QA Rev410 no pudo forzar en puerto
+(Carlos 2026-10-04 "todo OK; creo"):
+
+- **U.2 Watchdog visual 120 s**: solo se dispara si pypilot muere a
+  mitad de VT y no publica `ap.tack.state=none`. Difícil de forzar
+  en puerto. Verificar la próxima vez que la Pi del pypilot se
+  caiga en navegación: el overlay espejo debe aguantar 120 s en
+  lugar de 60 s antes de cerrarse solo.
+- **U.3 Toast "Virada fallida: {outcomeReason}"**: forzable amarrando
+  el barco e intentando una virada VT: el backend disparará
+  `phase="failed"` con `outcomeReason: "pypilot stuck (no heading
+  change in 60s)"` tras los 60 s del watchdog interno. Debe aparecer
+  toast rojo + voz "Virada fallida". Verificar en agua con un
+  intento abortado (p. ej. levantar el mando a mitad de VT para que
+  rompa el stuck).
