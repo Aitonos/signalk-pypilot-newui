@@ -14,6 +14,7 @@ import { decideReAnchor } from "./mode-reanchor";
 import {
   computeTackGeometry,
   isAtTarget,
+  normalizeSignedPi,
   normalizeTwoPi,
   recomputeRemainingIntermediates,
   DEFAULT_PHASE_TOLERANCE_DEG,
@@ -1138,6 +1139,16 @@ export class AutopilotProvider {
       const SETTLE_TOLERANCE_DEG = 10;
       const SETTLE_DWELL_MS = 2000;
       const SETTLE_TIMEOUT_MS = 30000;
+      // Rev414 (fix V.1, Carlos 2026-10-04, audit Commit 4): dampen the
+      // AWA sampled from the SK bus with a τ≈2s EMA before comparing
+      // against the final target. Raw AWA in low AWS or in wave slap
+      // flaps ±10° per tick and the previous "errDeg < 10° for 2s dwell"
+      // test could never confirm — producing the "settling-timeout"
+      // outcome Carlos saw in the 2026-10-03 sea trial. normalizeSignedPi
+      // on the delta is mandatory for angle wrap-around (otherwise EMA
+      // diverges when AWA crosses ±π).
+      const EMA_ALPHA = 0.13;
+      let awaEmaRad: number | null = null;
       let settledOk = false;
       let dwellStart: number | null = null;
       while (true) {
@@ -1150,8 +1161,13 @@ export class AutopilotProvider {
           if (typeof v === "number" && Number.isFinite(v)) windNowRad = v;
         } catch { /* noop */ }
         if (windNowRad !== null) {
+          if (awaEmaRad === null) {
+            awaEmaRad = windNowRad;
+          } else {
+            awaEmaRad = awaEmaRad + EMA_ALPHA * normalizeSignedPi(windNowRad - awaEmaRad);
+          }
           const errDeg = Math.abs(
-            ((((windNowRad - geometry.angleNewRad) * RAD_TO_DEG) + 540) % 360) - 180,
+            ((((awaEmaRad - geometry.angleNewRad) * RAD_TO_DEG) + 540) % 360) - 180,
           );
           if (errDeg < SETTLE_TOLERANCE_DEG) {
             if (dwellStart === null) dwellStart = Date.now();
