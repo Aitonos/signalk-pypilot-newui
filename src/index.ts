@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev410";
+const PLUGIN_REVISION = "Rev411";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1714,7 +1714,19 @@ module.exports = function (app: any) {
             return res.json({ ok: true, name, value, virtualTack: true });
           }
         }
-        client.set(name, value);
+        // Rev411 (fix J-1, Carlos 2026-10-04): propagate pypilot client
+        // refusal. `client.set` returns false when the socket is offline,
+        // pypilot core reported offline, last pong is stale (zombie
+        // socket) or writes are disabled by config. Reporting 200 OK in
+        // those cases told the visor the write landed when it did not.
+        if (!client.set(name, value)) {
+          return res.status(503).json({
+            ok: false,
+            error: "pypilot write refused",
+            name,
+            value,
+          });
+        }
         res.json({ ok: true, name, value });
       });
 
@@ -1732,13 +1744,19 @@ module.exports = function (app: any) {
         }
         return true;
       };
+      // Rev411 (fix J-2, Carlos 2026-10-04): the no-apProvider fallbacks
+      // below used to ignore `client.set` boolean. If pypilot was offline
+      // the endpoint returned 200 OK even though no byte reached the
+      // servo. Each fallback now propagates refusal as 503.
       router.post("/ap/engage", async (_req: any, res: any) => {
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
         try {
           if (apProvider) {
             await (apProvider.toProviderInterface() as any).engage(apProvider.deviceId);
           } else if (client?.connected) {
-            client.set("ap.enabled", true);
+            if (!client.set("ap.enabled", true)) {
+              return res.status(503).json({ ok: false, error: "pypilot write refused" });
+            }
           } else {
             return res.status(503).json({ error: "not connected" });
           }
@@ -1751,7 +1769,9 @@ module.exports = function (app: any) {
           if (apProvider) {
             await (apProvider.toProviderInterface() as any).disengage(apProvider.deviceId);
           } else if (client?.connected) {
-            client.set("ap.enabled", false);
+            if (!client.set("ap.enabled", false)) {
+              return res.status(503).json({ ok: false, error: "pypilot write refused" });
+            }
           } else {
             return res.status(503).json({ error: "not connected" });
           }
@@ -1766,7 +1786,9 @@ module.exports = function (app: any) {
           if (apProvider) {
             await (apProvider.toProviderInterface() as any).setMode(value, apProvider.deviceId);
           } else if (client?.connected) {
-            client.set("ap.mode", value);
+            if (!client.set("ap.mode", value)) {
+              return res.status(503).json({ ok: false, error: "pypilot write refused" });
+            }
           } else {
             return res.status(503).json({ error: "not connected" });
           }
@@ -1781,7 +1803,9 @@ module.exports = function (app: any) {
           if (apProvider) {
             await (apProvider.toProviderInterface() as any).setTarget(rad, apProvider.deviceId);
           } else if (client?.connected) {
-            client.set("ap.heading_command", rad * 180 / Math.PI);
+            if (!client.set("ap.heading_command", rad * 180 / Math.PI)) {
+              return res.status(503).json({ ok: false, error: "pypilot write refused" });
+            }
           } else {
             return res.status(503).json({ error: "not connected" });
           }
@@ -5003,7 +5027,15 @@ module.exports = function (app: any) {
         // Rev63 / 2.0.0: values are surfaced verbatim, so PUT writes verbatim
         // too. No reverse conversion needed - what the consumer sends is what
         // pypilot receives.
-        client.set(name, value);
+        // Rev411 (fix J-1, Carlos 2026-10-04): propagate pypilot client
+        // refusal. The pre-check at the top of this handler covers
+        // `!client.connected`, but `client.set` can still refuse on
+        // zombie socket (no pong > 5s), coreOffline flag or
+        // writes-disabled config — all of which pre-Rev411 landed as
+        // "COMPLETED 200" to KIP/SK clients.
+        if (!client.set(name, value)) {
+          return { state: "COMPLETED", statusCode: 503, message: "pypilot write refused" };
+        }
         return { state: "COMPLETED", statusCode: 200 };
       };
       try {

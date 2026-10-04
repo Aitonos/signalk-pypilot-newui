@@ -1348,7 +1348,14 @@ export class AutopilotProvider {
     // 200 ms for a couple of ticks; we only emit once and let pypilot's own
     // servo watchdog return the rudder to neutral (6 s upstream default).
     const sign = rad > 0 ? 1 : -1;
-    this.client.set("servo.command", -sign);
+    // Rev411 (fix J-1.5, Carlos 2026-10-04): dodge is safety-critical
+    // (evasive maneuver). If pypilot is offline the SK API must learn
+    // about it instead of returning "COMPLETED" to a KIP tap that
+    // never reached the servo. Propagates up to the provider API
+    // caller as a rejected promise.
+    if (!this.client.set("servo.command", -sign)) {
+      throw new Error("pypilot offline: dodge not delivered");
+    }
   }
 
   private recomputeActions(): void {
