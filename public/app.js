@@ -867,6 +867,9 @@
       "aproado.hud.dist":          "Dist",
       "aproado.hud.hdg":           "Heading",
       "aproado.hud.exit":          "EXIT",
+      "empopado.hud.hotbadge.on":     "HOT PID",
+      "empopado.hud.hotbadge.off":    "Normal PID",
+      "empopado.hud.hotbadge.failed": "PID failed",
     },
     es: {
       "tack": "VIRAR",
@@ -1706,6 +1709,9 @@
       "aproado.hud.dist":          "Dist",
       "aproado.hud.hdg":           "Rumbo",
       "aproado.hud.exit":          "SALIR",
+      "empopado.hud.hotbadge.on":     "PID agresivo",
+      "empopado.hud.hotbadge.off":    "PID normal",
+      "empopado.hud.hotbadge.failed": "PID fallo",
     },
     de: {
       "tack": "WENDEN",
@@ -7240,37 +7246,85 @@
   // active. Snapshot en `ap._hotGainSnapshot` para restore posterior.
   // No se aplica en transit — sólo cuando ya estamos plantados en popa,
   // que es donde una ola puede trasluchar.
+  // Rev412 (fix Q + W, Carlos 2026-10-04, audit Commit 5):
+  //  Q — `state.catalog` holds metadata (type, min, max, units) and
+  //      does NOT carry a `.value` field. The current value lives in
+  //      `state.pypilotValues`, populated by refreshPypilotValues().
+  //      The pre-Rev412 code read `catalog[path].value` which was
+  //      always undefined → every target entered `continue` → no hot
+  //      gain ever reached pypilot → the "aggressive PID" mode was a
+  //      silent no-op since Rev320. Fix: read `pypilotValues[path]`
+  //      for the current value, keep `catalog[path].max` for the clamp.
+  //  W — if the loop finishes with `applied` empty despite there being
+  //      targets (e.g. refreshPypilotValues hasn't landed yet, or
+  //      pypilot refused every write — Rev411 503) the sailor used to
+  //      get no feedback at all. Now we log a prominent warning AND
+  //      stamp `data-hot` on the HUD so the badge turns to "PID normal"
+  //      / "PID fallo" so Carlos knows the actual pilot state.
+  function _empopadoSetHotBadge(flag) {
+    const hud = _empopadoHud();
+    if (!hud) return;
+    if (!flag) hud.removeAttribute("data-hot");
+    else hud.setAttribute("data-hot", flag);
+    const badge = document.getElementById("empopado-hud-hotbadge");
+    if (badge) {
+      const key = `empopado.hud.hotbadge.${flag || "off"}`;
+      badge.textContent = t(key) || (
+        flag === "on" ? "PID agresivo"
+        : flag === "failed" ? "PID fallo"
+        : "PID normal"
+      );
+    }
+  }
   async function _empopadoApplyHotGains(ap) {
     if (!ap || ap._hotGainSnapshot) return;
     const pilot = state.pilot;
     if (!pilot) return;
     const cat = state.catalog || {};
+    const vals = state.pypilotValues || {};
     const targets = [
       { path: `ap.pilot.${pilot}.P`,  mult: EMPOPADO_HOT_GAIN_MULT.P },
       { path: `ap.pilot.${pilot}.D`,  mult: EMPOPADO_HOT_GAIN_MULT.D },
       { path: `servo.max_slew_speed`, mult: EMPOPADO_HOT_GAIN_MULT.SLEW },
     ];
     const applied = {};
+    let anyFailed = false;
     for (const t of targets) {
       const entry = cat[t.path];
-      const cur = entry?.value;
+      const cur = vals[t.path];
       if (typeof cur !== "number") continue;
-      const max = typeof entry.max === "number" ? entry.max : Infinity;
+      const max = typeof entry?.max === "number" ? entry.max : Infinity;
       const next = Math.min(cur * t.mult, max);
       if (Math.abs(next - cur) < 1e-6) continue;
       try {
-        await pluginRaw(t.path, next);
+        const resp = await pluginRaw(t.path, next);
+        if (resp && resp.ok === false) {
+          anyFailed = true;
+          console.warn(`[empopado] hot gain ${t.path} refused by pypilot (status=${resp.status})`);
+          continue;
+        }
         applied[t.path] = cur;
         console.info(`empopado: hot gain ${t.path} ${cur.toFixed(3)} → ${next.toFixed(3)}`);
       } catch (e) {
+        anyFailed = true;
         console.warn(`empopado: hot gain ${t.path} apply failed`, e);
       }
     }
     ap._hotGainSnapshot = applied;
+    const appliedCount = Object.keys(applied).length;
+    if (appliedCount === 0) {
+      console.warn(`[empopado] hot gains NO aplicadas — pilot='${pilot}' valsKeys=${Object.keys(vals).length} anyFailed=${anyFailed}`);
+      _empopadoSetHotBadge(anyFailed ? "failed" : "off");
+    } else {
+      _empopadoSetHotBadge(anyFailed ? "failed" : "on");
+    }
   }
   async function _empopadoRestoreHotGains(ap) {
     const snap = ap && ap._hotGainSnapshot;
-    if (!snap) return;
+    if (!snap) {
+      _empopadoSetHotBadge(null);
+      return;
+    }
     for (const [path, val] of Object.entries(snap)) {
       try {
         await pluginRaw(path, val);
@@ -7278,6 +7332,7 @@
       } catch (e) { console.warn(`empopado: hot gain ${path} restore failed`, e); }
     }
     ap._hotGainSnapshot = null;
+    _empopadoSetHotBadge(null);
   }
   function _empopadoPickReactiveProfile() {
     const list = Array.isArray(state.profiles) ? state.profiles : [];

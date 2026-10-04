@@ -3332,6 +3332,24 @@ body.setup-fullscreen-active #tabbar {
 .aproado-hud.transit .aproado-hud-title { color: var(--warn); }
 .aproado-hud.transit .aproado-hud-time { color: var(--warn); }
 
+/* Rev412 fix W.2: hot-gains badge inside the empopado active HUD.
+   JS stamps data-hot="on|off|failed" on the HUD container and the
+   badge text is reset per state. Visible only during the active
+   phase; hidden otherwise. */
+.aproado-hud-hotbadge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  align-self: center;
+  color: var(--muted);
+  background: rgba(255,255,255,0.05);
+}
+.aproado-hud[data-hot="on"]     .aproado-hud-hotbadge { color: var(--accent); background: rgba(90,160,220,0.14); }
+.aproado-hud[data-hot="failed"] .aproado-hud-hotbadge { color: var(--err);    background: rgba(220,80,80,0.14); }
+.aproado-hud[data-hot="off"]    .aproado-hud-hotbadge { color: var(--muted);  background: rgba(255,255,255,0.05); }
+
 /* Shared text styles. Tabular nums so digits don't jump. */
 .aproado-hud-title {
   font-size: 13px;

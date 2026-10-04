@@ -564,6 +564,11 @@
             <div class="aproado-active-box" data-empopado-phase="active">
               <div class="aproado-hud-title" id="empopado-active-title" data-i18n="empopado.hud.title">EMPOPADO</div>
               <div class="aproado-hud-time" id="empopado-hud-elapsed">0:00</div>
+              <!-- Rev412 fix W.2: badge que indica si los hot-gains PID
+                   están realmente aplicados. Hasta Rev411 el flow era
+                   silencioso incluso cuando no aplicaba ninguno. -->
+              <div class="aproado-hud-hotbadge" id="empopado-hud-hotbadge"
+                   data-i18n="empopado.hud.hotbadge.off">PID normal</div>
               <div class="aproado-hud-row">
                 <span class="aproado-hud-lbl" data-i18n="aproado.hud.dist">Dist</span>
                 <span class="aproado-hud-val" id="empopado-hud-dist">0.00 nm</span>
@@ -2298,6 +2303,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev411"></script>
+  <script src="app.js?v=Rev412"></script>
 </body>
 </html>
