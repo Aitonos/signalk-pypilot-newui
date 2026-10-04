@@ -379,3 +379,32 @@ Puntos del audit Commit 2 que QA Rev410 no pudo forzar en puerto
   toast rojo + voz "Virada fallida". Verificar en agua con un
   intento abortado (p. ej. levantar el mando a mitad de VT para que
   rompa el stuck).
+
+---
+
+## Rev411 — pendiente agua / escenario pypilot offline
+
+Puntos del audit Commit 3 (fix J) que QA Rev411 no pudo forzar en
+puerto (Carlos 2026-10-04, happy path confirmado por traza red):
+
+- **J.1 `PUT /raw` propaga 503 cuando pypilot refusa write**: el visor
+  usa `/raw` sólo para gains / calibración / profiles. Con pypilot
+  vivo el write es 200. Para ver el 503 real: parar pypilot core en
+  TinyPilot (requiere acceso físico, no SSH) o setear
+  `allowWrites=false` en Setup del plugin temporalmente y pulsar
+  cualquier gain slider → debe salir `503 { ok:false, error:"pypilot
+  write refused" }` en Network y `[pluginRaw] raw PUT failed ... 503`
+  en Console.
+- **J.2 SK v2 PUT handler propaga 503**: idem — con pypilot muerto
+  cualquier escritura desde KIP a `steering.autopilot.pypilot.*` debe
+  recibir `COMPLETED statusCode 503 message:"pypilot write refused"`
+  en lugar del falso 200 pre-Rev411.
+- **J-1.5 Dodge safety**: `allowDirectServo=true` + KIP con dodge port
+  / starboard, pypilot muerto → KIP debe ver error (no "COMPLETED"
+  fantasma). Diferido a agua con KIP.
+
+Mitigación mientras tanto: unit tests + verificación por inspección
+del bundle desplegado (`grep -c "pypilot write refused" dist/index.js`
+= 6; `grep -c "dodge not delivered" dist/autopilot-provider.js` = 1).
+Y traza red Rev411 confirma happy path intacto (engage / target /
+disengage / VT start / VT cancel todos 200 OK).
