@@ -2650,6 +2650,28 @@
               state.mode = state._modeBeforeVt;
               try { setSelect("#mode-select", state._modeBeforeVt); } catch {}
             }
+            // Rev410 (fix U.3, Carlos 2026-10-04): explicit failure toast
+            // fed by the backend's `outcomeReason`, replacing the fragile
+            // time-since-delta heuristic. Fires on `failed` only — a
+            // user-cancelled VT is not a surprise and does not warrant a
+            // red toast.
+            if (terminalPhase === "failed") {
+              try {
+                const reason = state.virtualTack?.outcomeReason || "sin motivo";
+                let el = document.getElementById("pypilot-reconnect-toast");
+                if (!el) {
+                  el = document.createElement("div");
+                  el.id = "pypilot-reconnect-toast";
+                  el.className = "pypilot-reconnect-toast";
+                  document.body.appendChild(el);
+                }
+                el.textContent = `${t("tack.vtFailed") || "Virada fallida"}: ${reason}`;
+                el.classList.add("show");
+                clearTimeout(el._hideTimer);
+                el._hideTimer = setTimeout(() => { el.classList.remove("show"); }, 6000);
+                try { _alSpeak(t("tack.vtFailedSpeak") || "Virada fallida"); } catch { /* silent */ }
+              } catch { /* silent */ }
+            }
             delete state._modeBeforeVt;
             delete state._targetBeforeVt;
             try { if (typeof _closeExternalTackOverlay === "function") _closeExternalTackOverlay(); } catch (e) { console.warn("[vt] close overlay", e); }
@@ -2769,7 +2791,16 @@
         const external = !_lastVisorTackWriteTs || (now - _lastVisorTackWriteTs) > 2000;
         if (prev !== value && typeof _mtLog === "function") {
           // Rev350 (Carlos): added stage + monoTs for frontier latency.
-          _mtLog("other", { stage: "visor", via: "delta", name: "ap.tack.state", from: prev, to: value, external, monoTs: performance.now() });
+          // Rev410 (fix S): enrich with heading / AWA / mode / vtPhase so
+          // the sea-trial trace is self-contained — no need to cross-ref
+          // other logs by timestamp to interpret a mando event.
+          _mtLog("other", {
+            stage: "visor", via: "delta", name: "ap.tack.state",
+            from: prev, to: value, external, monoTs: performance.now(),
+            heading: state.heading, awa: state.windAngle,
+            mode: state.mode,
+            vtPhase: state.virtualTack?.phase ?? "idle",
+          });
         }
         if (_lastTackStateSeen !== value) _lastTackStateSeenTs = Date.now();
         _lastTackStateSeen = value;
@@ -2794,7 +2825,14 @@
         const external = !_lastVisorTackWriteTs || (now - _lastVisorTackWriteTs) > 2000;
         if (prev !== value && typeof _mtLog === "function") {
           // Rev350 (Carlos): added stage + monoTs for frontier latency.
-          _mtLog("other", { stage: "visor", via: "delta", name: "ap.tack.direction", from: prev, to: value, external, monoTs: performance.now() });
+          // Rev410 (fix S): enrich with heading / AWA / mode / vtPhase.
+          _mtLog("other", {
+            stage: "visor", via: "delta", name: "ap.tack.direction",
+            from: prev, to: value, external, monoTs: performance.now(),
+            heading: state.heading, awa: state.windAngle,
+            mode: state.mode,
+            vtPhase: state.virtualTack?.phase ?? "idle",
+          });
         }
         _lastTackDirSeen = value;
         break;
@@ -4163,8 +4201,19 @@
         if (!_externalManeuver) return;
         const el = document.getElementById("tack-countdown-num");
         if (el) {
-          const elapsedSec = Math.floor((Date.now() - _tackCountdownExecuteStartTs) / 1000);
-          el.textContent = `${elapsedSec}s`;
+          // Rev410 (fix T.2, Carlos 2026-10-04): prefer backend-driven
+          // `remainingDeg` from the VT snapshot when we are mirroring a
+          // VT run (our own backend knows the rotation geometry). Fall
+          // back to "— —" for legacy external maneuvers (mando físico
+          // without VT — pypilot does not publish any remaining metric).
+          const vt = state.virtualTack;
+          const remDeg = (vt && vt.active && typeof vt.remainingDeg === "number")
+            ? vt.remainingDeg : null;
+          if (remDeg !== null) {
+            el.textContent = `${Math.round(remDeg)}°`;
+          } else {
+            el.textContent = "— —";
+          }
         }
         // Re-detect kind if direction/AWA showed up after open.
         if (_lastTackDirSeen && _tackCountdownDir !== _lastTackDirSeen) {
@@ -4174,16 +4223,20 @@
         try { renderTackRotationArc(); } catch { /* silent */ }
       } catch (e) { console.warn("[mirror timer]", e); }
     }, 500);
-    // Watchdog: if pypilot never sends ap.tack.state=none for 60 s,
-    // close the mirror ourselves so a lost delta does not leave the
-    // overlay stuck forever.
+    // Watchdog: if pypilot never sends ap.tack.state=none, close the
+    // mirror ourselves so a lost delta does not leave the overlay stuck
+    // forever. Rev410 (fix U.2, Carlos 2026-10-04): raised from 60 s to
+    // 120 s so the visual watchdog does NOT race the backend's own
+    // pypilot-stuck watchdog (PYPILOT_STUCK_MS = 60 s). At 60 s both
+    // fired simultaneously and the sailor saw the overlay close before
+    // the backend could publish a terminal snapshot with its reason.
     if (_externalManeuverWatchdog) clearTimeout(_externalManeuverWatchdog);
     _externalManeuverWatchdog = setTimeout(() => {
       if (_externalManeuver) {
-        console.warn("[mirror] 60s watchdog closing overlay (no ap.tack.state=none received)");
+        console.warn("[mirror] 120s watchdog closing overlay (no ap.tack.state=none received)");
         _closeExternalTackOverlay();
       }
-    }, 60000);
+    }, 120000);
     renderTargetArrow();
     if (typeof _mtLog === "function") {
       try { _mtLog("other", { stage: "visor", via: "mirror-open", dir, mode: modeStr, plannedRad: planned }); } catch { /* silent */ }
@@ -4405,7 +4458,18 @@
       // confirmed "pypilot core reported offline" mid-tack). Rather
       // than wait the 60 s hard timeout, close early and inform the
       // sailor so they can rescue the maneuver.
-      const pypilotSilent = _lastTackStateSeenTs > 0
+      // Rev410 (fix U.1, Carlos 2026-10-04): the time-since-last-delta
+      // heuristic for "pypilot silent" is only legitimate on the LEGACY
+      // native tack path (user pressed tack while in compass mode and we
+      // called `pluginRaw("ap.tack.state", "begin")`). When a VT is
+      // active the backend owns the FSM and has its own authoritative
+      // pypilot-stuck watchdog (PYPILOT_STUCK_MS = 60s); the sailor sees
+      // a terminal "failed" snapshot with the real reason — no need for
+      // the visor to second-guess by time-since-delta. See audit U.3 for
+      // the explicit failure toast fed by `outcomeReason`.
+      const vtActive = !!(state.virtualTack && state.virtualTack.active);
+      const pypilotSilent = !vtActive
+        && _lastTackStateSeenTs > 0
         && (now - _lastTackStateSeenTs) > PYPILOT_TACK_SILENCE_MS
         && elapsed >= 15;
       if (arrived) {

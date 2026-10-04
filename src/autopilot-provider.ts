@@ -1023,6 +1023,21 @@ export class AutopilotProvider {
       let stepCounter = 0;
       let finalCompassTargetRad = geometry.hTargetRad;
 
+      // Rev410 (fix T.1-A, Carlos 2026-10-04): publish an initial
+      // `remainingDeg` so the visor's mirror HUD shows a meaningful
+      // number from the first snapshot, not just elapsed seconds.
+      // Granularity thereafter is "once per intermediate step reached"
+      // (option A, confirmed by Carlos — no 500 ms tick).
+      {
+        const h0 = this._readHeadingRad();
+        if (h0 !== null && this._virtualTack && this._virtualTack.id === vtId) {
+          this._virtualTack.remainingDeg = Math.abs(
+            shortestArcRad(finalCompassTargetRad, h0) * RAD_TO_DEG,
+          );
+          try { this.notifyChanged("virtualTack"); } catch { /* noop */ }
+        }
+      }
+
       while (remainingIntermediates.length > 0) {
         checkCancelled();
         this._virtualTack!.stepIndex = stepCounter;
@@ -1074,6 +1089,17 @@ export class AutopilotProvider {
         // Step reached. Pop it and recompute the rest from REAL heading.
         remainingIntermediates.shift();
         stepCounter++;
+        // Rev410 (fix T.1-A): refresh `remainingDeg` from the current
+        // heading. One update per step reached is the agreed granularity.
+        {
+          const hAfter = this._readHeadingRad();
+          if (hAfter !== null && this._virtualTack && this._virtualTack.id === vtId) {
+            this._virtualTack.remainingDeg = Math.abs(
+              shortestArcRad(finalCompassTargetRad, hAfter) * RAD_TO_DEG,
+            );
+            try { this.notifyChanged("virtualTack"); } catch { /* noop */ }
+          }
+        }
         if (remainingIntermediates.length > 0) {
           const hNow = this._readHeadingRad();
           if (hNow !== null) {

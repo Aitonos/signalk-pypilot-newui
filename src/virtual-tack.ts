@@ -81,6 +81,13 @@ export interface VirtualTackState {
   outcomeReason: string | null;
   /** Rev387: user-provided requestId for idempotent start. */
   requestId: string | null;
+  /** Rev410 (Carlos, 2026-10-04, fix T.1-A): shortest-arc distance in
+   *  degrees from current heading to the FINAL compass target of the
+   *  rotation. Updated by `_runVirtualTack` after each intermediate step
+   *  is reached. `null` while no reliable heading is available or before
+   *  the FSM has driven the first step. The mirror HUD on the visor
+   *  reads this instead of showing bare elapsed seconds. */
+  remainingDeg: number | null;
 }
 
 export const TWO_PI = Math.PI * 2;
@@ -303,6 +310,7 @@ export function makeInitialState(): VirtualTackState {
     phase1StepStartedAtMs: 0,
     outcomeReason: null,
     requestId: null,
+    remainingDeg: null,
   };
 }
 

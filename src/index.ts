@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev409";
+const PLUGIN_REVISION = "Rev410";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3567,9 +3567,17 @@ module.exports = function (app: any) {
           if (typeof v === "number") hNowRad = v;
         } catch { /* noop */ }
         const stepRad = g?.intermediatesRad?.[vt.stepIndex];
-        const remainingDeg = (typeof stepRad === "number" && hNowRad !== null)
-          ? Math.abs(((stepRad - hNowRad) * RAD2DEG + 540) % 360 - 180)
-          : null;
+        // Rev410 (fix T.1-A, Carlos 2026-10-04): prefer the authoritative
+        // `remainingDeg` written by _runVirtualTack (distance to the FINAL
+        // compass target, computed against the REAL heading after each
+        // step reached — accounts for Rev407 recompute). Fallback to the
+        // old per-step stale calculation only when the FSM has not written
+        // one yet (very first snapshot, pre-publishState race).
+        const remainingDeg = (typeof (vt as any).remainingDeg === "number")
+          ? (vt as any).remainingDeg
+          : (typeof stepRad === "number" && hNowRad !== null)
+            ? Math.abs(((stepRad - hNowRad) * RAD2DEG + 540) % 360 - 180)
+            : null;
         const activePhases = ["preparing","turning","handover","settling","cancelling","phase1","phase2","calc"];
         const terminalPhases = ["completed","cancelled","failed","done","abort"];
         values.push({
