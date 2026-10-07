@@ -155,9 +155,21 @@ export function computeTackGeometry(opts: {
   hStartRad: number;
   direction: TackDirection;
   maxStepDeg?: number;
+  /** Rev416 (Carlos sea trial 2026-10-04, obs #12): if provided, use
+   *  this value as the FINAL wind angle instead of the mirror
+   *  `-angleStart`. Sailor can trim the destination (closer-hauled or
+   *  bear away a few degrees) without having to nudge after the tack.
+   *  Must stay in (-π, π]; otherwise the override is ignored. The
+   *  compass delta is derived from the override, so maneuverKind
+   *  classification stays consistent. */
+  angleNewRadOverride?: number;
 }): TackGeometry {
   const maxStepRad = (opts.maxStepDeg ?? DEFAULT_MAX_STEP_DEG) * DEG;
   const dirSign = opts.direction === "starboard" ? +1 : -1;
+  const hasOverride =
+    typeof opts.angleNewRadOverride === "number"
+    && Number.isFinite(opts.angleNewRadOverride)
+    && Math.abs(opts.angleNewRadOverride) <= Math.PI;
 
   // Rev383 (Carlos, 2026-10-01): `direction` is the DIRECTION THE BOW
   // SWINGS TO, not the final amura. port = CCW rotation (delta_H < 0),
@@ -182,8 +194,10 @@ export function computeTackGeometry(opts: {
     // Normal case: a tack flips the sign of the wind angle so
     // angleNew = -angleStart, and the natural compass rotation is
     // naturalDelta = angleStart - angleNew = 2 * angleStart.
-    angleNewRad = -angleStartSigned;
-    const naturalDelta = 2 * angleStartSigned;
+    angleNewRad = hasOverride
+      ? normalizeSignedPi(opts.angleNewRadOverride as number)
+      : -angleStartSigned;
+    const naturalDelta = angleStartSigned - angleNewRad;
     if (Math.sign(naturalDelta) === dirSign) {
       // Natural tack rotation matches the requested side (short arc,
       // crosses the wind through the bow).

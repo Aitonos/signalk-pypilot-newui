@@ -720,6 +720,12 @@ export class AutopilotProvider {
   async startVirtualTack(opts: {
     direction: TackDirection;
     requestId?: string | null;
+    /** Rev416 (Carlos sea trial 2026-10-04, obs #12): optional override
+     *  of the FINAL wind angle. If present (and finite + in (-π, π]),
+     *  the FSM aims the AP at this angle instead of the AWA mirror.
+     *  Use case: trim closer-hauled or bear-away a few degrees in the
+     *  new tack without having to nudge afterwards. */
+    finalAngleRadOverride?: number | null;
   }): Promise<{ id: string; alreadyRunning: boolean; windMode: WindMode }> {
     const current = this._virtualTack;
     if (current) {
@@ -779,7 +785,16 @@ export class AutopilotProvider {
       }
       awaRad = this.data.target;
     }
-    this._runVirtualTack(opts.direction, windMode, headingRad, awaRad).catch((e: any) => {
+    // Rev416 fix #12: pass the sailor's optional final-angle override
+    // through to the FSM. computeTackGeometry inside _runVirtualTack
+    // discards invalid values (non-finite, |rad|>π) so the fallback is
+    // always the AWA mirror.
+    const finalAngleOverride =
+      typeof opts.finalAngleRadOverride === "number"
+      && Number.isFinite(opts.finalAngleRadOverride)
+      && Math.abs(opts.finalAngleRadOverride) <= Math.PI
+        ? opts.finalAngleRadOverride : null;
+    this._runVirtualTack(opts.direction, windMode, headingRad, awaRad, finalAngleOverride).catch((e: any) => {
       // eslint-disable-next-line no-console
       console.log(`[startVirtualTack] driver threw: ${e?.message || e}`);
     });
@@ -908,6 +923,7 @@ export class AutopilotProvider {
     windMode: WindMode,
     headingRadParam: number,
     originalAngleRadParam: number,
+    finalAngleRadOverride: number | null = null,
   ): Promise<void> {
     const headingRad = headingRadParam;
     const originalAngleRad = originalAngleRadParam;
@@ -917,6 +933,9 @@ export class AutopilotProvider {
       angleStartRad: originalAngleRad,
       hStartRad,
       direction,
+      // Rev416 fix #12: forward the optional AWA destination override.
+      // Validated at the endpoint boundary (startVirtualTack).
+      angleNewRadOverride: finalAngleRadOverride ?? undefined,
     });
 
     const now = Date.now();

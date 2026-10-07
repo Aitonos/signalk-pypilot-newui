@@ -484,3 +484,45 @@ describe("virtual-tack / awaEmaStep (Rev414/Rev415 settling EMA)", () => {
       `alpha=0 is identity, got ${out * RAD2DEG}`);
   });
 });
+
+describe("virtual-tack / computeTackGeometry — angleNewRadOverride (Rev416 fix #12)", () => {
+  it("uses the override as the final AWA, ignoring the mirror", () => {
+    // AWA start +45° (close-hauled stbd). Mirror would land at -45°.
+    // Override to -40° (closer-hauled on the new tack).
+    const g = computeTackGeometry({
+      angleStartRad: deg(45),
+      hStartRad: deg(0),
+      direction: "port",
+      angleNewRadOverride: deg(-40),
+    });
+    assert.ok(Math.abs(g.angleNewRad - deg(-40)) < 1e-6,
+      `override honoured, got ${g.angleNewRad * RAD2DEG}`);
+    // deltaH = angleStart - angleNew = 45 - (-40) = 85°, matches dir=port
+    // which is CCW (negative)? port dirSign=-1, naturalDelta=85>0, so
+    // deltaH = 85 - 360 = -275° (long way CCW). Just assert sign is CCW.
+    assert.ok(g.deltaHRad < 0, `port should rotate CCW, deltaH=${g.deltaHRad * RAD2DEG}`);
+  });
+
+  it("ignores a non-finite override and falls back to the mirror", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(30),
+      hStartRad: deg(0),
+      direction: "port",
+      angleNewRadOverride: Number.NaN,
+    });
+    // Mirror of +30° is -30°.
+    assert.ok(Math.abs(g.angleNewRad - deg(-30)) < 1e-6,
+      `NaN override ignored, got ${g.angleNewRad * RAD2DEG}`);
+  });
+
+  it("ignores an out-of-range override (|rad| > π)", () => {
+    const g = computeTackGeometry({
+      angleStartRad: deg(30),
+      hStartRad: deg(0),
+      direction: "port",
+      angleNewRadOverride: 10,  // > π
+    });
+    assert.ok(Math.abs(g.angleNewRad - deg(-30)) < 1e-6,
+      `out-of-range override ignored, got ${g.angleNewRad * RAD2DEG}`);
+  });
+});

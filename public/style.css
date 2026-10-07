@@ -381,6 +381,20 @@ main {
     min-height: 0;
   }
 }
+/* Rev416 (Carlos sea trial 2026-10-04, obs #10): the compass SVG hosts
+   the post-tack stats HUD and its close X. Pre-Rev416 the SVG had no
+   explicit stacking context, so the four corner tiles (z-index:3)
+   painted on top of the SVG and swallowed the X's clicks. The wrap now
+   claims z-index:2 permanently and takes :5 when the HUD is up, while
+   the corners drop to :1 + pointer-events:none during that window. */
+.dash-rose .rose-wrap { position: relative; z-index: 2; }
+.dash-rose.stats-hud-up .rose-wrap { z-index: 5; }
+.dash-rose.stats-hud-up .dash-cell {
+  z-index: 1 !important;
+  pointer-events: none !important;
+  opacity: 0.35;
+  transition: opacity 180ms ease;
+}
 /* Corners overlaid on the .rose-wrap. Because the SVG is circular, the
    four square corners of the bounding box are visually empty and can
    host tiles cleanly without covering the compass ring. */

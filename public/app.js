@@ -2674,6 +2674,18 @@
             // AWS≈0 wind; the sailor sees it and decides whether to
             // re-nudge or trust the heading.
             const outcomeReason = state.virtualTack?.outcomeReason || "";
+            // Rev416 (Carlos sea trial 2026-10-04, obs #10 "dejaron de
+            // salir"): the post-tack stats HUD was only wired to the
+            // native pypilot tack path (_tackCountdownTick arrived +
+            // ap.tack.state delta). In VT (wind-mode) that path never
+            // triggers — the FSM lives in the backend and only publishes
+            // the virtualTack terminal snapshot. We call it here so a
+            // completed VT also shows the summary HUD.
+            if (terminalPhase === "completed") {
+              try { _tackStatsOnTackCompleted(); } catch (e) { console.warn("[stats VT completed]", e); }
+            } else if (terminalPhase === "cancelled" || terminalPhase === "failed") {
+              try { _tackStatsOnTackCancelled(); } catch (e) { console.warn("[stats VT cancelled]", e); }
+            }
             if (terminalPhase === "failed") {
               try {
                 const reason = outcomeReason || "sin motivo";
@@ -5475,6 +5487,14 @@
     }
     g.style.display = "";
     g.style.opacity = "1";
+    // Rev416 (Carlos sea trial 2026-10-04, obs #10): stamp a flag on
+    // the .dash-rose container so the corner tiles step back (z-index
+    // + pointer-events) and the HUD's close X becomes clickable even
+    // where it overlaps a corner.
+    try {
+      const rose = document.querySelector(".dash-rose");
+      if (rose) rose.classList.add("stats-hud-up");
+    } catch { /* silent */ }
     // Rev225 (Carlos): tint the "VIRADA" title, the rect stroke and
     // the verdict line with the maneuver colour (rojo tack, verde
     // jibe). Falls back to gray if we never latched a kind.
@@ -5527,6 +5547,12 @@
     _tackStats.hideAt = 0;
     const boat = document.getElementById("rose-boat");
     if (boat) boat.classList.remove("boat-glow");
+    // Rev416 (Carlos sea trial 2026-10-04, obs #10): drop the stacking
+    // flag so the corner tiles reclaim their click area and opacity.
+    try {
+      const rose = document.querySelector(".dash-rose");
+      if (rose) rose.classList.remove("stats-hud-up");
+    } catch { /* silent */ }
   }
   // Rev225 (Carlos): dismiss the HUD when any control-tab button is
   // pressed. Idempotent guard checks the HUD is really up.
@@ -8585,10 +8611,23 @@
             const MAX_409_RETRIES = 10;
             const RETRY_DELAY_MS = 500;
             for (let i = 0; i <= MAX_409_RETRIES; i++) {
+              // Rev416 (Carlos sea trial 2026-10-04, obs #12): forward
+              // the sailor's optional final-angle override. Lives in
+              // localStorage; empty / zero means "mirror AWA as usual".
+              // Clamped to ±170° (deg) to prevent abuse; backend
+              // additionally rejects anything outside (-π, π].
+              const body = { direction: dir, requestId };
+              try {
+                const rawOv = localStorage.getItem("pypilotnewui.tackFinalAngleDeg");
+                const deg = rawOv == null ? NaN : Number(rawOv);
+                if (Number.isFinite(deg) && deg !== 0 && Math.abs(deg) <= 170) {
+                  body.finalAngleRad = deg * (Math.PI / 180);
+                }
+              } catch { /* localStorage disabled: silent */ }
               const r = await skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/start`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ direction: dir, requestId }),
+                body: JSON.stringify(body),
               });
               if (r.ok) return r;
               if (r.status !== 409 || i === MAX_409_RETRIES) return r;

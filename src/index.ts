@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev415";
+const PLUGIN_REVISION = "Rev416";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1895,8 +1895,20 @@ module.exports = function (app: any) {
           return res.status(400).json({ error: "direction must be 'port' or 'starboard'" });
         }
         const requestId = typeof req.body?.requestId === "string" ? req.body.requestId : null;
+        // Rev416 (Carlos sea trial 2026-10-04, obs #12): accept an
+        // optional `finalAngleRad` so the visor can trim the destination
+        // AWA (closer-hauled or bear-away) at tack-time. Values outside
+        // (-π, π] or non-finite are discarded by startVirtualTack.
+        const rawFinalAngle = req.body?.finalAngleRad;
+        const finalAngleRadOverride =
+          typeof rawFinalAngle === "number" && Number.isFinite(rawFinalAngle)
+            ? rawFinalAngle : null;
         try {
-          const r = await (apProvider as any).startVirtualTack({ direction: dir, requestId });
+          const r = await (apProvider as any).startVirtualTack({
+            direction: dir,
+            requestId,
+            finalAngleRadOverride,
+          });
           res.json(r);
         } catch (e: any) {
           res.status(409).json({ error: e?.message || String(e) });
