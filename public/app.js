@@ -2818,6 +2818,7 @@
           const prev = state.profile;
           state.profile = value;
           setSelect("#profile-select", value);
+          setSelect("#bbar-profile-select", value);
           // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
           // primed=true once we have received an authoritative profile
           // value from the backend. The change-listener refuses to
@@ -2840,7 +2841,13 @@
         }
         break;
       case "steering.autopilot.pypilot.profiles":
-        if (Array.isArray(value)) { state.profiles = value; fillSelect("#profile-select", value); }
+        if (Array.isArray(value)) {
+          state.profiles = value;
+          fillSelect("#profile-select", value);
+          // Rev422 (fix #13): mirror into the bbar twin.
+          fillSelect("#bbar-profile-select", value);
+          try { setSelect("#bbar-profile-select", state.profile); } catch { /* silent */ }
+        }
         break;
       // Rev63 / 2.0.0: verbatim - was `.tack.state`, now `.ap.tack.state` (from pypilot key `ap.tack.state`).
       case "steering.autopilot.pypilot.ap.tack.state": {
@@ -6242,10 +6249,13 @@
         if (Array.isArray(profiles) && profiles.length > 0) {
           state.profiles = profiles;
           fillSelect("#profile-select", profiles);
+          // Rev422 (fix #13): mirror into the bbar twin.
+          fillSelect("#bbar-profile-select", profiles);
         }
         if (typeof profile === "string" && profile.length > 0) {
           state.profile = profile;
           setSelect("#profile-select", profile);
+          setSelect("#bbar-profile-select", profile);
           window._profileSelectPrimed = true;
         }
       } catch { /* silent */ }
@@ -8836,15 +8846,11 @@
     $("#pilot-select").addEventListener("change", (e) => {
       pluginRaw("ap.pilot", e.target.value);
     });
-    $("#profile-select").addEventListener("change", (e) => {
-      // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
-      // ignore change events fired before we have received an
-      // authoritative profile value from the backend. Opening the
-      // visor on a fresh device previously let the DOM-default first
-      // option fire a "change" that overwrote the real active profile
-      // on pypilot with "default". Also skip identity writes (value
-      // already matches state.profile) — those are no-ops for pypilot
-      // and would only cost a round-trip.
+    // Rev422 (fix #13): shared change handler for both profile selects
+    // (Tune tab + new bbar twin). Keeps the Rev296 "ignore pre-delta
+    // change" guard and the identity-write skip. On a successful write
+    // the backend delta re-syncs BOTH selects via the handler above.
+    const _profileSelectOnChange = (e) => {
       if (!window._profileSelectPrimed) {
         console.log("[profile] ignoring change before profile delta received");
         return;
@@ -8852,7 +8858,10 @@
       const v = e.target.value;
       if (v === state.profile) return;
       pluginRaw("profile", v);
-    });
+    };
+    $("#profile-select").addEventListener("change", _profileSelectOnChange);
+    const bbarProfileSel = document.getElementById("bbar-profile-select");
+    if (bbarProfileSel) bbarProfileSel.addEventListener("change", _profileSelectOnChange);
     // Rev404 (Carlos QA Rev403): individual header buttons (+, ✎, ↓,
     // ↑, −) removed. "Son redundantes" — todo vive ahora en el
     // Profile Manager modal (⚙). El <select> queda como quick switch.

@@ -764,6 +764,14 @@
             </svg>
           </button>
           <select id="mode-select" class="mode-select" aria-label="Mode"></select>
+          <!-- Rev422 (Carlos sea trial 2026-10-04, obs #13): profile
+               selector pegado al mode-select en la bbar. Carlos lo
+               quería así: "hilar fino requiere distintos ajustes según
+               rumbo/viento" y acceder al perfil sin bajar a Tune.
+               Fillers/listener comparten código con #profile-select de
+               la pestaña Tune (ver _syncProfileSelects + listener en
+               app.js). -->
+          <select id="bbar-profile-select" class="mode-select mode-select-profile" aria-label="Profile"></select>
           <button class="tack-btn tack-star" id="tack-star-btn" data-i18n-title="tack.star.title" title="Tack to starboard">
             <svg class="tack-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
               <path d="M 25,30 A 25 25 0 0 1 75,30" fill="none"
@@ -2309,6 +2317,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev421"></script>
+  <script src="app.js?v=Rev422"></script>
 </body>
 </html>
