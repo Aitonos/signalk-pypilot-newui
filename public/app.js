@@ -12458,30 +12458,31 @@
     }
   }
   // Drag & drop with Pointer Events (works for touch + mouse).
-  // Rev418 (Carlos sea trial 2026-10-04, obs #5): the previous
-  // implementation parpadeaba y "nunca llegaba hasta arriba del todo"
-  // because after an `insertBefore` the closure kept `startY` from
-  // the original pointerdown. Next `onMove` tick recomputed
-  //   offset = e2.clientY - startY
-  // against the ORIGINAL anchor, so the transform jumped back to the
-  // accumulated value and the li snapped to the old visual position
-  // — one frame later it reflowed again, hence the flicker. The
-  // `e._pmResetY = newStart` dead-ended because it was never read.
+  // Rev419 (Carlos QA Rev418, 2026-10-08): el Rev418 reseated startY
+  // tras cada reorder pero el drag seguía sin funcionar en Firefox
+  // tablet — los listeners estaban en el `handle` y el pointer capture
+  // fallaba en silencio (plataforma / permisos). Cuando el li se mueve
+  // bajo el dedo, el handle también, pero si setPointerCapture no
+  // engancha, los pointermove dejan de llegar al handle en cuanto el
+  // dedo salta de la zona original. Resultado: solo subía un slot.
   //
-  // New approach: `startY` is a `let` captured by both the handler
-  // and `onMove`, and every reorder reseats it to the current pointer
-  // Y so the next `offset` is relative to the item's NEW DOM
-  // position. Also commit flash + toast on commit so the sailor
-  // knows the move landed.
+  // Nueva aproximación:
+  //  - Listeners pointermove/pointerup/pointercancel en `window`, no en
+  //    el handle. Window siempre recibe los eventos aunque el pointer
+  //    esté sobre otro elemento, sin depender de setPointerCapture.
+  //  - Guardamos pointerId y filtramos para no mezclar dedos.
+  //  - `touch-action: none` se aplica al .pm-item.dragging para que el
+  //    browser no interprete el gesto como scroll de la lista.
   function _pmWireDrag(li, handle) {
     handle.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       const list = li.parentElement;
+      const pointerId = e.pointerId;
       let startY = e.clientY;
       li.classList.add("dragging");
-      try { handle.setPointerCapture(e.pointerId); } catch { /* silent */ }
 
       const onMove = (e2) => {
+        if (e2.pointerId !== pointerId) return;
         const offset = e2.clientY - startY;
         li.style.transform = `translateY(${offset}px)`;
         // Live reorder based on where the center of the dragged item sits.
@@ -12493,8 +12494,6 @@
           const otherCenter = r.top + r.height / 2;
           if (draggedCenter < otherCenter && other.previousElementSibling !== li) {
             list.insertBefore(li, other);
-            // Rev418: reseat the anchor so the NEXT frame renders
-            // offset=0 from the new DOM slot (no snap-back).
             startY = e2.clientY;
             li.style.transform = "translateY(0px)";
             break;
@@ -12508,11 +12507,11 @@
           }
         }
       };
-      const onUp = async () => {
-        handle.removeEventListener("pointermove", onMove);
-        handle.removeEventListener("pointerup", onUp);
-        handle.removeEventListener("pointercancel", onUp);
-        try { handle.releasePointerCapture(e.pointerId); } catch { /* silent */ }
+      const onUp = async (e2) => {
+        if (e2 && e2.pointerId !== pointerId) return;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
         li.classList.remove("dragging");
         li.style.transform = "";
         // Commit the new order to pypilot.
@@ -12524,21 +12523,19 @@
           try {
             await pluginRaw("profiles", finalOrder);
             // Rev418 (obs #5): visual confirmation that the move landed.
-            // The pulse CSS lives on .pm-item.just-moved; cleared after 600ms.
             try {
               li.classList.add("just-moved");
               setTimeout(() => li.classList.remove("just-moved"), 600);
             } catch { /* silent */ }
-            // Backend echo will refresh state.profiles.
           } catch (err) {
             console.warn("[pm] reorder commit failed:", err);
             _pmRender(); // Revert visual to current state.profiles.
           }
         }
       };
-      handle.addEventListener("pointermove", onMove);
-      handle.addEventListener("pointerup", onUp);
-      handle.addEventListener("pointercancel", onUp);
+      window.addEventListener("pointermove", onMove, { passive: true });
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     });
   }
 
@@ -12617,6 +12614,16 @@
     newBtn.textContent = t("tune.fork.newBtn") || t("tune.fork.new")?.replace(" '{name}'", "") || "Save in new";
     if (cancelBtn) cancelBtn.textContent = t("tune.fork.cancel") || "Cancel";
     if (note) note.textContent = t("tune.fork.hint") || "";
+    // Rev419 (Carlos QA Rev418, 2026-10-08): el modal se crea con
+    // innerHTML cuyos fallbacks están en inglés; data-i18n no se
+    // procesa automáticamente aquí (no hay runner recorriendo este
+    // subtree). Traducimos explícitamente título, body y label.
+    const titleEl = m.querySelector("h3");
+    if (titleEl) titleEl.textContent = t("tune.fork.title") || "Save gain changes";
+    const bodyEl = m.querySelector("p");
+    if (bodyEl) bodyEl.textContent = t("tune.fork.body") || "You just tweaked a gain. Where should the change live?";
+    const nameLblEl = m.querySelector('label[for="tune-fork-name"]');
+    if (nameLblEl) nameLblEl.textContent = t("tune.fork.nameLabel") || "Name:";
     if (nameInput) {
       nameInput.value = forkName;
       // Pre-seleccionar el texto para que al pulsar sea reemplazar directamente.

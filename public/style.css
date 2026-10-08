@@ -3781,6 +3781,10 @@ body.pypilot-offline .pypilot-write {
   opacity: 0.75;
   box-shadow: 0 6px 20px rgba(0,0,0,0.4);
   z-index: 10;
+  /* Rev419 (Carlos QA Rev418): without this the browser interprets the
+     drag as a scroll gesture on tablets (Firefox + Chrome Android) and
+     cancels the pointermove stream half-way through. */
+  touch-action: none;
 }
 .pm-item.drop-target-above { border-top: 2px solid #e8c23a; }
 .pm-item.drop-target-below { border-bottom: 2px solid #e8c23a; }
