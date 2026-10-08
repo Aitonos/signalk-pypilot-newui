@@ -2669,6 +2669,14 @@ body.setup-fullscreen-active #tabbar {
 }
 .doctor-suggestion.applied { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--bg-3)); }
 .doctor-suggestion.dismissed { opacity: 0.5; border-color: var(--fg-dim); }
+/* Rev417 (Carlos sea trial 2026-10-04, obs #8): accentuate the first
+   pending suggestion so the sailor sees at a glance which card the
+   "Apply top priority" button will target. */
+.doctor-suggestion.top-priority {
+  border-color: var(--accent);
+  border-width: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
 .doctor-sug-discard {
   background: transparent;
   color: var(--fg-dim);

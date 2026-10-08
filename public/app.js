@@ -13508,12 +13508,26 @@
       root.appendChild(t2);
       const list = document.createElement("div");
       list.className = "doctor-suggestions";
-      for (const s of r.suggestions) {
+      // Rev417 (Carlos sea trial 2026-10-04, obs #8): the visor used to
+      // render suggestions in the backend's incoming order and Carlos
+      // could not tell which one `apply top priority` would pick. Sort
+      // locally with the same priority map the backend's applyAll()
+      // uses (doctor.ts:666 "bias < authority < oscillation < noise")
+      // and stamp a 1-based ordinal on each card so the list reads
+      // "1. BIAS", "2. OSCILLATION"... and the first card is the one
+      // the Apply button will target.
+      const _docPriority = { bias: 0, authority: 1, oscillation: 2, noise: 3 };
+      const sortedSuggestions = r.suggestions.slice().sort(
+        (a, b) => (_docPriority[a.category] ?? 99) - (_docPriority[b.category] ?? 99)
+      );
+      let ordinal = 0;
+      for (const s of sortedSuggestions) {
         // Rev135: locally-hidden suggestions stay collapsed. The user
         // asked to be able to clear stale advice from the list even
         // after applying it.
         if (_docHiddenIds.has(s.id)) continue;
-        list.appendChild(_docRenderSuggestion(s));
+        ordinal += 1;
+        list.appendChild(_docRenderSuggestion(s, ordinal));
       }
       root.appendChild(list);
       // Rev162 (Carlos, per Sean D'Epagnier): "Apply all" now applies
@@ -13557,11 +13571,14 @@
     }
     return s;
   }
-  function _docRenderSuggestion(s) {
+  function _docRenderSuggestion(s, ordinal) {
     const card = document.createElement("div");
     let cls = "doctor-suggestion";
     if (s.applied) cls += " applied";
     if (s.dismissed) cls += " dismissed";
+    // Rev417 (fix #8): highlight the top-priority card so the sailor
+    // sees exactly which one "Apply top priority" would target.
+    if (ordinal === 1 && !s.applied && !s.dismissed) cls += " top-priority";
     card.className = cls;
     const header = document.createElement("div");
     header.className = "doctor-sug-header";
@@ -13569,7 +13586,10 @@
     title.className = "doctor-sug-title";
     const catKey = "doctor.cat." + s.category;
     const catLbl = t(catKey);
-    title.textContent = `${s.gainKey}  ·  ${(catLbl === catKey ? s.category : catLbl).toUpperCase()}`;
+    // Rev417 (fix #8): 1-based ordinal prefix. The list is pre-sorted
+    // by priority so "1." is always the one that gets applied first.
+    const prefix = typeof ordinal === "number" ? `${ordinal}. ` : "";
+    title.textContent = `${prefix}${s.gainKey}  ·  ${(catLbl === catKey ? s.category : catLbl).toUpperCase()}`;
     const conf = document.createElement("span");
     conf.className = "doctor-sug-confidence " + s.confidence;
     const confKey = "doctor.conf." + s.confidence;
