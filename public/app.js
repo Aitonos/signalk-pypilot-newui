@@ -2825,9 +2825,10 @@
           const prev = state.profile;
           state.profile = value;
           setSelect("#profile-select", value);
-          // Rev425: refresh the sub-select inside the popup so its
-          // header shows the active profile at a glance.
-          try { setSelect("#mode-popup-profile", value); } catch { /* silent */ }
+          // Rev429 (replaces Rev425 setSelect on the removed <select>):
+          // keep the modal's profile button + nested list in sync.
+          // Idempotent — only paints when something changed.
+          try { _rebuildModePopupProfiles(); } catch { /* silent */ }
           // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
           // primed=true once we have received an authoritative profile
           // value from the backend. The change-listener refuses to
@@ -6510,32 +6511,38 @@
   // modals). Immune to viewport cropping, works on phone + 80% zoom
   // laptop + tablet landscape without special placement logic.
   function _rebuildModePopupProfiles() {
-    const sel = document.getElementById("mode-popup-profile");
-    if (!sel) return;
+    // Rev429 (Carlos QA Rev428): keep the button in sync with the
+    // active profile, and the nested list in sync with the list of
+    // profiles. Both are idempotent (don't repaint when nothing
+    // changed) so SK deltas arriving while the modal is open do not
+    // produce visible flashes (Rev428 lesson applied to the new DOM).
+    const btn = document.getElementById("mode-popup-profile-btn");
+    const list = document.getElementById("mode-popup-profile-list");
+    if (!btn && !list) return;
     const profiles = Array.isArray(state.profiles) ? state.profiles : [];
-    // Rev428 (Carlos QA Rev427): idempotent — if the <option> list
-    // already matches the desired profile list, only update the
-    // selection. Avoids a visible "repopulate" flash when SK deltas
-    // arrive while the modal is open OR when _rebuildModeSelect is
-    // (legitimately) called from multiple deltas back-to-back.
-    const current = Array.from(sel.options)
-      .filter((o) => !o.hidden)
-      .map((o) => o.value);
-    const same = current.length === profiles.length
-      && current.every((v, i) => v === profiles[i]);
-    if (!same) {
-      sel.textContent = "";
-      const ph = document.createElement("option");
-      ph.value = ""; ph.disabled = true; ph.hidden = true;
-      sel.appendChild(ph);
-      for (const p of profiles) {
-        const o = document.createElement("option");
-        o.value = String(p);
-        o.textContent = String(p);
-        sel.appendChild(o);
+    if (btn) {
+      const desired = state.profile || "—";
+      if (btn.textContent !== desired) btn.textContent = desired;
+    }
+    if (list) {
+      const current = Array.from(list.children).map((li) => li.dataset.profile || "");
+      const same = current.length === profiles.length
+        && current.every((v, i) => v === profiles[i]);
+      if (!same) {
+        list.textContent = "";
+        for (const p of profiles) {
+          const li = document.createElement("li");
+          li.className = "mode-popup-item";
+          li.dataset.profile = String(p);
+          li.textContent = String(p);
+          list.appendChild(li);
+        }
+      }
+      // Reset active-highlight on each render pass.
+      for (const li of list.children) {
+        li.classList.toggle("active", li.dataset.profile === state.profile);
       }
     }
-    try { sel.value = state.profile || ""; } catch { /* silent */ }
   }
   function _ensureModeSelectModal() {
     let m = document.getElementById("mode-select-modal");
@@ -6544,6 +6551,12 @@
     m.id = "mode-select-modal";
     m.className = "mode-select-modal-backdrop";
     m.hidden = true;
+    // Rev429 (Carlos QA Rev428, 2026-10-08): "Quita el titulo de perfil,
+    // que es evidente; haz un modo autofill box al tamaño de la caja de
+    // perfiles a una o a dos líneas cuando sea necesario para que se
+    // vea todo el titulo". Replaced the native <select> with a button
+    // that wraps up to 2 lines + a lazy nested list that opens inside
+    // the modal when the sailor taps the button.
     m.innerHTML =
       `<div class="mode-select-modal-card">` +
       `  <div class="mode-select-modal-close" id="mode-select-modal-close" aria-label="Close">×</div>` +
@@ -6552,12 +6565,12 @@
       `    <ul id="mode-popup-list" class="mode-popup-list" role="listbox"></ul>` +
       `  </div>` +
       `  <div class="mode-popup-group mode-popup-group-profile">` +
-      `    <label class="mode-popup-group-label" for="mode-popup-profile" id="mode-select-modal-profile-label">Perfil Activo</label>` +
-      `    <select id="mode-popup-profile" class="mode-popup-profile-select"></select>` +
+      `    <button type="button" id="mode-popup-profile-btn" class="mode-popup-profile-btn"></button>` +
+      `    <ul id="mode-popup-profile-list" class="mode-popup-list mode-popup-profile-list" role="listbox" hidden></ul>` +
       `  </div>` +
       `</div>`;
     document.body.appendChild(m);
-    // Backdrop click closes.
+    // Backdrop click closes the whole modal.
     m.addEventListener("click", (ev) => {
       if (ev.target === m) _modeSelectPopupClose();
     });
@@ -6578,17 +6591,27 @@
         }
       });
     }
-    // Profile sub-select change handler.
-    const prof = m.querySelector("#mode-popup-profile");
-    if (prof) {
-      prof.addEventListener("change", (ev) => {
+    // Rev429: profile button → expand nested list. The list itself is
+    // delegated-click: an item fires the write and closes the modal.
+    const profBtn = m.querySelector("#mode-popup-profile-btn");
+    const profList = m.querySelector("#mode-popup-profile-list");
+    if (profBtn && profList) {
+      profBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        profList.hidden = !profList.hidden;
+        profBtn.classList.toggle("open", !profList.hidden);
+      });
+      profList.addEventListener("click", (ev) => {
+        const li = ev.target.closest(".mode-popup-item");
+        if (!li) return;
+        const chosen = li.dataset.profile;
         if (!window._profileSelectPrimed) {
           console.log("[profile] modal profile change before priming — ignored");
+          _modeSelectPopupClose();
           return;
         }
-        const v = ev.target.value;
-        if (v && v !== state.profile) {
-          try { pluginRaw("profile", v); } catch { /* silent */ }
+        if (chosen && chosen !== state.profile) {
+          try { pluginRaw("profile", chosen); } catch { /* silent */ }
         }
         _modeSelectPopupClose();
       });
@@ -6601,9 +6624,14 @@
     if (!list) return;
     // Refresh labels (language may have changed).
     const modeLbl = m.querySelector("#mode-select-modal-mode-label");
-    const profLbl = m.querySelector("#mode-select-modal-profile-label");
     if (modeLbl) modeLbl.textContent = t("mode.group") || "Modo";
-    if (profLbl) profLbl.textContent = t("profile.group") || "Perfil Activo";
+    // Rev429: profile label removed (Carlos: "evidente"). Also collapse
+    // the profile sub-list on each open so the modal always starts in
+    // a predictable state (button closed, long name visible wrapped).
+    const profList = m.querySelector("#mode-popup-profile-list");
+    const profBtn = m.querySelector("#mode-popup-profile-btn");
+    if (profList) profList.hidden = true;
+    if (profBtn) profBtn.classList.remove("open");
     const modeList = Array.isArray(state.modeList) ? state.modeList : [];
     let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
     if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];

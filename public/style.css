@@ -1050,26 +1050,52 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   font-weight: 800;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
+/* Rev429 (Carlos QA Rev428, 2026-10-08): "Quita el titulo de perfil
+   que es evidente; autofill box a una o a dos líneas". Button
+   replaces the <select>; up to 2 wrapped lines so long names like
+   "Ceñida fondo medio viento" are fully readable. Nested list opens
+   inside the modal when tapped (no OS picker). */
 .mode-popup-group-profile {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
   padding: 4px 6px;
 }
-.mode-popup-group-profile .mode-popup-group-label {
-  padding: 0;
-  margin: 0;
-}
-.mode-popup-profile-select {
-  flex: 1;
+.mode-popup-profile-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
   color: var(--accent);
   background: var(--bg-3);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 10px 32px 10px 12px;
   font-weight: 700;
   font-size: 16px;
+  line-height: 1.25;
+  cursor: pointer;
+  /* Wrap up to 2 lines; anything longer is ellipsed. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  position: relative;
 }
+.mode-popup-profile-btn::after {
+  content: "▾";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-dim);
+  font-size: 14px;
+}
+.mode-popup-profile-btn.open::after { content: "▴"; }
+.mode-popup-profile-list {
+  margin-top: 6px;
+}
+.mode-popup-profile-list[hidden] { display: none; }
 
 .tack-btn {
   min-height: 100px;
