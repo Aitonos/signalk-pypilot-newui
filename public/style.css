@@ -960,13 +960,80 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   text-align-last: center;
   min-width: 0;
 }
-/* Rev424 (Carlos QA Rev423): "el modelo seleccionado quede en el azul
-   de nuestro CSS". Tint the mode-select itself (the collapsed
-   header) with the accent colour so the active mode pops. The
-   <option>s inside the dropdown fall back to the browser default so
-   long lists stay legible. */
-.row-tack-mode .mode-select {
+/* Rev425 (Carlos QA Rev424, 2026-10-08): the visible mode selector
+   is now a <button> (not the native <select>). The native <select>
+   stays hidden as a state carrier. The button text is WHITE (sailor
+   explicitly said: "en el boton en blanco"). Inside the popup, only
+   the active mode shows accent-blue — the rest are white. */
+.row-tack-mode .mode-select-btn {
+  color: #fff;
+  font-weight: 700;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mode-select-popup {
+  position: absolute;
+  z-index: 1200;
+  min-width: 180px;
+  background: var(--bg-2, #0f1620);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.55);
+  padding: 8px 0;
+  display: none;
+}
+.mode-select-popup.open { display: block; }
+.mode-select-popup[hidden] { display: none; }
+.mode-popup-group { padding: 4px 0; }
+.mode-popup-group + .mode-popup-group {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+.mode-popup-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--fg-dim);
+  padding: 0 14px 4px;
+  display: block;
+  text-transform: uppercase;
+}
+.mode-popup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mode-popup-item {
+  padding: 8px 14px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+}
+.mode-popup-item:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.mode-popup-item.active {
   color: var(--accent);
+  font-weight: 800;
+}
+.mode-popup-group-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+}
+.mode-popup-group-profile .mode-popup-group-label {
+  padding: 0;
+  margin: 0;
+}
+.mode-popup-profile-select {
+  flex: 1;
+  color: var(--accent);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
   font-weight: 700;
 }
 

@@ -2607,6 +2607,9 @@
           }
         } catch { /* silent */ }
         state.mode = value;
+        // Rev425: keep the visible mode-button in sync on external
+        // mode deltas.
+        try { _renderModeSelectBtn(); } catch { /* silent */ }
         if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
           setSelect("#mode-select", "aproado");
         } else {
@@ -2822,10 +2825,9 @@
           const prev = state.profile;
           state.profile = value;
           setSelect("#profile-select", value);
-          // Rev423: refresh the merged mode-select so the "Perfil"
-          // optgroup options reflect the new active profile. The mode
-          // itself keeps whatever is displayed (setSelect uses mode).
-          try { _rebuildModeSelect(); } catch { /* silent */ }
+          // Rev425: refresh the sub-select inside the popup so its
+          // header shows the active profile at a glance.
+          try { setSelect("#mode-popup-profile", value); } catch { /* silent */ }
           // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
           // primed=true once we have received an authoritative profile
           // value from the backend. The change-listener refuses to
@@ -6453,54 +6455,122 @@
   // separately. Called after any mutation of state.modeList or
   // state.profiles. Preserves the current selection where possible.
   function _rebuildModeSelect() {
+    // Rev425 (Carlos QA Rev424, 2026-10-08): the visible mode selector
+    // is now a custom popup; the hidden native <select id="mode-select">
+    // stays as the state carrier so every pre-existing setSelect call
+    // continues to work (apProvider delta handlers, aproado/empopado
+    // snapshots, etc.). Keep the hidden <select> in sync with the
+    // mode list (modes only — profiles live in a separate sub-select
+    // inside the popup, not inside the hidden <select>'s options).
     const el = document.getElementById("mode-select");
-    if (!el) return;
-    const prev = el.value;
-    const modeList = Array.isArray(state.modeList) ? state.modeList : [];
-    let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
-    if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
-    const profiles = Array.isArray(state.profiles) ? state.profiles : [];
-    el.textContent = "";
-    // Rev424 (Carlos QA Rev423): "quita el ??". Hidden placeholder
-    // keeps the Rev250 race guard without being visible in the dropdown.
-    const ph = document.createElement("option");
-    ph.value = "";
-    ph.textContent = "";
-    ph.disabled = true;
-    ph.hidden = true;
-    el.appendChild(ph);
-    // Modo optgroup — the ones that actually change the AP mode.
-    if (withPseudo.length > 0) {
-      const g = document.createElement("optgroup");
-      g.label = t("mode.group") || "Modo";
+    if (el) {
+      const prev = el.value;
+      const modeList = Array.isArray(state.modeList) ? state.modeList : [];
+      let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
+      if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
+      el.textContent = "";
+      // Hidden placeholder (Rev250 race-guard carryover).
+      const ph = document.createElement("option");
+      ph.value = ""; ph.disabled = true; ph.hidden = true;
+      el.appendChild(ph);
       for (const v of withPseudo) {
         const o = document.createElement("option");
         o.value = String(v);
         o.textContent = _modeLabel(v);
-        g.appendChild(o);
+        el.appendChild(o);
       }
-      el.appendChild(g);
+      const target = prev && prev !== "" && !prev.startsWith("@profile:")
+        ? prev : (state.mode || "");
+      try { el.value = target; } catch { /* silent */ }
+      if (el.value === "" && state.mode) { try { el.value = state.mode; } catch { /* silent */ } }
     }
-    // Rev424 (Carlos QA Rev423, aclaración 2026-10-08): "DROPDOWN
-    // DENTRO DEL DROPDOWN... Y NO ACTUAN SOBRE EL SELECTOR DE AJUSTES".
-    // Profiles live back inside #mode-select but picking one does NOT
-    // leave the <select>'s visible value showing the profile — the
-    // change handler re-selects state.mode after routing the write.
-    if (profiles.length > 0) {
-      const g = document.createElement("optgroup");
-      g.label = t("profile.group") || "Perfil Activo";
-      for (const p of profiles) {
-        const o = document.createElement("option");
-        o.value = `@profile:${p}`;
-        o.textContent = (p === state.profile) ? `• ${p}` : p;
-        g.appendChild(o);
-      }
-      el.appendChild(g);
+    _renderModeSelectBtn();
+    _rebuildModePopupProfiles();
+  }
+  // Rev425: paint the visible mode button with the active mode's
+  // label (white). This is what the sailor reads at a glance.
+  function _renderModeSelectBtn() {
+    const btn = document.getElementById("mode-select-btn");
+    if (!btn) return;
+    const m = state.mode || "";
+    btn.textContent = m ? _modeLabel(m) : "—";
+  }
+  // Rev425: refresh the profile sub-select inside the popup. Native
+  // <select> so native touch picker still works for a nested second
+  // layer of choice.
+  function _rebuildModePopupProfiles() {
+    const sel = document.getElementById("mode-popup-profile");
+    if (!sel) return;
+    const profiles = Array.isArray(state.profiles) ? state.profiles : [];
+    sel.textContent = "";
+    const ph = document.createElement("option");
+    ph.value = ""; ph.disabled = true; ph.hidden = true;
+    sel.appendChild(ph);
+    for (const p of profiles) {
+      const o = document.createElement("option");
+      o.value = String(p);
+      o.textContent = String(p);
+      sel.appendChild(o);
     }
-    const target = prev && prev !== "" && !prev.startsWith("@profile:")
-      ? prev : (state.mode || "");
-    try { el.value = target; } catch { /* silent */ }
-    if (el.value === "" && state.mode) { try { el.value = state.mode; } catch { /* silent */ } }
+    try { sel.value = state.profile || ""; } catch { /* silent */ }
+  }
+  // Rev425: open / close the popup. Opening re-renders the mode list
+  // so the active mode gets the accent-blue highlight even if state
+  // changed between opens.
+  function _modeSelectPopupOpen() {
+    const popup = document.getElementById("mode-select-popup");
+    const list = document.getElementById("mode-popup-list");
+    if (!popup || !list) return;
+    const modeList = Array.isArray(state.modeList) ? state.modeList : [];
+    let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
+    if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
+    list.textContent = "";
+    for (const v of withPseudo) {
+      const li = document.createElement("li");
+      li.className = "mode-popup-item";
+      li.setAttribute("role", "option");
+      li.dataset.mode = String(v);
+      if (v === state.mode) li.classList.add("active");
+      li.textContent = _modeLabel(v);
+      list.appendChild(li);
+    }
+    popup.hidden = false;
+    popup.classList.add("open");
+    // Position the popup directly under the button (viewport coords).
+    const btn = document.getElementById("mode-select-btn");
+    if (btn) {
+      const r = btn.getBoundingClientRect();
+      const popupW = popup.offsetWidth || 200;
+      let left = r.left + r.width / 2 - popupW / 2;
+      if (left < 4) left = 4;
+      if (left + popupW > window.innerWidth - 4) left = window.innerWidth - popupW - 4;
+      popup.style.position = "fixed";
+      popup.style.left = `${left}px`;
+      popup.style.top = `${r.bottom + 6}px`;
+    }
+    // Close on outside click.
+    setTimeout(() => {
+      document.addEventListener("pointerdown", _modeSelectPopupOutside, { once: true });
+    }, 0);
+  }
+  function _modeSelectPopupClose() {
+    const popup = document.getElementById("mode-select-popup");
+    if (popup) { popup.hidden = true; popup.classList.remove("open"); }
+    document.removeEventListener("pointerdown", _modeSelectPopupOutside);
+  }
+  function _modeSelectPopupOutside(ev) {
+    const popup = document.getElementById("mode-select-popup");
+    const btn = document.getElementById("mode-select-btn");
+    if (!popup) return;
+    if (popup.contains(ev.target)) {
+      // Rebind for the next outside click.
+      setTimeout(() => {
+        document.addEventListener("pointerdown", _modeSelectPopupOutside, { once: true });
+      }, 0);
+      return;
+    }
+    if (btn && btn.contains(ev.target)) return;
+    _modeSelectPopupClose();
   }
   // Rev144 (Carlos): when the language changes, refresh the widgets we
   // built once in JS. data-i18n only handles static markup; anything
@@ -6572,6 +6642,12 @@
   function setSelect(sel, value) {
     const el = $(sel);
     if (el) el.value = String(value == null ? "" : value);
+    // Rev425 (Carlos QA Rev424, 2026-10-08): the mode-select is now a
+    // hidden <select> + custom popup; the visible button needs manual
+    // sync whenever the hidden state carrier changes.
+    if (sel === "#mode-select" && typeof _renderModeSelectBtn === "function") {
+      try { _renderModeSelectBtn(); } catch { /* silent */ }
+    }
   }
 
   // ---- SK writes via OUR PLUGIN endpoints (Rev15) ----
@@ -8410,32 +8486,54 @@
     // spacebar / arrow-down, so cover it too.
     const _msExpand = () => _modeSelectSwapLabels(true);
     const _msCollapse = () => _modeSelectSwapLabels(false);
-    $("#mode-select").addEventListener("pointerdown", _msExpand);
-    $("#mode-select").addEventListener("keydown", _msExpand);
-    $("#mode-select").addEventListener("blur", _msCollapse);
-    // Mode change
+    // Rev425: the native <select> is hidden; we drive it programmatically
+    // from the custom popup. Hook the visible button + popup items.
+    const _msBtn = document.getElementById("mode-select-btn");
+    if (_msBtn) {
+      _msBtn.addEventListener("click", () => {
+        const popup = document.getElementById("mode-select-popup");
+        if (popup && !popup.hidden) { _modeSelectPopupClose(); }
+        else { _modeSelectPopupOpen(); }
+      });
+    }
+    const _msList = document.getElementById("mode-popup-list");
+    if (_msList) {
+      _msList.addEventListener("click", (ev) => {
+        const li = ev.target.closest(".mode-popup-item");
+        if (!li) return;
+        const chosen = li.dataset.mode;
+        _modeSelectPopupClose();
+        // Reuse the native <select>'s change handler by setting its
+        // value + firing a synthetic change. Keeps all the Rev171
+        // target-flash logic + pseudo-mode interception in one place.
+        const nativeSel = document.getElementById("mode-select");
+        if (nativeSel) {
+          nativeSel.value = chosen;
+          nativeSel.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+    }
+    const _msProfSel = document.getElementById("mode-popup-profile");
+    if (_msProfSel) {
+      _msProfSel.addEventListener("change", (ev) => {
+        if (!window._profileSelectPrimed) {
+          console.log("[profile] popup profile change before priming — ignored");
+          return;
+        }
+        const v = ev.target.value;
+        if (v && v !== state.profile) {
+          try { pluginRaw("profile", v); } catch { /* silent */ }
+        }
+        _modeSelectPopupClose();
+      });
+    }
+    // Mode change — fired by the custom popup via a synthetic Event
+    // on the hidden native <select>. Rev425 removed the "@profile:"
+    // branch (profiles are now a separate sub-select inside the popup
+    // and never land on the mode-select's value).
     $("#mode-select").addEventListener("change", (e) => {
       _msCollapse();
       const chosen = e.target.value;
-      // Rev423/424 (Carlos QA): the merged mode-select mixes modes and
-      // profiles. Values that start with "@profile:" route to
-      // pluginRaw("profile", X) and then the <select>'s visible value
-      // snaps back to state.mode (the sailor explicitly asked: "NO
-      // ACTUAN SOBRE EL SELECTOR DE AJUSTES" — selecting a profile
-      // must not leave the mode-select showing the profile name).
-      if (typeof chosen === "string" && chosen.startsWith("@profile:")) {
-        const p = chosen.slice("@profile:".length);
-        if (!window._profileSelectPrimed) {
-          console.log("[profile] mode-select profile change before priming — ignored");
-          try { setSelect("#mode-select", state.mode); } catch { /* silent */ }
-          return;
-        }
-        if (p !== state.profile) {
-          try { pluginRaw("profile", p); } catch { /* silent */ }
-        }
-        try { setSelect("#mode-select", state.mode); } catch { /* silent */ }
-        return;
-      }
       // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
       // choice modal (bow / stern) and starts the maneuver on confirmation.
       if (chosen === "aproado") {

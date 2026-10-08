@@ -763,14 +763,30 @@
                     class="lbl tack-angle-lbl">100</text>
             </svg>
           </button>
-          <!-- Rev424 (Carlos QA Rev423, 2026-10-08): mode-select hosts
-               both the Modo optgroup AND the Perfil Activo optgroup.
-               Selecting a profile writes it to pypilot via "@profile:X"
-               routing but the visible <select> value snaps back to
-               state.mode (sailor explicitly asked: no actúan sobre el
-               selector de ajustes). Hidden placeholder preserves the
-               Rev250 race-guard without the "??" being visible. -->
-          <select id="mode-select" class="mode-select" aria-label="Mode and profile"></select>
+          <!-- Rev425 (Carlos QA Rev424, 2026-10-08): native <select>
+               cannot nest another <select> inside its options, which
+               is what Carlos asked for ("dropdown dentro de dropdown").
+               We keep a hidden native <select id="mode-select"> as the
+               state carrier so every pre-existing setSelect/fillSelect
+               call keeps working. The visible UI is a custom pair:
+                 - #mode-select-btn: the collapsed header (white text
+                   with the active mode name).
+                 - #mode-select-popup: opens on tap, lists the modes
+                   (active one in accent blue) and ends with a nested
+                   "Perfil Activo" <select> so a profile change does
+                   NOT alter the mode-select header. -->
+          <select id="mode-select" class="mode-select" aria-label="Mode and profile" style="display:none"></select>
+          <button type="button" id="mode-select-btn" class="mode-select mode-select-btn" aria-haspopup="listbox"></button>
+          <div id="mode-select-popup" class="mode-select-popup" hidden>
+            <div class="mode-popup-group">
+              <div class="mode-popup-group-label" data-i18n="mode.group">Modo</div>
+              <ul id="mode-popup-list" class="mode-popup-list" role="listbox"></ul>
+            </div>
+            <div class="mode-popup-group mode-popup-group-profile">
+              <label class="mode-popup-group-label" for="mode-popup-profile" data-i18n="profile.group">Perfil Activo</label>
+              <select id="mode-popup-profile" class="mode-popup-profile-select"></select>
+            </div>
+          </div>
           <button class="tack-btn tack-star" id="tack-star-btn" data-i18n-title="tack.star.title" title="Tack to starboard">
             <svg class="tack-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
               <path d="M 25,30 A 25 25 0 0 1 75,30" fill="none"
@@ -2316,6 +2332,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev424"></script>
+  <script src="app.js?v=Rev425"></script>
 </body>
 </html>
