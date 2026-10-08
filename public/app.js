@@ -6536,17 +6536,38 @@
     }
     popup.hidden = false;
     popup.classList.add("open");
-    // Position the popup directly under the button (viewport coords).
+    // Position the popup relative to the button, keeping it inside the
+    // viewport (Rev426: pre-Rev426 el popup cortaba por abajo y el
+    // sub-select de Perfil Activo quedaba fuera de pantalla).
     const btn = document.getElementById("mode-select-btn");
     if (btn) {
+      // Reset first so offsetHeight reflects the content height, not a
+      // stale max-height from a previous open.
+      popup.style.position = "fixed";
+      popup.style.maxHeight = "";
+      popup.style.left = "0px";
+      popup.style.top = "0px";
       const r = btn.getBoundingClientRect();
-      const popupW = popup.offsetWidth || 200;
+      const popupW = popup.offsetWidth || 220;
+      let popupH = popup.offsetHeight || 280;
+      // Horizontal: centre on the button, clamp to viewport.
       let left = r.left + r.width / 2 - popupW / 2;
       if (left < 4) left = 4;
       if (left + popupW > window.innerWidth - 4) left = window.innerWidth - popupW - 4;
-      popup.style.position = "fixed";
+      // Vertical: prefer below; if it doesn't fit, open above.
+      const spaceBelow = window.innerHeight - r.bottom - 8;
+      const spaceAbove = r.top - 8;
+      let top, maxH;
+      if (popupH <= spaceBelow || spaceBelow >= spaceAbove) {
+        top = r.bottom + 6;
+        maxH = Math.max(120, spaceBelow);
+      } else {
+        maxH = Math.max(120, spaceAbove);
+        top = r.top - Math.min(popupH, maxH) - 6;
+      }
+      popup.style.maxHeight = `${maxH}px`;
       popup.style.left = `${left}px`;
-      popup.style.top = `${r.bottom + 6}px`;
+      popup.style.top = `${Math.max(4, top)}px`;
     }
     // Close on outside click.
     setTimeout(() => {

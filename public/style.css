@@ -974,9 +974,13 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   cursor: pointer;
 }
 .mode-select-popup {
-  position: absolute;
+  position: fixed;
   z-index: 1200;
   min-width: 180px;
+  max-width: 320px;
+  /* Rev426: scroll inside if the viewport is tight so the Perfil
+     Activo footer stays reachable even on small landscape tablets. */
+  overflow-y: auto;
   background: var(--bg-2, #0f1620);
   border: 1px solid var(--border);
   border-radius: 10px;
