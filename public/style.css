@@ -1050,17 +1050,20 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   font-weight: 800;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
-/* Rev429 (Carlos QA Rev428, 2026-10-08): "Quita el titulo de perfil
-   que es evidente; autofill box a una o a dos líneas". Button
-   replaces the <select>; up to 2 wrapped lines so long names like
-   "Ceñida fondo medio viento" are fully readable. Nested list opens
-   inside the modal when tapped (no OS picker). */
+/* Rev430 (Carlos QA Rev429, 2026-10-08): label "PERFIL" back on top
+   (same pattern as MODO). Nested list opens UPWARD (position:absolute
+   + bottom:100%) so expanding it does not force the modal to scroll. */
 .mode-popup-group-profile {
   display: block;
   padding: 4px 6px;
 }
+.mode-popup-profile-wrap {
+  position: relative;
+}
 .mode-popup-profile-btn {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   width: 100%;
   text-align: left;
   color: var(--accent);
@@ -1072,18 +1075,14 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   font-size: 16px;
   line-height: 1.25;
   cursor: pointer;
-  /* Wrap up to 2 lines; anything longer is ellipsed. */
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   overflow: hidden;
   position: relative;
 }
 .mode-popup-profile-btn::after {
-  content: "▾";
+  content: "▴";
   position: absolute;
   right: 12px;
   top: 50%;
@@ -1091,9 +1090,21 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   color: var(--fg-dim);
   font-size: 14px;
 }
-.mode-popup-profile-btn.open::after { content: "▴"; }
+.mode-popup-profile-btn.open::after { content: "▾"; }
 .mode-popup-profile-list {
-  margin-top: 6px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  margin: 0;
+  padding: 6px 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--bg-2, #0f1620);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 -12px 28px rgba(0,0,0,0.55);
+  z-index: 2;
 }
 .mode-popup-profile-list[hidden] { display: none; }
 

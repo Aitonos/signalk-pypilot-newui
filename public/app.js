@@ -6565,8 +6565,11 @@
       `    <ul id="mode-popup-list" class="mode-popup-list" role="listbox"></ul>` +
       `  </div>` +
       `  <div class="mode-popup-group mode-popup-group-profile">` +
-      `    <button type="button" id="mode-popup-profile-btn" class="mode-popup-profile-btn"></button>` +
-      `    <ul id="mode-popup-profile-list" class="mode-popup-list mode-popup-profile-list" role="listbox" hidden></ul>` +
+      `    <div class="mode-popup-group-label" id="mode-select-modal-profile-label">Perfil</div>` +
+      `    <div class="mode-popup-profile-wrap">` +
+      `      <ul id="mode-popup-profile-list" class="mode-popup-list mode-popup-profile-list" role="listbox" hidden></ul>` +
+      `      <button type="button" id="mode-popup-profile-btn" class="mode-popup-profile-btn"></button>` +
+      `    </div>` +
       `  </div>` +
       `</div>`;
     document.body.appendChild(m);
@@ -6625,9 +6628,13 @@
     // Refresh labels (language may have changed).
     const modeLbl = m.querySelector("#mode-select-modal-mode-label");
     if (modeLbl) modeLbl.textContent = t("mode.group") || "Modo";
-    // Rev429: profile label removed (Carlos: "evidente"). Also collapse
-    // the profile sub-list on each open so the modal always starts in
-    // a predictable state (button closed, long name visible wrapped).
+    // Rev430 (Carlos QA Rev429, 2026-10-08): "pon perfil encima no a
+    // la izquierda como estaba (como está puesto Modo)". The label is
+    // back on top of the button; i18n matches the Modo pattern.
+    const profLbl = m.querySelector("#mode-select-modal-profile-label");
+    if (profLbl) profLbl.textContent = t("profile.group") || "Perfil";
+    // Collapse the nested list each time we open — avoids leftover
+    // state and matches the "button closed" invariant.
     const profList = m.querySelector("#mode-popup-profile-list");
     const profBtn = m.querySelector("#mode-popup-profile-btn");
     if (profList) profList.hidden = true;
