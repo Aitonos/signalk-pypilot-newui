@@ -12458,52 +12458,67 @@
     }
   }
   // Drag & drop with Pointer Events (works for touch + mouse).
-  // Rev419 (Carlos QA Rev418, 2026-10-08): el Rev418 reseated startY
-  // tras cada reorder pero el drag seguía sin funcionar en Firefox
-  // tablet — los listeners estaban en el `handle` y el pointer capture
-  // fallaba en silencio (plataforma / permisos). Cuando el li se mueve
-  // bajo el dedo, el handle también, pero si setPointerCapture no
-  // engancha, los pointermove dejan de llegar al handle en cuanto el
-  // dedo salta de la zona original. Resultado: solo subía un slot.
+  // Rev420 (Carlos QA Rev419, 2026-10-08): "ni se puede mover y
+  // parpadea muy rápido". Root cause real: el live-reorder (hacer
+  // insertBefore mientras arrastra) estaba haciendo ping-pong de swap
+  // en cada frame — tras un swap, el reflow + próximo pointermove veía
+  // de nuevo que el li estaba "fuera de sitio" y hacía swap inverso.
+  // Resultado: en cada tick, uno o dos insertBefore, infinito, con
+  // startY reseateado cada vez → el translateY nunca llegaba lejos del
+  // 0 → aparenta "no se mueve".
   //
-  // Nueva aproximación:
-  //  - Listeners pointermove/pointerup/pointercancel en `window`, no en
-  //    el handle. Window siempre recibe los eventos aunque el pointer
-  //    esté sobre otro elemento, sin depender de setPointerCapture.
-  //  - Guardamos pointerId y filtramos para no mezclar dedos.
-  //  - `touch-action: none` se aplica al .pm-item.dragging para que el
-  //    browser no interprete el gesto como scroll de la lista.
+  // Enfoque nuevo (industry standard):
+  //  - Durante drag: SOLO translateY del li arrastrado. Nunca
+  //    insertBefore. Calculamos un `targetIndex` según el centro del
+  //    li arrastrado vs los centros fijos de los hermanos.
+  //  - Feedback visual: marca .drop-target-above/below en el vecino
+  //    más cercano del targetIndex.
+  //  - En onUp: un único insertBefore al targetIndex final + commit
+  //    a pypilot. .just-moved pulse para confirmar.
+  //  - Listeners en `window` + pointerId filter (del Rev419, que ESA
+  //    parte sí era correcta).
   function _pmWireDrag(li, handle) {
     handle.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       const list = li.parentElement;
       const pointerId = e.pointerId;
-      let startY = e.clientY;
+      const startY = e.clientY;
+      // Snapshot of siblings in their original order WITHOUT the li
+      // being dragged — their centres do not move during the gesture
+      // because we never touch the DOM until onUp.
+      const siblings = Array.from(list.children).filter((n) => n !== li);
+      const origIndex = Array.from(list.children).indexOf(li);
+      // Pre-compute centres once (positions do not change during drag).
+      const centers = siblings.map((n) => {
+        const r = n.getBoundingClientRect();
+        return r.top + r.height / 2;
+      });
+      let targetIndex = origIndex;
       li.classList.add("dragging");
+      // Clear any stale drop-target markers from a previous drag.
+      const clearMarkers = () => {
+        for (const s of siblings) s.classList.remove("drop-target-above", "drop-target-below");
+      };
 
       const onMove = (e2) => {
         if (e2.pointerId !== pointerId) return;
         const offset = e2.clientY - startY;
         li.style.transform = `translateY(${offset}px)`;
-        // Live reorder based on where the center of the dragged item sits.
-        const draggedCenter = li.getBoundingClientRect().top + li.offsetHeight / 2;
-        const current = Array.from(list.children);
-        for (const other of current) {
-          if (other === li) continue;
-          const r = other.getBoundingClientRect();
-          const otherCenter = r.top + r.height / 2;
-          if (draggedCenter < otherCenter && other.previousElementSibling !== li) {
-            list.insertBefore(li, other);
-            startY = e2.clientY;
-            li.style.transform = "translateY(0px)";
-            break;
-          } else if (draggedCenter > otherCenter && other.nextElementSibling !== li) {
-            if (other === list.lastElementChild || li.nextElementSibling !== other) {
-              list.insertBefore(li, other.nextElementSibling);
-              startY = e2.clientY;
-              li.style.transform = "translateY(0px)";
-              break;
-            }
+        const draggedCenter = (li.getBoundingClientRect().top + li.offsetHeight / 2);
+        // Find the first sibling whose centre is BELOW the dragged
+        // centre. That sibling becomes the insertion anchor (we would
+        // insertBefore it). If none, we go to the end.
+        let newIndex = siblings.length;
+        for (let i = 0; i < siblings.length; i++) {
+          if (draggedCenter < centers[i]) { newIndex = i; break; }
+        }
+        if (newIndex !== targetIndex) {
+          targetIndex = newIndex;
+          clearMarkers();
+          if (targetIndex < siblings.length) {
+            siblings[targetIndex].classList.add("drop-target-above");
+          } else if (siblings.length > 0) {
+            siblings[siblings.length - 1].classList.add("drop-target-below");
           }
         }
       };
@@ -12514,7 +12529,16 @@
         window.removeEventListener("pointercancel", onUp);
         li.classList.remove("dragging");
         li.style.transform = "";
-        // Commit the new order to pypilot.
+        clearMarkers();
+        // Translate targetIndex (in `siblings` space) back to a DOM
+        // position in `list.children` space. If targetIndex equals
+        // siblings.length, append at the end.
+        if (targetIndex === siblings.length) {
+          list.appendChild(li);
+        } else if (siblings[targetIndex] !== li.nextElementSibling) {
+          list.insertBefore(li, siblings[targetIndex]);
+        }
+        // Commit the new order to pypilot (only if it actually changed).
         const finalOrder = Array.from(list.children).map((el) => el.dataset.name);
         const original = state.profiles || [];
         const changed = finalOrder.length === original.length &&
@@ -12522,7 +12546,6 @@
         if (changed) {
           try {
             await pluginRaw("profiles", finalOrder);
-            // Rev418 (obs #5): visual confirmation that the move landed.
             try {
               li.classList.add("just-moved");
               setTimeout(() => li.classList.remove("just-moved"), 600);
