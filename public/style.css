@@ -3784,6 +3784,16 @@ body.pypilot-offline .pypilot-write {
 }
 .pm-item.drop-target-above { border-top: 2px solid #e8c23a; }
 .pm-item.drop-target-below { border-bottom: 2px solid #e8c23a; }
+/* Rev418 (Carlos sea trial 2026-10-04, obs #5): post-drop pulse so
+   the sailor confirms the move landed. 600ms + ease-out, triggered
+   on the item that was dragged after the commit resolves. */
+.pm-item.just-moved {
+  animation: pm-move-flash 600ms ease-out;
+}
+@keyframes pm-move-flash {
+  0%   { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { background: transparent; }
+}
 .pm-handle {
   padding: 6px 10px;
   font-size: 18px; line-height: 1;

@@ -67,12 +67,13 @@
       "cal.stampReset":     "Reset history",
       "tune.fork.title":    "Save gain changes",
       "tune.fork.body":     "You just tweaked a gain. Where should the change live?",
+      "tune.fork.activeInfo": "Active profile: '{profile}' (pilot: {pilot})",
       "tune.fork.nameLabel": "Name:",
-      "tune.fork.keep":     "Keep in '{pilot}'",
+      "tune.fork.keep":     "Save in active profile",
       "tune.fork.new":      "Save in new '{name}'",
-      "tune.fork.newBtn":   "Save in new",
-      "tune.fork.cancel":   "Cancel",
-      "tune.fork.hint":     "'Save in new' clones the active profile under the name you type and switches to it, so the original stays untouched. Cancel keeps the modal from popping again until you re-lock.",
+      "tune.fork.newBtn":   "Save in new profile",
+      "tune.fork.cancel":   "Cancel (revert last change)",
+      "tune.fork.hint":     "'Save in new' clones the active profile under the name you type and switches to it, so the original stays untouched. 'Cancel' reverts the slider change so you can lock without saving.",
       "setup.status.language":  "Active:",
       "setup.status.host":      "TinyPilot:",
       "setup.status.hostMissing": "not configured",
@@ -911,13 +912,14 @@
       "cal.slider.restore": "Restaurar valor anterior",
       "cal.stampReset":     "Reset historial",
       "tune.fork.title":    "Guardar cambios de ganancia",
-      "tune.fork.body":     "Has movido una ganancia. Donde quieres que se guarde?",
+      "tune.fork.body":     "Has movido una ganancia. ¿Dónde quieres guardar el cambio?",
+      "tune.fork.activeInfo": "Perfil activo: '{profile}' (pilot: {pilot})",
       "tune.fork.nameLabel": "Nombre:",
-      "tune.fork.keep":     "Guardar en '{pilot}'",
+      "tune.fork.keep":     "Guardar en el perfil activo",
       "tune.fork.new":      "Crear nuevo '{name}'",
-      "tune.fork.newBtn":   "Crear nuevo",
-      "tune.fork.cancel":   "Cancelar",
-      "tune.fork.hint":     "'Crear nuevo' clona el perfil activo con el nombre que escribas y cambia a el, dejando el original intacto. Cancelar cierra el aviso hasta que vuelvas a bloquear.",
+      "tune.fork.newBtn":   "Crear un nuevo perfil",
+      "tune.fork.cancel":   "Cancelar (deshacer último cambio)",
+      "tune.fork.hint":     "'Crear nuevo' clona el perfil activo con el nombre que escribas y cambia a él, dejando el original intacto. 'Cancelar' revierte el último cambio para que puedas bloquear sin guardar.",
       "setup.status.language":  "Activo:",
       "setup.status.host":      "TinyPilot:",
       "setup.status.hostMissing": "sin configurar",
@@ -12456,20 +12458,31 @@
     }
   }
   // Drag & drop with Pointer Events (works for touch + mouse).
+  // Rev418 (Carlos sea trial 2026-10-04, obs #5): the previous
+  // implementation parpadeaba y "nunca llegaba hasta arriba del todo"
+  // because after an `insertBefore` the closure kept `startY` from
+  // the original pointerdown. Next `onMove` tick recomputed
+  //   offset = e2.clientY - startY
+  // against the ORIGINAL anchor, so the transform jumped back to the
+  // accumulated value and the li snapped to the old visual position
+  // — one frame later it reflowed again, hence the flicker. The
+  // `e._pmResetY = newStart` dead-ended because it was never read.
+  //
+  // New approach: `startY` is a `let` captured by both the handler
+  // and `onMove`, and every reorder reseats it to the current pointer
+  // Y so the next `offset` is relative to the item's NEW DOM
+  // position. Also commit flash + toast on commit so the sailor
+  // knows the move landed.
   function _pmWireDrag(li, handle) {
     handle.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       const list = li.parentElement;
-      const startY = e.clientY;
-      const siblings = Array.from(list.children);
-      const originalIndex = siblings.indexOf(li);
-      const itemHeight = li.getBoundingClientRect().height + 12; // +margins
-      let offset = 0;
+      let startY = e.clientY;
       li.classList.add("dragging");
       try { handle.setPointerCapture(e.pointerId); } catch { /* silent */ }
 
       const onMove = (e2) => {
-        offset = e2.clientY - startY;
+        const offset = e2.clientY - startY;
         li.style.transform = `translateY(${offset}px)`;
         // Live reorder based on where the center of the dragged item sits.
         const draggedCenter = li.getBoundingClientRect().top + li.offsetHeight / 2;
@@ -12480,15 +12493,15 @@
           const otherCenter = r.top + r.height / 2;
           if (draggedCenter < otherCenter && other.previousElementSibling !== li) {
             list.insertBefore(li, other);
-            // Reset the visual offset relative to the new DOM position.
-            const newStart = e2.clientY;
+            // Rev418: reseat the anchor so the NEXT frame renders
+            // offset=0 from the new DOM slot (no snap-back).
+            startY = e2.clientY;
             li.style.transform = "translateY(0px)";
-            // Re-anchor so continued movement stays smooth.
-            e._pmResetY = newStart;
             break;
           } else if (draggedCenter > otherCenter && other.nextElementSibling !== li) {
             if (other === list.lastElementChild || li.nextElementSibling !== other) {
               list.insertBefore(li, other.nextElementSibling);
+              startY = e2.clientY;
               li.style.transform = "translateY(0px)";
               break;
             }
@@ -12510,6 +12523,12 @@
         if (changed) {
           try {
             await pluginRaw("profiles", finalOrder);
+            // Rev418 (obs #5): visual confirmation that the move landed.
+            // The pulse CSS lives on .pm-item.just-moved; cleared after 600ms.
+            try {
+              li.classList.add("just-moved");
+              setTimeout(() => li.classList.remove("just-moved"), 600);
+            } catch { /* silent */ }
             // Backend echo will refresh state.profiles.
           } catch (err) {
             console.warn("[pm] reorder commit failed:", err);
@@ -12562,6 +12581,12 @@
         `<div class="modal-card">` +
         `  <h3 data-i18n="tune.fork.title">Save gain changes</h3>` +
         `  <p data-i18n="tune.fork.body">You just tweaked a gain. Where should the change live?</p>` +
+        // Rev418 (Carlos sea trial 2026-10-04, obs #6): show the actual
+        // active profile + pilot so "Save in active profile" is
+        // unambiguous. Carlos reported "Guardar en BASIC" looked like
+        // the sliders would always land in BASIC — it was actually
+        // showing `state.pilot` ("basic"), not `state.profile`.
+        `  <div id="tune-fork-active-info" style="font-size:12px;color:var(--fg-dim);margin:6px 0 10px"></div>` +
         `  <label for="tune-fork-name" style="font-size:12px;color:var(--fg-dim);display:block;margin-top:8px" data-i18n="tune.fork.nameLabel">Name:</label>` +
         `  <input type="text" id="tune-fork-name" style="width:100%;padding:6px;box-sizing:border-box;margin:4px 0 8px;background:#111;color:var(--fg);border:1px solid #333;border-radius:4px" />` +
         `  <div class="tune-fork-actions">` +
@@ -12578,7 +12603,16 @@
     const cancelBtn = m.querySelector("#tune-fork-cancel");
     const note = m.querySelector("#tune-fork-note");
     const nameInput = m.querySelector("#tune-fork-name");
-    keepBtn.textContent = (t("tune.fork.keep") || "Keep in '{pilot}'").replace("{pilot}", pilot);
+    const activeInfo = m.querySelector("#tune-fork-active-info");
+    // Rev418 (obs #6): fill the active-profile line so the sailor sees
+    // exactly where "Save in active profile" would write.
+    if (activeInfo) {
+      const profile = state.profile || "(none)";
+      activeInfo.textContent = (t("tune.fork.activeInfo") || "Active profile: '{profile}' (pilot: {pilot})")
+        .replace("{profile}", profile)
+        .replace("{pilot}", pilot);
+    }
+    keepBtn.textContent = t("tune.fork.keep") || "Save in active profile";
     // Rev402: botón "Crear nuevo" ya no incluye el nombre (lo lee del input).
     newBtn.textContent = t("tune.fork.newBtn") || t("tune.fork.new")?.replace(" '{name}'", "") || "Save in new";
     if (cancelBtn) cancelBtn.textContent = t("tune.fork.cancel") || "Cancel";
