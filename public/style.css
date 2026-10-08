@@ -960,9 +960,15 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   text-align-last: center;
   min-width: 0;
 }
-/* Rev423 (Carlos QA Rev422): the Rev422 twin was dropped — profile
-   now lives inside #mode-select as a second <optgroup>. CSS variant
-   kept empty on purpose: native <optgroup> styling is fine. */
+/* Rev424 (Carlos QA Rev423): "el modelo seleccionado quede en el azul
+   de nuestro CSS". Tint the mode-select itself (the collapsed
+   header) with the accent colour so the active mode pops. The
+   <option>s inside the dropdown fall back to the browser default so
+   long lists stay legible. */
+.row-tack-mode .mode-select {
+  color: var(--accent);
+  font-weight: 700;
+}
 
 .tack-btn {
   min-height: 100px;

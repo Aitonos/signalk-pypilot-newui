@@ -763,15 +763,13 @@
                     class="lbl tack-angle-lbl">100</text>
             </svg>
           </button>
-          <!-- Rev423 (Carlos QA Rev422, 2026-10-08): "el profile
-               selector debe estar DENTRO del mismo selector de modo".
-               mode-select ahora se rellena con dos <optgroup> ("Modo"
-               y "Perfil"); los values de perfil se prefijan con
-               "@profile:" para que el change handler pueda despacharlos
-               por una ruta diferente sin romper los setSelect("#mode-
-               select", <mode>) existentes. El select siempre muestra el
-               MODO activo (nunca el perfil) tras un cambio de perfil
-               — ver _profileSelectOnChange + change handler. -->
+          <!-- Rev424 (Carlos QA Rev423, 2026-10-08): mode-select hosts
+               both the Modo optgroup AND the Perfil Activo optgroup.
+               Selecting a profile writes it to pypilot via "@profile:X"
+               routing but the visible <select> value snaps back to
+               state.mode (sailor explicitly asked: no actúan sobre el
+               selector de ajustes). Hidden placeholder preserves the
+               Rev250 race-guard without the "??" being visible. -->
           <select id="mode-select" class="mode-select" aria-label="Mode and profile"></select>
           <button class="tack-btn tack-star" id="tack-star-btn" data-i18n-title="tack.star.title" title="Tack to starboard">
             <svg class="tack-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
@@ -2318,6 +2316,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev423"></script>
+  <script src="app.js?v=Rev424"></script>
 </body>
 </html>

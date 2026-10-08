@@ -6456,21 +6456,20 @@
     const el = document.getElementById("mode-select");
     if (!el) return;
     const prev = el.value;
-    // Compose the mode list (modeList + pseudo-modes), falling back to
-    // whatever lives on the DOM today when state.modeList is empty
-    // (early boot — fillSelect may already have primed something).
     const modeList = Array.isArray(state.modeList) ? state.modeList : [];
     let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
     if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
     const profiles = Array.isArray(state.profiles) ? state.profiles : [];
     el.textContent = "";
-    // Rev250 placeholder guard — same reason as fillSelect: avoid the
-    // "compass auto-wins the first-option race at boot" bug.
+    // Rev424 (Carlos QA Rev423): "quita el ??". Hidden placeholder
+    // keeps the Rev250 race guard without being visible in the dropdown.
     const ph = document.createElement("option");
     ph.value = "";
-    ph.textContent = "??";
+    ph.textContent = "";
     ph.disabled = true;
+    ph.hidden = true;
     el.appendChild(ph);
+    // Modo optgroup — the ones that actually change the AP mode.
     if (withPseudo.length > 0) {
       const g = document.createElement("optgroup");
       g.label = t("mode.group") || "Modo";
@@ -6482,23 +6481,24 @@
       }
       el.appendChild(g);
     }
+    // Rev424 (Carlos QA Rev423, aclaración 2026-10-08): "DROPDOWN
+    // DENTRO DEL DROPDOWN... Y NO ACTUAN SOBRE EL SELECTOR DE AJUSTES".
+    // Profiles live back inside #mode-select but picking one does NOT
+    // leave the <select>'s visible value showing the profile — the
+    // change handler re-selects state.mode after routing the write.
     if (profiles.length > 0) {
       const g = document.createElement("optgroup");
-      g.label = t("profile.group") || "Perfil";
+      g.label = t("profile.group") || "Perfil Activo";
       for (const p of profiles) {
         const o = document.createElement("option");
         o.value = `@profile:${p}`;
-        // Mark the active profile with a dot prefix so the sailor sees
-        // at a glance which one is live.
         o.textContent = (p === state.profile) ? `• ${p}` : p;
         g.appendChild(o);
       }
       el.appendChild(g);
     }
-    // Restore the previous selection (modes keep their value verbatim;
-    // "@profile:X" values survive the rebuild). On a fresh render fall
-    // back to state.mode.
-    const target = prev && prev !== "" ? prev : (state.mode || "");
+    const target = prev && prev !== "" && !prev.startsWith("@profile:")
+      ? prev : (state.mode || "");
     try { el.value = target; } catch { /* silent */ }
     if (el.value === "" && state.mode) { try { el.value = state.mode; } catch { /* silent */ } }
   }
@@ -8417,11 +8417,12 @@
     $("#mode-select").addEventListener("change", (e) => {
       _msCollapse();
       const chosen = e.target.value;
-      // Rev423 (Carlos QA Rev422, 2026-10-08): the merged mode-select
-      // mixes modes and profiles. Values that start with "@profile:"
-      // route to pluginRaw("profile", X) instead of the mode PUT. The
-      // visible selection snaps back to the current MODE so the sailor
-      // doesn't see "basic" sitting in a mode-labelled widget.
+      // Rev423/424 (Carlos QA): the merged mode-select mixes modes and
+      // profiles. Values that start with "@profile:" route to
+      // pluginRaw("profile", X) and then the <select>'s visible value
+      // snaps back to state.mode (the sailor explicitly asked: "NO
+      // ACTUAN SOBRE EL SELECTOR DE AJUSTES" — selecting a profile
+      // must not leave the mode-select showing the profile name).
       if (typeof chosen === "string" && chosen.startsWith("@profile:")) {
         const p = chosen.slice("@profile:".length);
         if (!window._profileSelectPrimed) {
