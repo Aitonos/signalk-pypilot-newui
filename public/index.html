@@ -776,17 +776,7 @@
                    "Perfil Activo" <select> so a profile change does
                    NOT alter the mode-select header. -->
           <select id="mode-select" class="mode-select" aria-label="Mode and profile" style="display:none"></select>
-          <button type="button" id="mode-select-btn" class="mode-select mode-select-btn" aria-haspopup="listbox"></button>
-          <div id="mode-select-popup" class="mode-select-popup" hidden>
-            <div class="mode-popup-group">
-              <div class="mode-popup-group-label" data-i18n="mode.group">Modo</div>
-              <ul id="mode-popup-list" class="mode-popup-list" role="listbox"></ul>
-            </div>
-            <div class="mode-popup-group mode-popup-group-profile">
-              <label class="mode-popup-group-label" for="mode-popup-profile" data-i18n="profile.group">Perfil Activo</label>
-              <select id="mode-popup-profile" class="mode-popup-profile-select"></select>
-            </div>
-          </div>
+          <button type="button" id="mode-select-btn" class="mode-select mode-select-btn" aria-haspopup="dialog"></button>
           <button class="tack-btn tack-star" id="tack-star-btn" data-i18n-title="tack.star.title" title="Tack to starboard">
             <svg class="tack-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
               <path d="M 25,30 A 25 25 0 0 1 75,30" fill="none"
@@ -2332,6 +2322,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev426"></script>
+  <script src="app.js?v=Rev427"></script>
 </body>
 </html>

@@ -6495,9 +6495,11 @@
     const m = state.mode || "";
     btn.textContent = m ? _modeLabel(m) : "—";
   }
-  // Rev425: refresh the profile sub-select inside the popup. Native
-  // <select> so native touch picker still works for a nested second
-  // layer of choice.
+  // Rev427 (Carlos QA Rev426, 2026-10-08): "es mejor que se abra una
+  // ventana grande centrada". Replaced the anchored popup with a
+  // centered modal (same backdrop pattern as the fork + unlock
+  // modals). Immune to viewport cropping, works on phone + 80% zoom
+  // laptop + tablet landscape without special placement logic.
   function _rebuildModePopupProfiles() {
     const sel = document.getElementById("mode-popup-profile");
     if (!sel) return;
@@ -6514,13 +6516,73 @@
     }
     try { sel.value = state.profile || ""; } catch { /* silent */ }
   }
-  // Rev425: open / close the popup. Opening re-renders the mode list
-  // so the active mode gets the accent-blue highlight even if state
-  // changed between opens.
+  function _ensureModeSelectModal() {
+    let m = document.getElementById("mode-select-modal");
+    if (m) return m;
+    m = document.createElement("div");
+    m.id = "mode-select-modal";
+    m.className = "mode-select-modal-backdrop";
+    m.hidden = true;
+    m.innerHTML =
+      `<div class="mode-select-modal-card">` +
+      `  <div class="mode-select-modal-close" id="mode-select-modal-close" aria-label="Close">×</div>` +
+      `  <div class="mode-popup-group">` +
+      `    <div class="mode-popup-group-label" id="mode-select-modal-mode-label">Modo</div>` +
+      `    <ul id="mode-popup-list" class="mode-popup-list" role="listbox"></ul>` +
+      `  </div>` +
+      `  <div class="mode-popup-group mode-popup-group-profile">` +
+      `    <label class="mode-popup-group-label" for="mode-popup-profile" id="mode-select-modal-profile-label">Perfil Activo</label>` +
+      `    <select id="mode-popup-profile" class="mode-popup-profile-select"></select>` +
+      `  </div>` +
+      `</div>`;
+    document.body.appendChild(m);
+    // Backdrop click closes.
+    m.addEventListener("click", (ev) => {
+      if (ev.target === m) _modeSelectPopupClose();
+    });
+    const closeBtn = m.querySelector("#mode-select-modal-close");
+    if (closeBtn) closeBtn.addEventListener("click", _modeSelectPopupClose);
+    // Mode list click handler (delegated).
+    const list = m.querySelector("#mode-popup-list");
+    if (list) {
+      list.addEventListener("click", (ev) => {
+        const li = ev.target.closest(".mode-popup-item");
+        if (!li) return;
+        const chosen = li.dataset.mode;
+        _modeSelectPopupClose();
+        const nativeSel = document.getElementById("mode-select");
+        if (nativeSel) {
+          nativeSel.value = chosen;
+          nativeSel.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+    }
+    // Profile sub-select change handler.
+    const prof = m.querySelector("#mode-popup-profile");
+    if (prof) {
+      prof.addEventListener("change", (ev) => {
+        if (!window._profileSelectPrimed) {
+          console.log("[profile] modal profile change before priming — ignored");
+          return;
+        }
+        const v = ev.target.value;
+        if (v && v !== state.profile) {
+          try { pluginRaw("profile", v); } catch { /* silent */ }
+        }
+        _modeSelectPopupClose();
+      });
+    }
+    return m;
+  }
   function _modeSelectPopupOpen() {
-    const popup = document.getElementById("mode-select-popup");
-    const list = document.getElementById("mode-popup-list");
-    if (!popup || !list) return;
+    const m = _ensureModeSelectModal();
+    const list = m.querySelector("#mode-popup-list");
+    if (!list) return;
+    // Refresh labels (language may have changed).
+    const modeLbl = m.querySelector("#mode-select-modal-mode-label");
+    const profLbl = m.querySelector("#mode-select-modal-profile-label");
+    if (modeLbl) modeLbl.textContent = t("mode.group") || "Modo";
+    if (profLbl) profLbl.textContent = t("profile.group") || "Perfil Activo";
     const modeList = Array.isArray(state.modeList) ? state.modeList : [];
     let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
     if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
@@ -6534,64 +6596,14 @@
       li.textContent = _modeLabel(v);
       list.appendChild(li);
     }
-    popup.hidden = false;
-    popup.classList.add("open");
-    // Position the popup relative to the button, keeping it inside the
-    // viewport (Rev426: pre-Rev426 el popup cortaba por abajo y el
-    // sub-select de Perfil Activo quedaba fuera de pantalla).
-    const btn = document.getElementById("mode-select-btn");
-    if (btn) {
-      // Reset first so offsetHeight reflects the content height, not a
-      // stale max-height from a previous open.
-      popup.style.position = "fixed";
-      popup.style.maxHeight = "";
-      popup.style.left = "0px";
-      popup.style.top = "0px";
-      const r = btn.getBoundingClientRect();
-      const popupW = popup.offsetWidth || 220;
-      let popupH = popup.offsetHeight || 280;
-      // Horizontal: centre on the button, clamp to viewport.
-      let left = r.left + r.width / 2 - popupW / 2;
-      if (left < 4) left = 4;
-      if (left + popupW > window.innerWidth - 4) left = window.innerWidth - popupW - 4;
-      // Vertical: prefer below; if it doesn't fit, open above.
-      const spaceBelow = window.innerHeight - r.bottom - 8;
-      const spaceAbove = r.top - 8;
-      let top, maxH;
-      if (popupH <= spaceBelow || spaceBelow >= spaceAbove) {
-        top = r.bottom + 6;
-        maxH = Math.max(120, spaceBelow);
-      } else {
-        maxH = Math.max(120, spaceAbove);
-        top = r.top - Math.min(popupH, maxH) - 6;
-      }
-      popup.style.maxHeight = `${maxH}px`;
-      popup.style.left = `${left}px`;
-      popup.style.top = `${Math.max(4, top)}px`;
-    }
-    // Close on outside click.
-    setTimeout(() => {
-      document.addEventListener("pointerdown", _modeSelectPopupOutside, { once: true });
-    }, 0);
+    // Refresh the profile sub-select so its header shows the active one.
+    _rebuildModePopupProfiles();
+    m.hidden = false;
+    m.classList.add("open");
   }
   function _modeSelectPopupClose() {
-    const popup = document.getElementById("mode-select-popup");
-    if (popup) { popup.hidden = true; popup.classList.remove("open"); }
-    document.removeEventListener("pointerdown", _modeSelectPopupOutside);
-  }
-  function _modeSelectPopupOutside(ev) {
-    const popup = document.getElementById("mode-select-popup");
-    const btn = document.getElementById("mode-select-btn");
-    if (!popup) return;
-    if (popup.contains(ev.target)) {
-      // Rebind for the next outside click.
-      setTimeout(() => {
-        document.addEventListener("pointerdown", _modeSelectPopupOutside, { once: true });
-      }, 0);
-      return;
-    }
-    if (btn && btn.contains(ev.target)) return;
-    _modeSelectPopupClose();
+    const m = document.getElementById("mode-select-modal");
+    if (m) { m.hidden = true; m.classList.remove("open"); }
   }
   // Rev144 (Carlos): when the language changes, refresh the widgets we
   // built once in JS. data-i18n only handles static markup; anything
@@ -8507,45 +8519,17 @@
     // spacebar / arrow-down, so cover it too.
     const _msExpand = () => _modeSelectSwapLabels(true);
     const _msCollapse = () => _modeSelectSwapLabels(false);
-    // Rev425: the native <select> is hidden; we drive it programmatically
-    // from the custom popup. Hook the visible button + popup items.
+    // Rev425/Rev427: the native <select id="mode-select"> is hidden
+    // and acts as a state carrier only. The visible button toggles a
+    // centered modal built lazily by _ensureModeSelectModal (the mode
+    // list + profile sub-select live inside that modal, so their
+    // listeners are wired THERE, not here).
     const _msBtn = document.getElementById("mode-select-btn");
     if (_msBtn) {
       _msBtn.addEventListener("click", () => {
-        const popup = document.getElementById("mode-select-popup");
-        if (popup && !popup.hidden) { _modeSelectPopupClose(); }
+        const m = document.getElementById("mode-select-modal");
+        if (m && !m.hidden) { _modeSelectPopupClose(); }
         else { _modeSelectPopupOpen(); }
-      });
-    }
-    const _msList = document.getElementById("mode-popup-list");
-    if (_msList) {
-      _msList.addEventListener("click", (ev) => {
-        const li = ev.target.closest(".mode-popup-item");
-        if (!li) return;
-        const chosen = li.dataset.mode;
-        _modeSelectPopupClose();
-        // Reuse the native <select>'s change handler by setting its
-        // value + firing a synthetic change. Keeps all the Rev171
-        // target-flash logic + pseudo-mode interception in one place.
-        const nativeSel = document.getElementById("mode-select");
-        if (nativeSel) {
-          nativeSel.value = chosen;
-          nativeSel.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      });
-    }
-    const _msProfSel = document.getElementById("mode-popup-profile");
-    if (_msProfSel) {
-      _msProfSel.addEventListener("change", (ev) => {
-        if (!window._profileSelectPrimed) {
-          console.log("[profile] popup profile change before priming — ignored");
-          return;
-        }
-        const v = ev.target.value;
-        if (v && v !== state.profile) {
-          try { pluginRaw("profile", v); } catch { /* silent */ }
-        }
-        _modeSelectPopupClose();
       });
     }
     // Mode change — fired by the custom popup via a synthetic Event
