@@ -65,6 +65,13 @@
       "cal.slider.restore": "Restore previous value",
       "cal.unlock":         "Unlock sliders",
       "cal.stampReset":     "Reset history",
+      "unlock.prompt.title":    "Where do you want to edit?",
+      "unlock.prompt.body":     "Unlocking lets the sliders write directly to the active profile. Changes apply live, no need to close the screen.",
+      "unlock.prompt.active":   "Active profile: '{profile}' (pilot: {pilot})",
+      "unlock.prompt.current":  "Edit in the active profile",
+      "unlock.prompt.basic":    "Switch to 'basic' first",
+      "unlock.prompt.cancel":   "Cancel",
+      "unlock.prompt.hint":     "'Switch to basic' changes the profile BEFORE unlocking. 'Edit in the active' keeps you on whatever profile is shown above.",
       "tune.fork.title":    "Save gain changes",
       "tune.fork.body":     "You just tweaked a gain. Where should the change live?",
       "tune.fork.activeInfo": "Active profile: '{profile}' (pilot: {pilot})",
@@ -911,6 +918,13 @@
       "cal.slider.was":     "antes:",
       "cal.slider.restore": "Restaurar valor anterior",
       "cal.stampReset":     "Reset historial",
+      "unlock.prompt.title":    "¿Dónde quieres editar?",
+      "unlock.prompt.body":     "Al desbloquear, los sliders escribirán directamente al perfil que esté activo. Los cambios se aplican en el acto, no hace falta cerrar la pantalla.",
+      "unlock.prompt.active":   "Perfil activo: '{profile}' (pilot: {pilot})",
+      "unlock.prompt.current":  "Editar en el perfil actual",
+      "unlock.prompt.basic":    "Cambiar a 'basic' primero",
+      "unlock.prompt.cancel":   "Cancelar",
+      "unlock.prompt.hint":     "'Cambiar a basic' pasa al perfil 'basic' ANTES de desbloquear. 'Editar en el actual' se queda en el perfil que ves arriba.",
       "tune.fork.title":    "Guardar cambios de ganancia",
       "tune.fork.body":     "Has movido una ganancia. ¿Dónde quieres guardar el cambio?",
       "tune.fork.activeInfo": "Perfil activo: '{profile}' (pilot: {pilot})",
@@ -5938,8 +5952,35 @@
       // then let the per-group checkbox drive it from here on.
       _applyGroupUnlock(details, false);
       const groupCb = unlockLbl.querySelector("input");
-      groupCb.addEventListener("change", () => {
-        _applyGroupUnlock(details, groupCb.checked);
+      // Rev421 (Carlos sea trial 2026-10-04, obs #7): "cuando
+      // desbloqueamos para hacer los ajustes también lo mismo quieres
+      // hacerlo en Basic o quieres hacerlo en el ajuste actual". Modal
+      // intermedio al pasar a checked:true. Si el sailor cancela, el
+      // checkbox se desmarca y el grupo queda bloqueado. Si elige
+      // "basic", hacemos el switch antes de desbloquear.
+      groupCb.addEventListener("change", async () => {
+        if (!groupCb.checked) {
+          _applyGroupUnlock(details, false);
+          return;
+        }
+        const choice = await _promptUnlockProfileChoice();
+        if (choice === "cancel") {
+          groupCb.checked = false;
+          return;
+        }
+        if (choice === "basic") {
+          try {
+            await pluginRaw("profile", "basic");
+            // Give the backend ~400ms to echo state.profile = basic
+            // before the sliders start accepting edits in the new scope.
+            await new Promise((r) => setTimeout(r, 400));
+          } catch (e) { console.warn("[unlock] switch to basic failed:", e); }
+        }
+        // "current" (or post-basic-switch): fall through and unlock.
+        // Suppress the fork modal on the first slider change — the
+        // sailor already decided scope here.
+        _tuneForkAsked.v = true;
+        _applyGroupUnlock(details, true);
       });
       cont.appendChild(details);
     }
@@ -12559,6 +12600,68 @@
       window.addEventListener("pointermove", onMove, { passive: true });
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
+    });
+  }
+
+  // Rev421 (Carlos sea trial 2026-10-04, obs #7): modal shown when the
+  // sailor flips a group's unlock checkbox. Resolves to one of:
+  //   "current" — stay on state.profile, unlock the sliders.
+  //   "basic"   — switch to profile=basic first, then unlock.
+  //   "cancel"  — leave locked, no changes.
+  // Non-blocking cancel path means the checkbox is re-set to false by
+  // the caller.
+  function _promptUnlockProfileChoice() {
+    return new Promise((resolve) => {
+      const profile = state.profile || "(none)";
+      const pilot = state.pilot || "(none)";
+      let m = document.getElementById("unlock-prompt-modal");
+      if (!m) {
+        m = document.createElement("div");
+        m.id = "unlock-prompt-modal";
+        m.className = "tune-fork-backdrop";
+        m.innerHTML =
+          `<div class="modal-card">` +
+          `  <h3 id="unlock-prompt-title"></h3>` +
+          `  <p id="unlock-prompt-body"></p>` +
+          `  <div id="unlock-prompt-active" style="font-size:12px;color:var(--fg-dim);margin:6px 0 10px"></div>` +
+          `  <div class="tune-fork-actions">` +
+          `    <button type="button" id="unlock-prompt-current" class="primary"></button>` +
+          `    <button type="button" id="unlock-prompt-basic" class="secondary"></button>` +
+          `    <button type="button" id="unlock-prompt-cancel" class="ghost"></button>` +
+          `  </div>` +
+          `  <div id="unlock-prompt-note" style="font-size:12px;color:var(--fg-dim);margin-top:8px"></div>` +
+          `</div>`;
+        document.body.appendChild(m);
+      }
+      m.querySelector("#unlock-prompt-title").textContent =
+        t("unlock.prompt.title") || "¿Dónde quieres editar?";
+      m.querySelector("#unlock-prompt-body").textContent =
+        t("unlock.prompt.body") || "Al desbloquear, los sliders escribirán directamente al perfil que esté activo. Los cambios se aplican en el acto, no hace falta cerrar la pantalla.";
+      m.querySelector("#unlock-prompt-active").textContent =
+        (t("unlock.prompt.active") || "Perfil activo: '{profile}' (pilot: {pilot})")
+          .replace("{profile}", profile)
+          .replace("{pilot}", pilot);
+      m.querySelector("#unlock-prompt-current").textContent =
+        t("unlock.prompt.current") || "Editar en el perfil actual";
+      const basicBtn = m.querySelector("#unlock-prompt-basic");
+      basicBtn.textContent = t("unlock.prompt.basic") || "Cambiar a 'basic' primero";
+      // If the active profile is already basic, there's nothing to
+      // switch to — hide the button.
+      basicBtn.style.display = (profile === "basic") ? "none" : "";
+      m.querySelector("#unlock-prompt-cancel").textContent =
+        t("unlock.prompt.cancel") || "Cancelar";
+      m.querySelector("#unlock-prompt-note").textContent =
+        t("unlock.prompt.hint") || "Si eliges 'basic', se cambia el perfil ANTES de desbloquear. Si eliges 'actual', se queda en el perfil que ves arriba.";
+      m.hidden = false;
+      m.classList.add("open");
+      const close = (choice) => {
+        m.hidden = true;
+        m.classList.remove("open");
+        resolve(choice);
+      };
+      m.querySelector("#unlock-prompt-current").onclick = () => close("current");
+      basicBtn.onclick = () => close("basic");
+      m.querySelector("#unlock-prompt-cancel").onclick = () => close("cancel");
     });
   }
 
