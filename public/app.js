@@ -65,6 +65,8 @@
       "cal.slider.restore": "Restore previous value",
       "cal.unlock":         "Unlock sliders",
       "cal.stampReset":     "Reset history",
+      "mode.group":             "Mode",
+      "profile.group":          "Profile",
       "unlock.prompt.title":    "Where do you want to edit?",
       "unlock.prompt.body":     "Unlocking lets the sliders write directly to the active profile. Changes apply live, no need to close the screen.",
       "unlock.prompt.active":   "Active profile: '{profile}' (pilot: {pilot})",
@@ -918,6 +920,8 @@
       "cal.slider.was":     "antes:",
       "cal.slider.restore": "Restaurar valor anterior",
       "cal.stampReset":     "Reset historial",
+      "mode.group":             "Modo",
+      "profile.group":          "Perfil",
       "unlock.prompt.title":    "¿Dónde quieres editar?",
       "unlock.prompt.body":     "Al desbloquear, los sliders escribirán directamente al perfil que esté activo. Los cambios se aplican en el acto, no hace falta cerrar la pantalla.",
       "unlock.prompt.active":   "Perfil activo: '{profile}' (pilot: {pilot})",
@@ -2785,9 +2789,9 @@
           // Rev313 (Carlos sea trial 2026-09-25): añadido pseudo-mode
           // "empopado" junto con el existente "aproado". Empopado = viento
           // por popa (TWA≈180°) para bajar vela sin flapping.
-          let withPseudo = value.includes("aproado") ? value : [...value, "aproado"];
-          if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
-          fillSelect("#mode-select", withPseudo);
+          // Rev423 (Carlos QA Rev422): use _rebuildModeSelect so the
+          // "Perfil" optgroup gets re-rendered alongside the modes.
+          _rebuildModeSelect();
           if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
             setSelect("#mode-select", "aproado");
           }
@@ -2818,7 +2822,10 @@
           const prev = state.profile;
           state.profile = value;
           setSelect("#profile-select", value);
-          setSelect("#bbar-profile-select", value);
+          // Rev423: refresh the merged mode-select so the "Perfil"
+          // optgroup options reflect the new active profile. The mode
+          // itself keeps whatever is displayed (setSelect uses mode).
+          try { _rebuildModeSelect(); } catch { /* silent */ }
           // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
           // primed=true once we have received an authoritative profile
           // value from the backend. The change-listener refuses to
@@ -2844,9 +2851,9 @@
         if (Array.isArray(value)) {
           state.profiles = value;
           fillSelect("#profile-select", value);
-          // Rev422 (fix #13): mirror into the bbar twin.
-          fillSelect("#bbar-profile-select", value);
-          try { setSelect("#bbar-profile-select", state.profile); } catch { /* silent */ }
+          // Rev423: fold the new profile list into #mode-select's
+          // "Perfil" optgroup. See _rebuildModeSelect for the schema.
+          try { _rebuildModeSelect(); } catch { /* silent */ }
         }
         break;
       // Rev63 / 2.0.0: verbatim - was `.tack.state`, now `.ap.tack.state` (from pypilot key `ap.tack.state`).
@@ -6249,13 +6256,12 @@
         if (Array.isArray(profiles) && profiles.length > 0) {
           state.profiles = profiles;
           fillSelect("#profile-select", profiles);
-          // Rev422 (fix #13): mirror into the bbar twin.
-          fillSelect("#bbar-profile-select", profiles);
+          try { _rebuildModeSelect(); } catch { /* silent */ }
         }
         if (typeof profile === "string" && profile.length > 0) {
           state.profile = profile;
           setSelect("#profile-select", profile);
-          setSelect("#bbar-profile-select", profile);
+          try { _rebuildModeSelect(); } catch { /* silent */ }
           window._profileSelectPrimed = true;
         }
       } catch { /* silent */ }
@@ -6434,7 +6440,67 @@
   function _modeSelectSwapLabels(long) {
     const el = document.getElementById("mode-select");
     if (!el) return;
-    for (const o of el.options) o.textContent = _modeLabel(o.value, !!long);
+    for (const o of el.options) {
+      // Rev423: profile options (prefix "@profile:") keep their raw
+      // profile name — _modeLabel would only mangle them.
+      if (typeof o.value === "string" && o.value.startsWith("@profile:")) continue;
+      o.textContent = _modeLabel(o.value, !!long);
+    }
+  }
+  // Rev423 (Carlos QA Rev422, 2026-10-08): merge the profile list into
+  // #mode-select as a second <optgroup>. Values are prefixed with
+  // "@profile:" so the mode-select change handler can route them
+  // separately. Called after any mutation of state.modeList or
+  // state.profiles. Preserves the current selection where possible.
+  function _rebuildModeSelect() {
+    const el = document.getElementById("mode-select");
+    if (!el) return;
+    const prev = el.value;
+    // Compose the mode list (modeList + pseudo-modes), falling back to
+    // whatever lives on the DOM today when state.modeList is empty
+    // (early boot — fillSelect may already have primed something).
+    const modeList = Array.isArray(state.modeList) ? state.modeList : [];
+    let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
+    if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
+    const profiles = Array.isArray(state.profiles) ? state.profiles : [];
+    el.textContent = "";
+    // Rev250 placeholder guard — same reason as fillSelect: avoid the
+    // "compass auto-wins the first-option race at boot" bug.
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "??";
+    ph.disabled = true;
+    el.appendChild(ph);
+    if (withPseudo.length > 0) {
+      const g = document.createElement("optgroup");
+      g.label = t("mode.group") || "Modo";
+      for (const v of withPseudo) {
+        const o = document.createElement("option");
+        o.value = String(v);
+        o.textContent = _modeLabel(v);
+        g.appendChild(o);
+      }
+      el.appendChild(g);
+    }
+    if (profiles.length > 0) {
+      const g = document.createElement("optgroup");
+      g.label = t("profile.group") || "Perfil";
+      for (const p of profiles) {
+        const o = document.createElement("option");
+        o.value = `@profile:${p}`;
+        // Mark the active profile with a dot prefix so the sailor sees
+        // at a glance which one is live.
+        o.textContent = (p === state.profile) ? `• ${p}` : p;
+        g.appendChild(o);
+      }
+      el.appendChild(g);
+    }
+    // Restore the previous selection (modes keep their value verbatim;
+    // "@profile:X" values survive the rebuild). On a fresh render fall
+    // back to state.mode.
+    const target = prev && prev !== "" ? prev : (state.mode || "");
+    try { el.value = target; } catch { /* silent */ }
+    if (el.value === "" && state.mode) { try { el.value = state.mode; } catch { /* silent */ } }
   }
   // Rev144 (Carlos): when the language changes, refresh the widgets we
   // built once in JS. data-i18n only handles static markup; anything
@@ -6442,14 +6508,10 @@
   // profile) or from _attachGainHelp needs a manual redraw.
   function _relabelDynamicUI() {
     // Mode selector: rebuild the same list under the new language.
+    // Rev423: unified helper now rebuilds both the Modo optgroup and
+    // the Perfil optgroup; preserves the current selection internally.
     if (Array.isArray(state.modeList)) {
-      // Rev313: pseudo-modes locales (aproado + empopado) siempre al
-      // final del dropdown, con label i18n.
-      let withPseudo = state.modeList.includes("aproado") ? state.modeList : [...state.modeList, "aproado"];
-      if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
-      const prev = document.getElementById("mode-select")?.value;
-      fillSelect("#mode-select", withPseudo);
-      if (prev != null) setSelect("#mode-select", prev);
+      _rebuildModeSelect();
     }
     // Gain help lines under the Tune sliders + Calibration sliders
     // are attached once per row and cached. Drop them so the next
@@ -8355,6 +8417,24 @@
     $("#mode-select").addEventListener("change", (e) => {
       _msCollapse();
       const chosen = e.target.value;
+      // Rev423 (Carlos QA Rev422, 2026-10-08): the merged mode-select
+      // mixes modes and profiles. Values that start with "@profile:"
+      // route to pluginRaw("profile", X) instead of the mode PUT. The
+      // visible selection snaps back to the current MODE so the sailor
+      // doesn't see "basic" sitting in a mode-labelled widget.
+      if (typeof chosen === "string" && chosen.startsWith("@profile:")) {
+        const p = chosen.slice("@profile:".length);
+        if (!window._profileSelectPrimed) {
+          console.log("[profile] mode-select profile change before priming — ignored");
+          try { setSelect("#mode-select", state.mode); } catch { /* silent */ }
+          return;
+        }
+        if (p !== state.profile) {
+          try { pluginRaw("profile", p); } catch { /* silent */ }
+        }
+        try { setSelect("#mode-select", state.mode); } catch { /* silent */ }
+        return;
+      }
       // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
       // choice modal (bow / stern) and starts the maneuver on confirmation.
       if (chosen === "aproado") {
@@ -8846,10 +8926,11 @@
     $("#pilot-select").addEventListener("change", (e) => {
       pluginRaw("ap.pilot", e.target.value);
     });
-    // Rev422 (fix #13): shared change handler for both profile selects
-    // (Tune tab + new bbar twin). Keeps the Rev296 "ignore pre-delta
-    // change" guard and the identity-write skip. On a successful write
-    // the backend delta re-syncs BOTH selects via the handler above.
+    // Rev423 (Carlos QA Rev422, 2026-10-08): the Tune-tab profile
+    // select keeps its own handler. The bbar twin was replaced by a
+    // merged mode-select whose "@profile:X" options are intercepted
+    // in the mode-select change listener (see the setMode-related
+    // handler elsewhere).
     const _profileSelectOnChange = (e) => {
       if (!window._profileSelectPrimed) {
         console.log("[profile] ignoring change before profile delta received");
@@ -8860,8 +8941,6 @@
       pluginRaw("profile", v);
     };
     $("#profile-select").addEventListener("change", _profileSelectOnChange);
-    const bbarProfileSel = document.getElementById("bbar-profile-select");
-    if (bbarProfileSel) bbarProfileSel.addEventListener("change", _profileSelectOnChange);
     // Rev404 (Carlos QA Rev403): individual header buttons (+, ✎, ↓,
     // ↑, −) removed. "Son redundantes" — todo vive ahora en el
     // Profile Manager modal (⚙). El <select> queda como quick switch.

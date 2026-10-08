@@ -960,14 +960,9 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   text-align-last: center;
   min-width: 0;
 }
-/* Rev422 (Carlos sea trial 2026-10-04, obs #13): bbar profile twin
-   sits right next to the mode select. One shade dimmer so the mode
-   stays visually primary (sailor touches it more often during a
-   maneuver). Same font scaling for consistency. */
-.row-tack-mode .mode-select-profile {
-  color: var(--fg-dim);
-  background: color-mix(in srgb, var(--bg-3) 70%, transparent);
-}
+/* Rev423 (Carlos QA Rev422): the Rev422 twin was dropped — profile
+   now lives inside #mode-select as a second <optgroup>. CSS variant
+   kept empty on purpose: native <optgroup> styling is fine. */
 
 .tack-btn {
   min-height: 100px;
