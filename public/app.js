@@ -6255,16 +6255,25 @@
       try {
         const profiles = fetched?.profiles ?? state.pypilotValues?.profiles;
         const profile  = fetched?.profile  ?? state.pypilotValues?.profile;
+        // Rev428 (Carlos QA Rev427, 2026-10-08): consolidate so
+        // _rebuildModeSelect fires AT MOST ONCE here even when both
+        // profiles and profile land in the same tick. The pre-Rev428
+        // "two calls back-to-back" was Carlos's "se carga dos veces"
+        // on modal open.
+        let needsModeRebuild = false;
         if (Array.isArray(profiles) && profiles.length > 0) {
           state.profiles = profiles;
           fillSelect("#profile-select", profiles);
-          try { _rebuildModeSelect(); } catch { /* silent */ }
+          needsModeRebuild = true;
         }
         if (typeof profile === "string" && profile.length > 0) {
           state.profile = profile;
           setSelect("#profile-select", profile);
-          try { _rebuildModeSelect(); } catch { /* silent */ }
           window._profileSelectPrimed = true;
+          needsModeRebuild = true;
+        }
+        if (needsModeRebuild) {
+          try { _rebuildModeSelect(); } catch { /* silent */ }
         }
       } catch { /* silent */ }
       // Refresh anything that depends on it.
@@ -6504,15 +6513,27 @@
     const sel = document.getElementById("mode-popup-profile");
     if (!sel) return;
     const profiles = Array.isArray(state.profiles) ? state.profiles : [];
-    sel.textContent = "";
-    const ph = document.createElement("option");
-    ph.value = ""; ph.disabled = true; ph.hidden = true;
-    sel.appendChild(ph);
-    for (const p of profiles) {
-      const o = document.createElement("option");
-      o.value = String(p);
-      o.textContent = String(p);
-      sel.appendChild(o);
+    // Rev428 (Carlos QA Rev427): idempotent — if the <option> list
+    // already matches the desired profile list, only update the
+    // selection. Avoids a visible "repopulate" flash when SK deltas
+    // arrive while the modal is open OR when _rebuildModeSelect is
+    // (legitimately) called from multiple deltas back-to-back.
+    const current = Array.from(sel.options)
+      .filter((o) => !o.hidden)
+      .map((o) => o.value);
+    const same = current.length === profiles.length
+      && current.every((v, i) => v === profiles[i]);
+    if (!same) {
+      sel.textContent = "";
+      const ph = document.createElement("option");
+      ph.value = ""; ph.disabled = true; ph.hidden = true;
+      sel.appendChild(ph);
+      for (const p of profiles) {
+        const o = document.createElement("option");
+        o.value = String(p);
+        o.textContent = String(p);
+        sel.appendChild(o);
+      }
     }
     try { sel.value = state.profile || ""; } catch { /* silent */ }
   }
