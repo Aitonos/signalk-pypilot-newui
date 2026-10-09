@@ -4052,35 +4052,122 @@ body.pypilot-offline .pypilot-write {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
 }
-.ais-infobox-bg {
-  fill: rgba(10, 14, 20, 0.95);
-  stroke: #ff3b30;
-  stroke-width: 1.5;
+/* Rev432: AIS infobox + ACK as HTML absolute div above the SVG rose.
+   Guarantees a reliable click target (no SVG re-render race) and sits
+   on top of every SVG layer regardless of DOM order inside the SVG. */
+.rose-wrap { position: relative; }   /* anchor for infobox + freeboard */
+.ais-infobox-html {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: rgba(10, 14, 20, 0.96);
+  border: 2px solid #ff3b30;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  max-width: 85%;
+  color: #fff;
+  font-family: ui-monospace, monospace;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
 }
-.ais-infobox-bg.ais-warn { stroke: #f5a623; }
-.ais-infobox-text {
-  fill: #fff;
+.ais-infobox-html[hidden] { display: none; }
+.ais-infobox-html.ais-warn { border-color: #f5a623; }
+.ais-infobox-html.ais-alarm { border-color: #ff3b30; animation: ais-blink 900ms infinite; }
+.ais-infobox-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ais-infobox-level {
   font-size: 10px;
-  font-weight: 700;
-  font-family: ui-monospace, monospace;
-  pointer-events: none;
-}
-.ais-infobox-sub {
-  font-weight: 500;
-  fill: #cbd3dc;
-}
-.ais-ack-bg {
-  fill: #ff3b30;
-  stroke: #fff;
-  stroke-width: 0.5;
-}
-.ais-target.ais-warn ~ .ais-ack-bg,
-.ais-infobox-bg.ais-warn + .ais-ack-bg { fill: #f5a623; }
-.ais-ack-txt {
-  fill: #fff;
-  font-size: 8px;
   font-weight: 900;
-  text-anchor: middle;
-  font-family: ui-monospace, monospace;
-  pointer-events: none;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #ff3b30;
+  color: #fff;
+}
+.ais-infobox-html.ais-warn .ais-infobox-level { background: #f5a623; color: #1a1d22; }
+.ais-infobox-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ais-infobox-body {
+  font-size: 12px;
+  font-weight: 500;
+  color: #cbd3dc;
+}
+.ais-infobox-ack {
+  align-self: flex-end;
+  background: #ff3b30;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  min-width: 60px;
+  min-height: 32px;
+}
+.ais-infobox-html.ais-warn .ais-infobox-ack { background: #f5a623; color: #1a1d22; }
+.ais-infobox-ack:hover { filter: brightness(1.1); }
+.ais-infobox-ack:active { transform: scale(0.95); }
+
+/* Rev432: Freeboard-SK embedded modal. Full-viewport backdrop + card
+   with iframe. Opens on double-tap of the compass rose. Iframe src is
+   cleared on close so Freeboard does not keep a websocket open while
+   the modal is hidden. */
+.freeboard-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(0, 0, 0, 0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 2vh 2vw;
+}
+.freeboard-modal-backdrop.open { display: flex; }
+.freeboard-modal-backdrop[hidden] { display: none; }
+.freeboard-modal-card {
+  position: relative;
+  width: 96vw;
+  height: 96vh;
+  background: var(--bg-2, #0f1620);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+}
+.freeboard-modal-card iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.freeboard-modal-close {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  line-height: 1;
+  cursor: pointer;
 }

@@ -3572,12 +3572,12 @@
   }
   function renderAisAlarms() {
     const layer = document.getElementById("ais-alarm-layer");
-    const infobox = document.getElementById("ais-alarm-infobox");
     if (!layer) return;
     layer.textContent = "";
     const alarms = Array.from(state.aisAlarms.values());
     if (alarms.length === 0) {
-      if (infobox) infobox.style.display = "none";
+      const box = document.getElementById("ais-infobox");
+      if (box) box.hidden = true;
       return;
     }
     // Rank most-urgent first (lowest TCPA first; alarms before warns).
@@ -3615,63 +3615,37 @@
       g.appendChild(poly);
       layer.appendChild(g);
     }
-    // Infobox for the most urgent (alarms[0] after sort).
-    if (infobox) {
-      const top = alarms[0];
-      const d = top.value.data || {};
-      const cpaNm = (d.cpa != null) ? (d.cpa / 1852) : null;
-      const tcpaMin = (d.tcpa != null) ? (d.tcpa / 60) : null;
-      // Extract vessel name from the message ("Collision risk: NAME, ...").
-      let name = top.mmsi;
-      try {
-        const m = /Collision risk:\s*([^,]+),/.exec(String(top.value.message || ""));
-        if (m) name = m[1].trim();
-      } catch { /* silent */ }
-      infobox.setAttribute("transform", "translate(0, -58)");
-      infobox.textContent = "";
-      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      bg.setAttribute("x", "-56"); bg.setAttribute("y", "-20");
-      bg.setAttribute("width", "112"); bg.setAttribute("height", "40");
-      bg.setAttribute("rx", "4");
-      bg.setAttribute("class", `ais-infobox-bg ais-${top.value.state}`);
-      infobox.appendChild(bg);
-      const line1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      line1.setAttribute("x", "-50"); line1.setAttribute("y", "-6");
-      line1.setAttribute("class", "ais-infobox-text");
-      line1.textContent = String(name).slice(0, 18);
-      infobox.appendChild(line1);
-      const line2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      line2.setAttribute("x", "-50"); line2.setAttribute("y", "7");
-      line2.setAttribute("class", "ais-infobox-text ais-infobox-sub");
+    // Rev432: infobox + ACK as a persistent HTML div (not re-created
+    // on each render — only its text/class/dataset are updated). The
+    // click listener is wired ONCE in wireControl so it survives every
+    // SK delta tick that triggers renderAisAlarms.
+    const box = document.getElementById("ais-infobox");
+    if (!box) return;
+    const top = alarms[0];
+    const d = top.value.data || {};
+    const cpaNm = (d.cpa != null) ? (d.cpa / 1852) : null;
+    const tcpaMin = (d.tcpa != null) ? (d.tcpa / 60) : null;
+    let name = top.mmsi;
+    try {
+      const m = /Collision risk:\s*([^,]+),/.exec(String(top.value.message || ""));
+      if (m) name = m[1].trim();
+    } catch { /* silent */ }
+    const lvl = (top.value.state === "alarm") ? "ALARM" : "WARN";
+    box.classList.remove("ais-warn", "ais-alarm");
+    box.classList.add(`ais-${top.value.state}`);
+    box.dataset.notifId = top.value.id || "";
+    box.dataset.mmsi = top.mmsi;
+    const lvlEl = document.getElementById("ais-infobox-level");
+    const nameEl = document.getElementById("ais-infobox-name");
+    const bodyEl = document.getElementById("ais-infobox-body");
+    if (lvlEl) lvlEl.textContent = lvl;
+    if (nameEl) nameEl.textContent = String(name).slice(0, 22);
+    if (bodyEl) {
       const cpaStr = cpaNm != null ? cpaNm.toFixed(2) + " NM" : "—";
       const tcpaStr = tcpaMin != null ? Math.round(tcpaMin) + " min" : "—";
-      line2.textContent = `CPA ${cpaStr} / ${tcpaStr}`;
-      infobox.appendChild(line2);
-      // ACK button.
-      const ackBtn = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      ackBtn.setAttribute("class", "ais-ack-btn");
-      ackBtn.setAttribute("transform", "translate(32, -8)");
-      ackBtn.style.cursor = "pointer";
-      ackBtn.dataset.notifId = top.value.id || "";
-      ackBtn.dataset.mmsi = top.mmsi;
-      const ackBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      ackBg.setAttribute("x", "0"); ackBg.setAttribute("y", "0");
-      ackBg.setAttribute("width", "22"); ackBg.setAttribute("height", "14");
-      ackBg.setAttribute("rx", "3");
-      ackBg.setAttribute("class", "ais-ack-bg");
-      ackBtn.appendChild(ackBg);
-      const ackTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      ackTxt.setAttribute("x", "11"); ackTxt.setAttribute("y", "10");
-      ackTxt.setAttribute("class", "ais-ack-txt");
-      ackTxt.textContent = "ACK";
-      ackBtn.appendChild(ackTxt);
-      ackBtn.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        _aisAcknowledge(ackBtn.dataset.notifId, ackBtn.dataset.mmsi);
-      });
-      infobox.appendChild(ackBtn);
-      infobox.style.display = "";
+      bodyEl.textContent = `CPA ${cpaStr} · ${tcpaStr}`;
     }
+    box.hidden = false;
   }
   async function _aisAcknowledge(id, mmsi) {
     if (!id) return;
@@ -9281,22 +9255,53 @@
     // Rev21: calibration dropdown removed from Control tab. Access via
     // Setup > Calibration section instead.
 
-    // Rev431 (Carlos sea trial follow-up, feature #9): double-tap on
-    // the compass rose opens Freeboard-SK (installed as
-    // /@signalk/freeboard-sk/) so the sailor can see the full chart
-    // with every AIS target rendered by signalk-collision-alerts.
-    // Native `dblclick` fires on both mouse + touch (modern browsers)
-    // and respects the OS double-tap gesture — no manual timing math.
+    // Rev432 (Carlos QA Rev431): Freeboard-SK embedded. Double-tap on
+    // the compass rose opens a modal with an iframe to
+    // /@signalk/freeboard-sk/ so the sailor sees the full chart WITHOUT
+    // leaving the pypilot visor (Rev431 navigated out — Carlos pedía
+    // "embeber Freeboard dentro del cuadro de la rose"). Iframe `src`
+    // is set lazily on open and cleared on close so Freeboard does not
+    // keep a websocket open while the modal is hidden.
     try {
       const rose = document.getElementById("wind-rose");
-      if (rose) {
-        rose.addEventListener("dblclick", (ev) => {
-          ev.preventDefault();
-          try { _alSpeak(t("ais.openChart") || "abriendo carta"); } catch { /* silent */ }
-          window.location.href = "/@signalk/freeboard-sk/";
+      const fbModal = document.getElementById("freeboard-modal");
+      const fbIframe = document.getElementById("freeboard-modal-iframe");
+      const fbClose = document.getElementById("freeboard-modal-close");
+      const openFb = () => {
+        if (!fbModal || !fbIframe) return;
+        try { _alSpeak(t("ais.openChart") || "abriendo carta"); } catch { /* silent */ }
+        fbIframe.src = "/@signalk/freeboard-sk/";
+        fbModal.hidden = false;
+        fbModal.classList.add("open");
+      };
+      const closeFb = () => {
+        if (!fbModal || !fbIframe) return;
+        fbModal.hidden = true;
+        fbModal.classList.remove("open");
+        fbIframe.src = "about:blank";
+      };
+      if (rose) rose.addEventListener("dblclick", (ev) => { ev.preventDefault(); openFb(); });
+      if (fbClose) fbClose.addEventListener("click", closeFb);
+      if (fbModal) fbModal.addEventListener("click", (ev) => { if (ev.target === fbModal) closeFb(); });
+    } catch (e) { console.warn("[rose] dblclick + freeboard wire:", e); }
+
+    // Rev432 (fix #1 ACK no funcionaba): the AIS infobox + ACK button
+    // live in the HTML DOM, not the SVG, so we wire ONE persistent
+    // click handler here that reads the current notification id from
+    // the data attributes updated on each renderAisAlarms() tick.
+    try {
+      const ackBtn = document.getElementById("ais-infobox-ack");
+      if (ackBtn) {
+        ackBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const box = document.getElementById("ais-infobox");
+          const id = box && box.dataset.notifId;
+          const mmsi = box && box.dataset.mmsi;
+          if (!id) { console.warn("[ais] ACK click but no notif id in dataset"); return; }
+          _aisAcknowledge(id, mmsi);
         });
       }
-    } catch (e) { console.warn("[rose] dblclick wire:", e); }
+    } catch (e) { console.warn("[ais] ack wire:", e); }
   }
 
   // ---- Tune tab wiring ----

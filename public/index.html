@@ -83,6 +83,28 @@
           <div class="dash-cell corner-tr" data-corner="tr"></div>
           <div class="dash-cell corner-bl" data-corner="bl"></div>
           <div class="dash-cell corner-br" data-corner="br"></div>
+          <!-- Rev432 (Carlos QA Rev431): AIS collision infobox + ACK as
+               an HTML absolute div (not SVG) so the ACK click is 100 %
+               reliable (no re-render-swallows-tap race), the box always
+               paints above every SVG layer, and the title shows WARN /
+               ALARM so the orange triangle meaning is unambiguous. -->
+          <div class="ais-infobox-html" id="ais-infobox" hidden>
+            <div class="ais-infobox-head">
+              <span class="ais-infobox-level" id="ais-infobox-level"></span>
+              <span class="ais-infobox-name" id="ais-infobox-name"></span>
+            </div>
+            <div class="ais-infobox-body" id="ais-infobox-body"></div>
+            <button type="button" class="ais-infobox-ack" id="ais-infobox-ack">ACK</button>
+          </div>
+          <!-- Rev432: Freeboard-SK embedded (double-tap on rose). Modal
+               with backdrop + iframe to /@signalk/freeboard-sk/ so the
+               full chart is one tap away without leaving the visor. -->
+          <div class="freeboard-modal-backdrop" id="freeboard-modal" hidden>
+            <div class="freeboard-modal-card">
+              <button type="button" class="freeboard-modal-close" id="freeboard-modal-close" aria-label="Close">×</button>
+              <iframe id="freeboard-modal-iframe" title="Freeboard-SK"></iframe>
+            </div>
+          </div>
           <svg id="wind-rose" class="rose-svg" viewBox="-100 -110 200 220" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
             <circle cx="0" cy="0" r="94" fill="none" stroke="#2b3542" stroke-width="2"/>
@@ -107,19 +129,14 @@
             <g id="rose-boat" transform="rotate(-90) scale(0.22)">
               <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
             </g>
-            <!-- Rev431 (Carlos sea trial follow-up): AIS collision overlay.
-                 Container populated at runtime by renderAisAlarms with one
-                 <g class="ais-target"> per active alarm (warn or alarm).
-                 The notifications come from signalk-collision-alerts via
-                 the Notifications API v2 (notifications.navigation.
-                 closestApproach.<mmsi>). The sailor can double-tap the
-                 compass circle to open Freeboard-SK and see the full
-                 chart with every AIS target. -->
+            <!-- Rev431: AIS collision overlay triangles (red/orange) are
+                 painted inside the SVG so they rotate with the compass.
+                 The infobox + ACK button live as HTML absolutely-
+                 positioned above the SVG (see .ais-infobox-html in CSS
+                 and renderAisAlarms in app.js); keeps the ACK click
+                 reliable, idempotent across SK deltas, and always on
+                 top of every SVG layer regardless of DOM order. -->
             <g id="ais-alarm-layer"></g>
-            <!-- Infobox lifted into DOM order AFTER the rose svg so it
-                 paints on top of boat, wind pieces and gust ghost. See
-                 renderAisAlarms for the content template. -->
-            <g id="ais-alarm-infobox" style="display:none;pointer-events:auto"></g>
             <!-- Rev170/171 (Carlos): tack countdown overlay. Huge red
                  digit over the boat, clickable to cancel. Two phases:
                    phase "arming"   → shows "5, 4, 3, 2, 1"  (integer secs)
@@ -2335,6 +2352,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev431"></script>
+  <script src="app.js?v=Rev432"></script>
 </body>
 </html>
