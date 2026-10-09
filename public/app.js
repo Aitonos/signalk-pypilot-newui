@@ -3541,13 +3541,52 @@
   //   - speak the message once per state transition into warn/alarm,
   //   - route ACK taps to POST /signalk/v2/api/notifications/<id>/acknowledge,
   //   - double-tap on #wind-rose opens Freeboard-SK for the full chart.
-  if (!state.aisAlarms) state.aisAlarms = new Map(); // mmsi -> { value, state }
-  // Rev434 (Carlos QA Rev433): local ACK memory keyed by notification
-  // UUID. The sailor's ACK is sent to SK v2 but the plugin keeps
-  // publishing the notification until the threat clears, so the delta
-  // overwrites our optimistic hide. This set lets us keep that id
-  // out of the UI until a NEW alarm for the target (new UUID) arrives.
-  if (!state.aisLocalAckedIds) state.aisLocalAckedIds = new Set();
+  if (!state.aisAlarms) state.aisAlarms = new Map(); // mmsi -> { value, mmsi, posNow?, sogNow? }
+  // Rev436 (Carlos QA Rev435): silence by MMSI with a TTL instead of
+  // by notification UUID. The plugin keeps republishing the alarm as
+  // long as the threat persists; keying by UUID worked for the first
+  // delta but the plugin's next PUT may carry a new id and the
+  // infobox resurrected. Map<mmsi, expireAtMs>; 10 minutes default.
+  if (!state.aisLocalAckedMmsis) state.aisLocalAckedMmsis = new Map();
+  const AIS_ACK_TTL_MS = 10 * 60 * 1000;
+  function _aisIsMmsiAcked(mmsi) {
+    const exp = state.aisLocalAckedMmsis.get(mmsi);
+    if (!exp) return false;
+    if (Date.now() > exp) { state.aisLocalAckedMmsis.delete(mmsi); return false; }
+    return true;
+  }
+  // Rev436: per-target position/SOG cache populated from the SK v1
+  // REST API on first sight of each alarm. Keyed by mmsi. Used both
+  // for the "where does the threat come from NOW" bearing render
+  // (cpaPositions.target is the FUTURE position at CPA time, which
+  // Carlos saw as "le avisa babor cuando está en aleta estribor")
+  // and for the "ignore stationary targets" filter.
+  if (!state.aisTargetPos) state.aisTargetPos = new Map();
+  const AIS_TARGET_POS_FRESH_MS = 30 * 1000;
+  const AIS_IGNORE_SOG_MS = 0.08;   // ~0.15 kn → stationary / moored
+  async function _aisRefreshTargetPos(mmsi) {
+    try {
+      const now = Date.now();
+      const cur = state.aisTargetPos.get(mmsi);
+      if (cur && (now - cur.fetchedAt) < AIS_TARGET_POS_FRESH_MS) return cur;
+      const ctx = `urn:mrn:imo:mmsi:${mmsi}`;
+      const [posR, sogR] = await Promise.all([
+        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/position/value`),
+        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/speedOverGround/value`).catch(() => null),
+      ]);
+      let pos = null, sog = null;
+      if (posR && posR.ok) pos = await posR.json().catch(() => null);
+      if (sogR && sogR.ok) sog = await sogR.json().catch(() => null);
+      const rec = {
+        pos: (pos && typeof pos.latitude === "number") ? pos : null,
+        sog: (typeof sog === "number") ? sog : null,
+        fetchedAt: now,
+      };
+      state.aisTargetPos.set(mmsi, rec);
+      try { renderAisAlarms(); } catch { /* silent */ }
+      return rec;
+    } catch { return null; }
+  }
   // Rev434 (Carlos QA Rev433): toggles for the AIS overlay. Both default
   // ON so the feature works out of the box; sailor can disable from the
   // "AIS collision alarm" overlay-card in the rose overlays modal.
@@ -3649,14 +3688,24 @@
     const prevState = prev && prev.value && prev.value.state;
     const newState = value && value.state;
     const isActive = newState === "warn" || newState === "alarm";
-    const notifId = (value && value.id) || null;
-    // Rev434: a notification whose UUID the sailor already acked stays
-    // out of the UI even if the plugin keeps republishing it.
-    const locallyAcked = notifId && state.aisLocalAckedIds.has(notifId);
-    if (!value || !isActive || locallyAcked) {
+    // Rev436: silence by MMSI with TTL — the plugin keeps republishing
+    // the alarm (sometimes with a fresh UUID) while the threat
+    // persists; a UUID-only match (Rev434) let it resurrect.
+    const locallyAcked = _aisIsMmsiAcked(mmsi);
+    // Rev436: filter "stationary" targets (moored boats in a port,
+    // anchored vessels). SOG is fetched into state.aisTargetPos via
+    // the SK v1 REST API; if we know SOG and it's below the threshold
+    // the alarm is treated as "silent info".
+    const cached = state.aisTargetPos.get(mmsi);
+    const targetStationary = cached && typeof cached.sog === "number" && cached.sog < AIS_IGNORE_SOG_MS;
+    if (!value || !isActive || locallyAcked || targetStationary) {
       state.aisAlarms.delete(mmsi);
     } else {
       state.aisAlarms.set(mmsi, { value, mmsi });
+      // Fire a background refresh of the target's current position and
+      // SOG so the bearing render uses "where it is now" instead of
+      // cpaPositions.target (= future position at CPA time).
+      _aisRefreshTargetPos(mmsi).catch(() => {});
     }
     try {
       if (enabled && _aisAlarmVoiceEnabled()
@@ -3719,8 +3768,17 @@
     const R = 92;
     for (const a of alarms) {
       const d = a.value.data || {};
-      const selfPos = d.cpaPositions?.self;
-      const tgtPos = d.cpaPositions?.target;
+      // Rev436 (Carlos QA Rev435): use NOW positions, not cpaPositions
+      // (which are the projected positions at the CPA future instant
+      // — bearing to that point tells you where you'll meet, not
+      // where the threat is coming from). Prefer our own self position
+      // + the target's position cached from the SK REST API. Fallback
+      // to cpaPositions if the cache has not landed yet.
+      const cached = state.aisTargetPos.get(a.mmsi);
+      const selfPos = (state.position && typeof state.position.latitude === "number")
+        ? state.position
+        : d.cpaPositions?.self;
+      const tgtPos = (cached && cached.pos) || d.cpaPositions?.target;
       const relDeg = _aisRelativeBearingDeg(selfPos, tgtPos, state.heading);
       if (relDeg == null) continue;
       const rad = (relDeg - 90) * Math.PI / 180; // SVG 0deg = east, we want 0deg = up
@@ -3781,13 +3839,14 @@
     box.hidden = false;
   }
   async function _aisAcknowledge(id, mmsi) {
-    if (!id) return;
-    // Rev434 (Carlos QA Rev433): record locally so the next delta that
-    // re-publishes the same notification (plugin keeps it active until
-    // threat clears) does not resurrect the infobox.
-    try { state.aisLocalAckedIds.add(id); } catch { /* silent */ }
+    // Rev436: silence THIS MMSI locally for 10 minutes, independent of
+    // what UUID the next delta carries. Even if the id is empty (edge
+    // case) we still silence the mmsi — the whole point of ACK is to
+    // stop the specific vessel being pestered.
+    try { state.aisLocalAckedMmsis.set(mmsi, Date.now() + AIS_ACK_TTL_MS); } catch { /* silent */ }
     try { state.aisAlarms.delete(mmsi); } catch { /* silent */ }
     try { renderAisAlarms(); } catch { /* silent */ }
+    if (!id) return;
     try {
       const r = await skFetch(`/signalk/v2/api/notifications/${encodeURIComponent(id)}/acknowledge`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
@@ -9404,7 +9463,10 @@
         if (!fbIframe.src || fbIframe.src === "about:blank") {
           fbIframe.src = "/@signalk/freeboard-sk/";
         }
-        try { _alSpeak(t("ais.openChart") || "abriendo carta"); } catch { /* silent */ }
+        // Rev436 (Carlos QA Rev435): removed the _alSpeak on open —
+        // TTS English voice turned "abriendo carta" / "AIS open chart"
+        // into "ICE open chat" which was unintelligible. The visual
+        // open is self-explanatory; no voice needed here.
         fbBox.hidden = false;
       };
       const closeFb = () => {
