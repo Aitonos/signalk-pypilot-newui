@@ -1,5 +1,168 @@
 # Changelog
 
+## 2.12.0 — 2026-10-08 — Virtual-tack audit cycle + Profile UX overhaul + safety aproado/empopado
+
+Rolls up Rev410 through Rev430 (21 revs). Driven by two sea trials
+(2026-10-03 and 2026-10-04) that exposed critical virtual-tack bugs
+and a batch of UX problems around profiles and the mode selector.
+Six audit MDs accompany the fixes (`docs/_audit_commit[2-6]_pre_rev*.md`
++ `docs/_sea_trial_2026-10-04.md`) following the "audit before fix"
+rule that paid for itself after three failed attempts at the drag/drop
+bug.
+
+### Added
+
+- **Virtual-tack audit cycle (Commits 2–6 of the Rev407 plan)**.
+  - *Commit 2 (Rev410)* — Mando trace enrichment (`ap.tack.state` and
+    `ap.tack.direction` deltas now log heading + AWA + mode + vtPhase),
+    VT `remainingDeg` on the mirror HUD (shows "N°" while turning,
+    "settling" during the handover phase), explicit "VT fallida: X"
+    toast when the backend publishes a terminal `failed` snapshot.
+  - *Commit 3 (Rev411)* — Writes propagate pypilot refusal through
+    `PUT /raw`, the SignalK v2 PUT handler and the `/ap/*` fallbacks
+    (503 instead of a false 200), and `dodge()` throws so KIP sees
+    the failure.
+  - *Commit 5 (Rev412)* — Empopado hot-gains that **actually apply**
+    (silent no-op since Rev320: the code read `catalog[path].value`
+    which never existed). Reads from `state.pypilotValues[path]`
+    now. New `data-hot={on|off|failed}` badge inside the active HUD
+    makes the PID state visible.
+  - *Commit 6 (Rev413)* — Yellow (warn) toast when settling times out
+    but the compass rotation finished: "Virada completada, viento sin
+    converger". Target is still applied; sailor sees it did not fully
+    confirm.
+  - *Commit 4 (Rev414)* — AWA settling EMA with τ ≈ 2 s applied to the
+    noisy raw apparent-wind sample. Fixes the "settling-timeout" seen
+    on light-wind sea trials. 4 unit tests cover seed / convergence /
+    ±π wrap-around / α = 0 identity.
+- **Virtual-tack final-angle override** (Rev416, fix #12). Backend
+  accepts optional `finalAngleRad` on `/virtual-tack/start`; the visor
+  forwards whatever is set in `localStorage.pypilotnewui.tackFinalAngleDeg`.
+  Sailor can trim the destination AWA ±170° without having to nudge
+  after the tack. Backend validates (`|rad| ≤ π`) and falls back to
+  the AWA mirror on any invalid value.
+- **EMA staleness guard** (Rev415). The settling loop now reads
+  `p.timestamp` from the SK path; samples older than
+  `STALE_SAMPLE_MS = 3000` are ignored, the dwell counter resets, and
+  the EMA state is cleared so a frozen value (e.g. after a WiFi
+  dropout) cannot sneak into the "ok" window.
+- **Nudge target trace** (Rev415, fix #1 instrumentation).
+  `apSetTargetRad` logs the current target / heading / AWA / TWA /
+  mode / engaged BEFORE each PUT and the status / ok AFTER, so a
+  stale-UI vs. real-refusal diagnosis is trivial on the next sea trial.
+- **Mode selector custom modal** (Rev425 → Rev430, fix #13 iterated).
+  Replaces the native `<select>` with a centered modal built lazily
+  under `<body>` (`.mode-select-modal-backdrop`). Contents:
+  - "MODO" label + list; the active mode highlighted in accent blue.
+  - "PERFIL" label + autowrapping button (1–2 lines so long names
+    like "Ceñida fondo medio viento" fit).
+  - Nested list opens **upward** (position: absolute; bottom: 100%)
+    so expanding profiles does not force the modal to scroll.
+  - Idempotent repaint — SK deltas never flash the open modal.
+- **Doctor suggestions sorted + numbered** (Rev417, fix #8). Visor
+  pre-sorts by the same priority map the backend `applyAll` uses
+  (`bias < authority < oscillation < noise`), stamps a 1-based
+  ordinal prefix ("1.", "2.", "3.") on each card and gives the first
+  pending suggestion a `.top-priority` accent border so the sailor
+  can see which card the "Apply top priority" button will target.
+- **Unlock prompt** (Rev421, fix #7). Flipping a group's unlock
+  checkbox opens a 3-choice modal ("Editar en perfil actual" /
+  "Cambiar a 'basic' primero" / "Cancelar") so the sailor explicitly
+  chooses the edit scope before touching sliders. Modal body answers
+  the second half of Carlos's question: "Los cambios se aplican en el
+  acto, no hace falta cerrar la pantalla."
+
+### Changed
+
+- **Safety: aproado/empopado restoreAll default = false** (Rev415,
+  fix #11). Carlos: "hay que anular el restituir rumbo cuando salimos
+  de aproado o empopado porque es peligroso". Pre-Rev415 the finish
+  path unconditionally restored mode + target + disengage; now it
+  leaves the pilot where it is unless the caller opts in. The
+  "lost stern" auto-cancel in empopado passes `restoreAll:false` too.
+- **Fork modal wording** (Rev418, fix #6). The "Keep in '{pilot}'"
+  button was filling `{pilot}` with `state.pilot` (always "basic"),
+  misleading when the active profile was called something else. Now
+  reads "Guardar en el perfil activo" + an info line showing the
+  actual profile + pilot pair. Cancel label clarified to
+  "Cancelar (deshacer último cambio)".
+- **VT mirror watchdog raised 60 s → 120 s** (Rev410, fix U.2) so it
+  does not race the backend's own `PYPILOT_STUCK_MS = 60 s`.
+- **Pypilot-silent watchdog gated on VT state** (Rev410, fix U.1).
+  During a VT the backend owns the authoritative stuck detection;
+  the legacy 40 s time-since-delta heuristic only fires on native
+  tack paths (no VT active) to avoid false "virada cancelada" toasts.
+- **Fork modal strings fully translated** (Rev419, fix #6 follow-up).
+  Modal title, body and name label were English fallbacks because
+  `data-i18n` is not walked on dynamic `innerHTML`; now set
+  explicitly from `t()` after creation.
+
+### Fixed
+
+- **Profile Manager drag/drop ping-pong flicker** (Rev420 after Rev418
+  and Rev419 attempts). The live-reorder approach was intrinsically
+  unstable — after each `insertBefore` the next `pointermove`
+  re-triggered a swap. Rewritten with the deferred-commit pattern:
+  only `translateY` the dragged item during the gesture, mark the
+  nearest drop-target with a visual line, commit one `insertBefore`
+  at the end. Also moved listeners to `window` + pointerId filter
+  (was on the handle, failed silently on tablet browsers) and gave
+  `.pm-item.dragging { touch-action: none }` so the gesture is not
+  interpreted as a scroll. Flash animation `.just-moved` on commit
+  confirms the move landed.
+- **Tack stats HUD "dejaron de salir" + z-index + X not clickable**
+  (Rev416, fix #10). The HUD was only wired to the native pypilot
+  tack path (`_tackCountdownTick` arrived); VT (wind mode) never
+  triggered it. Terminal `virtualTack` snapshots now call
+  `_tackStatsOnTackCompleted` (completed) or
+  `_tackStatsOnTackCancelled` (cancelled/failed). Corner tiles had
+  `z-index:3` and the SVG wind-rose had no stacking context, so the
+  HUD painted behind corners; added a `stats-hud-up` class on
+  `.dash-rose` that raises `.rose-wrap` to `z-index:5` while the HUD
+  is open and drops corners to `z-index:1` with
+  `pointer-events:none`. Close × hit area widened to 34 × 34 so
+  off-centre taps still land.
+- **Mode modal "se carga dos veces"** (Rev428). `refreshPypilotValues`
+  called `_rebuildModeSelect()` twice back-to-back (once when
+  `profiles` landed, once when `profile` landed) and each call
+  wiped-and-repopulated the modal's sub-select, producing a visible
+  double flash. Consolidated into a single `needsModeRebuild` flag
+  + made `_rebuildModePopupProfiles` idempotent (diffs the current
+  option list and skips the repaint when it matches).
+- **Mode popup viewport cropping** (Rev426 before the Rev427 full
+  redesign). Pre-Rev427 the anchored popup overflowed the viewport
+  bottom on 80 %-zoom laptops and phone portrait; added
+  viewport-aware placement + internal scroll before deciding to
+  switch to a centered modal anyway.
+- **Doctor "Apply top priority" button targets the right card**
+  (Rev417 side-effect of #8). The visor now mirrors the backend's
+  priority sort so the highlighted card is always the one the button
+  will apply.
+
+### Known limitations / pending real-water verification
+
+- Rev410 U.2 / U.3 — 120 s watchdog + "VT fallida" toast on backend
+  `outcomeReason` need a real pypilot-dead moment to confirm.
+- Rev411 J.1 / J.2 / J-1.5 — 503 propagation on `PUT /raw`, SK v2 PUT
+  handler and `dodge()` need pypilot genuinely offline to exercise.
+- Rev412 — "aggressive PID" on empopado now ACTUALLY writes gains to
+  pypilot (dormant since Rev320). Validate in water that the new
+  P × 1.5 / D × 1.7 / servo-slew × 1.3 does not cause oscillation.
+- Rev414 — AWA EMA τ = 2 s needs confirmation in light wind that the
+  dampened sample reaches the ±10° / 2 s dwell to produce
+  `completed:ok` instead of `settling-timeout`.
+- Rev416 — final-angle override is exposed via `localStorage` only; a
+  slider UI will come in a later rev.
+- Observation #2 from the 2026-10-04 sea trial (pilot behaves as if
+  tracking true wind in `wind` mode) is still open and awaits the
+  next sea trial's nav-session data with the Rev415 instrumentation
+  to confirm it as a real bug vs. a PID-tuning symptom.
+- Observation #9 — AIS collision overlay on the rose — is planned for
+  the next **major (3.0.0)** bump; the design is drafted in
+  `docs/_audit_feature9_ais_overlay.md` but not implemented yet.
+
+---
+
 ## 2.11.0 — 2026-09-30 — Sea-trial Sprint K fixes + severity override + portrait layout
 
 Rolls up Rev324 through Rev376. Between 2.10.0 (Rev323) and 2.11.0 the
