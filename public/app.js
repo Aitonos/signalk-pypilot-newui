@@ -9255,34 +9255,45 @@
     // Rev21: calibration dropdown removed from Control tab. Access via
     // Setup > Calibration section instead.
 
-    // Rev432 (Carlos QA Rev431): Freeboard-SK embedded. Double-tap on
-    // the compass rose opens a modal with an iframe to
-    // /@signalk/freeboard-sk/ so the sailor sees the full chart WITHOUT
-    // leaving the pypilot visor (Rev431 navigated out — Carlos pedía
-    // "embeber Freeboard dentro del cuadro de la rose"). Iframe `src`
-    // is set lazily on open and cleared on close so Freeboard does not
-    // keep a websocket open while the modal is hidden.
+    // Rev433 (Carlos QA Rev432): Freeboard-SK EMBEDDED in the rose
+    // box by default so the sailor keeps seeing the side panels
+    // (mode, nudges, AP buttons). Double-tap on the rose toggles it
+    // on/off; the ⤢ button promotes it to full-viewport, × hides it.
+    // Iframe `src` is lazy on open and cleared on close so Freeboard
+    // does not keep a websocket active while hidden.
     try {
       const rose = document.getElementById("wind-rose");
-      const fbModal = document.getElementById("freeboard-modal");
-      const fbIframe = document.getElementById("freeboard-modal-iframe");
-      const fbClose = document.getElementById("freeboard-modal-close");
+      const fbBox = document.getElementById("freeboard-embed");
+      const fbIframe = document.getElementById("freeboard-embed-iframe");
+      const fbClose = document.getElementById("freeboard-embed-close");
+      const fbMax = document.getElementById("freeboard-embed-max");
       const openFb = () => {
-        if (!fbModal || !fbIframe) return;
+        if (!fbBox || !fbIframe) return;
+        if (!fbIframe.src || fbIframe.src === "about:blank") {
+          fbIframe.src = "/@signalk/freeboard-sk/";
+        }
         try { _alSpeak(t("ais.openChart") || "abriendo carta"); } catch { /* silent */ }
-        fbIframe.src = "/@signalk/freeboard-sk/";
-        fbModal.hidden = false;
-        fbModal.classList.add("open");
+        fbBox.hidden = false;
       };
       const closeFb = () => {
-        if (!fbModal || !fbIframe) return;
-        fbModal.hidden = true;
-        fbModal.classList.remove("open");
+        if (!fbBox || !fbIframe) return;
+        fbBox.hidden = true;
+        fbBox.classList.remove("maximized");
+        if (fbMax) fbMax.textContent = "⤢";
         fbIframe.src = "about:blank";
       };
-      if (rose) rose.addEventListener("dblclick", (ev) => { ev.preventDefault(); openFb(); });
+      const toggleMax = () => {
+        if (!fbBox) return;
+        const now = fbBox.classList.toggle("maximized");
+        if (fbMax) fbMax.textContent = now ? "⤡" : "⤢";
+        if (fbMax) fbMax.setAttribute("title", now ? "Restore" : "Maximize");
+      };
+      if (rose) rose.addEventListener("dblclick", (ev) => {
+        ev.preventDefault();
+        if (fbBox && !fbBox.hidden) { closeFb(); } else { openFb(); }
+      });
       if (fbClose) fbClose.addEventListener("click", closeFb);
-      if (fbModal) fbModal.addEventListener("click", (ev) => { if (ev.target === fbModal) closeFb(); });
+      if (fbMax) fbMax.addEventListener("click", toggleMax);
     } catch (e) { console.warn("[rose] dblclick + freeboard wire:", e); }
 
     // Rev432 (fix #1 ACK no funcionaba): the AIS infobox + ACK button

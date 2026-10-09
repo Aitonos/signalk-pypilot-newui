@@ -96,14 +96,20 @@
             <div class="ais-infobox-body" id="ais-infobox-body"></div>
             <button type="button" class="ais-infobox-ack" id="ais-infobox-ack">ACK</button>
           </div>
-          <!-- Rev432: Freeboard-SK embedded (double-tap on rose). Modal
-               with backdrop + iframe to /@signalk/freeboard-sk/ so the
-               full chart is one tap away without leaving the visor. -->
-          <div class="freeboard-modal-backdrop" id="freeboard-modal" hidden>
-            <div class="freeboard-modal-card">
-              <button type="button" class="freeboard-modal-close" id="freeboard-modal-close" aria-label="Close">×</button>
-              <iframe id="freeboard-modal-iframe" title="Freeboard-SK"></iframe>
+          <!-- Rev433 (Carlos QA Rev432): Freeboard-SK EMBEDDED within
+               the rose box by default (double-tap toggles it on/off)
+               so the sailor keeps seeing the side panels (mode, nudges,
+               AP buttons). A maximize button ⤢ promotes it to the
+               full-viewport modal we had in Rev432, close button × to
+               hide it again. The iframe src is set lazily on open and
+               cleared on close so Freeboard does not keep a websocket
+               open while hidden. -->
+          <div class="freeboard-embed" id="freeboard-embed" hidden>
+            <div class="freeboard-embed-chrome">
+              <button type="button" class="freeboard-embed-btn" id="freeboard-embed-max" aria-label="Maximize" title="Maximize">⤢</button>
+              <button type="button" class="freeboard-embed-btn" id="freeboard-embed-close" aria-label="Close" title="Close">×</button>
             </div>
+            <iframe id="freeboard-embed-iframe" title="Freeboard-SK"></iframe>
           </div>
           <svg id="wind-rose" class="rose-svg" viewBox="-100 -110 200 220" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
@@ -2352,6 +2358,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev432"></script>
+  <script src="app.js?v=Rev433"></script>
 </body>
 </html>

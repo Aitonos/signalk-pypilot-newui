@@ -4125,49 +4125,53 @@ body.pypilot-offline .pypilot-write {
 .ais-infobox-ack:hover { filter: brightness(1.1); }
 .ais-infobox-ack:active { transform: scale(0.95); }
 
-/* Rev432: Freeboard-SK embedded modal. Full-viewport backdrop + card
-   with iframe. Opens on double-tap of the compass rose. Iframe src is
-   cleared on close so Freeboard does not keep a websocket open while
-   the modal is hidden. */
-.freeboard-modal-backdrop {
-  position: fixed;
+/* Rev433 (Carlos QA Rev432): Freeboard-SK embedded within the rose
+   box so the sailor keeps seeing the side panels. Default is embedded
+   (position:absolute inside .rose-wrap); .maximized promotes it to
+   full-viewport (position:fixed) as a modal would. Toggle via the ⤢
+   button next to the close ×. */
+.freeboard-embed {
+  position: absolute;
   inset: 0;
-  z-index: 1300;
-  background: rgba(0, 0, 0, 0.75);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 2vh 2vw;
-}
-.freeboard-modal-backdrop.open { display: flex; }
-.freeboard-modal-backdrop[hidden] { display: none; }
-.freeboard-modal-card {
-  position: relative;
-  width: 96vw;
-  height: 96vh;
+  z-index: 25;
   background: var(--bg-2, #0f1620);
   border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.freeboard-embed[hidden] { display: none; }
+.freeboard-embed.maximized {
+  position: fixed;
+  inset: 2vh 2vw;
+  z-index: 1300;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
 }
-.freeboard-modal-card iframe {
+.freeboard-embed iframe {
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
 }
-.freeboard-modal-close {
+.freeboard-embed-chrome {
   position: absolute;
   top: 6px;
   right: 10px;
   z-index: 2;
-  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  gap: 6px;
+}
+.freeboard-embed-btn {
+  background: rgba(0, 0, 0, 0.65);
   color: #fff;
   border: 1px solid #fff;
   border-radius: 4px;
-  font-size: 20px;
+  font-size: 18px;
   width: 32px;
   height: 32px;
   line-height: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.freeboard-embed-btn:hover { background: rgba(0, 0, 0, 0.85); }
