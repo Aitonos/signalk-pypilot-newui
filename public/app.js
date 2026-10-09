@@ -589,6 +589,15 @@
       "dash.overlay.ais.config": "Open plugin config",
       "dash.overlay.ais.voice":  "Voice alert",
       "ais.objetivo":            "target",
+      "ais.voice.alarm":         "AIS alarm",
+      "ais.voice.warn":          "AIS warning",
+      "ais.voice.at":            "at",
+      "ais.voice.metres":        "metres",
+      "ais.voice.miles":         "miles",
+      "ais.voice.in":            "in",
+      "ais.voice.minute":        "minute",
+      "ais.voice.minutes":       "minutes",
+      "ais.voice.now":           "now",
       "dash.overlay.awa.title": "A · Apparent wind",
       "dash.overlay.awa.needs": "Amber arrow · needs a wind sensor.",
       "dash.overlay.twa.title": "T · True wind",
@@ -1450,6 +1459,15 @@
       "dash.overlay.ais.config": "Abrir ajustes del plugin",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "ais.objetivo":            "objetivo",
+      "ais.voice.alarm":         "Alarma A I S",
+      "ais.voice.warn":          "Aviso A I S",
+      "ais.voice.at":            "a",
+      "ais.voice.metres":        "metros",
+      "ais.voice.miles":         "millas",
+      "ais.voice.in":            "en",
+      "ais.voice.minute":        "minuto",
+      "ais.voice.minutes":       "minutos",
+      "ais.voice.now":           "ya",
       "dash.overlay.awa.title": "A · Viento aparente",
       "dash.overlay.awa.needs": "Flecha amarilla · necesita sensor de viento.",
       "dash.overlay.twa.title": "T · Viento real",
@@ -3569,6 +3587,57 @@
       return m ? m[1] : null;
     } catch { return null; }
   }
+  // Rev435 (Carlos QA Rev434): "el mensaje de voz dice cosas raras,
+  // quizás debamos darle los textos". The plugin's value.message is
+  // English + technical ("Collision risk: PIRATA DE ONS, CPA 0.04 NM
+  // in 0 min") and TTS reads it as "ce-pe-a cero coma cero cuatro ene
+  // eme" which is unintelligible on a boat. We now build the voice
+  // string ourselves from the raw data (cpa in metres, tcpa in
+  // seconds, parsed name) + a short "alarma/aviso" prefix tied to the
+  // notification level. i18n keys cover ES/EN.
+  function _aisVoiceMessage(value, mmsi, newState) {
+    const d = (value && value.data) || {};
+    // Parse name the same way as the infobox.
+    let name = null;
+    try {
+      const m = /Collision risk:\s*([^,]+),/.exec(String(value && value.message || ""));
+      if (m) name = m[1].trim();
+    } catch { /* silent */ }
+    if (!name || name === mmsi || /^\d{6,}$/.test(name)) {
+      name = t("ais.objetivo") || "objetivo";
+    }
+    // Distance: metres for < 500 m, miles for the rest (sailors read
+    // CPA in NM but close ranges are intuitive in metres).
+    let distStr = "";
+    if (typeof d.cpa === "number" && isFinite(d.cpa)) {
+      if (d.cpa < 500) {
+        distStr = `${Math.round(d.cpa)} ${t("ais.voice.metres") || "metros"}`;
+      } else {
+        const nm = d.cpa / 1852;
+        distStr = `${nm.toFixed(nm < 1 ? 2 : 1)} ${t("ais.voice.miles") || "millas"}`;
+      }
+    }
+    // TCPA: positive seconds → minutes rounded; negative or 0 means
+    // the pass is already happening ("ya").
+    let timeStr = "";
+    if (typeof d.tcpa === "number" && isFinite(d.tcpa)) {
+      if (d.tcpa <= 10) {
+        timeStr = t("ais.voice.now") || "ya";
+      } else {
+        const min = Math.max(1, Math.round(d.tcpa / 60));
+        timeStr = `${t("ais.voice.in") || "en"} ${min} ${(min === 1 ? (t("ais.voice.minute") || "minuto") : (t("ais.voice.minutes") || "minutos"))}`;
+      }
+    }
+    const kind = (newState === "alarm")
+      ? (t("ais.voice.alarm") || "Alarma A I S")
+      : (t("ais.voice.warn")  || "Aviso A I S");
+    // Build final sentence. Leave spaces for TTS prosody. Keep MMSI
+    // out of the voice entirely (Carlos's rule: say "objetivo" instead).
+    const parts = [kind + ",", name];
+    if (distStr) parts.push(t("ais.voice.at") || "a", distStr);
+    if (timeStr) parts.push(timeStr);
+    return parts.join(" ");
+  }
   function _handleAisAlarmDelta(path, value) {
     // Rev434: respect the "AIS collision alarm" overlay toggle. Still
     // keep the state.aisAlarms Map in sync so the first ACK after a
@@ -3594,8 +3663,7 @@
           && isActive && newState !== prevState
           && !locallyAcked
           && !(value.status && value.status.acknowledged)) {
-        const msg = (value && value.message) || `AIS alarm MMSI ${mmsi}`;
-        _alSpeak(msg);
+        _alSpeak(_aisVoiceMessage(value, mmsi, newState));
       }
     } catch { /* silent */ }
     if (enabled) {
