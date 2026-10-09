@@ -584,6 +584,11 @@
       "dash.wind.twa": "TWA (true, magenta)",
       "dash.overlays.title": "ROSE OVERLAYS",
       "dash.overlays.hint": "Toggle what floats on the compass rose. Each card lists what data it needs to render.",
+      "dash.overlay.ais.title":  "AIS collision alarm",
+      "dash.overlay.ais.needs":  "Needs signalk-collision-alerts plugin installed in your SK server. Reads notifications.navigation.closestApproach.* and renders a red/orange triangle on the rose with an infobox + ACK. Double-tap the rose to open Freeboard-SK embedded.",
+      "dash.overlay.ais.config": "Open plugin config",
+      "dash.overlay.ais.voice":  "Voice alert",
+      "ais.objetivo":            "target",
       "dash.overlay.awa.title": "A · Apparent wind",
       "dash.overlay.awa.needs": "Amber arrow · needs a wind sensor.",
       "dash.overlay.twa.title": "T · True wind",
@@ -1440,6 +1445,11 @@
       "dash.wind.twa": "TWA (real, magenta)",
       "dash.overlays.title": "CAPAS SOBRE LA ROSA",
       "dash.overlays.hint": "Activa las que quieras ver sobre la rosa. Cada tarjeta indica qué datos necesita.",
+      "dash.overlay.ais.title":  "Alarma de colisión AIS",
+      "dash.overlay.ais.needs":  "Requiere el plugin signalk-collision-alerts instalado en tu servidor SK. Lee notifications.navigation.closestApproach.* y pinta un triángulo rojo/naranja sobre la rosa con infobox + ACK. Doble tap en la rosa abre Freeboard-SK embebido.",
+      "dash.overlay.ais.config": "Abrir ajustes del plugin",
+      "dash.overlay.ais.voice":  "Aviso de voz",
+      "ais.objetivo":            "objetivo",
       "dash.overlay.awa.title": "A · Viento aparente",
       "dash.overlay.awa.needs": "Flecha amarilla · necesita sensor de viento.",
       "dash.overlay.twa.title": "T · Viento real",
@@ -3514,6 +3524,40 @@
   //   - route ACK taps to POST /signalk/v2/api/notifications/<id>/acknowledge,
   //   - double-tap on #wind-rose opens Freeboard-SK for the full chart.
   if (!state.aisAlarms) state.aisAlarms = new Map(); // mmsi -> { value, state }
+  // Rev434 (Carlos QA Rev433): local ACK memory keyed by notification
+  // UUID. The sailor's ACK is sent to SK v2 but the plugin keeps
+  // publishing the notification until the threat clears, so the delta
+  // overwrites our optimistic hide. This set lets us keep that id
+  // out of the UI until a NEW alarm for the target (new UUID) arrives.
+  if (!state.aisLocalAckedIds) state.aisLocalAckedIds = new Set();
+  // Rev434 (Carlos QA Rev433): toggles for the AIS overlay. Both default
+  // ON so the feature works out of the box; sailor can disable from the
+  // "AIS collision alarm" overlay-card in the rose overlays modal.
+  const AIS_ALARM_LS_KEY = "pypilotnewui.aisAlarm";
+  const AIS_ALARM_VOICE_LS_KEY = "pypilotnewui.aisAlarmVoice";
+  function _aisAlarmEnabled() {
+    try {
+      const v = localStorage.getItem(AIS_ALARM_LS_KEY);
+      return v == null ? true : v === "true";
+    } catch { return true; }
+  }
+  function _aisAlarmSetEnabled(on) {
+    try { localStorage.setItem(AIS_ALARM_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
+    // Clear everything when disabled, so a stale triangle does not
+    // linger on the rose until the next delta.
+    if (!on) {
+      try { state.aisAlarms.clear(); renderAisAlarms(); } catch { /* silent */ }
+    }
+  }
+  function _aisAlarmVoiceEnabled() {
+    try {
+      const v = localStorage.getItem(AIS_ALARM_VOICE_LS_KEY);
+      return v == null ? true : v === "true";
+    } catch { return true; }
+  }
+  function _aisAlarmSetVoiceEnabled(on) {
+    try { localStorage.setItem(AIS_ALARM_VOICE_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
+  }
   function _mmsiFromAlarmPath(path) {
     const prefix = "notifications.navigation.closestApproach.";
     return path.startsWith(prefix) ? path.slice(prefix.length) : null;
@@ -3526,28 +3570,41 @@
     } catch { return null; }
   }
   function _handleAisAlarmDelta(path, value) {
+    // Rev434: respect the "AIS collision alarm" overlay toggle. Still
+    // keep the state.aisAlarms Map in sync so the first ACK after a
+    // re-enable finds the real id — but skip voice + render.
+    const enabled = _aisAlarmEnabled();
     const mmsi = _mmsiFromAlarmPath(path) || _mmsiFromAlarmValue(value);
     if (!mmsi) return;
     const prev = state.aisAlarms.get(mmsi);
     const prevState = prev && prev.value && prev.value.state;
     const newState = value && value.state;
     const isActive = newState === "warn" || newState === "alarm";
-    if (!value || !isActive) {
-      // Transitioned out (normal / cleared) → drop.
+    const notifId = (value && value.id) || null;
+    // Rev434: a notification whose UUID the sailor already acked stays
+    // out of the UI even if the plugin keeps republishing it.
+    const locallyAcked = notifId && state.aisLocalAckedIds.has(notifId);
+    if (!value || !isActive || locallyAcked) {
       state.aisAlarms.delete(mmsi);
     } else {
       state.aisAlarms.set(mmsi, { value, mmsi });
     }
-    // Speak on first transition INTO active (warn or alarm), including
-    // escalations warn → alarm. Skip if already active and status
-    // acknowledged (sailor already heard it).
     try {
-      if (isActive && newState !== prevState && !(value.status && value.status.acknowledged)) {
+      if (enabled && _aisAlarmVoiceEnabled()
+          && isActive && newState !== prevState
+          && !locallyAcked
+          && !(value.status && value.status.acknowledged)) {
         const msg = (value && value.message) || `AIS alarm MMSI ${mmsi}`;
         _alSpeak(msg);
       }
     } catch { /* silent */ }
-    try { renderAisAlarms(); } catch (e) { console.warn("[ais] render:", e); }
+    if (enabled) {
+      try { renderAisAlarms(); } catch (e) { console.warn("[ais] render:", e); }
+    } else {
+      // Make sure stale UI is cleared when the feature is off.
+      try { const box = document.getElementById("ais-infobox"); if (box) box.hidden = true; } catch { /* silent */ }
+      try { const layer = document.getElementById("ais-alarm-layer"); if (layer) layer.textContent = ""; } catch { /* silent */ }
+    }
   }
   function _aisBearingDeg(selfPos, targetPos) {
     if (!selfPos || !targetPos) return null;
@@ -3625,11 +3682,19 @@
     const d = top.value.data || {};
     const cpaNm = (d.cpa != null) ? (d.cpa / 1852) : null;
     const tcpaMin = (d.tcpa != null) ? (d.tcpa / 60) : null;
-    let name = top.mmsi;
+    // Rev434 (Carlos QA Rev433): "si solo hay MMSI, entonces obviar el
+    // numero MMSI y decir objetivo". The collision-alerts message
+    // follows "Collision risk: NAME, ...". If NAME equals the MMSI
+    // (plugin fallback when the AIS target has no name yet) we show
+    // "objetivo" instead of the long numeric string.
+    let name = null;
     try {
       const m = /Collision risk:\s*([^,]+),/.exec(String(top.value.message || ""));
       if (m) name = m[1].trim();
     } catch { /* silent */ }
+    if (!name || name === top.mmsi || /^\d{6,}$/.test(name)) {
+      name = t("ais.objetivo") || "objetivo";
+    }
     const lvl = (top.value.state === "alarm") ? "ALARM" : "WARN";
     box.classList.remove("ais-warn", "ais-alarm");
     box.classList.add(`ais-${top.value.state}`);
@@ -3649,19 +3714,18 @@
   }
   async function _aisAcknowledge(id, mmsi) {
     if (!id) return;
+    // Rev434 (Carlos QA Rev433): record locally so the next delta that
+    // re-publishes the same notification (plugin keeps it active until
+    // threat clears) does not resurrect the infobox.
+    try { state.aisLocalAckedIds.add(id); } catch { /* silent */ }
+    try { state.aisAlarms.delete(mmsi); } catch { /* silent */ }
+    try { renderAisAlarms(); } catch { /* silent */ }
     try {
       const r = await skFetch(`/signalk/v2/api/notifications/${encodeURIComponent(id)}/acknowledge`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
       });
       if (!r.ok) console.warn("[ais] ACK HTTP", r.status, await r.text().catch(() => ""));
     } catch (e) { console.warn("[ais] ACK failed:", e); }
-    // Optimistic hide — the SK delta will republish with acknowledged:true
-    // and we'll re-render on the next tick.
-    try {
-      const cur = state.aisAlarms.get(mmsi);
-      if (cur && cur.value && cur.value.status) cur.value.status.acknowledged = true;
-    } catch { /* silent */ }
-    try { renderAisAlarms(); } catch { /* silent */ }
   }
 
   // SVG compass rose. The card (cardinals + ticks) rotates so N points to
@@ -11602,6 +11666,30 @@
         ev.preventDefault();
         ev.stopPropagation();
         _gustGhostTestFire();
+      });
+    }
+    // Rev434 (Carlos QA Rev433): wire the AIS collision alarm overlay
+    // card. Toggle on/off, toggle voice, and a shortcut to open the
+    // collision-alerts plugin config in the SK admin UI.
+    const aisCb = document.getElementById("dash-ais-alarm");
+    if (aisCb) {
+      aisCb.checked = _aisAlarmEnabled();
+      aisCb.addEventListener("change", () => _aisAlarmSetEnabled(aisCb.checked));
+    }
+    const aisVoiceCb = document.getElementById("dash-ais-alarm-voice");
+    if (aisVoiceCb) {
+      aisVoiceCb.checked = _aisAlarmVoiceEnabled();
+      aisVoiceCb.addEventListener("change", () => _aisAlarmSetVoiceEnabled(aisVoiceCb.checked));
+    }
+    const aisCfg = document.getElementById("dash-ais-alarm-config");
+    if (aisCfg) {
+      aisCfg.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        // SK admin UI deep-link to the plugin config page. If the plugin
+        // id is different in the sailor's SK install, admin UI falls
+        // back to the plugins list; still a one-tap away.
+        window.open("/admin/#/serverConfiguration/plugins/signalk-collision-alerts", "_blank");
       });
     }
     const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);
