@@ -764,7 +764,11 @@ main {
   -webkit-user-select: none;
 }
 .overlay-card:hover { background: rgba(77, 212, 255, 0.06); }
-.overlay-card input[type=checkbox] {
+/* Rev437 (Carlos QA Rev434): limit the "master" checkbox absolute
+   positioning to DIRECT children of the overlay-card. Nested
+   checkboxes (e.g. the AIS card's "Voice alert" sub-toggle) were
+   being hidden under the master in the top-right corner. */
+.overlay-card > input[type=checkbox] {
   position: absolute;
   top: 6px;
   right: 6px;
