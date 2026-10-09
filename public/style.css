@@ -4128,6 +4128,38 @@ body.pypilot-offline .pypilot-write {
 .ais-infobox-html.ais-warn .ais-infobox-ack { background: #f5a623; color: #1a1d22; }
 .ais-infobox-ack:hover { filter: brightness(1.1); }
 .ais-infobox-ack:active { transform: scale(0.95); }
+/* Rev438: multi-target navigator inside the head row. Compact buttons
+   + fraction counter. Hidden by default when there's only one alarm. */
+.ais-infobox-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ais-infobox-nav[hidden] { display: none; }
+.ais-infobox-nav-btn {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+.ais-infobox-nav-btn:hover { background: rgba(255,255,255,0.2); }
+.ais-infobox-nav-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  min-width: 28px;
+  text-align: center;
+}
+.ais-infobox-sub {
+  font-size: 11px;
+  color: #cbd3dc;
+}
+.ais-infobox-sub[hidden] { display: none; }
 
 /* Rev433 (Carlos QA Rev432): Freeboard-SK embedded within the rose
    box so the sailor keeps seeing the side panels. Default is embedded

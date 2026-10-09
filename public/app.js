@@ -598,6 +598,13 @@
       "ais.voice.minute":        "minute",
       "ais.voice.minutes":       "minutes",
       "ais.voice.now":           "now",
+      "ais.closing":             "Closing",
+      "ais.silenced.title":      "Silenced AIS alarms",
+      "ais.silenced.clearAll":   "Unsilence all",
+      "ais.silenced.close":      "Close",
+      "ais.silenced.empty":      "No AIS alarms silenced right now.",
+      "ais.silenced.unsilence":  "Unsilence",
+      "dash.overlay.ais.silenced": "Silenced…",
       "dash.overlay.awa.title": "A · Apparent wind",
       "dash.overlay.awa.needs": "Amber arrow · needs a wind sensor.",
       "dash.overlay.twa.title": "T · True wind",
@@ -1468,6 +1475,13 @@
       "ais.voice.minute":        "minuto",
       "ais.voice.minutes":       "minutos",
       "ais.voice.now":           "ya",
+      "ais.closing":             "Acercándose",
+      "ais.silenced.title":      "Alarmas AIS silenciadas",
+      "ais.silenced.clearAll":   "Reactivar todas",
+      "ais.silenced.close":      "Cerrar",
+      "ais.silenced.empty":      "Ninguna alarma silenciada ahora mismo.",
+      "ais.silenced.unsilence":  "Reactivar",
+      "dash.overlay.ais.silenced": "Silenciadas…",
       "dash.overlay.awa.title": "A · Viento aparente",
       "dash.overlay.awa.needs": "Flecha amarilla · necesita sensor de viento.",
       "dash.overlay.twa.title": "T · Viento real",
@@ -3798,16 +3812,25 @@
       g.appendChild(poly);
       layer.appendChild(g);
     }
-    // Rev432: infobox + ACK as a persistent HTML div (not re-created
-    // on each render — only its text/class/dataset are updated). The
-    // click listener is wired ONCE in wireControl so it survives every
-    // SK delta tick that triggers renderAisAlarms.
+    // Rev432: infobox + ACK as a persistent HTML div.
+    // Rev438: multi-target navigator — _aisInfoboxIdx is clamped to the
+    // sorted alarms array so Carlos can prev/next through them.
     const box = document.getElementById("ais-infobox");
     if (!box) return;
-    const top = alarms[0];
+    if (typeof state._aisInfoboxIdx !== "number") state._aisInfoboxIdx = 0;
+    if (state._aisInfoboxIdx >= alarms.length) state._aisInfoboxIdx = 0;
+    const top = alarms[state._aisInfoboxIdx];
     const d = top.value.data || {};
     const cpaNm = (d.cpa != null) ? (d.cpa / 1852) : null;
     const tcpaMin = (d.tcpa != null) ? (d.tcpa / 60) : null;
+    // Rev438: closing speed derived from range (m) and tcpa (s).
+    // Positive only — if tcpa <= 0 the target has already passed and
+    // we hide the row.
+    let closingKn = null;
+    if (typeof d.range === "number" && typeof d.tcpa === "number" && d.tcpa > 0) {
+      const mps = d.range / d.tcpa;
+      closingKn = mps * 1.94384;
+    }
     // Rev434 (Carlos QA Rev433): "si solo hay MMSI, entonces obviar el
     // numero MMSI y decir objetivo". The collision-alerts message
     // follows "Collision risk: NAME, ...". If NAME equals the MMSI
@@ -3836,7 +3859,91 @@
       const tcpaStr = tcpaMin != null ? Math.round(tcpaMin) + " min" : "—";
       bodyEl.textContent = `CPA ${cpaStr} · ${tcpaStr}`;
     }
+    // Rev438: multi-target nav (hidden when only 1 alarm active).
+    const navEl = document.getElementById("ais-infobox-nav");
+    const navCount = document.getElementById("ais-infobox-nav-count");
+    if (navEl) navEl.hidden = alarms.length <= 1;
+    if (navCount) navCount.textContent = `${state._aisInfoboxIdx + 1}/${alarms.length}`;
+    // Rev438: closing speed row.
+    const closingEl = document.getElementById("ais-infobox-closing");
+    if (closingEl) {
+      if (closingKn != null) {
+        closingEl.textContent = `${t("ais.closing") || "Acercándose"}: ${closingKn.toFixed(1)} kn`;
+        closingEl.hidden = false;
+      } else {
+        closingEl.hidden = true;
+      }
+    }
     box.hidden = false;
+  }
+  // Rev438: lightweight modal to list silenced MMSIs with un-silence
+  // per entry + "un-silence all". Uses _pmPrompt-style elements.
+  function _aisShowSilencedModal() {
+    const now = Date.now();
+    // Compact a snapshot of valid (non-expired) entries.
+    const rows = [];
+    for (const [mmsi, exp] of state.aisLocalAckedMmsis.entries()) {
+      if (exp > now) rows.push({ mmsi, remainMin: Math.max(0, Math.round((exp - now) / 60000)) });
+    }
+    let m = document.getElementById("ais-silenced-modal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "ais-silenced-modal";
+      m.className = "tune-fork-backdrop";
+      m.innerHTML =
+        `<div class="modal-card">` +
+        `  <h3 id="ais-silenced-title"></h3>` +
+        `  <ul id="ais-silenced-list" style="list-style:none;padding:0;margin:10px 0;max-height:40vh;overflow-y:auto"></ul>` +
+        `  <div class="tune-fork-actions">` +
+        `    <button type="button" id="ais-silenced-clearall" class="secondary"></button>` +
+        `    <button type="button" id="ais-silenced-close" class="ghost"></button>` +
+        `  </div>` +
+        `</div>`;
+      document.body.appendChild(m);
+      m.addEventListener("click", (ev) => { if (ev.target === m) m.hidden = true; });
+      m.querySelector("#ais-silenced-close").addEventListener("click", () => { m.hidden = true; });
+      m.querySelector("#ais-silenced-clearall").addEventListener("click", () => {
+        state.aisLocalAckedMmsis.clear();
+        m.hidden = true;
+        try { renderAisAlarms(); } catch { /* silent */ }
+      });
+    }
+    m.querySelector("#ais-silenced-title").textContent =
+      (t("ais.silenced.title") || "Alarmas AIS silenciadas") + ` (${rows.length})`;
+    m.querySelector("#ais-silenced-clearall").textContent =
+      t("ais.silenced.clearAll") || "Reactivar todas";
+    m.querySelector("#ais-silenced-close").textContent =
+      t("ais.silenced.close") || "Cerrar";
+    const ul = m.querySelector("#ais-silenced-list");
+    ul.textContent = "";
+    if (rows.length === 0) {
+      const li = document.createElement("li");
+      li.style.cssText = "padding:12px;color:var(--fg-dim);text-align:center";
+      li.textContent = t("ais.silenced.empty") || "Ninguna alarma silenciada ahora mismo.";
+      ul.appendChild(li);
+    } else {
+      for (const r of rows) {
+        const li = document.createElement("li");
+        li.style.cssText = "display:flex;align-items:center;gap:10px;padding:6px 4px;border-bottom:1px solid var(--border)";
+        const span = document.createElement("span");
+        span.style.cssText = "flex:1;font-family:ui-monospace,monospace;font-size:13px";
+        span.textContent = `MMSI ${r.mmsi} · ${r.remainMin} min`;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "ghost";
+        btn.style.cssText = "padding:4px 10px;font-size:12px";
+        btn.textContent = t("ais.silenced.unsilence") || "Reactivar";
+        btn.addEventListener("click", () => {
+          state.aisLocalAckedMmsis.delete(r.mmsi);
+          _aisShowSilencedModal();  // re-render in place
+        });
+        li.appendChild(span);
+        li.appendChild(btn);
+        ul.appendChild(li);
+      }
+    }
+    m.hidden = false;
+    m.classList.add("open");
   }
   async function _aisAcknowledge(id, mmsi) {
     // Rev436: silence THIS MMSI locally for 10 minutes, independent of
@@ -9502,10 +9609,22 @@
           const box = document.getElementById("ais-infobox");
           const id = box && box.dataset.notifId;
           const mmsi = box && box.dataset.mmsi;
-          if (!id) { console.warn("[ais] ACK click but no notif id in dataset"); return; }
+          if (!id && !mmsi) { console.warn("[ais] ACK click but no notif id/mmsi in dataset"); return; }
           _aisAcknowledge(id, mmsi);
         });
       }
+      // Rev438: prev/next between multiple active alarms.
+      const prevBtn = document.getElementById("ais-infobox-prev");
+      const nextBtn = document.getElementById("ais-infobox-next");
+      const step = (dir) => {
+        const n = state.aisAlarms ? state.aisAlarms.size : 0;
+        if (n <= 1) return;
+        if (typeof state._aisInfoboxIdx !== "number") state._aisInfoboxIdx = 0;
+        state._aisInfoboxIdx = (state._aisInfoboxIdx + dir + n) % n;
+        renderAisAlarms();
+      };
+      if (prevBtn) prevBtn.addEventListener("click", (ev) => { ev.stopPropagation(); step(-1); });
+      if (nextBtn) nextBtn.addEventListener("click", (ev) => { ev.stopPropagation(); step(1); });
     } catch (e) { console.warn("[ais] ack wire:", e); }
   }
 
@@ -11816,10 +11935,16 @@
       aisCfg.addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        // SK admin UI deep-link to the plugin config page. If the plugin
-        // id is different in the sailor's SK install, admin UI falls
-        // back to the plugins list; still a one-tap away.
         window.open("/admin/#/serverConfiguration/plugins/signalk-collision-alerts", "_blank");
+      });
+    }
+    // Rev438: open the "silenciados" modal.
+    const aisSil = document.getElementById("dash-ais-alarm-silenced");
+    if (aisSil) {
+      aisSil.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        _aisShowSilencedModal();
       });
     }
     const nb = $("#cfg-nudge-apply"); if (nb) nb.addEventListener("click", applyNudgeCfg);

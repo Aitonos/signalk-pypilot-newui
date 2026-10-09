@@ -92,8 +92,19 @@
             <div class="ais-infobox-head">
               <span class="ais-infobox-level" id="ais-infobox-level"></span>
               <span class="ais-infobox-name" id="ais-infobox-name"></span>
+              <!-- Rev438: multi-target navigator. Hidden when there is
+                   only one active alarm; "1/N" counter + prev/next
+                   buttons otherwise. -->
+              <span class="ais-infobox-nav" id="ais-infobox-nav" hidden>
+                <button type="button" class="ais-infobox-nav-btn" id="ais-infobox-prev" aria-label="Previous">‹</button>
+                <span class="ais-infobox-nav-count" id="ais-infobox-nav-count">1/1</span>
+                <button type="button" class="ais-infobox-nav-btn" id="ais-infobox-next" aria-label="Next">›</button>
+              </span>
             </div>
             <div class="ais-infobox-body" id="ais-infobox-body"></div>
+            <!-- Rev438: closing speed row (range/tcpa derived); hidden
+                 when tcpa is zero or negative (target already passed). -->
+            <div class="ais-infobox-sub" id="ais-infobox-closing" hidden></div>
             <button type="button" class="ais-infobox-ack" id="ais-infobox-ack">ACK</button>
           </div>
           <!-- Rev433 (Carlos QA Rev432): Freeboard-SK EMBEDDED within
@@ -757,6 +768,12 @@
                           style="padding:6px 10px;font-size:12px"
                           data-i18n="dash.overlay.ais.config"
                           onclick="event.preventDefault();event.stopPropagation();">Open plugin config</button>
+                  <!-- Rev438: open the "silenciados" modal so Carlos can
+                       un-silence an MMSI before its 10-min TTL expires. -->
+                  <button type="button" id="dash-ais-alarm-silenced" class="ghost"
+                          style="padding:6px 10px;font-size:12px"
+                          data-i18n="dash.overlay.ais.silenced"
+                          onclick="event.preventDefault();event.stopPropagation();">Silenced…</button>
                   <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;font-size:12px;color:var(--fg-dim);cursor:pointer"
                          onclick="event.stopPropagation();">
                     <input type="checkbox" id="dash-ais-alarm-voice" checked />
@@ -2384,6 +2401,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev437"></script>
+  <script src="app.js?v=Rev438"></script>
 </body>
 </html>
