@@ -1,5 +1,112 @@
 # Changelog
 
+## 3.0.0 — 2026-10-10 — AIS collision overlay + Freeboard-SK embedded
+
+Rolls up Rev431 through Rev438 (8 revs). The headline feature of 3.0.0
+is an AIS collision overlay on the compass rose and a Freeboard-SK
+chart embedded in the rose box on double-tap. Pypilot-newui is a pure
+CONSUMER of the external
+[`signalk-collision-alerts`](https://github.com/dirkwa/signalk-collision-alerts)
+plugin (by @dirkwa, the maintainer of @signalk/app-dock and
+server-admin-ui) and of the Signal K v2 Notifications API — no
+CPA/TCPA engine lives here. The decision rationale is captured in the
+new memory `feedback_signalk_ecosystem_first.md`: Signal K is a
+cooperative ecosystem; reinventing a well-maintained plugin is
+anti-pattern. See `docs/_feature_ais_overlay.md` for the full
+operator guide + install.
+
+Carlos classified this bump as **major (3.0.0)** at the start of the
+sprint: it adds a new optional external-plugin dependency, changes
+double-tap-on-rose behaviour (was no-op; now opens Freeboard) and
+introduces a user-facing concept — AIS alarms with ACK — that was
+not present in the 2.x line.
+
+### Added
+
+- **AIS collision overlay (Rev431 → Rev438)**. Subscribes to
+  `notifications.navigation.closestApproach.<mmsi>` emitted by
+  `signalk-collision-alerts`. For each active `warn` / `alarm`:
+  - **Red / orange triangle** painted on the compass circle at the
+    bearing from the self vessel to the target *as of now* (not the
+    CPA future projection — Rev436 fetches the target's current
+    position + SOG via `/signalk/v1/api/vessels/<ctx>/...` on each
+    delta with a 30 s cache).
+  - **Infobox** on top of the self boat with level badge
+    (`ALARM` / `WARN`), target name (or "objetivo" when the target
+    has no name yet — MMSI never shown or spoken), CPA · TCPA,
+    closing speed, ACK button, and when > 1 target is active a
+    `N/M` navigator with `‹` / `›`.
+  - **Voice**: short Spanish sentence built from the raw data, not
+    the plugin's English string (which TTS garbled into "ce-pe-a cero
+    coma cero cuatro ene eme"). Example: *"Alarma A I S, PIRATA DE
+    ONS, a 47 metros, ya"*.
+  - **ACK** button sends `POST /signalk/v2/api/notifications/<id>/acknowledge`
+    (so Freeboard + every SK consumer sees it) AND silences the MMSI
+    locally for 10 min — survives the plugin re-publishing the same
+    threat with a fresh UUID.
+  - **"Silenciadas…" modal** (Rev438) lists every locally-silenced
+    MMSI with remaining minutes + per-row *Reactivar* + bulk *Reactivar
+    todas*.
+  - **Stationary filter** (Rev436): targets whose cached SOG < 0.15 kn
+    are dropped from the UI even if the plugin keeps emitting the
+    alarm. Mandatory in a Ría with dozens of moored vessels.
+  - **Overlay-card in Setup → ROSE OVERLAYS**: master on/off, voice
+    sub-toggle, link to the plugin's config page, access to the
+    silenced modal.
+- **Freeboard-SK embedded in the rose box** (Rev432 → Rev433). Double-
+  tap `#wind-rose` opens `/@signalk/freeboard-sk/` as an iframe
+  positioned inside the compass square so the side panels (mode,
+  nudges, AP) stay visible. Chrome row has ⤢ Maximize (full
+  viewport) / ⤡ Restore / × Close. Iframe `src` cleared on close so
+  Freeboard releases its websocket.
+
+### Changed
+
+- No breaking API changes to the pypilot-newui plugin itself —
+  everything existing in 2.12.0 still works identically. The 3.0.0
+  bump reflects the new user-facing concepts (AIS alarms, Freeboard
+  entry point) and the optional external-plugin dependency.
+
+### Fixed
+
+Bugs found and fixed during the AIS sprint, each informed by Carlos's
+QA notes and the real SK bus on Tunatunes:
+- **ACK button did not close the infobox** (Rev436). Was keyed by
+  notification UUID (Rev434); plugin cycles the id while the threat
+  persists → infobox resurrected on the next delta. Now keyed by
+  MMSI with a 10-minute TTL.
+- **Triangle 180° off** (Rev436). Rev431 pointed at
+  `data.cpaPositions.target` which is the *projected* position at the
+  CPA future instant — hence "me avisa babor cuando el target me
+  viene por aleta estribor". Now uses the current self + target
+  positions fetched from the SK REST API.
+- **Multiple alarms, including moored vessels** (Rev436). Added the
+  stationary SOG < 0.15 kn drop filter so a Ría with 30 moored boats
+  doesn't fire false alarms through the plugin's own thresholds.
+- **TTS garble on Freeboard open** (Rev436). Removed the
+  `_alSpeak("abriendo carta")` that the English TTS read as "ICE
+  open chat".
+- **Overlay-card nested checkbox hidden under the master** (Rev437).
+  CSS `.overlay-card input[type=checkbox]` matched every checkbox and
+  stacked them at top-right. Scoped to direct child so the AIS
+  card's "Voice alert" sub-toggle renders in-flow.
+
+### Known limitations / upstream work
+
+- **Upstream `signalk-collision-alerts` issue #17** —
+  https://github.com/dirkwa/signalk-collision-alerts/issues/17 — the
+  admin UI does not render the `Alert sensitivity` / `Level`
+  dropdowns because the plugin's typebox schema emits `anyOf+const`
+  instead of `enum`. We filed the issue with a fix proposal; the
+  workaround is to hand-edit the plugin JSON config or patch the
+  built `config.js` locally. See `docs/_feature_ais_overlay.md`.
+- **Needs sea-trial QA** on real moving traffic with mixed `warn` /
+  `alarm` targets. Default sensible config documented
+  (preset: `harbour`, `maxRange`: 3 NM) for a Ría-style navigation
+  env; switch to `coastal` / `offshore` as needed.
+
+---
+
 ## 2.12.0 — 2026-10-08 — Virtual-tack audit cycle + Profile UX overhaul + safety aproado/empopado
 
 Rolls up Rev410 through Rev430 (21 revs). Driven by two sea trials

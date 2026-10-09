@@ -235,6 +235,37 @@ pypilot version, restart pypilot_web).
 
 **Webapp URL**: `http://<sk-host>:3000/signalk-pypilot-newui/`
 
+## Works well with
+
+Pypilot-newui is built as a well-behaved citizen of the Signal K
+ecosystem — it consumes other mature plugins and standard APIs instead
+of reinventing them. The sections below describe the plugins we
+integrate with; none are hard dependencies (the autopilot visor works
+on its own), but installing them unlocks the features listed.
+
+- **[`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk)**
+  — Double-tap the compass rose to open Freeboard-SK embedded inside
+  the rose box (side panels stay visible and usable). Lets you drop
+  from the autopilot view to the full chart with every AIS target in
+  one tap, without leaving the pypilot-newui session.
+  See `docs/_feature_ais_overlay.md`.
+
+- **[`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts)**
+  by @dirkwa — Provides the CPA/TCPA engine behind our AIS collision
+  overlay. Pypilot-newui subscribes to
+  `notifications.navigation.closestApproach.*` and renders a red /
+  orange triangle on the rose + an infobox with ACK that routes
+  through the Signal K v2 Notifications API, so an ACK from
+  pypilot-newui is also seen by Freeboard-SK and every other SK
+  client.
+  See `docs/_feature_ais_overlay.md`.
+
+- **[`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)**
+  by Panaaj — Shares the single pypilot socket cleanly with our
+  autopilot provider (see next section) so KIP, Freeboard's Autopilot
+  Console and any other SK v2 Autopilot API client all drive the same
+  pilot without duplicate connections.
+
 ## Working alongside `pypilot-autopilot-provider`
 
 We build on top of the excellent

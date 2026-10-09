@@ -1,6 +1,6 @@
 {
   "name": "signalk-pypilot-newui",
-  "version": "2.12.0",
+  "version": "3.0.0",
   "description": "Signal K friendly UI for the pypilot autopilot, with first-class Signal K paths and Simple Switches so any downstream Signal K client can drive or monitor the pilot. Touch-first mobile visor + full pypilot data (servo, gains, calibration, tack, warnings). Coexists with pypilot-autopilot-provider.",
   "main": "./dist/index.js",
   "scripts": {
@@ -15,12 +15,19 @@
     "signalk-webapp",
     "signalk-category-instruments",
     "signalk-category-utility",
+    "signalk-category-ais",
+    "signalk-category-notifications",
     "pypilot",
     "tinypilot",
     "autopilot",
     "steering",
     "kip",
-    "mobile-first"
+    "mobile-first",
+    "ais",
+    "cpa",
+    "tcpa",
+    "collision-avoidance",
+    "freeboard-sk-companion"
   ],
   "author": {
     "name": "Aitonos",
