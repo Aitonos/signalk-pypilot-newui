@@ -2487,6 +2487,16 @@
       "performance.gybeAngleVelocityMadeGood",
       "performance.*",
       "environment.water.temperature",
+      // Rev431 (Carlos sea trial follow-up, feature #9): AIS collision
+      // alarms raised by `signalk-collision-alerts` via the SK v2
+      // Notifications API land at
+      //   notifications.navigation.closestApproach.<mmsi>
+      // under vessels.self. Wildcard subscribe picks every new target
+      // without having to list MMSIs. Pypilot-newui is a CONSUMER —
+      // the engine, thresholds and lifecycle (silence/acknowledge/
+      // clear) all live in collision-alerts; we only render + voice +
+      // relay the ACK button to the SK v2 endpoint.
+      "notifications.navigation.closestApproach.*",
     ];
     const sub = {
       context: "vessels.self",
@@ -3004,6 +3014,16 @@
       case "performance.gybeAngle":               state.gybeAngle   = numericOrNull(value); break;
       case "performance.gybeAngleVelocityMadeGood": state.gybeVmg   = numericOrNull(value); break;
       case "environment.water.temperature":       state.waterTempK  = numericOrNull(value); break;
+      default: {
+        // Rev431: AIS collision notifications from signalk-collision-alerts.
+        // Path = notifications.navigation.closestApproach.<mmsi>. Dispatch
+        // handled here to avoid hard-coding every possible MMSI in the
+        // switch above.
+        if (typeof path === "string" && path.startsWith("notifications.navigation.closestApproach.")) {
+          _handleAisAlarmDelta(path, value);
+        }
+        break;
+      }
     }
   }
 
@@ -3483,6 +3503,193 @@
     }
   }
 
+  // Rev431 (Carlos sea trial follow-up, feature #9): AIS collision
+  // overlay. We are a CONSUMER of signalk-collision-alerts; the engine
+  // (CPA/TCPA/thresholds/lifecycle) lives in that plugin. We subscribe
+  // to notifications.navigation.closestApproach.<mmsi> and:
+  //   - render a small red boat on the compass circle pointing to the
+  //     threat's bearing, blinking,
+  //   - show an infobox over #rose-boat with name + CPA + TCPA + ACK,
+  //   - speak the message once per state transition into warn/alarm,
+  //   - route ACK taps to POST /signalk/v2/api/notifications/<id>/acknowledge,
+  //   - double-tap on #wind-rose opens Freeboard-SK for the full chart.
+  if (!state.aisAlarms) state.aisAlarms = new Map(); // mmsi -> { value, state }
+  function _mmsiFromAlarmPath(path) {
+    const prefix = "notifications.navigation.closestApproach.";
+    return path.startsWith(prefix) ? path.slice(prefix.length) : null;
+  }
+  function _mmsiFromAlarmValue(v) {
+    try {
+      const ref = v?.data?.targetRef || "";
+      const m = /urn:mrn:imo:mmsi:(\d+)$/.exec(ref);
+      return m ? m[1] : null;
+    } catch { return null; }
+  }
+  function _handleAisAlarmDelta(path, value) {
+    const mmsi = _mmsiFromAlarmPath(path) || _mmsiFromAlarmValue(value);
+    if (!mmsi) return;
+    const prev = state.aisAlarms.get(mmsi);
+    const prevState = prev && prev.value && prev.value.state;
+    const newState = value && value.state;
+    const isActive = newState === "warn" || newState === "alarm";
+    if (!value || !isActive) {
+      // Transitioned out (normal / cleared) → drop.
+      state.aisAlarms.delete(mmsi);
+    } else {
+      state.aisAlarms.set(mmsi, { value, mmsi });
+    }
+    // Speak on first transition INTO active (warn or alarm), including
+    // escalations warn → alarm. Skip if already active and status
+    // acknowledged (sailor already heard it).
+    try {
+      if (isActive && newState !== prevState && !(value.status && value.status.acknowledged)) {
+        const msg = (value && value.message) || `AIS alarm MMSI ${mmsi}`;
+        _alSpeak(msg);
+      }
+    } catch { /* silent */ }
+    try { renderAisAlarms(); } catch (e) { console.warn("[ais] render:", e); }
+  }
+  function _aisBearingDeg(selfPos, targetPos) {
+    if (!selfPos || !targetPos) return null;
+    const toRad = (d) => d * Math.PI / 180;
+    const φ1 = toRad(selfPos.latitude);
+    const φ2 = toRad(targetPos.latitude);
+    const Δλ = toRad(targetPos.longitude - selfPos.longitude);
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    const θ = Math.atan2(y, x);
+    const brgDeg = (θ * 180 / Math.PI + 360) % 360;
+    return brgDeg;
+  }
+  function _aisRelativeBearingDeg(selfPos, targetPos, selfHeadingRad) {
+    const absBrg = _aisBearingDeg(selfPos, targetPos);
+    if (absBrg == null) return null;
+    const headDeg = (selfHeadingRad != null) ? (selfHeadingRad * RAD2DEG) : 0;
+    let rel = absBrg - headDeg;
+    while (rel < -180) rel += 360;
+    while (rel > 180) rel -= 360;
+    return rel;
+  }
+  function renderAisAlarms() {
+    const layer = document.getElementById("ais-alarm-layer");
+    const infobox = document.getElementById("ais-alarm-infobox");
+    if (!layer) return;
+    layer.textContent = "";
+    const alarms = Array.from(state.aisAlarms.values());
+    if (alarms.length === 0) {
+      if (infobox) infobox.style.display = "none";
+      return;
+    }
+    // Rank most-urgent first (lowest TCPA first; alarms before warns).
+    alarms.sort((a, b) => {
+      const sa = a.value.state === "alarm" ? 0 : 1;
+      const sb = b.value.state === "alarm" ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      const ta = Math.abs(a.value.data?.tcpa ?? 1e9);
+      const tb = Math.abs(b.value.data?.tcpa ?? 1e9);
+      return ta - tb;
+    });
+    // Draw one small red boat per active threat. r = 92 lands on the
+    // outer edge of the compass circle (SVG viewBox -100 -110 200 220).
+    const R = 92;
+    for (const a of alarms) {
+      const d = a.value.data || {};
+      const selfPos = d.cpaPositions?.self;
+      const tgtPos = d.cpaPositions?.target;
+      const relDeg = _aisRelativeBearingDeg(selfPos, tgtPos, state.heading);
+      if (relDeg == null) continue;
+      const rad = (relDeg - 90) * Math.PI / 180; // SVG 0deg = east, we want 0deg = up
+      const x = R * Math.cos(rad);
+      const y = R * Math.sin(rad);
+      // Pointing INWARD toward the self: rotate the triangle so its tip
+      // points to (0,0). The triangle is drawn pointing up (0,-h), so
+      // we rotate by relDeg + 180 to flip.
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttribute("class", `ais-target ais-${a.value.state}`);
+      g.setAttribute("transform", `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${(relDeg + 180).toFixed(1)})`);
+      g.dataset.mmsi = a.mmsi;
+      // Simple red triangle (reusing a stylised boat glyph would need a
+      // separate SVG asset; the triangle is clear enough and parpadea).
+      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      poly.setAttribute("points", "0,-10 6,8 -6,8");
+      g.appendChild(poly);
+      layer.appendChild(g);
+    }
+    // Infobox for the most urgent (alarms[0] after sort).
+    if (infobox) {
+      const top = alarms[0];
+      const d = top.value.data || {};
+      const cpaNm = (d.cpa != null) ? (d.cpa / 1852) : null;
+      const tcpaMin = (d.tcpa != null) ? (d.tcpa / 60) : null;
+      // Extract vessel name from the message ("Collision risk: NAME, ...").
+      let name = top.mmsi;
+      try {
+        const m = /Collision risk:\s*([^,]+),/.exec(String(top.value.message || ""));
+        if (m) name = m[1].trim();
+      } catch { /* silent */ }
+      infobox.setAttribute("transform", "translate(0, -58)");
+      infobox.textContent = "";
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bg.setAttribute("x", "-56"); bg.setAttribute("y", "-20");
+      bg.setAttribute("width", "112"); bg.setAttribute("height", "40");
+      bg.setAttribute("rx", "4");
+      bg.setAttribute("class", `ais-infobox-bg ais-${top.value.state}`);
+      infobox.appendChild(bg);
+      const line1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      line1.setAttribute("x", "-50"); line1.setAttribute("y", "-6");
+      line1.setAttribute("class", "ais-infobox-text");
+      line1.textContent = String(name).slice(0, 18);
+      infobox.appendChild(line1);
+      const line2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      line2.setAttribute("x", "-50"); line2.setAttribute("y", "7");
+      line2.setAttribute("class", "ais-infobox-text ais-infobox-sub");
+      const cpaStr = cpaNm != null ? cpaNm.toFixed(2) + " NM" : "—";
+      const tcpaStr = tcpaMin != null ? Math.round(tcpaMin) + " min" : "—";
+      line2.textContent = `CPA ${cpaStr} / ${tcpaStr}`;
+      infobox.appendChild(line2);
+      // ACK button.
+      const ackBtn = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      ackBtn.setAttribute("class", "ais-ack-btn");
+      ackBtn.setAttribute("transform", "translate(32, -8)");
+      ackBtn.style.cursor = "pointer";
+      ackBtn.dataset.notifId = top.value.id || "";
+      ackBtn.dataset.mmsi = top.mmsi;
+      const ackBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      ackBg.setAttribute("x", "0"); ackBg.setAttribute("y", "0");
+      ackBg.setAttribute("width", "22"); ackBg.setAttribute("height", "14");
+      ackBg.setAttribute("rx", "3");
+      ackBg.setAttribute("class", "ais-ack-bg");
+      ackBtn.appendChild(ackBg);
+      const ackTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      ackTxt.setAttribute("x", "11"); ackTxt.setAttribute("y", "10");
+      ackTxt.setAttribute("class", "ais-ack-txt");
+      ackTxt.textContent = "ACK";
+      ackBtn.appendChild(ackTxt);
+      ackBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        _aisAcknowledge(ackBtn.dataset.notifId, ackBtn.dataset.mmsi);
+      });
+      infobox.appendChild(ackBtn);
+      infobox.style.display = "";
+    }
+  }
+  async function _aisAcknowledge(id, mmsi) {
+    if (!id) return;
+    try {
+      const r = await skFetch(`/signalk/v2/api/notifications/${encodeURIComponent(id)}/acknowledge`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      if (!r.ok) console.warn("[ais] ACK HTTP", r.status, await r.text().catch(() => ""));
+    } catch (e) { console.warn("[ais] ACK failed:", e); }
+    // Optimistic hide — the SK delta will republish with acknowledged:true
+    // and we'll re-render on the next tick.
+    try {
+      const cur = state.aisAlarms.get(mmsi);
+      if (cur && cur.value && cur.value.status) cur.value.status.acknowledged = true;
+    } catch { /* silent */ }
+    try { renderAisAlarms(); } catch { /* silent */ }
+  }
+
   // SVG compass rose. The card (cardinals + ticks) rotates so N points to
   // magnetic north regardless of boat heading; the boat is fixed pointing
   // up; TWO independent wind arrows (AWA amber solid, TWA sea-green solid)
@@ -3493,6 +3700,9 @@
     if (card && state.heading != null) {
       card.setAttribute("transform", `rotate(${-state.heading * RAD2DEG})`);
     }
+    // Rev431: refresh AIS alarm bearings on every heading-driven redraw
+    // so the red triangles track the boat rotation.
+    try { renderAisAlarms(); } catch { /* silent */ }
 
     // Rev73: gota-chain redesign. IDs updated from rose-wind-arrow /
     // rose-wind-arrow-twa (line + arrowhead + text label) to
@@ -9070,6 +9280,23 @@
 
     // Rev21: calibration dropdown removed from Control tab. Access via
     // Setup > Calibration section instead.
+
+    // Rev431 (Carlos sea trial follow-up, feature #9): double-tap on
+    // the compass rose opens Freeboard-SK (installed as
+    // /@signalk/freeboard-sk/) so the sailor can see the full chart
+    // with every AIS target rendered by signalk-collision-alerts.
+    // Native `dblclick` fires on both mouse + touch (modern browsers)
+    // and respects the OS double-tap gesture — no manual timing math.
+    try {
+      const rose = document.getElementById("wind-rose");
+      if (rose) {
+        rose.addEventListener("dblclick", (ev) => {
+          ev.preventDefault();
+          try { _alSpeak(t("ais.openChart") || "abriendo carta"); } catch { /* silent */ }
+          window.location.href = "/@signalk/freeboard-sk/";
+        });
+      }
+    } catch (e) { console.warn("[rose] dblclick wire:", e); }
   }
 
   // ---- Tune tab wiring ----

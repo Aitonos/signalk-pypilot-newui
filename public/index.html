@@ -107,6 +107,19 @@
             <g id="rose-boat" transform="rotate(-90) scale(0.22)">
               <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
             </g>
+            <!-- Rev431 (Carlos sea trial follow-up): AIS collision overlay.
+                 Container populated at runtime by renderAisAlarms with one
+                 <g class="ais-target"> per active alarm (warn or alarm).
+                 The notifications come from signalk-collision-alerts via
+                 the Notifications API v2 (notifications.navigation.
+                 closestApproach.<mmsi>). The sailor can double-tap the
+                 compass circle to open Freeboard-SK and see the full
+                 chart with every AIS target. -->
+            <g id="ais-alarm-layer"></g>
+            <!-- Infobox lifted into DOM order AFTER the rose svg so it
+                 paints on top of boat, wind pieces and gust ghost. See
+                 renderAisAlarms for the content template. -->
+            <g id="ais-alarm-infobox" style="display:none;pointer-events:auto"></g>
             <!-- Rev170/171 (Carlos): tack countdown overlay. Huge red
                  digit over the boat, clickable to cancel. Two phases:
                    phase "arming"   → shows "5, 4, 3, 2, 1"  (integer secs)
@@ -2322,6 +2335,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev430"></script>
+  <script src="app.js?v=Rev431"></script>
 </body>
 </html>

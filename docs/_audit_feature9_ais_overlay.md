@@ -216,8 +216,228 @@ Carlos quiere más. Es la ruta de menos tokens y riesgo:
 
 ---
 
-## Decisión abierta a confirmar
+## Decisiones de Carlos (2026-10-09)
 
-Procedo con MVP (A) y preguntas 2–5 con mis defaults (CPA 0.5 nm /
-TCPA 10 min / sin sonido / fuente = bus SK sin filtro de source /
-distance filter 5 nm) **salvo que digas lo contrario**.
+### 1. Scope: A ahora, dejar preparado para B
+MVP para la 3.0.0 renderiza **1 target** (el más urgente), pero la
+arquitectura interna soporta multi-target desde el inicio
+(estructura `Map<mmsi, ThreatRecord>`, cálculo CPA/TCPA para todos
+los targets dentro del distance filter). Lo que diferiría B es la
+UI de config + render simultáneo de varios diamantes rojos.
+
+### 2. Umbrales ajustables por usuario con 3 presets de aguas
+
+Carlos: *"en aguas protegidas hay más densidad y los cruces son
+siempre más afilados, hay que dar más tolerancia a saltar menos
+avisos... offshore más al contrario, hay que avisar antes para
+permitir comunicaciones"*.
+
+| Preset        | CPA         | TCPA     | Distance filter | Rationale |
+|---------------|-------------|----------|-----------------|-----------|
+| `protegidas`  | **0.25 nm** | **3 min** | **2 nm**        | Densidad alta, cruces afilados, menos avisos |
+| `costera`     | 0.5 nm      | 10 min    | 5 nm            | Default intermedio |
+| `offshore`    | 1.0 nm      | 15 min    | 10 nm           | Avisar antes, tiempo para VHF/CPA call |
+
+Trigger: `CPA_proj ≤ cpaThreshold **O** TCPA ≤ tcpaThreshold` ("lo
+que sea antes"). Values son `props.aisPreset: "protegidas" |
+"costera" | "offshore"` + opcional
+`props.aisThresholds: { cpaNm, tcpaMin, maxDistNm }` que anulan
+el preset si se setean.
+
+### 3. Aviso por voz al disparar
+Usar `_alSpeak(...)` (ya en uso para empopado lost / pypilot silent
+/ VT failed). Texto propuesto (ES):
+
+> "Blanco AIS {name}, CPA {CPA_nm} millas en {TCPA_min} minutos"
+
+Con fallback a MMSI si el `name` del target no está en el bus. Un
+pitido NO (Carlos no lo pidió; voz basta).
+
+### 4. Fuente AIS: deny-list de internet, no allow-list de Maiana
+Carlos (2026-10-09 aclaración): *"Maiana es MI AIS, pero la fuente
+AIS puede ser de diversa índole; lo que hay que excluir son las
+fuentes de internet"*. El filtro no debe acoplar al hardware actual
+(hoy Maiana, mañana podría ser otro VHF/N2K físico). Lo que hay que
+descartar son los targets que vienen por internet y no reflejan una
+colisión real en el entorno del barco.
+
+Implementación: el plugin expone `props.aisSourceDeny` como regex,
+**default confirmado tras inspección del bus SK Tunatunes
+(2026-10-09)**:
+```
+^mareas-ihm$
+```
+(case-insensitive). Datos reales encontrados en el bus:
+
+| `$source`     | count | descripción |
+|---------------|-------|-------------|
+| `maiana.AI`   | 80    | VHF Maiana (AIS físico, queremos) |
+| `maiana.GN`   | 1     | GPS del Maiana = self (se filtra por `context`) |
+| `mareas-ihm`  | 19    | Mareas-ihm republish online — **se descarta** |
+| `(none)`      | 2     | Sin `$source` — defensivamente **se descarta** también |
+
+Mareas-ihm consolida los 3 motores online (aisstream, aishub,
+aisfriends) bajo un único `$source="mareas-ihm"` (no bajo nombres
+individuales), así que el regex deny-list correcto es sólo
+`^mareas-ihm$`. Un target sin `$source` también se descarta
+defensivamente (no sabemos de dónde viene, no lo confirmamos como
+colisión fiable). Carlos puede extender el regex si en el futuro
+añade otro republicador.
+
+### 5. Distance filter por preset (ya en la tabla punto 2)
+`protegidas: 2 nm`, `costera: 5 nm`, `offshore: 10 nm`. Reduce coste
+del cálculo (no procesamos targets a 15 nm cuando estás en puerto).
+
+### 6. Doble tap en rose → Freeboard SK embebido
+Feature independiente ligada al mismo sprint:
+- Doble tap sobre el `#wind-rose` SVG lanza
+  `window.location.href = "/@signalk/freeboard-sk/"` (ruta estándar
+  de la webapp Freeboard que ya está instalada en el SK server).
+- Freeboard muestra la carta con la posición propia + targets AIS
+  en vivo.
+- No es iframe permanente — es navegación on-demand.
+- Volver al visor pypilot-newui con el botón "back" del browser.
+
+Mecanismo: `dblclick` listener sobre `#wind-rose` + confirmación
+visual breve (flash + voz "abriendo carta").
+
+---
+
+## Plan de implementación propuesto
+
+### Rev431 — Backend AIS collision scaffold
+- Nuevo módulo `src/ais-collision.ts`:
+  - `AisCollisionConfig { preset, overrides, sourceAllow }`.
+  - `ThreatRecord { mmsi, name, pos, cog, sog, lastUpdateMs, cpaNm, tcpaMin, bearingDeg, rangeNm }`.
+  - `recalcAllThreats(selfPos, selfCog, selfSog, map)` → actualiza
+    cada record + decide si están en alarma.
+  - Pure functions, unit-testables.
+- Integración en `src/index.ts`:
+  - `app.subscriptionmanager.subscribe({ context: "vessels.*", ... })`.
+  - Filtro `$source` + skip self.
+  - Tick 1 Hz re-cálculo + emit delta
+    `steering.autopilot.pypilot.aisCollision` (snapshot del threat
+    más urgente) + notification oficial SK
+    `notifications.navigation.closestApproach.<mmsi>`.
+- Props expuestos en `defaults`: `aisPreset`, `aisThresholds`,
+  `aisSourceAllow`.
+
+### Rev432 — Visor render + voz + Freeboard dblclick
+- Suscripción al delta nuevo en `handleDelta`.
+- SVG del barquito rojo (reusar `#rose-boat` path, color accent-rojo,
+  escala a altura de la flecha de viento real).
+- Infobox encima de `#rose-boat` con nombre + closing-kn + CPA/TCPA
+  + botón ACK.
+- CSS `@keyframes ais-blink`.
+- `_alSpeak` al disparar alarma + al primer ACK.
+- ACK store en memoria del backend (`Map<mmsi, expireAtMs>`), 10 min.
+- `#wind-rose` dblclick → navigate Freeboard.
+
+### Rev433 — Config UI (fase B)
+- Setup card "AIS Alarmas" con:
+  - Selector preset (`protegidas / costera / offshore`).
+  - Sliders avanzados para `cpaNm`, `tcpaMin`, `maxDistNm`.
+  - Toggle `aisSourceAllow` + preview del source actual del bus.
+- Multi-target render en la rosa (hasta N barquitos).
+
+Rev431+Rev432 = MVP visible 3.0.0-alpha. Rev433 completa 3.0.0.
+
+### Pre-requisito: confirmar `$source` del AIS Maiana en Tunatunes
+Antes de arrancar Rev431 hago una consulta SSH al Pi:
+```
+curl /signalk/v1/api/vessels/<mmsi-del-primer-target>
+```
+y veo el `$source` que SK le pone a `navigation.position` de un
+target AIS llegado por VHF. Eso define el default regex de
+`aisSourceAllow`.
+
+---
+
+## Datos reales del bus SK con collision-alerts activo (2026-10-09)
+
+Carlos instaló `signalk-collision-alerts`. Verificado en Pi:
+
+### Path: `notifications.navigation.closestApproach.<mmsi>`
+Schema confirmado (ejemplo real de PIRATA DE ONS):
+```json
+{
+  "value": {
+    "state": "normal",            // "normal" | "warn" | "alarm"
+    "method": ["visual", "sound"],
+    "message": "Collision risk: PIRATA DE ONS, CPA 0.04 NM in 0 min",
+    "status": {
+      "silenced": false,
+      "acknowledged": false,
+      "canSilence": true,
+      "canAcknowledge": true,
+      "canClear": true
+    },
+    "createdAt": "2026-10-09T12:38:26.342Z",
+    "data": {
+      "targetRef": "vessels.urn:mrn:imo:mmsi:224182590",
+      "source": "ais",             // string literal del plugin, NO $source del delta
+      "cpa":   74.47,              // metros
+      "tcpa":  -4.57,              // segundos (negativo = pasada)
+      "range": 74.65,              // metros
+      "cpaPositions": {
+        "self":   { "latitude": ..., "longitude": ... },
+        "target": { "latitude": ..., "longitude": ... }
+      }
+    },
+    "id": "506cc929-..."           // UUID para ACK
+  },
+  "$source": "notificationsApi",
+  "timestamp": "..."
+}
+```
+
+### Per-vessel path (opcional, controlado por toggle del plugin):
+`vessels.<mmsi>.navigation.closestApproach` con `{distance, timeTo}` —
+NO lo consumimos en pypilot-newui (nos basta con las notifications).
+
+### Observaciones de diseño
+
+- **state transitions**: el visor solo pinta cuando `state ∈ {"warn", "alarm"}`;
+  "normal" se ignora (TCPA pasado o fuera de umbral).
+- **ACK**: endpoint SK v2 `/signalk/v2/api/notifications/<id>/{acknowledge}`
+  usando el `id` UUID del notification. SK propaga el estado a Freeboard,
+  pypilot-newui, cualquier otro consumer.
+- **Filtro de fuentes online**: `source` del data es literal `"ais"` (del
+  plugin), NO el `$source` del delta. Para excluir mareas-ihm hay que leer
+  `vessels.<mmsi>.navigation.position.$source` del bus y descartar si
+  matchea `mareas-ihm`. Alternativa simpler: no filtrar aquí porque el
+  plugin collision-alerts ya debería filtrar por su propio distance
+  threshold y el ACK local nos cubre si hay falsos positivos.
+- **Bearing from self to target**: calcular desde `cpaPositions.self` y
+  `cpaPositions.target`, O leer `vessels.<mmsi>.navigation.position` +
+  `vessels.self.navigation.position` del bus y calcular la bearing
+  rhumb-line. Lo primero es más directo (vienen en el payload).
+
+### Scope final Rev431 (único rev visor consumer)
+
+- `handleDelta` nueva case `notifications.navigation.closestApproach.*`.
+- `state.aisAlarms = Map<mmsi, Alarm>` con snapshot de cada activa.
+- Al transicionar a `warn`/`alarm`: `_alSpeak(message)` + render.
+- Al transicionar fuera: hide render.
+- Render: SVG barquito rojo (reusar `#rose-boat` path, filtra color accent-red,
+  pequeño como la flecha de wind true), posicionado en bearing + range
+  escalado al compass (clamp a borde si está más allá del compass).
+  CSS keyframes blink.
+- Infobox encima de `#rose-boat`: name + CPA (×0.000539957 to NM) + TCPA
+  (/60 to min) + ACK button.
+- ACK: `fetch("/signalk/v2/api/notifications/" + id + "/acknowledge", {method:"POST"})`.
+- Double-tap `#wind-rose` → `window.location.href = "/@signalk/freeboard-sk/"`.
+
+## Decisiones de scope (2026-10-09)
+
+- **Preset default**: `costera` (confirmado Carlos).
+- **Sin publish durante este sprint**. Rev431...N iteramos y
+  deployamos al Pi para QA interactivo. El publish 3.0.0 llega al
+  final del sprint cuando Carlos dé OK explícito tras pre-publish
+  checklist completo. Memorias aplicables:
+  `feedback_never_publish_without_explicit_ok`,
+  `feedback_batch_trivial_npm_publishes` (no acumular micro-releases),
+  `feedback_prepublish_checklist`.
+- Primer deploy al Pi: tras Rev431 (backend solo — no cambia la UI
+  del visor todavía, pero expone el delta nuevo + notification SK
+  → ya es verificable por `curl` desde Carlos / inspección Freeboard).

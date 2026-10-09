@@ -4029,3 +4029,58 @@ body.pypilot-offline .pypilot-write {
   font-weight: 600;
 }
 .pm-dialog-actions button.primary:hover { background: #f0d04e; }
+
+/* Rev431 (Carlos sea trial follow-up, feature #9): AIS collision
+   overlay. Red triangles on the compass circle point inward from the
+   bearing of each threat; the most-urgent one gets an infobox on top
+   of the self boat with name + CPA + TCPA + ACK button. The
+   notification source is signalk-collision-alerts (SK v2 Notifications
+   API); pypilot-newui only renders + routes the ACK. */
+.ais-target polygon {
+  fill: #ff3b30;
+  stroke: #fff;
+  stroke-width: 1;
+  opacity: 0.95;
+}
+.ais-target.ais-warn polygon {
+  fill: #f5a623; /* orange for warn, red for alarm */
+}
+.ais-target.ais-alarm {
+  animation: ais-blink 900ms infinite;
+}
+@keyframes ais-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.ais-infobox-bg {
+  fill: rgba(10, 14, 20, 0.95);
+  stroke: #ff3b30;
+  stroke-width: 1.5;
+}
+.ais-infobox-bg.ais-warn { stroke: #f5a623; }
+.ais-infobox-text {
+  fill: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  pointer-events: none;
+}
+.ais-infobox-sub {
+  font-weight: 500;
+  fill: #cbd3dc;
+}
+.ais-ack-bg {
+  fill: #ff3b30;
+  stroke: #fff;
+  stroke-width: 0.5;
+}
+.ais-target.ais-warn ~ .ais-ack-bg,
+.ais-infobox-bg.ais-warn + .ais-ack-bg { fill: #f5a623; }
+.ais-ack-txt {
+  fill: #fff;
+  font-size: 8px;
+  font-weight: 900;
+  text-anchor: middle;
+  font-family: ui-monospace, monospace;
+  pointer-events: none;
+}
