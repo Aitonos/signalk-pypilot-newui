@@ -1,5 +1,26 @@
 # Changelog
 
+## 3.1.2 — 2026-10-10 — Compatibility with pypilot 0.71 (issue #3)
+
+Patch: swap socket.io transport order from
+`["websocket", "polling"]` to `["polling", "websocket"]` so the
+plugin keeps working with the stricter Flask-SocketIO +
+Python-Engine.IO combo shipped with pypilot 0.71. Thanks to
+[@altarceyhun](https://github.com/altarceyhun) for the detailed
+reproduction + verified workaround in
+[#3](https://github.com/Aitonos/signalk-pypilot-newui/issues/3).
+
+### Fixed
+
+- **pypilot 0.71 — bare WebSocket handshake fails** (Rev450,
+  issue #3). pypilot <= 0.56 accepts a direct WebSocket upgrade;
+  pypilot 0.71 rejects it and only lets the client in via the
+  canonical polling handshake with a later WS upgrade. Swapping the
+  transport order to polling-first keeps both pypilot versions
+  working without any behavioural change for the user (socket.io
+  still upgrades to WebSocket after the handshake when the server
+  allows it).
+
 ## 3.1.1 — 2026-10-10 — Refreshed screenshots
 
 Patch: swaps in four up-to-date screenshots (captured on sea trial

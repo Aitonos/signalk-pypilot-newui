@@ -145,7 +145,14 @@ export class PypilotClient extends EventEmitter {
     const url = `http://${this.opts.host}:${this.opts.port}`;
     this.opts.log("info", `[pypilot] connecting socket.io to ${url}`);
     this.socket = io(url, {
-      transports: ["websocket", "polling"],
+      // Rev450 (issue #3, @altarceyhun): pypilot 0.71 ships a stricter
+      // Flask-SocketIO + Python-Engine.IO combo where the direct WS
+      // handshake fails (polling + upgrade handshake works, bare WS
+      // does not). pypilot <= 0.56 accepts both orders. Starting with
+      // polling and letting socket.io upgrade to websocket after the
+      // handshake is the vendor-recommended default and keeps 0.71 +
+      // 0.56 both working.
+      transports: ["polling", "websocket"],
       // Rev66 / 2.0.4: infinite reconnect attempts. The old 30-attempt
       // ceiling meant a long-ish outage (say a Pi reboot that takes 45 s +
       // a couple of socket.io backoff cycles) could exhaust the counter
