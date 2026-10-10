@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.1.1 — 2026-10-10 — Refreshed screenshots
+
+Patch: swaps in four up-to-date screenshots (captured on sea trial
+2026-10-10, Rev449) so the SK App Store listing shows the 3.1.0
+feature set — Control rose with heading-precision gauge + AIS hull
+top-view, Freeboard-SK chartplotter embedded in the rose, Logbook
+trip detail with OpenSeaMap trace + SOG/AWS chart, and the refreshed
+Tune sliders. No code changes.
+
 ## 3.1.0 — 2026-10-10 — Fullscreen auto, configurable bottom chip, heading precision, AIS polish
 
 Rolls up Rev439 → Rev449 (11 revs) on top of 3.0.0. Minor bump: a

@@ -42,15 +42,15 @@ up automatically.
 
 ## Screenshots
 
-![Control - compass rose with concentric target + wind arrows](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
+![Control - compass rose with precision gauge + AIS collision target as a tinted top-view hull](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.png)
 
-| Chart · Trip Stats | Tune · gain sliders |
+| Chartplotter embedded | Logbook · trip detail |
 |---|---|
-| ![Chart tab - Trip Stats + Servo Health](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chart-trip-stats.jpg) | ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-tune-gains.jpg) |
+| ![Chartplotter integrated - Freeboard-SK embedded in the rose box](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chartplotter-embedded.png) | ![Logbook trip detail - OpenSeaMap trace + SOG vs AWS chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-logbook-trip-detail.png) |
 
-| Setup · Trips | Chart · hover freeze |
+| Tune · gain sliders | Chart · hover freeze |
 |---|---|
-| ![Setup - Trips card](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-setup-launcher.jpg) | ![Chart - hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) |
+| ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tune-sliders.png) | ![Chart - hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) |
 
 ![Tack history - persistent per-tack log](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-info.jpg)
 
