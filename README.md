@@ -10,8 +10,35 @@ watches how your autopilot is behaving and quietly suggests how to
 sharpen its settings, so you spend more time sailing and less time
 guessing which slider to move.
 
+Since **3.0.0** the visor also ships with an **integrated
+chartplotter**: double-tap the compass rose and
+[Freeboard-SK](https://www.npmjs.com/package/@signalk/freeboard-sk)
+opens embedded inside the rose box with every AIS target, your route
+and all overlays — side panels (mode, nudges, AP) stay reachable, no
+tab switching, no re-authentication. **For charts to render you need a
+Signal K chart provider installed and configured in Freeboard-SK**
+(see [Chart provider is required](#chart-provider-is-required-for-the-embedded-plotter)
+below).
+
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
+
+## Chart provider is required for the embedded plotter
+
+The chartplotter embedded in the rose uses Freeboard-SK, which itself
+is only a renderer — it needs a Signal K **chart provider** plugin to
+know where to fetch tiles from. Any of the standard providers works:
+
+- **[`@signalk/charts-plugin`](https://www.npmjs.com/package/@signalk/charts-plugin)**
+  — serves local MBTiles / S57 / XYZ chart sets you drop into
+  `~/.signalk/charts/` (OpenCPN-style). Recommended default.
+- **[`signalk-chart-tiler`](https://www.npmjs.com/package/signalk-chart-tiler)**
+  or any other upstream raster/vector provider.
+
+Without a provider, Freeboard-SK will open embedded in the rose but
+the map area will stay empty. Install one from the SK App Store, add
+your chart sources, and the chartplotter inside pypilot-newui lights
+up automatically.
 
 ## Screenshots
 
@@ -247,7 +274,10 @@ on its own), but installing them unlocks the features listed.
   — Double-tap the compass rose to open Freeboard-SK embedded inside
   the rose box (side panels stay visible and usable). Lets you drop
   from the autopilot view to the full chart with every AIS target in
-  one tap, without leaving the pypilot-newui session.
+  one tap, without leaving the pypilot-newui session. **Pair with a
+  Signal K chart provider (e.g. `@signalk/charts-plugin`) or the chart
+  area will stay empty** — see
+  [Chart provider is required](#chart-provider-is-required-for-the-embedded-plotter).
   See `docs/_feature_ais_overlay.md`.
 
 - **[`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts)**

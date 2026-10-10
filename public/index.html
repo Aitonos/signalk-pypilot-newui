@@ -51,6 +51,11 @@
        the mode selector shows the current mode already. -->
 
   <!-- Tabs -->
+  <!-- Rev446 (Carlos): fullscreen + keep-awake toggle. One tap enters
+       browser fullscreen (hides tabs, URL bar, status bar on mobile)
+       AND requests a screen Wake Lock so the display never dims nor
+       locks — same UX as YouTube's player. Second tap exits both. -->
+  <button type="button" id="fs-toggle" title="Pantalla completa / Keep awake" aria-label="Fullscreen">⛶</button>
   <nav id="tabbar">
     <button class="tab-btn active" data-tab="control" data-i18n="tab.control">Control</button>
     <button class="tab-btn"        data-tab="tune"    data-i18n="tab.tune">Tune</button>
@@ -101,6 +106,10 @@
                 <button type="button" class="ais-infobox-nav-btn" id="ais-infobox-next" aria-label="Next">›</button>
               </span>
             </div>
+            <!-- Rev442 (Carlos QA Rev441): X to close the infobox when
+                 it was opened by tapping an arrow (otherwise there was
+                 no way to dismiss it). Sits in the head bar. -->
+            <button type="button" class="ais-infobox-close" id="ais-infobox-close" aria-label="Close">×</button>
             <div class="ais-infobox-body" id="ais-infobox-body"></div>
             <!-- Rev438: closing speed row (range/tcpa derived); hidden
                  when tcpa is zero or negative (target already passed). -->
@@ -146,14 +155,11 @@
             <g id="rose-boat" transform="rotate(-90) scale(0.22)">
               <image href="boat-cenital.svg" x="-228" y="-76" width="456" height="152"/>
             </g>
-            <!-- Rev431: AIS collision overlay triangles (red/orange) are
-                 painted inside the SVG so they rotate with the compass.
-                 The infobox + ACK button live as HTML absolutely-
-                 positioned above the SVG (see .ais-infobox-html in CSS
-                 and renderAisAlarms in app.js); keeps the ACK click
-                 reliable, idempotent across SK deltas, and always on
-                 top of every SVG layer regardless of DOM order. -->
-            <g id="ais-alarm-layer"></g>
+            <!-- Rev449 (Carlos): placeholder — the AIS alarm layer has
+                 moved to the END of the SVG so AIS target icons paint
+                 ON TOP of wind arrows, sectors and the countdown HUD
+                 (SVG z-order follows DOM order). -->
+
             <!-- Rev170/171 (Carlos): tack countdown overlay. Huge red
                  digit over the boat, clickable to cancel. Two phases:
                    phase "arming"   → shows "5, 4, 3, 2, 1"  (integer secs)
@@ -477,11 +483,16 @@
                  straddles the top of the compass ring (y=-100 to -84);
                  the raya's short 14-unit length is enough to peek
                  out just below the chip when target ≈ heading. -->
+            <!-- Rev444 (Carlos QA Rev443): chip grows UP (y goes more
+                 negative) rather than down, so the second line does not
+                 cover the target diamond that sits just below the top
+                 of the ring. Bottom edge stays at y=-84 as before. -->
             <g id="rose-hdg-chip">
-              <rect x="-20" y="-100" width="40" height="16" rx="4" ry="4"
-                    fill="rgba(0,0,0,0.72)" stroke="#4a5867" stroke-width="1"/>
-              <text id="rose-hdg-value" x="0" y="-91" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
-              <text id="rose-hdg-deg"   x="0" y="-91" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
+              <rect x="-22" y="-110" width="44" height="26" rx="4" ry="4"
+                    fill="rgba(0,0,0,0.78)" stroke="#4a5867" stroke-width="1"/>
+              <text id="rose-hdg-value" x="0" y="-100" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
+              <text id="rose-hdg-deg"   x="0" y="-100" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
+              <text id="rose-hdg-prec"  x="0" y="-89" text-anchor="middle" dominant-baseline="middle" fill="#8a98a8" font-size="9" font-weight="800" font-family="ui-monospace, monospace">--</text>
             </g>
             <!-- Rev216 (Carlos): rotation-sense indicator. A curved
                  arrow drawn just inside the compass ring, showing
@@ -499,7 +510,38 @@
                       markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M 0 0 L 10 5 L 0 10 Z" fill="#ff9500"/>
               </marker>
+              <!-- Rev443 (Carlos QA Rev442): tint filters for AIS target
+                   hull SVG. Each one replaces the per-pixel RGB of
+                   boat-cenital.svg with a fixed solid colour, preserving
+                   alpha. Result: the full top-view silhouette rendered in
+                   red (alarm), orange (warn) or dim blue-grey (acked). -->
+              <filter id="ais-tint-alarm" x="0%" y="0%" width="100%" height="100%">
+                <feColorMatrix type="matrix" values="
+                  0 0 0 0 1
+                  0 0 0 0 0.23
+                  0 0 0 0 0.19
+                  0 0 0 1 0"/>
+              </filter>
+              <filter id="ais-tint-warn" x="0%" y="0%" width="100%" height="100%">
+                <feColorMatrix type="matrix" values="
+                  0 0 0 0 0.96
+                  0 0 0 0 0.65
+                  0 0 0 0 0.14
+                  0 0 0 1 0"/>
+              </filter>
+              <filter id="ais-tint-acked" x="0%" y="0%" width="100%" height="100%">
+                <feColorMatrix type="matrix" values="
+                  0 0 0 0 0.42
+                  0 0 0 0 0.48
+                  0 0 0 0 0.56
+                  0 0 0 1 0"/>
+              </filter>
             </defs>
+            <!-- Rev449: AIS targets as the LAST element inside the rose
+                 SVG, so they are the top-most layer above wind arrows,
+                 sectors, boat, countdown HUD, heading chip and rotation
+                 arc. Keeps the hull sprite always visible. -->
+            <g id="ais-alarm-layer"></g>
           </svg>
           <!-- Rev71: wind-speed chip promoted from SVG group to an HTML div
                overlaid on the rose bottom-center. Text baseline aligned
@@ -2401,6 +2443,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev438"></script>
+  <script src="app.js?v=Rev449"></script>
 </body>
 </html>

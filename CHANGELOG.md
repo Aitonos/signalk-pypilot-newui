@@ -1,5 +1,128 @@
 # Changelog
 
+## 3.1.0 — 2026-10-10 — Fullscreen auto, configurable bottom chip, heading precision, AIS polish
+
+Rolls up Rev439 → Rev449 (11 revs) on top of 3.0.0. Minor bump: a
+family of UX refinements + a couple of safety-oriented fixes;
+backward-compatible with 3.0.0 plugin config and SK paths. The theme
+of the release is **"glance information at a distance"** — the sailor
+mounts the tablet across the cockpit and reads the visor as a true
+instrument, so chip sizes, legibility, precision indicators, and
+fullscreen-by-default all got tightened in this bump.
+
+### Added
+
+- **Fullscreen + Screen Wake Lock auto-on by default** (Rev446/Rev448).
+  On the very first user tap, the visor requests browser fullscreen
+  on `<html>` and takes a `navigator.wakeLock("screen")` so the
+  display never dims nor locks — same UX as YouTube's player. A
+  floating ⛶ button top-right toggles both and persists the sailor's
+  choice (`localStorage[pypilot-newui.fullscreenAuto]`), so later
+  reloads honour "I opted out".
+- **Configurable bottom chip on the rose — up to 4 datapoints
+  cycled** (Rev439 → Rev445). Short-tap on the chip under the compass
+  cycles through the user-picked set (default: SOG → Depth → %Polar);
+  long-press opens a modal where the sailor picks up to 4 datapoints
+  from the same catalog as the four configurable corners (base paths +
+  performance extras + any custom SK path registered in a corner).
+  Persisted in `localStorage[pypilot-newui.roseBottomChipPaths]`.
+  Replaces the old "always AWS/TWS mirror" behaviour.
+- **Heading-precision gauge under the compass readout** (Rev443/Rev444).
+  Second line inside the `#rose-hdg-chip` shows how far off the pilot
+  still is from its own target — the sailor's "glance accuracy
+  reading", not the target value itself. Signed `target - current`:
+  negative = pilot must correct to port (babor), positive = to
+  starboard (estribor). Colour: `|err|<3°` green, `<10°` orange, else
+  red. In compass / gps / nav uses heading − target; in wind / aproado
+  uses AWA − target; in true wind / empopado uses TWA − target.
+  Shows `--` when the AP is OFF (`state.engaged === false`) so a
+  stale `state.target` can never mislead the sailor.
+- **Safe-exit to compass after APROADO / EMPOPADO** (Rev440). When
+  the user finishes an aproado or empopado without opting in to full
+  `restoreAll`, the visor now auto-switches the pilot back to COMPASS
+  with the current heading as target. Rationale: leaving the pilot in
+  WIND / TRUE WIND after the manoeuvre is less stable for "hold what
+  I have now" than COMPASS. Carlos sea-trial 2026-10-10. Falls back
+  to no-op if the heading sensor is absent.
+- **AIS target as a tinted top-view hull sprite** (Rev442 → Rev443,
+  Rev447 → Rev449). Replaces the plain red triangle with the
+  `boat-cenital.svg` sprite (same asset as the own-vessel sprite in
+  the rose centre), tinted via SVG `feColorMatrix` filters per state:
+  red (alarm, blinking, 150 % scale) · orange (warn, fixed, 100 %) ·
+  blue-grey (acked, no blink, 100 %). Bow always points toward the
+  self vessel (rotation now `rotate(relDeg + 90)` to match the
+  horizontal asset). Alarm sprite blinks; acked stays fully visible
+  but muted. Paints as the LAST element inside the rose SVG so it
+  stays on top of wind arrows, sectors and HUDs.
+- **Only the 3 most urgent AIS targets painted** (Rev441). When more
+  than 3 collision alarms are active, only the 3 lowest-TCPA ones
+  render on the rose. The infobox navigator still walks ALL alarms so
+  the sailor can scroll through the hidden ones.
+- **Tap on an AIS target opens its data popup** (Rev441). Click
+  delegation on `#ais-alarm-layer`: tapping a hull sets
+  `_aisInfoboxIdx` to that MMSI and forces the popup open — works for
+  both pending and silenced targets. Auto-resets to the newest threat
+  after 20 s if no further interaction.
+- **ACK keeps the AIS target arrow on the rose** (Rev441 → Rev442).
+  ACK no longer deletes the MMSI from `state.aisAlarms`; the hull
+  stays visible (silenced style) until the plugin declares the
+  threat gone. Button toggles ACK ↔ ACKED (ES: SILENCIAR ↔
+  SILENCIADO), with `disabled` + `.is-acked` styling when the MMSI is
+  already acknowledged.
+- **X close button on the AIS infobox** (Rev442). When the sailor
+  opened the popup by tapping a hull, the X dismisses it and clears
+  the user-pick flag so new threats can take over.
+- **Long "Viento Aparente" / "Viento Real" labels in the mode-selector
+  modal** (Rev441). The modal shows the long names so wind modes are
+  explicit on first open; the bbar button keeps the short labels
+  (APARENTE / REAL) to fit the narrow chip.
+- **Landscape tabbar made compact** (Rev446). `.tab-btn` padding
+  `12→4 px`, font-size `14→12 px` inside
+  `@media (orientation: landscape)`. Saves ~20 vertical pixels for
+  tablets mounted horizontally.
+
+### Changed
+
+- **Heading chip grows UPWARD** (Rev444). The chip rect height
+  expands toward `-y` (bottom edge still at `-84`), so the new
+  precision line never covers the target diamond that sits just
+  below the top of the compass ring.
+- **AWS / TWS sub-line font-size bumped three steps** (Rev443 →
+  Rev445). From `clamp(11, 2vw, 16px)` to `clamp(20, 3.8vw, 32px)`
+  so the kn number sits halfway between the dim corner label and
+  the big angle value when read from the helm.
+- **AIS voice is a short safety nudge, not a report** (Rev441,
+  Rev449). The voice line used to spell CPA / TCPA / MMSI, which TTS
+  mangled on long numbers. Now it just says *"Alarma AIS, target en
+  rumbo de colisión"* / *"AIS alarm, target on collision course"*;
+  the data stays visible in the infobox. ES says "AIS" as a word
+  (Rev449 — was "A I S" letter-by-letter).
+
+### Fixed
+
+- **AIS target bearing was 180° off in some geometries** (Rev448 —
+  found during 2026-10-10 sea trial). `renderAisAlarms` checked
+  `state.position.latitude` but `state.position` carries short keys
+  `{lat, lon}` — the test always failed and the code fell back to
+  `cpaPositions.self` (= *projected* self position at CPA future
+  time). Bearing was then computed between two **future** positions,
+  which can be nowhere near the current geometry. The adapter now
+  converts `{lat, lon}` → `{latitude, longitude}` once at render
+  time, so the hull always paints at the real bearing to the target
+  as-of-now.
+- **Signal K server token kept being asked "every once in a while"**
+  (Rev446). `handleAuthWrite` wiped the permanent device token on
+  the FIRST `401` and kicked off an access-request modal — a single
+  transient 401 (SK restart in flight, proxy hiccup, DNS blip) was
+  enough to invalidate a perfectly good token. Now requires THREE
+  consecutive 401 writes before wiping; one successful write resets
+  the counter.
+- **Precision gauge sign convention** (Rev444). First pass used
+  `heading − target`; Carlos's convention is "the correction the
+  pilot still has to apply" → `target − heading`. Negative therefore
+  means *pilot must go to port* and positive *pilot must go to
+  starboard*.
+
 ## 3.0.0 — 2026-10-10 — AIS collision overlay + Freeboard-SK embedded
 
 Rolls up Rev431 through Rev438 (8 revs). The headline feature of 3.0.0

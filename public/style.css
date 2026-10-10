@@ -207,6 +207,40 @@ body.nav-hidden nav#tabbar {
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
+/* Rev446 (Carlos): landscape layout has limited vertical space (tablet
+   mounted in cockpit) — the tabbar was eating ~44 px of precious height.
+   Trim padding and font so it occupies ~24 px instead. */
+@media (orientation: landscape) {
+  .tab-btn {
+    padding: 4px 4px;
+    font-size: 12px;
+    letter-spacing: 0.2px;
+    border-bottom-width: 2px;
+  }
+}
+/* Rev446: fullscreen + keep-awake toggle. Floating top-right over
+   everything so it stays reachable from any tab. Icon flips when
+   fullscreen is active (⛶ → ⛶). Hides itself in fullscreen OPTIONAL
+   — we keep it visible so the sailor can exit. */
+#fs-toggle {
+  position: fixed;
+  top: 4px;
+  right: 4px;
+  z-index: 9999;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: rgba(10, 14, 20, 0.72);
+  color: #cbd3dc;
+  border: 1px solid #4a5867;
+  border-radius: 6px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+#fs-toggle:hover { opacity: 1; }
+#fs-toggle.is-fullscreen { color: var(--accent, #4bc0ff); }
 
 .tab-btn.active {
   color: var(--fg);
@@ -554,11 +588,13 @@ main {
   overflow: hidden;
   text-overflow: clip;
 }
+/* Rev445 (Carlos QA Rev444): one more notch up for the AWS/TWS sub-line. */
 .dash-rose .dash-cell .sub {
   width: 100%;
-  font-size: clamp(11px, 2vw, 16px) !important;
+  font-size: clamp(20px, 3.8vw, 32px) !important;
   line-height: 1.1;
-  margin-top: 2px;
+  margin-top: 3px;
+  font-weight: 700;
 }
 /* Rev50: `!important` so the generic .dash-cell .value/.sub rules
    defined earlier in this file (which centered everything) cannot win
@@ -4040,18 +4076,16 @@ body.pypilot-offline .pypilot-write {
    of the self boat with name + CPA + TCPA + ACK button. The
    notification source is signalk-collision-alerts (SK v2 Notifications
    API); pypilot-newui only renders + routes the ACK. */
-.ais-target polygon {
-  fill: #ff3b30;
-  stroke: #fff;
-  stroke-width: 1;
-  opacity: 0.95;
+/* Rev443: AIS target is a top-view <image> href="boat-cenital.svg"
+   tinted by SVG filter (ais-tint-alarm / warn / acked). Only cursor,
+   pointer-events and the alarm blink are driven by CSS; colour +
+   scale live on the SVG element itself. */
+.ais-target {
+  cursor: pointer; /* tap opens data popup */
+  pointer-events: all;
 }
-.ais-target.ais-warn polygon {
-  fill: #f5a623; /* orange for warn, red for alarm */
-}
-.ais-target.ais-alarm {
-  animation: ais-blink 900ms infinite;
-}
+.ais-target.ais-alarm { animation: ais-blink 900ms infinite; }
+.ais-target.ais-acked { animation: none !important; }
 @keyframes ais-blink {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
@@ -4128,6 +4162,35 @@ body.pypilot-offline .pypilot-write {
 .ais-infobox-html.ais-warn .ais-infobox-ack { background: #f5a623; color: #1a1d22; }
 .ais-infobox-ack:hover { filter: brightness(1.1); }
 .ais-infobox-ack:active { transform: scale(0.95); }
+/* Rev442: ACKed state — same button, muted colours, not clickable. */
+.ais-infobox-ack.is-acked,
+.ais-infobox-ack[disabled] {
+  background: #6b7a8f !important;
+  color: #e8ecf2 !important;
+  border-color: #a8b4c4 !important;
+  cursor: default;
+  opacity: 0.9;
+}
+.ais-infobox-ack.is-acked:active,
+.ais-infobox-ack[disabled]:active { transform: none; }
+/* Rev442: X close button on the infobox head. Lives top-right of the
+   card so the sailor can dismiss a popup opened by tap on the hull. */
+.ais-infobox-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: #cbd3dc;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  font-weight: 700;
+}
+.ais-infobox-close:hover { color: #fff; }
 /* Rev438: multi-target navigator inside the head row. Compact buttons
    + fraction counter. Hidden by default when there's only one alarm. */
 .ais-infobox-nav {

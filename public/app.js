@@ -591,6 +591,9 @@
       "ais.objetivo":            "target",
       "ais.voice.alarm":         "AIS alarm",
       "ais.voice.warn":          "AIS warning",
+      "ais.voice.collisionCourse": "target on collision course",
+      "ais.ack":                 "ACK",
+      "ais.acked":               "ACKED",
       "ais.voice.at":            "at",
       "ais.voice.metres":        "metres",
       "ais.voice.miles":         "miles",
@@ -1466,8 +1469,11 @@
       "dash.overlay.ais.config": "Abrir ajustes del plugin",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "ais.objetivo":            "objetivo",
-      "ais.voice.alarm":         "Alarma A I S",
-      "ais.voice.warn":          "Aviso A I S",
+      "ais.voice.alarm":         "Alarma AIS",
+      "ais.voice.warn":          "Aviso AIS",
+      "ais.voice.collisionCourse": "target en rumbo de colisión",
+      "ais.ack":                 "SILENCIAR",
+      "ais.acked":               "SILENCIADO",
       "ais.voice.at":            "a",
       "ais.voice.metres":        "metros",
       "ais.voice.miles":         "millas",
@@ -2421,6 +2427,99 @@
     _netHealthPing();
     setInterval(_netHealthPing, 5000);
   }
+  // Rev446 (Carlos): "pantalla completa en el navegador y hacer que la
+  // pantalla ni se apague ni se atenúe, como YouTube". One floating
+  // button:
+  //   • enter → requestFullscreen on <html> + Screen Wake Lock.
+  //   • exit  → exitFullscreen + release the lock (browser also releases
+  //     automatically on visibility hidden; we re-acquire on
+  //     visibilitychange when back).
+  // Wake Lock requires a user gesture, so we only acquire it from the
+  // tap handler. Chrome/Edge auto-release on hidden; we hook
+  // visibilitychange to re-request when the user comes back.
+  let _wakeLock = null;
+  async function _acquireWakeLock() {
+    try {
+      if (!("wakeLock" in navigator)) return;
+      if (_wakeLock && !_wakeLock.released) return;
+      _wakeLock = await navigator.wakeLock.request("screen");
+      _wakeLock.addEventListener && _wakeLock.addEventListener("release", () => {
+        console.info("[wake] lock released");
+      });
+      console.info("[wake] lock acquired");
+    } catch (e) {
+      // Common: NotAllowedError if called outside a user gesture, or
+      // the tab is hidden. Not fatal.
+      console.info("[wake] request failed:", e && e.name);
+    }
+  }
+  async function _releaseWakeLock() {
+    try { if (_wakeLock) await _wakeLock.release(); } catch { /* silent */ }
+    _wakeLock = null;
+  }
+  // Rev448 (Carlos): fullscreen + keep-awake "always on" by default.
+  // Browsers require a user gesture to request either, so we hook the
+  // FIRST pointer tap and promote the visor to fullscreen + take the
+  // Screen Wake Lock. The sailor can opt out via the ⛶ button — that
+  // writes "false" to localStorage so later reloads skip the auto-on.
+  const FS_PREF_KEY = "pypilot-newui.fullscreenAuto";
+  const _fsAutoEnabled = () => {
+    try { return localStorage.getItem(FS_PREF_KEY) !== "false"; } catch { return true; }
+  };
+  const _fsSetAuto = (on) => {
+    try { localStorage.setItem(FS_PREF_KEY, on ? "true" : "false"); } catch {}
+  };
+  function _wireFullscreenAndWakeLock() {
+    const btn = document.getElementById("fs-toggle");
+    if (!btn) return;
+    const updateIcon = () => {
+      const isFs = !!document.fullscreenElement;
+      btn.textContent = isFs ? "⤢" : "⛶";
+      btn.classList.toggle("is-fullscreen", isFs);
+    };
+    const enterFs = async () => {
+      const root = document.documentElement;
+      if (document.fullscreenElement) return;
+      if (root.requestFullscreen) await root.requestFullscreen();
+      else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+    };
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      try {
+        if (document.fullscreenElement) {
+          _fsSetAuto(false);  // sailor opted out; do not re-arm next load
+          await document.exitFullscreen();
+          await _releaseWakeLock();
+        } else {
+          _fsSetAuto(true);
+          await enterFs();
+          await _acquireWakeLock();
+        }
+      } catch (e) { console.warn("[fs] toggle failed:", e); }
+      updateIcon();
+    });
+    document.addEventListener("fullscreenchange", updateIcon);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && _wakeLock === null && _fsAutoEnabled()) {
+        _acquireWakeLock().catch(() => {});
+      }
+    });
+    // Auto-arm on the FIRST user interaction. Fullscreen + Wake Lock
+    // need a user gesture, so we piggy-back on whatever the sailor taps
+    // first (usually a tab or the rose).
+    if (_fsAutoEnabled()) {
+      const armOnce = async () => {
+        document.removeEventListener("pointerdown", armOnce, true);
+        document.removeEventListener("keydown",     armOnce, true);
+        try { await enterFs(); } catch { /* silent */ }
+        try { await _acquireWakeLock(); } catch { /* silent */ }
+        updateIcon();
+      };
+      document.addEventListener("pointerdown", armOnce, true);
+      document.addEventListener("keydown",     armOnce, true);
+    }
+    updateIcon();
+  }
   function connectSK() {
     const loc = window.location;
     const wsProto = loc.protocol === "https:" ? "wss" : "ws";
@@ -3020,7 +3119,7 @@
         if (state.windSpeedTrue == null) state.windSpeedTrue = numericOrNull(value);
         break;
       case "navigation.speedOverGround":
-        state.sog = numericOrNull(value); renderCogAndCurrent(); break;
+        state.sog = numericOrNull(value); renderCogAndCurrent(); renderRoseBottomChip(); break;
       case "navigation.courseOverGroundTrue":
         state.cog = numericOrNull(value); renderCogAndCurrent(); break;
       case "navigation.speedThroughWater":
@@ -3040,14 +3139,14 @@
         // First non-null wins: prefer belowKeel > belowTransducer > belowSurface.
         {
           const v = numericOrNull(value);
-          if (v != null) state.depth = v;
+          if (v != null) { state.depth = v; renderRoseBottomChip(); }
         }
         break;
       // Rev58: polar-performance-plugin. All values kept in SI (m/s for
       // speeds, rad for angles) so the DASH_DATA formatters can convert
       // consistently. Water temperature stays in kelvin.
       case "performance.polarSpeed":              state.polarSpeed  = numericOrNull(value); break;
-      case "performance.polarSpeedRatio":         state.polarRatio  = numericOrNull(value); break;
+      case "performance.polarSpeedRatio":         state.polarRatio  = numericOrNull(value); renderRoseBottomChip(); break;
       case "performance.velocityMadeGood":        state.vmg         = numericOrNull(value); break;
       case "performance.targetAngle":             state.targetAngle = numericOrNull(value); break;
       case "performance.targetSpeed":             state.targetSpeed = numericOrNull(value); break;
@@ -3108,6 +3207,54 @@
     _dashRenderCorners();
     renderWindRose();
     renderTargetArrow();
+    renderHeadingPrecision();
+  }
+  // Rev443 (Carlos QA Rev442): the second line of #rose-hdg-chip shows
+  // how FAR OFF the autopilot is from its own target — the sailor's
+  // "precision gauge". Not the target value itself.
+  //   compass mode  → signed shortest-arc (target − heading)
+  //   wind mode     → signed (target − AWA), target is the AWA setpoint
+  //   true-wind     → signed (target − TWA)
+  //   aproado/empopado → wind flavour same as above
+  // Rev444 (Carlos QA Rev443): sign flipped — the sailor reads the
+  // number as "how much and in which direction the pilot still has to
+  // correct": negative = pilot must go to port (babor), positive = pilot
+  // must go to starboard (estribor). Also, when the AP is NOT engaged
+  // (state.engaged === false) the value is "--": state.target can carry
+  // a stale number from the previous AP session.
+  // Colour: |err|<3° green, |err|<10° orange, else red.
+  function renderHeadingPrecision() {
+    const el = document.getElementById("rose-hdg-prec");
+    if (!el) return;
+    const mode = String(state.mode || "").toLowerCase();
+    let currentRad = null, targetRad = null;
+    if (mode === "wind" || mode === "aproado") {
+      currentRad = (typeof state.windAngle === "number") ? state.windAngle : null;
+      targetRad = (typeof state.target === "number") ? state.target : null;
+    } else if (mode === "true wind" || mode === "empopado") {
+      currentRad = (typeof state.windAngleTrue === "number") ? state.windAngleTrue : null;
+      targetRad = (typeof state.target === "number") ? state.target : null;
+    } else {
+      currentRad = (typeof state.heading === "number") ? state.heading : null;
+      targetRad = (typeof state.target === "number") ? state.target : null;
+    }
+    if (!state.engaged || currentRad == null || targetRad == null) {
+      el.textContent = "--";
+      el.setAttribute("fill", "#8a98a8");
+      return;
+    }
+    // Sign convention Carlos: how much the pilot still has to correct.
+    // target - current → +ve = pilot must go starboard; -ve = pilot
+    // must go port.
+    let errRad = targetRad - currentRad;
+    while (errRad >  Math.PI) errRad -= 2 * Math.PI;
+    while (errRad < -Math.PI) errRad += 2 * Math.PI;
+    const errDeg = errRad * RAD2DEG;
+    const abs = Math.abs(errDeg);
+    const col = abs < 3 ? "#2ecc71" : (abs < 10 ? "#f5a623" : "#ff3b30");
+    const sign = errDeg > 0 ? "+" : (errDeg < 0 ? "-" : "");
+    el.textContent = `${sign}${Math.abs(Math.round(errDeg))}°`;
+    el.setAttribute("fill", col);
   }
 
   // Rev48: 4 configurable corner tiles. Each corner shows one field
@@ -3236,6 +3383,157 @@
     } catch {}
     _dashRenderCorners();
     renderWindRose();
+  }
+  // Rev439 → Rev445 (Carlos): the chip at the bottom of the rose is a
+  // user-configurable carousel. Short-tap cycles through the selected
+  // paths; long-press opens a modal where the sailor picks up to 4
+  // paths from DASH_DATA (reuses the same catalog as the 4 configurable
+  // corners). Persisted in localStorage.
+  const ROSE_BOTTOM_CHIP_LS_KEY  = "pypilot-newui.roseBottomChipPaths";
+  const ROSE_BOTTOM_CHIP_MAX     = 4;
+  const ROSE_BOTTOM_CHIP_DEFAULT = ["sog", "depth", "perfPolarPct"];
+  state.roseBottomChipPaths = (() => {
+    try {
+      const raw = localStorage.getItem(ROSE_BOTTOM_CHIP_LS_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length > 0) {
+          const filt = arr.filter((k) => typeof k === "string").slice(0, ROSE_BOTTOM_CHIP_MAX);
+          if (filt.length > 0) return filt;
+        }
+      }
+    } catch {}
+    return ROSE_BOTTOM_CHIP_DEFAULT.slice();
+  })();
+  state.roseBottomChipIdx = 0;
+  function _roseChipKeyLabel(entry) {
+    if (!entry) return "";
+    return typeof entry.label === "function" ? (entry.label() || "") : (entry.label || "");
+  }
+  function _roseChipValueOf(entry) {
+    if (!entry) return "---";
+    const v = entry.read();
+    if (v && typeof v === "object" && "value" in v) {
+      return v.value + (v.sub ? " " + v.sub : "");
+    }
+    return String(v);
+  }
+  function renderRoseBottomChip() {
+    const label = document.getElementById("rose-speed-label");
+    const text  = document.getElementById("rose-speed");
+    const chip  = document.getElementById("rose-speed-chip");
+    if (!chip && !label && !text) return;
+    const paths = state.roseBottomChipPaths && state.roseBottomChipPaths.length
+      ? state.roseBottomChipPaths : ROSE_BOTTOM_CHIP_DEFAULT;
+    if (state.roseBottomChipIdx >= paths.length) state.roseBottomChipIdx = 0;
+    const key = paths[state.roseBottomChipIdx];
+    const entry = DASH_DATA[key];
+    if (!entry) {
+      if (label) label.textContent = "?";
+      if (text)  text.textContent  = "---";
+      return;
+    }
+    if (label) label.textContent = _roseChipKeyLabel(entry);
+    if (text)  text.textContent  = _roseChipValueOf(entry);
+    if (chip) chip.classList.remove("wind-app", "wind-true");
+  }
+  function _cycleRoseBottomChip() {
+    const paths = state.roseBottomChipPaths && state.roseBottomChipPaths.length
+      ? state.roseBottomChipPaths : ROSE_BOTTOM_CHIP_DEFAULT;
+    state.roseBottomChipIdx = (state.roseBottomChipIdx + 1) % paths.length;
+    renderRoseBottomChip();
+  }
+  function _saveRoseBottomChipPaths() {
+    try { localStorage.setItem(ROSE_BOTTOM_CHIP_LS_KEY, JSON.stringify(state.roseBottomChipPaths)); } catch {}
+  }
+  // Rev445: modal selector for the bottom chip. Lists every DASH_DATA
+  // key (base + extras + custom) with a checkbox. Max 4 selected: when
+  // the sailor tries to add a 5th, the oldest in the ordered selection
+  // is dropped. "Guardar" persists + repaints; "Cancelar" discards.
+  function _openRoseChipSelectorModal() {
+    let m = document.getElementById("rose-chip-selector-modal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "rose-chip-selector-modal";
+      m.className = "tune-fork-backdrop";
+      m.innerHTML =
+        `<div class="modal-card" style="max-width:420px">` +
+        `  <h3 id="rose-chip-sel-title" style="margin:0 0 6px 0"></h3>` +
+        `  <div id="rose-chip-sel-sub" style="color:var(--fg-dim);font-size:12px;margin-bottom:8px"></div>` +
+        `  <ul id="rose-chip-sel-list" style="list-style:none;padding:0;margin:0 0 10px 0;max-height:50vh;overflow-y:auto"></ul>` +
+        `  <div class="tune-fork-actions">` +
+        `    <button type="button" id="rose-chip-sel-save" class="primary"></button>` +
+        `    <button type="button" id="rose-chip-sel-cancel" class="ghost"></button>` +
+        `  </div>` +
+        `</div>`;
+      document.body.appendChild(m);
+      m.addEventListener("click", (ev) => { if (ev.target === m) m.hidden = true; });
+      m.querySelector("#rose-chip-sel-cancel").addEventListener("click", () => { m.hidden = true; });
+      m.querySelector("#rose-chip-sel-save").addEventListener("click", () => {
+        const ul = m.querySelector("#rose-chip-sel-list");
+        const picked = Array.from(ul.querySelectorAll("input[type=checkbox]:checked"))
+          .map((cb) => cb.dataset.key);
+        if (picked.length === 0) { m.hidden = true; return; }
+        state.roseBottomChipPaths = picked.slice(0, ROSE_BOTTOM_CHIP_MAX);
+        state.roseBottomChipIdx = 0;
+        _saveRoseBottomChipPaths();
+        renderRoseBottomChip();
+        m.hidden = true;
+      });
+    }
+    const es = (typeof currentLang === "function" && currentLang() === "es");
+    m.querySelector("#rose-chip-sel-title").textContent = es ? "Chip inferior de la rosa" : "Rose bottom chip";
+    m.querySelector("#rose-chip-sel-sub").textContent   = es
+      ? `Elige hasta ${ROSE_BOTTOM_CHIP_MAX} datos; se cicla con un toque corto.`
+      : `Pick up to ${ROSE_BOTTOM_CHIP_MAX} datapoints; short-tap cycles them.`;
+    m.querySelector("#rose-chip-sel-save").textContent   = es ? "Guardar" : "Save";
+    m.querySelector("#rose-chip-sel-cancel").textContent = es ? "Cancelar" : "Cancel";
+    const ul = m.querySelector("#rose-chip-sel-list");
+    ul.textContent = "";
+    // Build the catalog: base keys first, then opt-in extras the user
+    // enabled for the corners (same DASH_EXTRA set), then custom paths.
+    const baseKeys = ["sog","cog","hdg","depth","awa","aws","twa","tws","twd","wind","tgt","mode"];
+    const extraKeys = DASH_EXTRA_KEYS.filter((k) => _dashExtras.has(k));
+    const custKeys = _dashCustom.map((_, i) => _dashCustomKey(i));
+    const catalog = [...baseKeys, ...extraKeys, ...custKeys].filter((k) => DASH_DATA[k]);
+    const selected = new Set(state.roseBottomChipPaths || []);
+    const order = state.roseBottomChipPaths.slice();  // kept to drop oldest on overflow
+    const refreshCountUI = () => {
+      const n = ul.querySelectorAll("input:checked").length;
+      m.querySelector("#rose-chip-sel-title").textContent =
+        (es ? "Chip inferior de la rosa" : "Rose bottom chip") + ` (${n}/${ROSE_BOTTOM_CHIP_MAX})`;
+    };
+    for (const k of catalog) {
+      const li = document.createElement("li");
+      li.style.cssText = "display:flex;align-items:center;gap:10px;padding:6px 4px;border-bottom:1px solid var(--border)";
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.dataset.key = k;
+      cb.checked = selected.has(k);
+      cb.addEventListener("change", () => {
+        if (cb.checked) {
+          if (!order.includes(k)) order.push(k);
+          // Enforce the max — drop the OLDEST pick (not the one just made).
+          while (order.length > ROSE_BOTTOM_CHIP_MAX) {
+            const drop = order.shift();
+            const dropCb = ul.querySelector(`input[data-key="${drop}"]`);
+            if (dropCb) dropCb.checked = false;
+          }
+        } else {
+          const i = order.indexOf(k);
+          if (i >= 0) order.splice(i, 1);
+        }
+        refreshCountUI();
+      });
+      const span = document.createElement("span");
+      span.style.cssText = "flex:1;font-size:14px";
+      span.textContent = _roseChipKeyLabel(DASH_DATA[k]) || k;
+      li.appendChild(cb);
+      li.appendChild(span);
+      ul.appendChild(li);
+    }
+    refreshCountUI();
+    m.hidden = false;
+    m.classList.add("open");
   }
   // Called from applyValue whenever the AP mode changes. If the user has
   // not pinned the wind-corner preference, follow the mode: true-wind
@@ -3649,47 +3947,17 @@
   // seconds, parsed name) + a short "alarma/aviso" prefix tied to the
   // notification level. i18n keys cover ES/EN.
   function _aisVoiceMessage(value, mmsi, newState) {
-    const d = (value && value.data) || {};
-    // Parse name the same way as the infobox.
-    let name = null;
-    try {
-      const m = /Collision risk:\s*([^,]+),/.exec(String(value && value.message || ""));
-      if (m) name = m[1].trim();
-    } catch { /* silent */ }
-    if (!name || name === mmsi || /^\d{6,}$/.test(name)) {
-      name = t("ais.objetivo") || "objetivo";
-    }
-    // Distance: metres for < 500 m, miles for the rest (sailors read
-    // CPA in NM but close ranges are intuitive in metres).
-    let distStr = "";
-    if (typeof d.cpa === "number" && isFinite(d.cpa)) {
-      if (d.cpa < 500) {
-        distStr = `${Math.round(d.cpa)} ${t("ais.voice.metres") || "metros"}`;
-      } else {
-        const nm = d.cpa / 1852;
-        distStr = `${nm.toFixed(nm < 1 ? 2 : 1)} ${t("ais.voice.miles") || "millas"}`;
-      }
-    }
-    // TCPA: positive seconds → minutes rounded; negative or 0 means
-    // the pass is already happening ("ya").
-    let timeStr = "";
-    if (typeof d.tcpa === "number" && isFinite(d.tcpa)) {
-      if (d.tcpa <= 10) {
-        timeStr = t("ais.voice.now") || "ya";
-      } else {
-        const min = Math.max(1, Math.round(d.tcpa / 60));
-        timeStr = `${t("ais.voice.in") || "en"} ${min} ${(min === 1 ? (t("ais.voice.minute") || "minuto") : (t("ais.voice.minutes") || "minutos"))}`;
-      }
-    }
+    // Rev441 (Carlos 2026-10-10): "la alarma sigue diciendo el número
+    // MMSI cuando debería decir Alarma Target en rumbo de colisión
+    // (sin decir todos los números que no aportan nada)". Simplified
+    // to a single short sentence per level — the sailor glances at
+    // the infobox for CPA/TCPA; the voice is now a safety nudge, not
+    // a report.
     const kind = (newState === "alarm")
       ? (t("ais.voice.alarm") || "Alarma A I S")
       : (t("ais.voice.warn")  || "Aviso A I S");
-    // Build final sentence. Leave spaces for TTS prosody. Keep MMSI
-    // out of the voice entirely (Carlos's rule: say "objetivo" instead).
-    const parts = [kind + ",", name];
-    if (distStr) parts.push(t("ais.voice.at") || "a", distStr);
-    if (timeStr) parts.push(timeStr);
-    return parts.join(" ");
+    const line = t("ais.voice.collisionCourse") || "target en rumbo de colisión";
+    return `${kind}, ${line}`;
   }
   function _handleAisAlarmDelta(path, value) {
     // Rev434: respect the "AIS collision alarm" overlay toggle. Still
@@ -3712,7 +3980,12 @@
     // the alarm is treated as "silent info".
     const cached = state.aisTargetPos.get(mmsi);
     const targetStationary = cached && typeof cached.sog === "number" && cached.sog < AIS_IGNORE_SOG_MS;
-    if (!value || !isActive || locallyAcked || targetStationary) {
+    // Rev441 (Carlos 2026-10-10): "cuando hagamos ack, que siga la
+    // flecha". The map now carries ackeadas too — only the delta that
+    // declares the threat gone (!isActive) or a stationary target
+    // drops the entry. The ACK state is a per-render visual, not a
+    // reason to remove the target from the rose.
+    if (!value || !isActive || targetStationary) {
       state.aisAlarms.delete(mmsi);
     } else {
       state.aisAlarms.set(mmsi, { value, mmsi });
@@ -3777,10 +4050,15 @@
       const tb = Math.abs(b.value.data?.tcpa ?? 1e9);
       return ta - tb;
     });
+    // Rev441 (Carlos 2026-10-10): "cuando sean varias que queden solo las
+    // 3 más cercanas en TCPA". Cap the painted set to the 3 most urgent.
+    // The infobox nav still walks ALL alarms so the sailor can scroll
+    // through hidden ones.
+    const topN = alarms.slice(0, 3);
     // Draw one small red boat per active threat. r = 92 lands on the
     // outer edge of the compass circle (SVG viewBox -100 -110 200 220).
     const R = 92;
-    for (const a of alarms) {
+    for (const a of topN) {
       const d = a.value.data || {};
       // Rev436 (Carlos QA Rev435): use NOW positions, not cpaPositions
       // (which are the projected positions at the CPA future instant
@@ -3789,9 +4067,20 @@
       // + the target's position cached from the SK REST API. Fallback
       // to cpaPositions if the cache has not landed yet.
       const cached = state.aisTargetPos.get(a.mmsi);
-      const selfPos = (state.position && typeof state.position.latitude === "number")
-        ? state.position
-        : d.cpaPositions?.self;
+      // Rev448 (Carlos QA Rev447): state.position carries {lat, lon}
+      // (short keys), while _aisBearingDeg reads .latitude / .longitude.
+      // The old check `state.position.latitude === "number"` ALWAYS
+      // failed and silently fell back to cpaPositions.self — the
+      // PROJECTED position of our vessel at CPA time. Bearing was then
+      // computed between two FUTURE positions, which can land 180° off
+      // the current geometry. Adapt once here into the SK long-key
+      // shape expected by the geodesic helper.
+      let selfPos = null;
+      if (state.position && typeof state.position.lat === "number") {
+        selfPos = { latitude: state.position.lat, longitude: state.position.lon };
+      } else if (d.cpaPositions && d.cpaPositions.self) {
+        selfPos = d.cpaPositions.self;
+      }
       const tgtPos = (cached && cached.pos) || d.cpaPositions?.target;
       const relDeg = _aisRelativeBearingDeg(selfPos, tgtPos, state.heading);
       if (relDeg == null) continue;
@@ -3802,14 +4091,45 @@
       // points to (0,0). The triangle is drawn pointing up (0,-h), so
       // we rotate by relDeg + 180 to flip.
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.setAttribute("class", `ais-target ais-${a.value.state}`);
-      g.setAttribute("transform", `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${(relDeg + 180).toFixed(1)})`);
+      const acked = _aisIsMmsiAcked(a.mmsi);
+      g.setAttribute("class", `ais-target ais-${a.value.state}${acked ? " ais-acked" : ""}`);
       g.dataset.mmsi = a.mmsi;
-      // Simple red triangle (reusing a stylised boat glyph would need a
-      // separate SVG asset; the triangle is clear enough and parpadea).
-      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      poly.setAttribute("points", "0,-10 6,8 -6,8");
-      g.appendChild(poly);
+      // Rev443 (Carlos QA Rev442): the AIS target is now the full
+      // boat-cenital.svg top-view silhouette (same asset as the own
+      // vessel in the rose centre), tinted per state via an SVG
+      // feColorMatrix filter defined in #wind-rose <defs>:
+      //   alarm → red  (150% scale, blink)
+      //   warn  → orange (100% scale, fixed)
+      //   acked → dim blue-grey (100% scale, no blink)
+      // The whole <g> carries translate+rotate+scale so the sprite is
+      // centred on the target position and the hull points toward
+      // self (bow forward of the relative bearing).
+      const scale = acked ? 1.0 : (a.value.state === "alarm" ? 1.5 : 1.0);
+      // Rev447 (Carlos QA Rev445): the triangle used in Rev441-442 had
+      // its tip at (0,-10) — "forward = -y local" — so `rotate(relDeg+180)`
+      // pointed the tip at self. The boat-cenital.svg hull has its BOW
+      // at +x local (the asset is drawn horizontal, bow to the right of
+      // the viewBox). The correct SVG rotation to point +x local at the
+      // origin from relative bearing B is `rotate(B + 90)`:
+      //   B=0 (target to N): rotate 90°  → bow faces +y global → origin
+      //   B=90 (target to E): rotate 180° → bow faces -x global → origin
+      //   B=180 (target to S): rotate 270° → bow faces -y global → origin
+      g.setAttribute("transform",
+        `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${(relDeg + 90).toFixed(1)}) scale(${scale})`);
+      const filterId = acked ? "ais-tint-acked"
+        : (a.value.state === "alarm" ? "ais-tint-alarm" : "ais-tint-warn");
+      // Base image: 28 × 9.3 units (viewBox 456×152 → aspect ≈ 3:1),
+      // centred on (0,0). Scale applied via the parent <g>.
+      const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
+      img.setAttributeNS("http://www.w3.org/1999/xlink", "href", "boat-cenital.svg");
+      img.setAttribute("href", "boat-cenital.svg");
+      img.setAttribute("x", "-14");
+      img.setAttribute("y", "-4.65");
+      img.setAttribute("width", "28");
+      img.setAttribute("height", "9.3");
+      img.setAttribute("filter", `url(#${filterId})`);
+      img.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      g.appendChild(img);
       layer.appendChild(g);
     }
     // Rev432: infobox + ACK as a persistent HTML div.
@@ -3819,6 +4139,16 @@
     if (!box) return;
     if (typeof state._aisInfoboxIdx !== "number") state._aisInfoboxIdx = 0;
     if (state._aisInfoboxIdx >= alarms.length) state._aisInfoboxIdx = 0;
+    // Rev441: if the current idx points at an ACKed alarm, prefer the
+    // first NON-ACKed one so a brand-new threat auto-shows its data
+    // instead of being hidden behind a silenced row. If all are
+    // ACKed, do not auto-show (sailor can tap a triangle to open).
+    const activeIdxs = alarms.map((a, i) => _aisIsMmsiAcked(a.mmsi) ? -1 : i).filter((i) => i >= 0);
+    if (!state._aisInfoboxUserPicked) {
+      if (activeIdxs.length > 0 && _aisIsMmsiAcked(alarms[state._aisInfoboxIdx].mmsi)) {
+        state._aisInfoboxIdx = activeIdxs[0];
+      }
+    }
     const top = alarms[state._aisInfoboxIdx];
     const d = top.value.data || {};
     const cpaNm = (d.cpa != null) ? (d.cpa / 1852) : null;
@@ -3874,7 +4204,33 @@
         closingEl.hidden = true;
       }
     }
-    box.hidden = false;
+    // Rev441: hide the infobox if the entry we would show is ACKed and
+    // no user tap forced it open; otherwise paint and show it.
+    const topAcked = _aisIsMmsiAcked(top.mmsi);
+    // Rev442 (Carlos QA Rev441): the ACK button labels + disables when
+    // this MMSI is already silenced. The sailor still sees the data
+    // without being able to re-ACK (nothing to do; the entry is
+    // already in state.aisLocalAckedMmsis for 10 min).
+    const ackBtn = document.getElementById("ais-infobox-ack");
+    if (ackBtn) {
+      if (topAcked) {
+        ackBtn.textContent = t("ais.acked") || "ACKED";
+        ackBtn.setAttribute("disabled", "");
+        ackBtn.classList.add("is-acked");
+      } else {
+        ackBtn.textContent = t("ais.ack") || "ACK";
+        ackBtn.removeAttribute("disabled");
+        ackBtn.classList.remove("is-acked");
+      }
+    }
+    // Rev442 (Carlos QA Rev441): if the user tapped a specific arrow,
+    // show it even if ACKed (so the data popup can be inspected).
+    // Otherwise hide ACKed targets so new threats own the box.
+    if (topAcked && !state._aisInfoboxUserPicked) {
+      box.hidden = true;
+    } else {
+      box.hidden = false;
+    }
   }
   // Rev438: lightweight modal to list silenced MMSIs with un-silence
   // per entry + "un-silence all". Uses _pmPrompt-style elements.
@@ -3950,8 +4306,12 @@
     // what UUID the next delta carries. Even if the id is empty (edge
     // case) we still silence the mmsi — the whole point of ACK is to
     // stop the specific vessel being pestered.
+    // Rev441 (Carlos 2026-10-10): keep the arrow on the rose after ACK
+    // ("que siga la flecha"). We no longer delete from state.aisAlarms;
+    // renderAisAlarms paints the triangle with class .ais-acked (dim,
+    // no blink). The entry is dropped by handleDelta only when the
+    // plugin declares the threat gone.
     try { state.aisLocalAckedMmsis.set(mmsi, Date.now() + AIS_ACK_TTL_MS); } catch { /* silent */ }
-    try { state.aisAlarms.delete(mmsi); } catch { /* silent */ }
     try { renderAisAlarms(); } catch { /* silent */ }
     if (!id) return;
     try {
@@ -4034,38 +4394,11 @@
       }
     }
 
-    // Rev65 / 2.0.2: bottom AWS/TWS readout now uses TWO separate text
-    // nodes (small dim label on top, big white number below) and follows
-    // `state.windCornerShow` so a tap on the wind corner also swaps the
-    // readout at the bottom of the rose. Falls back gracefully if the
-    // chosen source has no value yet.
-    const useTrue = state.windCornerShow === "twa";
-    const primarySpd = useTrue ? state.windSpeedTrue : state.windSpeed;
-    const primaryTag = useTrue ? "TWS" : "AWS";
-    let windSpeed = primarySpd, tag = primaryTag;
-    if (windSpeed == null) {
-      // Fall back to the other source so the number is not "---" when only
-      // one wind flavour is available (typical on boats without SOG).
-      const altSpd = useTrue ? state.windSpeed : state.windSpeedTrue;
-      const altTag = useTrue ? "AWS" : "TWS";
-      if (altSpd != null) { windSpeed = altSpd; tag = altTag; }
-    }
-    const speedLabel = document.getElementById("rose-speed-label");
-    const speedText  = document.getElementById("rose-speed");
-    const chip = document.getElementById("rose-speed-chip");
-    if (speedLabel) speedLabel.textContent = windSpeed == null ? "" : tag;
-    if (speedText) {
-      speedText.textContent = windSpeed == null
-        ? "--- kn"
-        : (windSpeed * 1.94384).toFixed(1) + " kn";
-    }
-    // Rev152 (Carlos): tint the WHOLE chip (label + value) with the
-    // matching arrow colour - AWS gets amber, TWS gets teal. Toggling
-    // a class on the chip lets CSS colour both children at once.
-    if (chip) {
-      chip.classList.remove("wind-app", "wind-true");
-      if (windSpeed != null) chip.classList.add(tag === "TWS" ? "wind-true" : "wind-app");
-    }
+    // Rev439 (Carlos): the bottom chip on the rose no longer mirrors
+    // AWS/TWS. It cycles SOG → Depth → %Polar on tap (persisted in
+    // localStorage). The 4 corner tiles keep their own "wind" option
+    // and its TWA/AWS toggle intact.
+    renderRoseBottomChip();
   }
 
   // Rev57: target indicator - a small cyan diamond OUTSIDE the compass
@@ -7131,7 +7464,11 @@
       li.setAttribute("role", "option");
       li.dataset.mode = String(v);
       if (v === state.mode) li.classList.add("active");
-      li.textContent = _modeLabel(v);
+      // Rev441 (Carlos 2026-10-10): the modal shows the LONG labels
+      // ("Viento Aparente", "Viento Real") so wind modes are explicit
+      // on first open. The button on the bbar still uses the SHORT
+      // label ("Aparente" / "Real") to fit the narrow chip.
+      li.textContent = _modeLabel(v, true);
       list.appendChild(li);
     }
     // Refresh the profile sub-select so its header shows the active one.
@@ -7514,21 +7851,28 @@
     if (!res.ok) throw new Error(`${op}: HTTP ${res.status}`);
     return res;
   }
+  // Rev446 (Carlos "sigue pidiendo de vez en cuando token en sk server"):
+  // require THREE consecutive 401 writes before wiping the token and
+  // kicking off a fresh Access Request. A single 401 (SK restart in
+  // flight, transient proxy hiccup) used to be enough to invalidate a
+  // perfectly good permanent token and pop the admin-approval modal on
+  // the sailor's lap.
+  let _authWrite401Streak = 0;
+  const _AUTH_401_THRESHOLD = 3;
   function handleAuthWrite(res) {
     if (!res) return res;
     if (res.status === 401) {
-      console.warn(`[pypilot-newui] auth 401 on:`, res.url);
-      // Rev87: fire-and-forget a new SK Access Request instead of the old
-      // username/password modal. If the admin has already approved this
-      // clientId once (typical after first install), the server returns
-      // a fresh permanent token immediately and the modal never shows.
-      // Only when the admin has to approve for the first time will the
-      // access-request modal appear with instructions.
-      try {
-        setToken("");
-        requestAccess().catch(() => {});
-      } catch {}
+      _authWrite401Streak++;
+      console.warn(`[pypilot-newui] auth 401 (${_authWrite401Streak}/${_AUTH_401_THRESHOLD}) on:`, res.url);
+      if (_authWrite401Streak >= _AUTH_401_THRESHOLD) {
+        _authWrite401Streak = 0;
+        try {
+          setToken("");
+          requestAccess().catch(() => {});
+        } catch {}
+      }
     } else if (res.status < 400) {
+      _authWrite401Streak = 0;
       console.info(`[pypilot-newui] write ok ${res.status}:`, res.url);
     } else {
       console.warn(`[pypilot-newui] write failed ${res.status}:`, res.url);
@@ -8489,6 +8833,24 @@
         try { await apDisengage(); console.info("empopado: AP disengaged (was OFF before empopado)"); }
         catch (e) { console.warn("empopado: disengage restore failed", e); }
       }
+    } else {
+      // Rev440 (Carlos 2026-10-10): salir dejando el pilot en "true wind"
+      // es menos estable que compass para mantener el rumbo actual.
+      // Conmutar a compass con target = heading actual: el barco se
+      // queda EXACTAMENTE donde está pero bajo el modo seguro. Si no
+      // hay sensor de heading, dejar como estaba.
+      const curHdg = (typeof state.heading === "number") ? state.heading : null;
+      if (curHdg != null) {
+        try {
+          await apSetModeAndWait("compass");
+          await apSetTargetRad(curHdg);
+          console.info(`empopado: safe-exit to compass @ ${(curHdg * RAD2DEG).toFixed(1)} deg (Rev440)`);
+        } catch (e) {
+          console.warn("empopado: safe-exit to compass failed", e);
+        }
+      } else {
+        console.info("empopado: finish without restore (Rev407 default) — no heading sensor, leaving pilot where it is");
+      }
     }
     // Auto-hide del summary igual que aproado (usa APROADO_SUMMARY_MS).
     ap._summaryTimer = setTimeout(() => { empopadoTearDown(); }, APROADO_SUMMARY_MS);
@@ -8572,7 +8934,27 @@
         catch (e) { console.warn("aproado: disengage failed", e); }
       }
     } else {
-      console.info("aproado: finish without restore (Rev415 default) — leaving pilot where it is");
+      // Rev440 (Carlos 2026-10-10): "al salir queda en wind, mejor
+      // compass por estabilidad de rumbo". aproadoStart puso el pilot
+      // en modo "wind" para controlar AWA. Si no restauramos, el
+      // barco se queda en wind indefinidamente — menos estable que
+      // compass para mantener el rumbo actual. Fix: conmutar a
+      // compass con target = heading actual, de modo que el pilot
+      // sostenga EXACTAMENTE el rumbo donde quedó la maniobra pero
+      // en el modo seguro. Si falta sensor de heading, dejar como
+      // estaba (sin sacar al pilot de wind a ciegas).
+      const curHdg = (typeof state.heading === "number") ? state.heading : null;
+      if (curHdg != null) {
+        try {
+          await apSetModeAndWait("compass");
+          await apSetTargetRad(curHdg);
+          console.info(`aproado: safe-exit to compass @ ${(curHdg * RAD2DEG).toFixed(1)} deg (Rev440)`);
+        } catch (e) {
+          console.warn("aproado: safe-exit to compass failed", e);
+        }
+      } else {
+        console.info("aproado: finish without restore (Rev415 default) — no heading sensor, leaving pilot where it is");
+      }
     }
     apr._summaryTimer = setTimeout(() => {
       if (state.aproado === apr) {
@@ -9625,6 +10007,56 @@
       };
       if (prevBtn) prevBtn.addEventListener("click", (ev) => { ev.stopPropagation(); step(-1); });
       if (nextBtn) nextBtn.addEventListener("click", (ev) => { ev.stopPropagation(); step(1); });
+      // Rev442 (Carlos QA Rev441): the X button hides the infobox and
+      // clears the user-pick flag so new threats can take over again.
+      const closeBtn = document.getElementById("ais-infobox-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          state._aisInfoboxUserPicked = false;
+          clearTimeout(state._aisInfoboxUserPickTimer);
+          const box = document.getElementById("ais-infobox");
+          if (box) box.hidden = true;
+        });
+      }
+      // Rev441 (Carlos 2026-10-10): "si hacemos tap en la flecha del
+      // target riesgo AIS, se abra su ventana de datos". Delegation on
+      // the SVG layer: find the enclosing <g.ais-target> and open its
+      // data in the infobox. Works for both pending and ACKed arrows.
+      const aisLayer = document.getElementById("ais-alarm-layer");
+      if (aisLayer) {
+        aisLayer.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          let el = ev.target;
+          while (el && el !== aisLayer && !(el.classList && el.classList.contains("ais-target"))) {
+            el = el.parentNode;
+          }
+          if (!el || el === aisLayer) return;
+          const mmsi = el.dataset && el.dataset.mmsi;
+          if (!mmsi || !state.aisAlarms) return;
+          const arr = Array.from(state.aisAlarms.values());
+          arr.sort((a, b) => {
+            const sa = a.value.state === "alarm" ? 0 : 1;
+            const sb = b.value.state === "alarm" ? 0 : 1;
+            if (sa !== sb) return sa - sb;
+            const ta = Math.abs(a.value.data?.tcpa ?? 1e9);
+            const tb = Math.abs(b.value.data?.tcpa ?? 1e9);
+            return ta - tb;
+          });
+          const idx = arr.findIndex((a) => a.mmsi === mmsi);
+          if (idx < 0) return;
+          state._aisInfoboxIdx = idx;
+          state._aisInfoboxUserPicked = true;
+          renderAisAlarms();
+          // Auto-reset the user-pick flag after 20 s so new threats
+          // can take over the box afterwards.
+          clearTimeout(state._aisInfoboxUserPickTimer);
+          state._aisInfoboxUserPickTimer = setTimeout(() => {
+            state._aisInfoboxUserPicked = false;
+            try { renderAisAlarms(); } catch { /* silent */ }
+          }, 20000);
+        });
+      }
     } catch (e) { console.warn("[ais] ack wire:", e); }
   }
 
@@ -13809,14 +14241,28 @@
       let chipDownTs = 0;
       let chipDownX = 0, chipDownY = 0;
       let chipMoved = false;
+      let chipLongPressTimer = null;
+      let chipLongPressFired = false;
       const CHIP_TAP_MAX_MS = 400;
+      const CHIP_LONG_PRESS_MS = 550;
       const CHIP_MOVE_TOLERANCE_PX = 8;
+      const cancelLongPress = () => {
+        if (chipLongPressTimer) { clearTimeout(chipLongPressTimer); chipLongPressTimer = null; }
+      };
       speedChip.addEventListener("pointerdown", (e) => {
         if (e.button !== undefined && e.button !== 0) return;
         chipDownTs = Date.now();
         chipDownX = e.clientX;
         chipDownY = e.clientY;
         chipMoved = false;
+        chipLongPressFired = false;
+        cancelLongPress();
+        chipLongPressTimer = setTimeout(() => {
+          chipLongPressFired = true;
+          chipLongPressTimer = null;
+          try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* silent */ }
+          _openRoseChipSelectorModal();
+        }, CHIP_LONG_PRESS_MS);
         e.stopPropagation();
       });
       speedChip.addEventListener("pointermove", (e) => {
@@ -13825,17 +14271,23 @@
         const dy = e.clientY - chipDownY;
         if (Math.abs(dx) > CHIP_MOVE_TOLERANCE_PX || Math.abs(dy) > CHIP_MOVE_TOLERANCE_PX) {
           chipMoved = true;
+          cancelLongPress();
         }
       });
       speedChip.addEventListener("pointerup", (e) => {
         e.stopPropagation();
+        cancelLongPress();
         if (!chipDownTs) return;
         const elapsed = Date.now() - chipDownTs;
         chipDownTs = 0;
+        if (chipLongPressFired) return;  // selector already opened
         if (chipMoved) return;
         if (elapsed > CHIP_TAP_MAX_MS) return;
-        _toggleWindCornerShow();
+        // Rev439/445: bottom chip cycles through the user-picked set.
+        _cycleRoseBottomChip();
       });
+      speedChip.addEventListener("pointercancel", () => { cancelLongPress(); chipDownTs = 0; });
+      speedChip.addEventListener("pointerleave",  () => { cancelLongPress(); });
       // Kill the synthesised click that follows pointer events so it
       // cannot bubble up and trigger anything else on <main>.
       speedChip.addEventListener("click", (e) => {
@@ -16261,5 +16713,7 @@
     // AP mutations (engage / mode / target) do not silently 401 after
     // the SK server restarts.
     ensureAccessOnBoot().catch(() => {});
+    // Rev446 (Carlos): wire fullscreen + keep-awake toggle.
+    try { _wireFullscreenAndWakeLock(); } catch (e) { console.warn("[fs/wake] wire:", e); }
   });
 })();
