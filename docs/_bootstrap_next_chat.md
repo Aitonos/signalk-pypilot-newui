@@ -1,15 +1,32 @@
 # Bootstrap para el próximo chat — signalk-pypilot-newui
 
-Última actualización: 2026-10-14 post 3.1.4.
+Última actualización: 2026-10-15 post 3.2.0.
 
 ## Qué pasa en este repo ahora mismo
 
-- **Versión publicada en NPM**: `3.1.4`.
-- **Rev desplegada al Pi5 de Carlos (Tunatunes)**: `Rev469` (vía
-  `.\deploy.ps1 -Restart` local, local y NPM coinciden).
-- **Estado**: safety-fixes del 2026-10-12 sea trial cerrados; iOS PWA
-  issue #5 esperando feedback de @eric-fitzsimon.
-- Working tree limpio (todo commiteado tras publish 3.1.4).
+- **Versión publicada en NPM**: `3.2.0` (Rev482). Desplegada en el Pi5.
+- **signalk-mareas-ihm** publicado a la vez: `2.13.0` (Rev888), nombres AIS
+  rellenados en el árbol SK para todas las apps.
+- Working tree limpio.
+- **3.2.0 trae**: rosa AIS rehecha sobre posiciones reales (causa raíz: la
+  URN codificada daba 404 en REST, Rev474), escala log + etiqueta de
+  distancia, nombre SK en la ficha, botón de mareas sobre la esquina
+  inferior derecha + popup con curva, visor de fondeo de Mareas embebido
+  en la rosa, Freeboard precargado de fondo (ficha propia con
+  interruptor por dispositivo).
+- Docs vivos: `docs/_audit_ais_rose_targets_rev470.md`,
+  `docs/_feature_mareas_ihm_integration.md`.
+
+## Pendiente inmediato
+
+- **QA en agua 3.2.0**: barco AIS en movimiento real → casco donde está,
+  línea en su rumbo; barcos amarrados sin línea ni alarma.
+- **POLARYS amarrado reporta 1,6 kn** (ruido GPS > umbral 0,5 kn). Si se
+  repite con más barcos: subir umbral o usar `navigation.state` "moored".
+- **Pulsación larga en la rosa → selector de webapps SK**
+  (`/skServer/webapps`), diseño en `_feature_mareas_ihm_integration.md`.
+- **Botón de las 9** reservado, sin uso decidido.
+- Issue #5 iOS: seguimos esperando a @eric-fitzsimon.
 
 ## Infra operativa
 
