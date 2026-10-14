@@ -4384,3 +4384,9 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
 .tide-svg .tide-axis { stroke: #2b3542; stroke-width: 1; }
 .tide-svg text { fill: #c9d4df; font-size: 10px; }
 .tide-svg .tide-ext { fill: #e6edf3; font-weight: 700; }
+/* Rev484: interactive cursor on the tide curve. touch-action:none so a
+   finger drag moves the cursor instead of scrolling the popup. */
+.tide-svg { touch-action: none; cursor: crosshair; }
+.tide-svg .tide-cur-line { stroke: #4dd4ff; stroke-width: 1.2; }
+.tide-svg .tide-cur-dot { fill: #4dd4ff; stroke: #0a1220; stroke-width: 1.5; }
+.tide-svg .tide-cur-txt { fill: #4dd4ff; font-size: 11px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #0a1220; stroke-width: 3px; }

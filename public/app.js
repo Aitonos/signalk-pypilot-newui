@@ -10591,6 +10591,55 @@
             + `${fmtHM(new Date(next.t))} (${next.h.toFixed(2)} m)</div>`;
         }
         tideBody.innerHTML = html + svg;
+        // Rev484 (Carlos): interactive curve — mouse hover or finger drag
+        // shows a cursor with time, height and rising/falling at that
+        // instant. Pointer -> SVG x uses the rendered width ratio (both
+        // in client px, so CSS zoom does not skew it).
+        const svgEl = tideBody.querySelector(".tide-svg");
+        if (svgEl) {
+          const NS = "http://www.w3.org/2000/svg";
+          const cur = document.createElementNS(NS, "g");
+          cur.setAttribute("class", "tide-cursor");
+          cur.style.display = "none";
+          const cLine = document.createElementNS(NS, "line");
+          cLine.setAttribute("class", "tide-cur-line");
+          cLine.setAttribute("y1", String(top - 6));
+          cLine.setAttribute("y2", String(Hh - bot));
+          const cDot = document.createElementNS(NS, "circle");
+          cDot.setAttribute("class", "tide-cur-dot");
+          cDot.setAttribute("r", "4");
+          const cTxt = document.createElementNS(NS, "text");
+          cTxt.setAttribute("class", "tide-cur-txt");
+          cTxt.setAttribute("y", String(top - 6));
+          cur.appendChild(cLine); cur.appendChild(cDot); cur.appendChild(cTxt);
+          svgEl.appendChild(cur);
+          const showAt = (clientX) => {
+            const rect = svgEl.getBoundingClientRect();
+            if (!rect.width) return;
+            const x = Math.min(W, Math.max(0, (clientX - rect.left) * (W / rect.width)));
+            const tt = t0 + (x / W) * (t1 - t0);
+            const h = tideAt(ext, tt);
+            if (h == null) { cur.style.display = "none"; return; }
+            const h2 = tideAt(ext, tt + 5 * 60e3);
+            const dir = (h2 == null) ? "" : (h2 > h + 0.002 ? " \u2191" : (h2 < h - 0.002 ? " \u2193" : ""));
+            cLine.setAttribute("x1", x.toFixed(1));
+            cLine.setAttribute("x2", x.toFixed(1));
+            cDot.setAttribute("cx", x.toFixed(1));
+            cDot.setAttribute("cy", Y(h).toFixed(1));
+            cTxt.setAttribute("x", Math.min(W - 52, Math.max(52, x)).toFixed(1));
+            cTxt.textContent = `${fmtHM(new Date(tt))} \u00b7 ${h.toFixed(2)} m${dir}`;
+            cur.style.display = "";
+          };
+          const hide = () => { cur.style.display = "none"; };
+          svgEl.addEventListener("pointermove", (ev) => showAt(ev.clientX));
+          svgEl.addEventListener("pointerdown", (ev) => {
+            showAt(ev.clientX);
+            try { svgEl.setPointerCapture(ev.pointerId); } catch { /* old browsers */ }
+          });
+          svgEl.addEventListener("pointerleave", hide);
+          svgEl.addEventListener("pointercancel", hide);
+          svgEl.addEventListener("pointerup", (ev) => { if (ev.pointerType !== "mouse") hide(); });
+        }
       };
       const loadTide = async () => {
         tideBody.textContent = t("tide.loading");
