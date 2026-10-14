@@ -3897,10 +3897,13 @@
   // and for the "ignore stationary targets" filter.
   if (!state.aisTargetPos) state.aisTargetPos = new Map();
   const AIS_TARGET_POS_FRESH_MS = 30 * 1000;
-  const AIS_IGNORE_SOG_MS = 0.08;   // ~0.15 kn → stationary / moored
   // Rev470: below this SOG the target's COG is GPS noise — no projected
   // track line, and the hull is oriented by headingTrue instead of COG.
   const AIS_PROJ_MIN_SOG_MS = 0.257;  // 0.5 kn
+  // Rev471 (Carlos OK 2026-10-14): 0.08 m/s (0.16 kn) was below the GPS
+  // noise of a moored class-B target (0.1-0.5 kn typical) — PELAGOS at
+  // 0.1 kn kept alarming in Moaña. Same threshold as the track line.
+  const AIS_IGNORE_SOG_MS = AIS_PROJ_MIN_SOG_MS;
   async function _aisRefreshTargetPos(mmsi) {
     try {
       const now = Date.now();
@@ -3931,6 +3934,14 @@
         fetchedAt: now,
       };
       state.aisTargetPos.set(mmsi, rec);
+      // Rev471 (audit Bug 4): the stationary / mode gate in
+      // _handleAisAlarmDelta runs at delta time, when the first delta of
+      // a target still has an EMPTY cache — so it always got in. The
+      // collision plugin only re-emits on state change, so nothing
+      // re-evaluated it once SOG landed. Re-run the gate here.
+      if (state.aisAlarms.has(mmsi) && _aisGateSilenced(mmsi)) {
+        state.aisAlarms.delete(mmsi);
+      }
       try { renderAisAlarms(); } catch { /* silent */ }
       return rec;
     } catch { return null; }
@@ -4107,6 +4118,20 @@
     const line = t("ais.voice.collisionCourse") || "target en rumbo de colisión";
     return `${kind}, ${line}`;
   }
+  // Rev471: single gate (AIS mode + stationary target) shared by the
+  // delta handler and the REST cache callback. true = do not alarm.
+  //   PUERTO "off"        : always silenced.
+  //   FONDEO "anchor"     : silenced unless target SOG >= ~2 kn.
+  //   NAVEGACION "underway": silenced only when the target is stationary
+  //                          (SOG known and < AIS_IGNORE_SOG_MS).
+  function _aisGateSilenced(mmsi) {
+    const aisMode = _aisMode();
+    if (aisMode === "off") return true;
+    const cached = state.aisTargetPos.get(mmsi);
+    const sog = cached && typeof cached.sog === "number" ? cached.sog : null;
+    if (aisMode === "anchor") return !(sog != null && sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS);
+    return sog != null && sog < AIS_IGNORE_SOG_MS;
+  }
   function _handleAisAlarmDelta(path, value) {
     // Rev434: respect the "AIS collision alarm" overlay toggle. Still
     // keep the state.aisAlarms Map in sync so the first ACK after a
@@ -4127,7 +4152,6 @@
     // the SK v1 REST API; if we know SOG and it's below the threshold
     // the alarm is treated as "silent info".
     const cached = state.aisTargetPos.get(mmsi);
-    const targetStationary = cached && typeof cached.sog === "number" && cached.sog < AIS_IGNORE_SOG_MS;
     // Rev441 (Carlos 2026-10-10): "cuando hagamos ack, que siga la
     // flecha". The map now carries ackeadas too — only the delta that
     // declares the threat gone (!isActive) or a stationary target
@@ -4150,18 +4174,10 @@
     //   NAVEGACION mode "underway" : regular behaviour; only the
     //                                long-standing stationary filter
     //                                (SOG < 0.08 m/s) drops entries.
-    const aisMode = _aisMode();
-    const targetMoving = cached && typeof cached.sog === "number"
-      && cached.sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS;
-    let modeSilenced = false;
-    if (aisMode === "off") {
-      modeSilenced = true;
-    } else if (aisMode === "anchor" && !targetMoving) {
-      modeSilenced = true;
-    }
+    const modeSilenced = _aisGateSilenced(mmsi);
     if (modeSilenced) {
       state.aisAlarms.delete(mmsi);
-    } else if (!value || !isActive || targetStationary) {
+    } else if (!value || !isActive) {
       state.aisAlarms.delete(mmsi);
     } else {
       state.aisAlarms.set(mmsi, { value, mmsi });
