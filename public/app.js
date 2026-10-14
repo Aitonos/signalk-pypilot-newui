@@ -10795,13 +10795,16 @@
         tideBtn.setAttribute("title", t("tide.btn"));
         // Rev487: the button is always visible. If AnchorWatch Pro is not
         // installed, explain it and offer its App Store page instead.
-        let mareasKnownUp = false;
+        // Rev489 (Carlos QA: "aunque tengo desactivado Mareas me sigue
+        // saliendo todo"): check on EVERY tap (tiny request) instead of
+        // remembering the first answer, and drop the cached extremes when
+        // the plugin is gone so a stale curve is never drawn.
         tideBtn.addEventListener("click", async (ev) => {
           ev.preventDefault(); ev.stopPropagation();
-          if (!mareasKnownUp) {
-            try { const r = await skFetch(`${MAREAS}/api/build-info`); mareasKnownUp = r.ok; } catch { mareasKnownUp = false; }
-          }
-          if (mareasKnownUp) { openTide(); return; }
+          let up = false;
+          try { const r = await skFetch(`${MAREAS}/api/build-info`, { cache: "no-store" }); up = r.ok; } catch { up = false; }
+          if (up) { openTide(); return; }
+          tideCache = null;
           const ip = document.getElementById("tide-install-pop");
           if (ip) ip.classList.add("open");
         });
