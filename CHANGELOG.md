@@ -1,5 +1,54 @@
 # Changelog
 
+## 3.1.4 — 2026-10-14 — iOS "Add to Home Screen" PWA basics (issue #5)
+
+Rev469. Patch bump: no code changes, just the HTML shell. Thanks to
+[@eric-fitzsimon](https://github.com/eric-fitzsimon) for the detailed
+report in [#5](https://github.com/Aitonos/signalk-pypilot-newui/issues/5):
+on iOS, adding the webapp to the home screen worked the first launch,
+then subsequent launches loaded the page but Tune gain sliders stayed
+empty and Chart did not populate.
+
+### Added — PWA meta tags in the shell
+
+```html
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PyPilot" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0a1220" />
+<link rel="apple-touch-icon" href="icon.svg" />
+```
+
+Previously the shell had none of these, so iOS treated the home-screen
+bookmark as a half-baked WebView bookmark with a storage context
+distinct from Safari and no explicit standalone contract.
+
+### Fixed — stale `app.js` cached indefinitely by iOS WebView
+
+Added `Cache-Control: no-cache, no-store, must-revalidate` + legacy
+`Pragma` / `Expires` HTTP-equiv metas to the shell. iOS Safari (both
+browser and standalone WebView) was caching the first successful load
+of `app.js` and ignoring the `?v=RevNNN` query bump that `deploy.ps1`
+writes on every deploy. Result: user's bookmark served a stale JS
+bundle for days, mismatching the backend API and leaving features
+unpopulated. These metas force the WebView to re-fetch the shell on
+every launch; the actual `app.js?v=RevNNN` request then matches the
+current backend.
+
+See `docs/_audit_ios_pwa_issue_5.md` for the full forensics.
+
+### Known limitations
+
+- `apple-touch-icon` points to `icon.svg`. iOS prefers PNG for the
+  home-screen icon; with SVG only, iOS may use a page-screenshot
+  fallback. A proper PNG set is TODO for a future release.
+- No Service Worker. Rev-A path only — if the Cache-Control metas do
+  not fully fix the issue on Eric's device, Rev-B/C/D will add a
+  `visibilitychange` reconnect handler, a standalone-mode banner with
+  "Reset app data" button, and eventually a proper SW. Not shipped
+  yet because they are not confirmed necessary.
+
 ## 3.1.3 — 2026-10-14 — Safety: offline-aware write gating + batched trace + AIS polish
 
 Rolls up Rev464 → Rev468 (5 revs) on top of 3.1.2. Patch bump: no

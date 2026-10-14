@@ -5,6 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>PyPilot New-UI</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <!-- Rev469 (issue #5, @eric-fitzsimon): iOS Add to Home Screen
+       support. Without these metas iOS creates a half-baked bookmark
+       whose WebView aggressively caches a stale app.js and desyncs
+       from the backend on subsequent launches. See
+       docs/_audit_ios_pwa_issue_5.md for the full analysis. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PyPilot" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0a1220" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <!-- Rev469: force the standalone WebView to always re-fetch the
+       shell + app.js on launch. Without this, iOS caches the first
+       successful load indefinitely and ignores the `?v=RevNNN`
+       query bump that deploy.ps1 writes on every deploy. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="theme-dark">
@@ -2483,6 +2501,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev468"></script>
+  <script src="app.js?v=Rev469"></script>
 </body>
 </html>
