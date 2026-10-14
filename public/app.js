@@ -10376,29 +10376,32 @@
       const fbIframe = document.getElementById("freeboard-embed-iframe");
       const fbClose = document.getElementById("freeboard-embed-close");
       const fbMax = document.getElementById("freeboard-embed-max");
+      // Rev475 (Carlos 2026-10-14, "al abrirlo carga la carta, repasa los
+      // AIS, espera a mostrar sus nombres, todo muy lento"): Freeboard is
+      // PRELOADED in the background a few seconds after the visor loads
+      // and stays mounted. Hidden state = `.fb-preload` (visibility:hidden,
+      // real size) instead of display:none, so OpenLayers measures a real
+      // container and fetches tiles while hidden; a 0×0 display:none map
+      // would still load the chart on the first open.
+      const FB_URL = "/@signalk/freeboard-sk/";
+      const ensureFbSrc = () => {
+        if (fbIframe && (!fbIframe.src || fbIframe.src === "about:blank")) fbIframe.src = FB_URL;
+      };
+      const fbIsOpen = () => !!fbBox && !fbBox.hidden && !fbBox.classList.contains("fb-preload");
       const openFb = () => {
         if (!fbBox || !fbIframe) return;
-        if (!fbIframe.src || fbIframe.src === "about:blank") {
-          fbIframe.src = "/@signalk/freeboard-sk/";
-        }
-        // Rev436 (Carlos QA Rev435): removed the _alSpeak on open —
-        // TTS English voice turned "abriendo carta" / "AIS open chart"
-        // into "ICE open chat" which was unintelligible. The visual
-        // open is self-explanatory; no voice needed here.
+        ensureFbSrc();
+        // Rev436 (Carlos QA Rev435): no voice on open ("ICE open chat").
         fbBox.hidden = false;
+        fbBox.classList.remove("fb-preload");
       };
       const closeFb = () => {
         if (!fbBox || !fbIframe) return;
-        fbBox.hidden = true;
+        // Rev461 + Rev475: keep the iframe mounted and warm; just hide it.
+        fbBox.classList.add("fb-preload");
+        fbBox.hidden = false;
         fbBox.classList.remove("maximized");
         if (fbMax) fbMax.textContent = "⤢";
-        // Rev461 (Carlos QA Rev460, 2026-10-11): keep the Freeboard-SK
-        // iframe mounted after close so a reopen is instant. Previously
-        // we set src = "about:blank" to release Freeboard's socket, but
-        // the trade-off was that every reopen reloaded Freeboard from
-        // scratch (slow: chart tiles + SK handshake + AIS redraw).
-        // Keeping it mounted means Freeboard holds a websocket while
-        // hidden; worth the few extra bytes on an always-on tablet.
       };
       const toggleMax = () => {
         if (!fbBox) return;
@@ -10408,8 +10411,20 @@
       };
       if (rose) rose.addEventListener("dblclick", (ev) => {
         ev.preventDefault();
-        if (fbBox && !fbBox.hidden) { closeFb(); } else { openFb(); }
+        if (fbIsOpen()) { closeFb(); } else { openFb(); }
       });
+      // Preload only if Freeboard-SK is installed on this server.
+      setTimeout(() => {
+        if (!fbBox || !fbIframe || fbIsOpen()) return;
+        fetch(FB_URL, { method: "HEAD", credentials: "include" })
+          .then((r) => {
+            if (!r.ok || fbIsOpen()) return;
+            fbBox.classList.add("fb-preload");
+            fbBox.hidden = false;
+            ensureFbSrc();
+          })
+          .catch(() => { /* not installed / offline: lazy load on open */ });
+      }, 8000);
       if (fbClose) fbClose.addEventListener("click", closeFb);
       if (fbMax) fbMax.addEventListener("click", toggleMax);
     } catch (e) { console.warn("[rose] dblclick + freeboard wire:", e); }

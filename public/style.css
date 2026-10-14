@@ -4309,6 +4309,9 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 .freeboard-embed[hidden] { display: none; }
+/* Rev475: preloaded / closed Freeboard stays laid out at full size (so
+   OpenLayers keeps rendering + fetching tiles) but invisible and inert. */
+.freeboard-embed.fb-preload { visibility: hidden; pointer-events: none; }
 .freeboard-embed.maximized {
   position: fixed;
   inset: 2vh 2vw;

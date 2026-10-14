@@ -219,3 +219,20 @@ con `name`, `signalk.displayName` y `signalk.appIcon`.
 3. ¿Embeber también `visorfondeo` en el selector, o solo Mareas?
 4. ¿OK para tocar mareas-ihm (endpoint `/api/ais/lookup`, Rev886 →
    2.12.1/2.13.0)?
+
+## Rev475 — Freeboard precargado en segundo plano (petición Carlos 2026-10-14)
+
+"Al abrirlo carga la carta, repasa los AIS, espera a mostrar sus nombres,
+todo muy lento." Hoy el iframe solo se carga en el primer doble toque
+(Rev433) y luego queda montado (Rev461).
+
+- Precarga ~8 s después de cargar el visor, si `HEAD /@signalk/freeboard-sk/`
+  responde OK (Freeboard instalado).
+- Estado oculto = `visibility:hidden` + `pointer-events:none` con el tamaño
+  real del contenedor, NO `display:none`: OpenLayers tiene que medir un
+  contenedor con tamaño para pedir teselas. Con `display:none` el mapa
+  nacería a 0×0 y la primera apertura seguiría siendo lenta.
+- Cerrar = volver al estado oculto (no se desmonta).
+- Coste aceptado: WS de Freeboard + render en segundo plano y descarga
+  inicial de cartas. Si en tablet débil se nota, se añade un toggle.
+- Este mismo contenedor se reutilizará para el selector de webapps (Rev477).
