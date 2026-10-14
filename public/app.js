@@ -10706,9 +10706,15 @@
         cur.style.display = "none";
         const cLine = mk("line", { class: "tide-cur-line", y1: by + bh, y2: axisY });
         const cDot = mk("circle", { class: "tide-cur-dot", r: 4 });
-        const cTxt = mk("text", { class: "tide-cur-txt" });
-        cur.appendChild(cLine); cur.appendChild(cDot); cur.appendChild(cTxt);
+        cur.appendChild(cLine); cur.appendChild(cDot);
         svg.appendChild(cur);
+        // Rev488 (Carlos): the cursor info is an HTML box over the curve
+        // (translucent + backdrop blur, which SVG cannot do). The SVG is
+        // drawn 1:1 in px, so SVG coords == box coords inside .tide-body.
+        const cBox = document.createElement("div");
+        cBox.className = "tide-cur-box";
+        cBox.style.display = "none";
+        tideBody.appendChild(cBox);
         const blockers = () => [nowBox, ...extBoxes, ...axisLabels];
         const showAt = (clientX) => {
           const rect = svg.getBoundingClientRect();
@@ -10716,35 +10722,37 @@
           const x = Math.min(W, Math.max(0, (clientX - rect.left) * (W / rect.width)));
           const tt = t0 + (x / W) * (t1 - t0);
           const h = tideAt(ext, tt);
-          if (h == null) { cur.style.display = "none"; return; }
+          if (h == null) { cur.style.display = "none"; cBox.style.display = "none"; return; }
           const h2 = tideAt(ext, tt + 5 * 60e3);
           const dir = (h2 == null) ? "" : (h2 > h + 0.002 ? " \u2191" : (h2 < h - 0.002 ? " \u2193" : ""));
           const y = Y(h);
           cLine.setAttribute("x1", x.toFixed(1)); cLine.setAttribute("x2", x.toFixed(1));
           cDot.setAttribute("cx", x.toFixed(1)); cDot.setAttribute("cy", y.toFixed(1));
-          cTxt.textContent = `${fmtHM(new Date(tt))} \u00b7 ${h.toFixed(2)} m${dir}`;
           cur.style.display = "";
-          // Candidate positions around the dot; first one that collides
-          // with nothing wins. Text anchor start/end keeps it beside the line.
+          cBox.textContent = `${fmtHM(new Date(tt))} \u00b7 ${h.toFixed(2)} m${dir}`;
+          cBox.style.display = "";
+          const bw = cBox.offsetWidth, bh = cBox.offsetHeight;
+          // Candidate top-left corners around the dot; first one that
+          // collides with nothing wins (never over HW/LW, now box, axis).
           const cands = [
-            [x + 10, y - 10, "start"], [x - 10, y - 10, "end"],
-            [x + 10, y + 22, "start"], [x - 10, y + 22, "end"],
-            [x + 10, y - 30, "start"], [x - 10, y - 30, "end"],
-            [x + 10, y + 42, "start"], [x - 10, y + 42, "end"],
+            [x + 10, y - 10 - bh], [x - 10 - bw, y - 10 - bh],
+            [x + 10, y + 10],      [x - 10 - bw, y + 10],
+            [x + 10, y - 34 - bh], [x - 10 - bw, y - 34 - bh],
+            [x + 10, y + 34],      [x - 10 - bw, y + 34],
           ];
           let placed = false;
-          for (const [cx, cy, anchor] of cands) {
-            cTxt.setAttribute("x", cx.toFixed(1)); cTxt.setAttribute("y", cy.toFixed(1));
-            cTxt.setAttribute("text-anchor", anchor);
-            const b = boxOf(cTxt);
+          for (const [lx, ly] of cands) {
+            const b = { x: lx, y: ly, w: bw, h: bh };
             if (b.x < 0 || b.x + b.w > W || b.y < 0 || b.y + b.h > axisY) continue;
             if (blockers().some((q) => hits(b, q))) continue;
+            cBox.style.left = `${lx.toFixed(0)}px`;
+            cBox.style.top = `${ly.toFixed(0)}px`;
             placed = true;
             break;
           }
-          cTxt.style.display = placed ? "" : "none";
+          if (!placed) cBox.style.display = "none";
         };
-        const hide = () => { cur.style.display = "none"; };
+        const hide = () => { cur.style.display = "none"; cBox.style.display = "none"; };
         svg.addEventListener("pointermove", (ev) => showAt(ev.clientX));
         svg.addEventListener("pointerdown", (ev) => {
           showAt(ev.clientX);
