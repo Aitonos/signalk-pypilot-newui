@@ -4352,32 +4352,16 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
    the rose stays hidden until this stylesheet has loaded. */
 #wind-rose { visibility: visible; }
 
-/* Rev479: side buttons centred on the compass ring. Look comes from the
-   existing .freeboard-embed-btn; only positioning here. .rose-frame has
-   the SVG viewBox ratio (200x220) and the same height as the SVG content
-   box (rose-wrap padding 4px), centred like the SVG (xMidYMid meet), so
-   ring x=+/-94 maps to left 97% / 3%, y=0 maps to top 50%. Below the
-   embeds (z 25) so they hide when a chart is open. */
-.rose-frame {
+/* Rev480: tide button just above the bottom-right corner tile, right
+   edge aligned with it. `bottom` is set from JS from the tile's real
+   height; 64px is only the fallback. Look = .freeboard-embed-btn. */
+.rose-corner-btn {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  height: calc(100% - 8px);
-  aspect-ratio: 200 / 220;
+  right: 6px;
+  bottom: 64px;
   z-index: 20;
-  pointer-events: none;
 }
-.rose-side-btn {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
-}
-.rose-side-btn[hidden] { display: none; }
-.rose-side-btn.rs-right { left: 97%; }
-.rose-side-btn.rs-left  { left: 3%; }
+.rose-corner-btn[hidden] { display: none; }
 .tide-card { width: min(560px, 94vw); }
 .tide-body { padding: 4px 16px 8px; }
 .tide-now { font-size: 15px; margin: 4px 0 2px; }

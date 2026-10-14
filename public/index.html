@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev479" />
+  <link rel="stylesheet" href="style.css?v=Rev480" />
 </head>
 <body class="theme-dark">
 
@@ -118,21 +118,16 @@
           <div class="dash-cell corner-tr" data-corner="tr"></div>
           <div class="dash-cell corner-bl" data-corner="bl"></div>
           <div class="dash-cell corner-br" data-corner="br"></div>
-          <!-- Rev479 (Carlos QA Rev478): side buttons centred ON the compass
-               ring. .rose-frame is an invisible box with the SVG viewBox
-               ratio (200x220) centred in .rose-wrap, so a % position maps
-               to rose coordinates in portrait AND landscape without JS.
-               3 o'clock = tide curve popup; 9 o'clock slot (.rs-left)
-               reserved. Button look = existing .freeboard-embed-btn. -->
-          <div class="rose-frame">
-            <button type="button" class="freeboard-embed-btn rose-side-btn rs-right" id="rose-tide-btn" hidden
-                    aria-label="Tide" title="Tide">
-              <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
-                <rect x="1.5" y="2.5" width="17" height="15" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M3.5,12 C6,6 8.5,6 10,10 S14,14 16.5,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
+          <!-- Rev480 (Carlos QA Rev479, mobile): tide button sits just ABOVE
+               the bottom-right corner tile. Its `bottom` follows the tile's
+               real height (JS, ResizeObserver). Look = .freeboard-embed-btn. -->
+          <button type="button" class="freeboard-embed-btn rose-corner-btn" id="rose-tide-btn" hidden
+                  aria-label="Tide" title="Tide">
+            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+              <rect x="1.5" y="2.5" width="17" height="15" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M3.5,12 C6,6 8.5,6 10,10 S14,14 16.5,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
           <!-- Rev432 (Carlos QA Rev431): AIS collision infobox + ACK as
                an HTML absolute div (not SVG) so the ACK click is 100 %
                reliable (no re-render-swallows-tap race), the box always
@@ -2569,6 +2564,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev479"></script>
+  <script src="app.js?v=Rev480"></script>
 </body>
 </html>

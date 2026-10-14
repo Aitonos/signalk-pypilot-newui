@@ -269,3 +269,11 @@ todo muy lento." Hoy el iframe solo se carga en el primer doble toque
 - "Abrir Mareas completo" = **visor de fondeo** (`/signalk-mareas-ihm/visorfondeo`)
   dentro de la rosa en `#mareas-embed`, con las mismas clases que el embed
   de Freeboard (⤢ / ×). Se descarga al cerrar (SSE).
+
+### Rev480 — botón encima de la esquina inferior derecha (decisión Carlos)
+
+En el móvil, el botón sobre el aro (Rev479) no convencía. Ahora va justo
+encima de la caja de la esquina inferior derecha, alineado a su derecha.
+El `bottom` se calcula con el `offsetHeight` real de esa caja
+(ResizeObserver), porque su alto cambia con la fuente y el contenido. Se
+elimina `.rose-frame`.

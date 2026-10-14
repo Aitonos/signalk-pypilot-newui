@@ -10614,6 +10614,18 @@
         tideBtn.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); openTide(); });
         // A double-tap on the button must not open Freeboard.
         tideBtn.addEventListener("dblclick", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+        // Rev480: sit just above the bottom-right corner tile, whatever its
+        // height (font scaling, 1-2 lines). offsetHeight is layout px, the
+        // same space as `bottom`, so CSS zoom does not skew it.
+        const brCell = document.querySelector(".dash-rose .dash-cell.corner-br");
+        const placeTideBtn = () => {
+          if (!brCell) return;
+          tideBtn.style.bottom = `${6 + brCell.offsetHeight + 6}px`;
+        };
+        placeTideBtn();
+        if (brCell && typeof ResizeObserver === "function") {
+          try { new ResizeObserver(placeTideBtn).observe(brCell); } catch { /* fallback bottom */ }
+        }
         setTimeout(() => {
           skFetch(`${MAREAS}/api/build-info`)
             .then((r) => { if (r.ok) tideBtn.hidden = false; })
