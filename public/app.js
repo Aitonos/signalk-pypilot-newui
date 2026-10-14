@@ -10634,7 +10634,8 @@
         const brCell = document.querySelector(".dash-rose .dash-cell.corner-br");
         const placeTideBtn = () => {
           if (!brCell) return;
-          tideBtn.style.bottom = `${6 + brCell.offsetHeight + 6}px`;
+          // Rev482: 14 px gap above the tile (was 6, too tight).
+          tideBtn.style.bottom = `${6 + brCell.offsetHeight + 14}px`;
         };
         placeTideBtn();
         if (brCell && typeof ResizeObserver === "function") {
