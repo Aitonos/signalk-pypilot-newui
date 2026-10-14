@@ -59,7 +59,7 @@ up automatically.
 
 ## What this plugin adds on top of pypilot
 
-### Visor (touch UI) — 10 new added functions
+### Visor (touch UI) — 13 new added functions
 
 1. **Compass rose** with colour-coded cardinals, hull-fixed sailing
    wedges, and 4 corner tiles configurable via long-press.
@@ -81,90 +81,101 @@ up automatically.
    scrolling never triggers a stray tab flip.
 10. **Multi-language** EN / ES / DE / FR, auto-detected from the
     browser.
+11. **AIS collision targets on the rose** (with `signalk-collision-alerts`)
+    — each threat drawn at its real bearing and distance (log scale,
+    distance label), oriented by its heading / course with a projected
+    track when moving, plus an infobox with the vessel name and ACK.
+12. **Integrated chartplotter** — double-tap the rose to open
+    Freeboard-SK inside the rose box; kept loaded in the background so
+    it opens instantly (per-device switch).
+13. **Tide at a glance** (with `signalk-mareas-ihm`) — button on the
+    rose opens a popup with the tide curve, current height, next HW/LW
+    and coefficient, and can open the anchor-watch visor inside the
+    rose.
 
 ### Autopilot enhancements — 12 new added functions
 
-11. **Pypilot Doctor** — records an engaged AP session, detects
+14. **Pypilot Doctor** — records an engaged AP session, detects
     bias / oscillation / low authority / noise, and proposes P/I/D
     adjustments with plain-language rationale. Applying forks the
     current pypilot profile into `doctor-YYYYMMDD-HHMM` so the
     original stays one tap away.
-12. **Smart Pilot — auto profile by wind** — switches the pypilot
+15. **Smart Pilot — auto profile by wind** — switches the pypilot
     profile between Light / Medium / Heavy according to the averaged
     TWS.
-13. **Smart Pilot — gust strategy** — freeze target, boost D +20%
+16. **Smart Pilot — gust strategy** — freeze target, boost D +20%
     for 20 s, temporarily switch to the Heavy profile for 30 s, or
     just warn.
-14. **Auto-disengage on lost authority** — RMS heading error > 30°
+17. **Auto-disengage on lost authority** — RMS heading error > 30°
     with servo duty > 90% sustained 10 s.
-15. **Pre-departure Autopilot Check** — a single READY / CAVEATS /
+18. **Pre-departure Autopilot Check** — a single READY / CAVEATS /
     DO-NOT-ENGAGE verdict aggregating every sensor, servo, voltage
     and link signal.
-16. **Sensor Quality** — freshness, update rate, jitter and source
+19. **Sensor Quality** — freshness, update rate, jitter and source
     per AP-critical Signal K path, with per-row Ignore / Restore.
-17. **Servo Health** — learns a baseline for typical servo duty at
+20. **Servo Health** — learns a baseline for typical servo duty at
     sea and flags recent, peak, temperature or voltage deviations
     from that baseline.
-18. **Alarm engine — 9 rules** — heading deviation, cruise drift,
+21. **Alarm engine — 9 rules** — heading deviation, cruise drift,
     unable-to-steer, servo overcurrent, servo temp, motor temp, high
     AP load, low voltage, sensor lost, pypilot disconnected — all
     published as canonical `notifications.autopilot.*` for any
     downstream Signal K client.
-19. **Head-to-wind pseudo-mode** — a "raise the sails" mode not
+22. **Head-to-wind pseudo-mode** — a "raise the sails" mode not
     present in pypilot, with countdown and bow / stern swing
     selection.
-20. **Synthetic tack** and **tack countdown UI** with planned final
+23. **Synthetic tack** and **tack countdown UI** with planned final
     target and single-tap cancel on the circle.
-21. **Watchdog with core-alive detection** — distinguishes a live
+24. **Watchdog with core-alive detection** — distinguishes a live
     `pypilot_web` with a dead pypilot core, so writes never leave to
     the void while the visor claims success.
-22. **Reconnect Restore banner** — snapshot of target and mode on
+25. **Reconnect Restore banner** — snapshot of target and mode on
     outage, Yes / No offer to re-engage the same target when pypilot
     is back within 20 s to 5 min.
 
 ### Data & reporting — 6 new added functions
 
-23. **Trip Recorder** — auto-records every outing via
+26. **Trip Recorder** — auto-records every outing via
     `navigation.state`. Summary of 17 KPIs (distance, duration,
     SOG / TWS / AWS averages and peaks, heel, tacks, points-of-sail
     split, min voltage, AP-engaged %), OpenSeaMap trace coloured by
     SOG with markers on peak gust, peak SOG, min voltage and every
     detected tack. Share as portrait PNG report card or as WhatsApp
     text.
-24. **Chart tab** — 9 live Trip Stats cards, history with
+27. **Chart tab** — 9 live Trip Stats cards, history with
     30 s / 2 min / 10 min windows and hover-freeze, plus a Servo
     Health card.
-25. **Persistent tack history** with pre / post TWS, AWA, SOG and
+28. **Persistent tack history** with pre / post TWS, AWA, SOG and
     recovery time to 95% of pre-tack speed, filterable by day range.
-26. **Post-tack HUD stats** — before / after values plus SOG-loss
+29. **Post-tack HUD stats** — before / after values plus SOG-loss
     verdict.
-27. **Navigation session recorder** — every engaged AP session
+30. **Navigation session recorder** — every engaged AP session
     stored as JSONL with tags (wind, sea state, propulsion, point of
     sail, crew), shareable for advice.
-28. **Full Signal K path catalog viewer** in the visor with
+31. **Full Signal K path catalog viewer** in the visor with
     copy-to-clipboard for downstream widgets.
 
 ### Signal K integration — 8 new added functions
 
-29. **~110 Signal K paths** under `steering.autopilot.pypilot.*`,
+32. **~110 Signal K paths** under `steering.autopilot.pypilot.*`,
     opt-in per path so you never flood the bus.
-30. **Autopilot API v2 provider** (absorbable) — any downstream
+33. **Autopilot API v2 provider** (absorbable) — any downstream
     Signal K autopilot client talks to this plugin as the canonical
     autopilot.
-31. **Simple Switch action paths** — engage, nudge, tack,
+34. **Simple Switch action paths** — engage, nudge, tack,
     mode selector, profile selector.
-32. **9 momentary switches** — nudge ±10 / ±1, tack port / starboard
+35. **9 momentary switches** — nudge ±10 / ±1, tack port / starboard
     / cancel — as KIP boolean paths.
-33. **Radio switches** — mode and profile groups as KIP radio switch
+36. **Radio switches** — mode and profile groups as KIP radio switch
     sets.
-34. **Publish-only-essentials toggle** — keeps the SK bus light on
+37. **Publish-only-essentials toggle** — keeps the SK bus light on
     modest servers.
-35. **Config export / import** — Web Share API (email / WhatsApp /
+38. **Config export / import** — Web Share API (email / WhatsApp /
     AirDrop) or plain `.json`.
-36. **Live status endpoint** — connection state, core-alive flag,
+39. **Live status endpoint** — connection state, core-alive flag,
     catalog counters for external monitoring.
 
-**36 concrete new functions** layered on top of pypilot: a full touch
+**39 concrete new functions** layered on top of pypilot: a full touch
 UI + intelligence + observability + Signal K bridge.
 
 > **Reliable by design, easy to tune** — the built-in **Pypilot
@@ -177,64 +188,11 @@ UI + intelligence + observability + Signal K bridge.
 See [`CHANGELOG.md`](./CHANGELOG.md) for the release-by-release
 history.
 
-## Upgrading from 1.0.0 to 2.0.0
+## Signal K paths and switches
 
-2.0.0 is a **breaking release** addressing feedback from Sean D'Epagnier
-(pypilot author). Every pypilot key now maps 1:1 to
-`steering.autopilot.pypilot.<key>` verbatim - no more hand-picked renames
-or C -> K / deg -> rad conversions. If you have Signal K dashboards
-wired to 1.0.0 paths, see the full migration table in
-[`CHANGELOG.md`](./CHANGELOG.md) - most notable examples:
+The touch visor is described above. Under the hood the plugin publishes:
 
-- `.servo.controllerTemperature` (K) -> `.servo.controller_temp` (C)
-- `.calibration.rudderRange` (rad) -> `.rudder.range` (deg)
-- `.gains.<pilot>.<gain>` -> `.ap.pilot.<pilot>.<gain>`
-
-Setup -> Emergency ships **two remote restart buttons** (`RESTART pypilot`
-and `reboot Pi`), both guarded by a helm-manned confirmation modal.
-`restart pypilot_web` (the safe web-only restart that does not interrupt
-steering) lives as a preset in the **Debug console** — an SSH-based
-whitelist of preset diagnostic commands (logs, dmesg, top, uptime, df,
-pypilot version, restart pypilot_web).
-
-## What it does
-
-**Touch webapp** (mobile / tablet / chart-plotter, dark theme):
-
-- Compass rose with HDG readout, colour-coded cardinals (N orange, E green,
-  S blue, W red) + degree ticks, hull-fixed green/red sailing wedges, and 4
-  configurable corner tiles (long-press to reconfigure).
-- **Concentric target & wind arrows**: three arrow pieces on the rose — cyan
-  target diamond, amber `A` (AWA), sea-green `T` (TWA). Interlock into one
-  clean droplet when all three angles coincide; the V-notch of any piece
-  that drifts opens up as a visible hollow, and a colour ring-tick marks
-  the exact angle on the compass. Optional **COG line** from the bow
-  (yellow chevrons) and **current vector** (SOG − SOW, blue wavy arrow)
-  can be toggled from a 4-card selector opened by long-press on any
-  corner or on the boat sprite.
-- Big-touch AP engage / disengage with optimistic UI + auto-retry over
-  flaky links (Tailscale-safe).
-- Tack port / starboard, mode selector (compass / GPS / wind / true wind / nav),
-  nudge ±1 / ±10 with configurable step size, current heading snap on engage.
-- **Tune** tab with locked-by-default gain sliders (auto-relock on tab exit),
-  ±10 / ±1 buttons flanking each slider, orange "previous value" reference.
-- **Race** timer T1/T2 with beeps, screen flash, spoken seconds countdown
-  ("10, 5, 4, 3, 2, 1, Start"). Runs in the background across tabs.
-- **Setup** with LAN scan, manual host+port, KIP absorb-provider toggle,
-  SSH-based remote `RESTART pypilot` button (credentials stored in plugin
-  config), nudge step size, language, IMU / rudder calibration.
-- **Paths & API** tab with live catalog of published paths, per-path publish
-  toggles, KIP copy-to-clipboard helpers.
-- **Info** tab with quick-start, coexistence rules, credits, license, GitHub
-  link, config export / import (Web Share API → email / WhatsApp / Signal /
-  AirDrop, `.json` download, clipboard).
-- Full i18n: **English / Español / Deutsch / Français** (auto-detected from
-  browser, override in Setup → Language).
-- Regatta-safe swipe navigation between tabs with vertical-axis-lock so
-  scrolling never triggers a stray tab flip.
-- Signal K polar-performance and any custom SK path bindable to a corner tile.
-
-**~60 Signal K paths** under `steering.autopilot.pypilot.*` (opt-in per path):
+**~110 Signal K paths** under `steering.autopilot.pypilot.*` (opt-in per path), for example:
 
 - Gains per pilot (`P`, `I`, `D`, `DD`, `PR`, `FF`).
 - Servo telemetry (voltage, current, controller / motor temperatures, flags,
