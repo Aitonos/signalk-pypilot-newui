@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev486" />
+  <link rel="stylesheet" href="style.css?v=Rev487" />
 </head>
 <body class="theme-dark">
 
@@ -121,7 +121,7 @@
           <!-- Rev480 (Carlos QA Rev479, mobile): tide button sits just ABOVE
                the bottom-right corner tile. Its `bottom` follows the tile's
                real height (JS, ResizeObserver). Look = .freeboard-embed-btn. -->
-          <button type="button" class="freeboard-embed-btn rose-corner-btn" id="rose-tide-btn" hidden
+          <button type="button" class="freeboard-embed-btn rose-corner-btn" id="rose-tide-btn"
                   aria-label="Tide" title="Tide">
             <!-- Rev482: the button border IS the chart frame; the tide curve
                  runs edge to edge (no box inside the box). -->
@@ -2553,6 +2553,19 @@
     </div>
   </div>
 
+  <!-- Rev487 (Carlos): shown by the tide button when signalk-mareas-ihm
+       (AnchorWatch Pro) is NOT installed; button opens its App Store page. -->
+  <div class="popup-overlay" id="tide-install-pop" onclick="if(event.target.id==='tide-install-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()">
+      <h4 data-i18n="tide.install.title">AnchorWatch Pro</h4>
+      <button class="popup-close" onclick="document.getElementById('tide-install-pop').classList.remove('open')">✕</button>
+      <div class="popup-body">
+        <p class="dash-help-body" data-i18n="tide.install.body">To see the tide curves of your nearest station you need to install AnchorWatch Pro (signalk-mareas-ihm).</p>
+        <button type="button" id="tide-install-store" class="primary" data-i18n="tide.install.btn">Open in the App Store</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Rev403: Modal "Gestionar perfiles" (draggable cards, multi-select) -->
   <div id="pm-modal" class="pm-modal" hidden>
     <div class="pm-backdrop" data-pm-close></div>
@@ -2573,6 +2586,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev486"></script>
+  <script src="app.js?v=Rev487"></script>
 </body>
 </html>

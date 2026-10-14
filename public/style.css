@@ -4384,6 +4384,7 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
 .tide-svg .tide-now-line { stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 3 3; }
 .tide-svg .tide-now-dot { fill: var(--warn); }
 .tide-svg .tide-now-box { fill: var(--bg-3); stroke: var(--warn); stroke-width: 1; }
+.tide-svg .tide-now-arrow { fill: var(--warn); }
 .tide-svg .tide-now-t1 { fill: var(--fg); font-size: 14px; font-weight: 800; }
 .tide-svg .tide-now-t2 { fill: var(--fg-dim); font-size: 13px; }
 .tide-svg .tide-cur-line { stroke: var(--accent); stroke-width: 1.2; }

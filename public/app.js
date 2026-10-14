@@ -614,9 +614,12 @@
       "tide.title":   "Tide",
       "tide.btn":     "Tide",
       "tide.now":     "Now",
-      "tide.rising":  "rising",
-      "tide.falling": "falling",
-      "tide.slack":   "slack",
+      "tide.rising":  "Rising",
+      "tide.falling": "Falling",
+      "tide.slack":   "Slack",
+      "tide.install.title": "AnchorWatch Pro",
+      "tide.install.body":  "To see the tide curves of your nearest station you need to install AnchorWatch Pro (signalk-mareas-ihm).",
+      "tide.install.btn":   "Open in the App Store",
       "tide.coef":    "coef.",
       "tide.next":    "Next",
       "tide.high":    "HW",
@@ -1535,9 +1538,12 @@
       "tide.title":   "Marea",
       "tide.btn":     "Marea",
       "tide.now":     "Ahora",
-      "tide.rising":  "subiendo",
-      "tide.falling": "bajando",
-      "tide.slack":   "repunte",
+      "tide.rising":  "Subiendo",
+      "tide.falling": "Bajando",
+      "tide.slack":   "Repunte",
+      "tide.install.title": "AnchorWatch Pro",
+      "tide.install.body":  "Para ver las curvas de marea de tu estación más cercana debes instalar AnchorWatch Pro (signalk-mareas-ihm).",
+      "tide.install.btn":   "Abrir en la App Store",
       "tide.coef":    "coef.",
       "tide.next":    "Próxima",
       "tide.high":    "PM",
@@ -10641,7 +10647,8 @@
         const coef = coefTxt(data.coef);
         const next = ext.find((e) => e.t > now);
         const station = (data.station && data.station.name) || "";
-        const l1 = `${station}${station ? " \u00b7 " : ""}${hNow != null ? hNow.toFixed(2) + " m" : "\u2014"}${arrow}`;
+        // Rev487: the trend arrow is drawn big on the left of the box.
+        const l1 = `${station}${station ? " \u00b7 " : ""}${hNow != null ? hNow.toFixed(2) + " m" : "\u2014"}`;
         const l2 = [tend, coef ? `${t("tide.coef")} ${coef}` : ""].filter(Boolean).join(" \u00b7 ");
         const l3 = next ? `${t("tide.next")}: ${/high/i.test(next.type) ? t("tide.high") : t("tide.low")} ${fmtHM(new Date(next.t))} \u00b7 ${next.h.toFixed(2)} m` : "";
         const xNow = X(now);
@@ -10656,12 +10663,25 @@
           return el;
         });
         const tw = Math.max(...texts.map((el) => el.getComputedTextLength()));
-        const bw = tw + 20, bh = 10 + lines.length * LH;
+        const trend = sk && (sk.tendency === "rising" || sk.tendency === "falling") ? sk.tendency : null;
+        const AW = trend ? 34 : 0;  // arrow column width
+        const bw = tw + 20 + AW, bh = 10 + lines.length * LH;
         const bx = Math.min(W - bw - 1, Math.max(1, xNow - bw / 2));
         const by = 2;
         boxRect.setAttribute("x", bx.toFixed(1)); boxRect.setAttribute("y", by);
         boxRect.setAttribute("width", bw.toFixed(1)); boxRect.setAttribute("height", bh);
-        texts.forEach((el) => el.setAttribute("x", (bx + 10).toFixed(1)));
+        texts.forEach((el) => el.setAttribute("x", (bx + 10 + AW).toFixed(1)));
+        if (trend) {
+          // Wide arrow filling the box height on the left (Carlos).
+          const ax = bx + 8 + AW / 2 - 2, t0y = by + 6, b0y = by + bh - 6;
+          const w = 26, s = 11, hh = 14;
+          const up = trend === "rising";
+          const tip = up ? t0y : b0y, base = up ? t0y + hh : b0y - hh, tail = up ? b0y : t0y;
+          const pts = [[ax, tip], [ax + w / 2, base], [ax + s / 2, base], [ax + s / 2, tail],
+                       [ax - s / 2, tail], [ax - s / 2, base], [ax - w / 2, base]]
+            .map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+          nowG.appendChild(mk("polygon", { class: "tide-now-arrow", points: pts }));
+        }
         const nowBox = { x: bx - 2, y: by - 2, w: bw + 4, h: bh + 4 };
         svg.appendChild(mk("line", { class: "tide-now-line", x1: xNow.toFixed(1), y1: by + bh, x2: xNow.toFixed(1), y2: axisY }));
         if (hNowCurve != null) svg.appendChild(mk("circle", { class: "tide-now-dot", cx: xNow.toFixed(1), cy: Y(hNowCurve).toFixed(1), r: 3.5 }));
@@ -10765,7 +10785,22 @@
       if (tideBtn) {
         tideBtn.setAttribute("aria-label", t("tide.btn"));
         tideBtn.setAttribute("title", t("tide.btn"));
-        tideBtn.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); openTide(); });
+        // Rev487: the button is always visible. If AnchorWatch Pro is not
+        // installed, explain it and offer its App Store page instead.
+        let mareasKnownUp = false;
+        tideBtn.addEventListener("click", async (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          if (!mareasKnownUp) {
+            try { const r = await skFetch(`${MAREAS}/api/build-info`); mareasKnownUp = r.ok; } catch { mareasKnownUp = false; }
+          }
+          if (mareasKnownUp) { openTide(); return; }
+          const ip = document.getElementById("tide-install-pop");
+          if (ip) ip.classList.add("open");
+        });
+        const storeBtn = document.getElementById("tide-install-store");
+        if (storeBtn) storeBtn.addEventListener("click", () => {
+          window.open("/admin/#/appstore/plugin/signalk-mareas-ihm", "_blank", "noopener");
+        });
         // A double-tap on the button must not open Freeboard.
         tideBtn.addEventListener("dblclick", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
         // Rev480: sit just above the bottom-right corner tile, whatever its
@@ -10781,11 +10816,6 @@
         if (brCell && typeof ResizeObserver === "function") {
           try { new ResizeObserver(placeTideBtn).observe(brCell); } catch { /* fallback bottom */ }
         }
-        setTimeout(() => {
-          skFetch(`${MAREAS}/api/build-info`)
-            .then((r) => { if (r.ok) tideBtn.hidden = false; })
-            .catch(() => { /* mareas-ihm not installed: no button */ });
-        }, 3000);
       }
       // Rev479 (Carlos QA Rev478): "Mareas completo" = the anchor-watch
       // visor of signalk-mareas-ihm, opened INSIDE the rose like
@@ -13964,7 +13994,7 @@
       li.appendChild(b); li.appendChild(lvl); li.appendChild(st);
       if (r.st === "missing" && !r.noStore) {
         const a = document.createElement("a");
-        a.href = "/admin/#/appstore/apps";
+        a.href = `/admin/#/appstore/plugin/${encodeURIComponent(r.pkg)}`;
         a.target = "_blank";
         a.rel = "noopener";
         a.textContent = ` \u2192 ${t("info.comp.store")}`;
