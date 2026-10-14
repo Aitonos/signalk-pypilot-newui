@@ -1,5 +1,59 @@
 # Changelog
 
+## 3.2.0 — 2026-10-15 — AIS rose rebuilt on real positions, tide popup, chart kept warm
+
+Rolls up Rev470 → Rev482 on top of 3.1.4. Minor bump: new UI (tide
+button + popup, "Chart in the background" card, anchor-watch visor
+embedded in the rose) plus a set of AIS rose fixes found in port QA in
+Moaña. No breaking changes.
+
+### Fixed — AIS targets on the rose (root cause)
+
+- **The target position/SOG/COG cache never filled.** The REST calls
+  used `encodeURIComponent` on the vessel URN
+  (`urn%3Amrn%3Aimo%3Ammsi%3A…`) and Signal K answers 404 to that; the
+  raw URN answers 200. With an empty cache the hull fell back to
+  `cpaPositions.target` — the target's FUTURE position at CPA — so a
+  boat coming from 7 o'clock was drawn at 11 o'clock and "0 m" away.
+  The fallback is removed: no current position → no hull on the rose
+  (the infobox still shows the alarm). Cache refresh 30 s → 5 s.
+  (Rev474)
+- **Hull and projected track were drawn 180° off.** The sprite has its
+  bow at +x, so a direction needs `rotate(angle − 90)`; Rev457 used
+  `+ 90`. (Rev470)
+- **Moored boats.** A stopped target's COG is GPS noise: the hull is
+  oriented by `headingTrue` when available, by COG only when moving
+  (≥ 0.5 kn), otherwise it points at us; the dashed track is drawn only
+  for moving targets and always along COG. The "stationary" filter
+  (now 0.5 kn) is re-evaluated when the REST cache lands, not only on
+  the alarm delta. (Rev470, Rev471)
+- **Targets drawn on top of our own hull.** Radial position is now a
+  log scale (50 m → 2 NM) over the free ring between our hull outline
+  and the compass ring, with a distance label ("40 m", "0.4 NM") under
+  each target. (Rev472)
+- **Target name in the infobox** comes from the Signal K vessel `name`
+  first, then from the alarm text; "MMSI 123456789" is no longer shown
+  as a name. (Rev481)
+- **AIS card:** the Harbour / At anchor / Sailing selector showed raw
+  i18n keys; all texts rewritten in plain language (EN/ES). (Rev473)
+- **Unstyled flash on reload:** critical inline CSS in `<head>` and
+  `style.css?v=RevNNN` cache-busting from `deploy.ps1`. (Rev476)
+
+### Added
+
+- **Tide button** above the bottom-right corner tile of the rose (shown
+  only when `signalk-mareas-ihm` is installed). Opens a popup with the
+  station, current height, rising/falling, coefficient, next HW/LW and
+  a −6 h → +12 h tide curve. "Open full Tides" opens the
+  signalk-mareas-ihm anchor-watch visor inside the rose, same chrome as
+  Freeboard (maximize / close). Data from `/signalk-mareas-ihm/api/extremes`
+  and `environment.tide.*`, fetched only when the popup opens.
+  (Rev478 → Rev480, Rev482)
+- **Freeboard-SK kept loaded in the background** so a double-tap on the
+  rose opens it instantly with AIS names already in place. Own card
+  "Chart in the background" with a per-device switch and a "?" that
+  explains when to turn it off (lag / battery). (Rev475 → Rev477)
+
 ## 3.1.4 — 2026-10-14 — iOS "Add to Home Screen" PWA basics (issue #5)
 
 Rev469. Patch bump: no code changes, just the HTML shell. Thanks to

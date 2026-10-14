@@ -277,7 +277,10 @@ on its own), but installing them unlocks the features listed.
   — Double-tap the compass rose to open Freeboard-SK embedded inside
   the rose box (side panels stay visible and usable). Lets you drop
   from the autopilot view to the full chart with every AIS target in
-  one tap, without leaving the pypilot-newui session. **Pair with a
+  one tap, without leaving the pypilot-newui session. Freeboard is kept
+  loaded in the background so it opens instantly (per-device switch in
+  the "Chart in the background" card if a weak tablet prefers lazy
+  loading). **Pair with a
   Signal K chart provider (e.g. `@signalk/charts-plugin`) or the chart
   area will stay empty** — see
   [Chart provider is required](#chart-provider-is-required-for-the-embedded-plotter).
@@ -286,12 +289,23 @@ on its own), but installing them unlocks the features listed.
 - **[`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts)**
   by @dirkwa — Provides the CPA/TCPA engine behind our AIS collision
   overlay. Pypilot-newui subscribes to
-  `notifications.navigation.closestApproach.*` and renders a red /
-  orange triangle on the rose + an infobox with ACK that routes
+  `notifications.navigation.closestApproach.*` and draws each target
+  on the rose at its real bearing and distance (log scale, distance
+  label), oriented by its heading / course with a projected track line
+  when it is moving, plus an infobox with ACK that routes
   through the Signal K v2 Notifications API, so an ACK from
   pypilot-newui is also seen by Freeboard-SK and every other SK
   client.
   See `docs/_feature_ais_overlay.md`.
+
+- **[`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm)**
+  ("AnchorWatch Pro: Smart Anchoring, AIS & Tides" in the App Store) —
+  **Recommended.** Unlocks the tide button on the rose (popup with the
+  tide curve, next HW/LW and coefficient) and opens its anchor-watch
+  visor inside the rose. It also fills AIS vessel names into the Signal
+  K tree from its own persistent AIS database, so pypilot-newui,
+  Freeboard-SK and collision-alerts show names instead of raw MMSIs
+  right after a server restart.
 
 - **[`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)**
   by Panaaj — Shares the single pypilot socket cleanly with our
