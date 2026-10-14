@@ -3902,7 +3902,9 @@
   // Carlos saw as "le avisa babor cuando está en aleta estribor")
   // and for the "ignore stationary targets" filter.
   if (!state.aisTargetPos) state.aisTargetPos = new Map();
-  const AIS_TARGET_POS_FRESH_MS = 30 * 1000;
+  // Rev474: 30 s -> 5 s. Now that the REST cache actually fills (raw
+  // URN), 30 s made a target at 8 kn jump ~120 m at a time on the rose.
+  const AIS_TARGET_POS_FRESH_MS = 5 * 1000;
   // Rev470: below this SOG the target's COG is GPS noise — no projected
   // track line, and the hull is oriented by headingTrue instead of COG.
   const AIS_PROJ_MIN_SOG_MS = 0.257;  // 0.5 kn
@@ -3915,17 +3917,22 @@
       const now = Date.now();
       const cur = state.aisTargetPos.get(mmsi);
       if (cur && (now - cur.fetchedAt) < AIS_TARGET_POS_FRESH_MS) return cur;
+      // Rev474 (Carlos QA 2026-10-14, "me viene por las 11 y el barco
+      // viene por las 7"): the URN must go RAW in the path. With
+      // encodeURIComponent ("urn%3Amrn%3A...") SK answers 404, so this
+      // cache was ALWAYS empty: the hull fell back to the FUTURE CPA
+      // position and the SOG-based gates never had data.
       const ctx = `urn:mrn:imo:mmsi:${mmsi}`;
       const [posR, sogR, cogR, hdgR] = await Promise.all([
-        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/position/value`),
-        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/speedOverGround/value`).catch(() => null),
+        skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/position/value`),
+        skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/speedOverGround/value`).catch(() => null),
         // Rev457 (Carlos QA Rev456): fetch the target's true COG so the
         // hull can face its actual course + draw a projected track
         // line out of its bow instead of pointing at us.
-        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/courseOverGroundTrue/value`).catch(() => null),
+        skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/courseOverGroundTrue/value`).catch(() => null),
         // Rev470: true heading orients the hull of a stopped / slow
         // target (its COG is GPS noise below AIS_PROJ_MIN_SOG_MS).
-        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/headingTrue/value`).catch(() => null),
+        skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/headingTrue/value`).catch(() => null),
       ]);
       let pos = null, sog = null, cog = null, hdg = null;
       if (posR && posR.ok) pos = await posR.json().catch(() => null);
@@ -4292,7 +4299,11 @@
       } else if (d.cpaPositions && d.cpaPositions.self) {
         selfPos = d.cpaPositions.self;
       }
-      const tgtPos = (cached && cached.pos) || d.cpaPositions?.target;
+      // Rev474: NO fallback to d.cpaPositions.target — that is where the
+      // target WILL be at CPA, not where it is. With us stopped it lands
+      // next to our own position ("0 m", wrong bearing). No current
+      // position yet → no hull on the rose; the infobox still shows it.
+      const tgtPos = cached && cached.pos;
       const relDeg = _aisRelativeBearingDeg(selfPos, tgtPos, state.heading);
       if (relDeg == null) continue;
       // Rev462 (Carlos QA 2026-10-11, "no sale en la posición relativa"):

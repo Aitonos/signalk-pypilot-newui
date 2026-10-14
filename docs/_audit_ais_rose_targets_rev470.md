@@ -143,3 +143,33 @@ piloto y el barco central es la referencia de proa y popa.
    lectura del cache (≤ 30 s).
 5. Ningún target se pinta encima del casco propio. La etiqueta de
    distancia coincide aproximadamente con la regla de Freeboard.
+
+## Bug 5 (CAUSA RAÍZ, Rev474) — el cache REST del target nunca se llenaba
+
+QA Carlos 2026-10-14 con PIRATA DE ONS entrando en Moaña a 2,8 kn: "me
+viene por las 11 en la rosa y el barco viene por las 7". Casco a "0 m".
+
+- `_aisRefreshTargetPos` pedía
+  `/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/...`. Con
+  la URN codificada (`urn%3Amrn%3Aimo%3Ammsi%3A224182590`), **SK responde
+  404**; en crudo (`urn:mrn:imo:mmsi:224182590`) responde 200. Verificado
+  con curl en el Pi5.
+- Rev463 arregló una causa del 404 (la URN duplicada) pero no esta. El
+  síntoma siguió igual.
+- Con el cache vacío, `tgtPos` caía a `d.cpaPositions.target` = posición
+  **futura** del target en el CPA. Estando nosotros parados, ese punto
+  queda a la distancia del CPA (≈ 0 m) y en la dirección de **hacia dónde
+  va**, no de dónde viene. De ahí las 11 frente a las 7.
+- Consecuencia colateral: sog, cog y hdg siempre fueron `null`. Los fixes
+  Rev470 (orientación y línea) y Rev471 (gate de parado) **nunca tuvieron
+  datos**, y el modo Fondeo silenciaba todo (SOG desconocido = no se
+  mueve).
+
+Fix Rev474:
+1. URN en crudo en las 4 peticiones REST.
+2. Sin fallback a `cpaPositions.target`: si no hay posición actual, no se
+   pinta casco en la rosa (la ficha sigue mostrando el aviso).
+3. Refresco del cache de 30 s a 5 s.
+
+Lección: **verificar con curl la URL REST exacta** antes de dar por bueno
+un fix de AIS. Dos revisiones (Rev436 y Rev463) pasaron sin esa prueba.
