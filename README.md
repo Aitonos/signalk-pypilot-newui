@@ -23,6 +23,23 @@ below).
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
 
+## Required and recommended plugins
+
+The autopilot visor works on its own with just pypilot. The plugins
+below unlock the rest of the features; all of them install from the
+Signal K App Store and are picked up automatically (no configuration
+inside pypilot-newui).
+
+| Plugin | Status | What it unlocks in pypilot-newui |
+|---|---|---|
+| [pypilot](https://github.com/pypilot/pypilot) / TinyPilot (`pypilot_web`) | **Required** | The autopilot itself. Set its host and port in the plugin config. |
+| [`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm) — **AnchorWatch Pro: Smart Anchoring, AIS & Tides** | **Recommended** | **Tide button on the rose** (just above the bottom-right corner tile): popup with the tide curve, current height, rising / falling, next HW / LW and coefficient, and a one-tap jump to the **AnchorWatch Pro anchor-watch visor inside the rose** (full-screen like the chart). Also fills AIS vessel names into Signal K, so AIS targets show names instead of raw MMSIs right after a server restart. The button only appears when the plugin is installed. |
+| [`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk) + a chart provider | **Recommended** | **Integrated chartplotter**: double-tap the rose to open the chart inside it, kept loaded in the background so it opens instantly. Needs a chart provider (see [below](#chart-provider-is-required-for-the-embedded-plotter)). |
+| [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing and distance, course line, infobox with the vessel name and ACK. |
+| [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider) | Optional | Shares the pypilot connection with other Signal K autopilot clients. |
+
+Details for each one in [Works well with](#works-well-with).
+
 ## Chart provider is required for the embedded plotter
 
 The chartplotter embedded in the rose uses Freeboard-SK, which itself
