@@ -93,6 +93,9 @@ $htmlPath = Join-Path $here "public\index.html"
 if ((Test-Path $htmlPath) -and ($revShipping -ne "?")) {
     $html = Get-Content -Path $htmlPath -Raw -Encoding UTF8
     $newHtml = [regex]::Replace($html, 'app\.js\?v=Rev\d+', "app.js?v=$revShipping")
+    # Rev476: same for style.css - a stale cached stylesheet after a
+    # deploy showed the rose unstyled on a white page for a moment.
+    $newHtml = [regex]::Replace($newHtml, 'style\.css(\?v=Rev\d+)?"', "style.css?v=$revShipping`"")
     if ($newHtml -ne $html) {
         Set-Content -Path $htmlPath -Value $newHtml -Encoding UTF8 -NoNewline
         Write-Host ">> Updated app.js?v= in public/index.html to $revShipping" -ForegroundColor Cyan

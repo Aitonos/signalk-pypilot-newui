@@ -23,7 +23,11 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <link rel="stylesheet" href="style.css" />
+  <!-- Rev476 (Carlos 2026-10-14): critical inline CSS so a slow or stale
+       style.css never shows the rose unstyled on a white page. The rose
+       is hidden until style.css (loaded below) makes it visible again. -->
+  <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
+  <link rel="stylesheet" href="style.css?v=Rev476" />
 </head>
 <body class="theme-dark">
 
@@ -878,6 +882,13 @@
                          onclick="event.stopPropagation();">
                     <input type="checkbox" id="dash-ais-alarm-harbor-auto" checked />
                     <span data-i18n="dash.overlay.ais.harborAuto">Switch to Harbour by itself when stopped 2 min</span>
+                  </label>
+                  <!-- Rev476 (Carlos 2026-10-14): Freeboard background preload
+                       (Rev475) can be turned off per device. Default ON. -->
+                  <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;font-size:12px;color:var(--fg-dim);cursor:pointer"
+                         onclick="event.stopPropagation();">
+                    <input type="checkbox" id="dash-fb-preload" checked />
+                    <span data-i18n="dash.overlay.ais.fbPreload">Keep the chart (Freeboard) loaded in the background</span>
                   </label>
                 </div>
               </label>
@@ -2501,6 +2512,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev475"></script>
+  <script src="app.js?v=Rev476"></script>
 </body>
 </html>

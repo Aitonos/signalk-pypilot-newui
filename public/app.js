@@ -594,6 +594,7 @@
       "dash.overlay.ais.config": "Distances and times (plugin)",
       "dash.overlay.ais.voice":  "Voice alert",
       "dash.overlay.ais.harborAuto": "Switch to Harbour by itself when stopped 2 min",
+      "dash.overlay.ais.fbPreload": "Keep the chart (Freeboard) loaded in the background",
       "dash.overlay.ais.harbor": "Marina mode (auto-silence when moored)",
       "ais.objetivo":            "target",
       "ais.voice.alarm":         "AIS alarm",
@@ -1481,6 +1482,7 @@
       "dash.overlay.ais.config": "Distancias y tiempos (plugin)",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "dash.overlay.ais.harborAuto": "Pasar solo a Puerto al estar parados 2 min",
+      "dash.overlay.ais.fbPreload": "Tener la carta (Freeboard) cargada de fondo",
       "dash.overlay.ais.harbor": "Modo marina (silencia al estar amarrados)",
       "ais.objetivo":            "objetivo",
       "ais.voice.alarm":         "Alarma AIS",
@@ -10384,6 +10386,29 @@
       // container and fetches tiles while hidden; a 0×0 display:none map
       // would still load the chart on the first open.
       const FB_URL = "/@signalk/freeboard-sk/";
+      // Rev476: per-device switch (a weak tablet may prefer lazy load).
+      // localStorage on purpose: it is a device-performance preference.
+      const FB_PRELOAD_LS_KEY = "pypilotnewui.fbPreload";
+      const fbPreloadEnabled = () => {
+        try { return localStorage.getItem(FB_PRELOAD_LS_KEY) !== "false"; } catch { return true; }
+      };
+      const unloadFb = () => {
+        if (!fbBox || !fbIframe) return;
+        fbBox.hidden = true;
+        fbBox.classList.remove("fb-preload", "maximized");
+        fbIframe.src = "about:blank";
+      };
+      const preloadFb = () => {
+        if (!fbBox || !fbIframe || fbIsOpen() || !fbPreloadEnabled()) return;
+        fetch(FB_URL, { method: "HEAD", credentials: "include" })
+          .then((r) => {
+            if (!r.ok || fbIsOpen() || !fbPreloadEnabled()) return;
+            fbBox.classList.add("fb-preload");
+            fbBox.hidden = false;
+            ensureFbSrc();
+          })
+          .catch(() => { /* not installed / offline: lazy load on open */ });
+      };
       const ensureFbSrc = () => {
         if (fbIframe && (!fbIframe.src || fbIframe.src === "about:blank")) fbIframe.src = FB_URL;
       };
@@ -10397,6 +10422,7 @@
       };
       const closeFb = () => {
         if (!fbBox || !fbIframe) return;
+        if (!fbPreloadEnabled()) { unloadFb(); if (fbMax) fbMax.textContent = "⤢"; return; }
         // Rev461 + Rev475: keep the iframe mounted and warm; just hide it.
         fbBox.classList.add("fb-preload");
         fbBox.hidden = false;
@@ -10413,18 +10439,17 @@
         ev.preventDefault();
         if (fbIsOpen()) { closeFb(); } else { openFb(); }
       });
-      // Preload only if Freeboard-SK is installed on this server.
-      setTimeout(() => {
-        if (!fbBox || !fbIframe || fbIsOpen()) return;
-        fetch(FB_URL, { method: "HEAD", credentials: "include" })
-          .then((r) => {
-            if (!r.ok || fbIsOpen()) return;
-            fbBox.classList.add("fb-preload");
-            fbBox.hidden = false;
-            ensureFbSrc();
-          })
-          .catch(() => { /* not installed / offline: lazy load on open */ });
-      }, 8000);
+      // Preload only if enabled and Freeboard-SK is installed.
+      setTimeout(preloadFb, 8000);
+      const fbPreloadCb = document.getElementById("dash-fb-preload");
+      if (fbPreloadCb) {
+        fbPreloadCb.checked = fbPreloadEnabled();
+        fbPreloadCb.addEventListener("change", () => {
+          try { localStorage.setItem(FB_PRELOAD_LS_KEY, fbPreloadCb.checked ? "true" : "false"); } catch { /* silent */ }
+          if (fbPreloadCb.checked) preloadFb();
+          else if (!fbIsOpen()) unloadFb();
+        });
+      }
       if (fbClose) fbClose.addEventListener("click", closeFb);
       if (fbMax) fbMax.addEventListener("click", toggleMax);
     } catch (e) { console.warn("[rose] dblclick + freeboard wire:", e); }

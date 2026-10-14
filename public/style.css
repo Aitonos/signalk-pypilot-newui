@@ -4347,3 +4347,7 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
   justify-content: center;
 }
 .freeboard-embed-btn:hover { background: rgba(0, 0, 0, 0.85); }
+
+/* Rev476: counterpart of the critical inline CSS in index.html <head>:
+   the rose stays hidden until this stylesheet has loaded. */
+#wind-rose { visibility: visible; }
