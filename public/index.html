@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev485" />
+  <link rel="stylesheet" href="style.css?v=Rev486" />
 </head>
 <body class="theme-dark">
 
@@ -2538,19 +2538,18 @@
     </div>
   </div>
 
-  <!-- Rev478: tide curve popup (data from signalk-mareas-ihm). Reuses the
-       pm-modal / pm-card styling of "Gestionar perfiles". -->
-  <div id="tide-modal" class="pm-modal" hidden>
-    <div class="pm-backdrop" data-tide-close></div>
-    <div class="pm-card tide-card" role="dialog" aria-labelledby="tide-title">
-      <header class="pm-header">
-        <h3 id="tide-title" data-i18n="tide.title">Tide</h3>
-        <button type="button" class="pm-close ghost" data-tide-close aria-label="Close">✕</button>
-      </header>
-      <div class="tide-body" id="tide-body"></div>
-      <footer class="pm-footer">
-        <button type="button" id="tide-full" class="ghost" data-i18n="tide.full">Open AnchorWatch Pro</button>
-      </footer>
+  <!-- Rev486 (Carlos QA): tide curve popup with the CANONICAL visor popup
+       markup (same as "Configure the rose corners"): .popup-overlay +
+       .popup-box + h4 + red .popup-close on the left + .popup-body, and
+       button.primary. Data from signalk-mareas-ihm. -->
+  <div class="popup-overlay" id="tide-pop" onclick="if(event.target.id==='tide-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()">
+      <h4 data-i18n="tide.title">Tide</h4>
+      <button class="popup-close" onclick="document.getElementById('tide-pop').classList.remove('open')">✕</button>
+      <div class="popup-body">
+        <div class="tide-body" id="tide-body"></div>
+        <button type="button" id="tide-full" class="primary" data-i18n="tide.full">Open AnchorWatch Pro</button>
+      </div>
     </div>
   </div>
 
@@ -2574,6 +2573,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev485"></script>
+  <script src="app.js?v=Rev486"></script>
 </body>
 </html>

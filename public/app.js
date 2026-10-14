@@ -10556,7 +10556,7 @@
     try {
       const MAREAS = "/signalk-mareas-ihm";
       const tideBtn = document.getElementById("rose-tide-btn");
-      const tideModal = document.getElementById("tide-modal");
+      const tidePop = document.getElementById("tide-pop");
       const tideBody = document.getElementById("tide-body");
       const tideFull = document.getElementById("tide-full");
       let tideCache = null;  // { at, data }
@@ -10574,6 +10574,23 @@
         }
         return null;
       };
+      // Rev486 (Carlos QA): all text lives INSIDE the curve. A "now" box
+      // whose root is the now line (station, height, trend, coef, next
+      // extreme); HW/LW labels moved to the other side of their point
+      // when they would collide; the interactive cursor label picks the
+      // first position that intersects nothing (measured with getBBox).
+      const NS = "http://www.w3.org/2000/svg";
+      const mk = (tag, attrs, text) => {
+        const el = document.createElementNS(NS, tag);
+        for (const k in attrs) el.setAttribute(k, String(attrs[k]));
+        if (text != null) el.textContent = text;
+        return el;
+      };
+      const boxOf = (el, pad = 2) => {
+        const b = el.getBBox();
+        return { x: b.x - pad, y: b.y - pad, w: b.width + 2 * pad, h: b.height + 2 * pad };
+      };
+      const hits = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
       const renderTide = (data, sk) => {
         const ext = (data.extremes || [])
           .map((e) => ({ t: Date.parse(e.time), h: Number(e.value), type: e.type }))
@@ -10590,92 +10607,132 @@
         const hs = pts.map((p) => p[1]);
         const hMin = Math.min(...hs), hMax = Math.max(...hs);
         const pad = Math.max(0.1, (hMax - hMin) * 0.12);
-        const W = 320, Hh = 130, top = 16, bot = 20;
+        // Rev486 (Carlos QA mobile, "tipo muy pequeñita"): the SVG uses the
+        // popup's REAL pixel width as viewBox (1:1), so font sizes in CSS
+        // are true px on every screen instead of shrinking with the scale.
+        const LH = 17;  // now-box line height (px)
+        const W = Math.max(280, Math.round(tideBody.clientWidth || 320));
+        const Hh = 260, top = 3 * LH + 30, bot = 24, axisY = Hh - bot;
         const X = (tt) => ((tt - t0) / (t1 - t0)) * W;
-        const Y = (h) => top + (1 - (h - (hMin - pad)) / ((hMax + pad) - (hMin - pad))) * (Hh - top - bot);
-        const line = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
-        const fill = `${line} L${X(pts[pts.length - 1][0]).toFixed(1)},${Hh - bot} L${X(pts[0][0]).toFixed(1)},${Hh - bot} Z`;
-        let svg = `<svg class="tide-svg" viewBox="0 0 ${W} ${Hh}">`;
-        svg += `<line class="tide-axis" x1="0" y1="${Hh - bot}" x2="${W}" y2="${Hh - bot}"/>`;
+        const Y = (h) => top + (1 - (h - (hMin - pad)) / ((hMax + pad) - (hMin - pad))) * (axisY - 14 - top);
+        const line = pts.map((p, k) => `${k ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
+        const fill = `${line} L${X(pts[pts.length - 1][0]).toFixed(1)},${axisY} L${X(pts[0][0]).toFixed(1)},${axisY} Z`;
+
+        tideBody.textContent = "";
+        const svg = mk("svg", { class: "tide-svg", viewBox: `0 0 ${W} ${Hh}` });
+        tideBody.appendChild(svg);  // must be in the DOM for getBBox()
+        svg.appendChild(mk("line", { class: "tide-axis", x1: 0, y1: axisY, x2: W, y2: axisY }));
+        const axisLabels = [];
         for (let k = -6; k <= 12; k += 3) {
           const tt = now + k * 3600e3, x = X(tt);
-          svg += `<line class="tide-axis" x1="${x.toFixed(1)}" y1="${Hh - bot}" x2="${x.toFixed(1)}" y2="${Hh - bot + 3}"/>`;
-          svg += `<text x="${Math.min(W - 14, Math.max(14, x)).toFixed(1)}" y="${Hh - 6}" text-anchor="middle">${fmtHM(new Date(tt))}</text>`;
+          svg.appendChild(mk("line", { class: "tide-axis", x1: x.toFixed(1), y1: axisY, x2: x.toFixed(1), y2: axisY + 3 }));
+          const lb = mk("text", { x: Math.min(W - 18, Math.max(18, x)).toFixed(1), y: Hh - 6, "text-anchor": "middle" }, fmtHM(new Date(tt)));
+          svg.appendChild(lb);
+          axisLabels.push(boxOf(lb, 1));
         }
-        svg += `<path class="tide-fill" d="${fill}"/><path class="tide-curve" d="${line}"/>`;
-        for (const e of ext) {
-          if (e.t < t0 || e.t > t1) continue;
-          const x = X(e.t), y = Y(e.h), hi = /high/i.test(e.type);
-          const lbl = `${hi ? t("tide.high") : t("tide.low")} ${fmtHM(new Date(e.t))} ${e.h.toFixed(2)}`;
-          svg += `<text class="tide-ext" x="${Math.min(W - 40, Math.max(40, x)).toFixed(1)}" y="${(hi ? y - 5 : y + 12).toFixed(1)}" text-anchor="middle">${lbl}</text>`;
-        }
+        svg.appendChild(mk("path", { class: "tide-fill", d: fill }));
+        svg.appendChild(mk("path", { class: "tide-curve", d: line }));
+
+        // --- "now" box (root = now line) ---
         const hNowCurve = tideAt(ext, now);
         const hNow = (sk && typeof sk.heightNow === "number") ? sk.heightNow : hNowCurve;
-        svg += `<line class="tide-now-line" x1="${X(now).toFixed(1)}" y1="${top - 6}" x2="${X(now).toFixed(1)}" y2="${Hh - bot}"/>`;
-        if (hNowCurve != null) svg += `<circle class="tide-now-dot" cx="${X(now).toFixed(1)}" cy="${Y(hNowCurve).toFixed(1)}" r="3.5"/>`;
-        svg += `</svg>`;
+        const arrow = sk && sk.tendency === "rising" ? " \u2191" : (sk && sk.tendency === "falling" ? " \u2193" : "");
         const tend = sk && sk.tendency ? t(`tide.${sk.tendency}`) : "";
-        const arrow = sk && sk.tendency === "rising" ? "\u2191" : (sk && sk.tendency === "falling" ? "\u2193" : "");
         const coef = coefTxt(data.coef);
         const next = ext.find((e) => e.t > now);
         const station = (data.station && data.station.name) || "";
-        let html = `<div class="tide-now"><b>${station}</b> \u00b7 ${t("tide.now")} `
-          + `${hNow != null ? hNow.toFixed(2) + " m" : "\u2014"} ${arrow} ${tend}`
-          + `${coef ? ` \u00b7 ${t("tide.coef")} ${coef}` : ""}</div>`;
-        if (next) {
-          html += `<div class="tide-next">${t("tide.next")}: ${/high/i.test(next.type) ? t("tide.high") : t("tide.low")} `
-            + `${fmtHM(new Date(next.t))} (${next.h.toFixed(2)} m)</div>`;
+        const l1 = `${station}${station ? " \u00b7 " : ""}${hNow != null ? hNow.toFixed(2) + " m" : "\u2014"}${arrow}`;
+        const l2 = [tend, coef ? `${t("tide.coef")} ${coef}` : ""].filter(Boolean).join(" \u00b7 ");
+        const l3 = next ? `${t("tide.next")}: ${/high/i.test(next.type) ? t("tide.high") : t("tide.low")} ${fmtHM(new Date(next.t))} \u00b7 ${next.h.toFixed(2)} m` : "";
+        const xNow = X(now);
+        const nowG = mk("g", {});
+        svg.appendChild(nowG);
+        const boxRect = mk("rect", { class: "tide-now-box", rx: 5, ry: 5 });
+        nowG.appendChild(boxRect);
+        const lines = [[l1, "tide-now-t1"], [l2, "tide-now-t2"], [l3, "tide-now-t2"]].filter((x) => x[0]);
+        const texts = lines.map(([txt, cls], k) => {
+          const el = mk("text", { class: cls, x: 0, y: 18 + k * LH }, txt);
+          nowG.appendChild(el);
+          return el;
+        });
+        const tw = Math.max(...texts.map((el) => el.getComputedTextLength()));
+        const bw = tw + 20, bh = 10 + lines.length * LH;
+        const bx = Math.min(W - bw - 1, Math.max(1, xNow - bw / 2));
+        const by = 2;
+        boxRect.setAttribute("x", bx.toFixed(1)); boxRect.setAttribute("y", by);
+        boxRect.setAttribute("width", bw.toFixed(1)); boxRect.setAttribute("height", bh);
+        texts.forEach((el) => el.setAttribute("x", (bx + 10).toFixed(1)));
+        const nowBox = { x: bx - 2, y: by - 2, w: bw + 4, h: bh + 4 };
+        svg.appendChild(mk("line", { class: "tide-now-line", x1: xNow.toFixed(1), y1: by + bh, x2: xNow.toFixed(1), y2: axisY }));
+        if (hNowCurve != null) svg.appendChild(mk("circle", { class: "tide-now-dot", cx: xNow.toFixed(1), cy: Y(hNowCurve).toFixed(1), r: 3.5 }));
+
+        // --- HW / LW labels, flipped to the other side on collision ---
+        const extBoxes = [];
+        for (const e of ext) {
+          if (e.t < t0 || e.t > t1) continue;
+          const x = Math.min(W - 62, Math.max(62, X(e.t))), y = Y(e.h), hi = /high/i.test(e.type);
+          const lbl = mk("text", { class: "tide-ext", x: x.toFixed(1) },
+            `${hi ? t("tide.high") : t("tide.low")} ${fmtHM(new Date(e.t))} ${e.h.toFixed(2)}`);
+          svg.appendChild(lbl);
+          const place = (above) => { lbl.setAttribute("y", (above ? y - 8 : y + 18).toFixed(1)); return boxOf(lbl); };
+          let b = place(hi);
+          const bad = (bb) => hits(bb, nowBox) || axisLabels.some((q) => hits(bb, q)) || bb.y + bb.h > axisY + 1 || bb.y < 0;
+          if (bad(b)) b = place(!hi);
+          extBoxes.push(b);
         }
-        tideBody.innerHTML = html + svg;
-        // Rev484 (Carlos): interactive curve — mouse hover or finger drag
-        // shows a cursor with time, height and rising/falling at that
-        // instant. Pointer -> SVG x uses the rendered width ratio (both
-        // in client px, so CSS zoom does not skew it).
-        const svgEl = tideBody.querySelector(".tide-svg");
-        if (svgEl) {
-          const NS = "http://www.w3.org/2000/svg";
-          const cur = document.createElementNS(NS, "g");
-          cur.setAttribute("class", "tide-cursor");
-          cur.style.display = "none";
-          const cLine = document.createElementNS(NS, "line");
-          cLine.setAttribute("class", "tide-cur-line");
-          cLine.setAttribute("y1", String(top - 6));
-          cLine.setAttribute("y2", String(Hh - bot));
-          const cDot = document.createElementNS(NS, "circle");
-          cDot.setAttribute("class", "tide-cur-dot");
-          cDot.setAttribute("r", "4");
-          const cTxt = document.createElementNS(NS, "text");
-          cTxt.setAttribute("class", "tide-cur-txt");
-          cTxt.setAttribute("y", String(top - 6));
-          cur.appendChild(cLine); cur.appendChild(cDot); cur.appendChild(cTxt);
-          svgEl.appendChild(cur);
-          const showAt = (clientX) => {
-            const rect = svgEl.getBoundingClientRect();
-            if (!rect.width) return;
-            const x = Math.min(W, Math.max(0, (clientX - rect.left) * (W / rect.width)));
-            const tt = t0 + (x / W) * (t1 - t0);
-            const h = tideAt(ext, tt);
-            if (h == null) { cur.style.display = "none"; return; }
-            const h2 = tideAt(ext, tt + 5 * 60e3);
-            const dir = (h2 == null) ? "" : (h2 > h + 0.002 ? " \u2191" : (h2 < h - 0.002 ? " \u2193" : ""));
-            cLine.setAttribute("x1", x.toFixed(1));
-            cLine.setAttribute("x2", x.toFixed(1));
-            cDot.setAttribute("cx", x.toFixed(1));
-            cDot.setAttribute("cy", Y(h).toFixed(1));
-            cTxt.setAttribute("x", Math.min(W - 52, Math.max(52, x)).toFixed(1));
-            cTxt.textContent = `${fmtHM(new Date(tt))} \u00b7 ${h.toFixed(2)} m${dir}`;
-            cur.style.display = "";
-          };
-          const hide = () => { cur.style.display = "none"; };
-          svgEl.addEventListener("pointermove", (ev) => showAt(ev.clientX));
-          svgEl.addEventListener("pointerdown", (ev) => {
-            showAt(ev.clientX);
-            try { svgEl.setPointerCapture(ev.pointerId); } catch { /* old browsers */ }
-          });
-          svgEl.addEventListener("pointerleave", hide);
-          svgEl.addEventListener("pointercancel", hide);
-          svgEl.addEventListener("pointerup", (ev) => { if (ev.pointerType !== "mouse") hide(); });
-        }
+
+        // --- interactive cursor ---
+        const cur = mk("g", { class: "tide-cursor" });
+        cur.style.display = "none";
+        const cLine = mk("line", { class: "tide-cur-line", y1: by + bh, y2: axisY });
+        const cDot = mk("circle", { class: "tide-cur-dot", r: 4 });
+        const cTxt = mk("text", { class: "tide-cur-txt" });
+        cur.appendChild(cLine); cur.appendChild(cDot); cur.appendChild(cTxt);
+        svg.appendChild(cur);
+        const blockers = () => [nowBox, ...extBoxes, ...axisLabels];
+        const showAt = (clientX) => {
+          const rect = svg.getBoundingClientRect();
+          if (!rect.width) return;
+          const x = Math.min(W, Math.max(0, (clientX - rect.left) * (W / rect.width)));
+          const tt = t0 + (x / W) * (t1 - t0);
+          const h = tideAt(ext, tt);
+          if (h == null) { cur.style.display = "none"; return; }
+          const h2 = tideAt(ext, tt + 5 * 60e3);
+          const dir = (h2 == null) ? "" : (h2 > h + 0.002 ? " \u2191" : (h2 < h - 0.002 ? " \u2193" : ""));
+          const y = Y(h);
+          cLine.setAttribute("x1", x.toFixed(1)); cLine.setAttribute("x2", x.toFixed(1));
+          cDot.setAttribute("cx", x.toFixed(1)); cDot.setAttribute("cy", y.toFixed(1));
+          cTxt.textContent = `${fmtHM(new Date(tt))} \u00b7 ${h.toFixed(2)} m${dir}`;
+          cur.style.display = "";
+          // Candidate positions around the dot; first one that collides
+          // with nothing wins. Text anchor start/end keeps it beside the line.
+          const cands = [
+            [x + 10, y - 10, "start"], [x - 10, y - 10, "end"],
+            [x + 10, y + 22, "start"], [x - 10, y + 22, "end"],
+            [x + 10, y - 30, "start"], [x - 10, y - 30, "end"],
+            [x + 10, y + 42, "start"], [x - 10, y + 42, "end"],
+          ];
+          let placed = false;
+          for (const [cx, cy, anchor] of cands) {
+            cTxt.setAttribute("x", cx.toFixed(1)); cTxt.setAttribute("y", cy.toFixed(1));
+            cTxt.setAttribute("text-anchor", anchor);
+            const b = boxOf(cTxt);
+            if (b.x < 0 || b.x + b.w > W || b.y < 0 || b.y + b.h > axisY) continue;
+            if (blockers().some((q) => hits(b, q))) continue;
+            placed = true;
+            break;
+          }
+          cTxt.style.display = placed ? "" : "none";
+        };
+        const hide = () => { cur.style.display = "none"; };
+        svg.addEventListener("pointermove", (ev) => showAt(ev.clientX));
+        svg.addEventListener("pointerdown", (ev) => {
+          showAt(ev.clientX);
+          try { svg.setPointerCapture(ev.pointerId); } catch { /* old browsers */ }
+        });
+        svg.addEventListener("pointerleave", hide);
+        svg.addEventListener("pointercancel", hide);
+        svg.addEventListener("pointerup", (ev) => { if (ev.pointerType !== "mouse") hide(); });
       };
       const loadTide = async () => {
         tideBody.textContent = t("tide.loading");
@@ -10702,11 +10759,9 @@
           tideBody.textContent = t("tide.err");
         }
       };
-      const openTide = () => { if (!tideModal) return; tideModal.hidden = false; loadTide(); };
-      const closeTide = () => { if (tideModal) tideModal.hidden = true; };
-      if (tideModal) {
-        tideModal.querySelectorAll("[data-tide-close]").forEach((el) => el.addEventListener("click", closeTide));
-      }
+      // Rev486: canonical popup (.popup-overlay + .open).
+      const openTide = () => { if (!tidePop) return; tidePop.classList.add("open"); loadTide(); };
+      const closeTide = () => { if (tidePop) tidePop.classList.remove("open"); };
       if (tideBtn) {
         tideBtn.setAttribute("aria-label", t("tide.btn"));
         tideBtn.setAttribute("title", t("tide.btn"));

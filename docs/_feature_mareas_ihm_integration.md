@@ -277,3 +277,36 @@ encima de la caja de la esquina inferior derecha, alineado a su derecha.
 El `bottom` se calcula con el `offsetHeight` real de esa caja
 (ResizeObserver), porque su alto cambia con la fuente y el contenido. Se
 elimina `.rose-frame`.
+
+## Rev486 — popup de mareas con el estilo canónico (QA Carlos 2026-10-15)
+
+Carlos: "no respetas los CSS: la X, los colores de categoría del texto,
+el tipo del botón… la info de estación y estado debe salir en un
+cuadrito con raíz en la raya del ahora; la info interactiva nunca debe
+solaparse con la de PM/BM".
+
+Error: copié el modal `pm-modal` de "Gestionar perfiles". El popup
+canónico del visor es el de "Configurar las esquinas de la rosa":
+
+- `.popup-overlay#tide-pop` (+ `.open`) > `.popup-box` > `<h4>` (cian
+  `--accent`, cabecera `--bg-3`) + `.popup-close` (X roja `--engaged` a la
+  izquierda) + `.popup-body`.
+- Botón principal: `button.primary` ("Abrir AnchorWatch Pro").
+- Colores solo con variables (UI_STYLE_GUIDE regla 10): curva y cursor
+  `--accent`, raya y cuadro del ahora `--warn`, textos `--fg` / `--fg-dim`,
+  ejes `--border`, fondo del cuadro `--bg-3`. El botón de la rosa pasa de
+  `#4dd4ff` a `var(--accent)`.
+
+Contenido de la curva:
+- **Cuadro del ahora** dentro del SVG, en una franja superior reservada,
+  centrado en la x de "ahora" (pegado al borde si no cabe). La raya del
+  ahora nace en su borde inferior y baja hasta el eje: es su raíz.
+  Líneas: `Vigo · 1,11 m ↑` / `subiendo · coef. 53` / `Próx.: PM 07:06 · 3,31 m`.
+  Desaparecen las dos líneas de texto sueltas de encima de la curva.
+- **Etiquetas PM/BM**: PM encima del punto y BM debajo. Si una PM choca
+  con el cuadro del ahora, o una BM con los rótulos del eje, se pasa al
+  otro lado del punto.
+- **Etiqueta interactiva**: se prueban posiciones alrededor del punto
+  (arriba, abajo, derecha, izquierda) y se elige la primera cuyo
+  `getBBox()` no se cruce con ninguna etiqueta PM/BM, con el cuadro del
+  ahora ni con los bordes. Nunca se solapa.

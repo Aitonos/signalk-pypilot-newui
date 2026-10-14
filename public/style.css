@@ -4361,32 +4361,31 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
   bottom: 64px;
   z-index: 20;
 }
-/* Rev482 (Carlos): black background + app blue (#4dd4ff, same as the
-   overlay cards) for border and curve; the curve fills the button. */
+/* Rev482 (Carlos): black background + app accent blue for border and
+   curve; the curve fills the button. Rev486: var(--accent), no hex. */
 #rose-tide-btn {
   background: #000;
-  border-color: #4dd4ff;
-  color: #4dd4ff;
+  border-color: var(--accent);
+  color: var(--accent);
   padding: 0;
   overflow: hidden;
 }
 #rose-tide-btn svg { width: 100%; height: 100%; display: block; }
 .rose-corner-btn[hidden] { display: none; }
-.tide-card { width: min(560px, 94vw); }
-.tide-body { padding: 4px 16px 8px; }
-.tide-now { font-size: 15px; margin: 4px 0 2px; }
-.tide-next { font-size: 13px; color: var(--fg-dim, #8b98a5); margin-bottom: 8px; }
-.tide-svg { width: 100%; height: auto; display: block; }
-.tide-svg .tide-curve { fill: none; stroke: #4dd4ff; stroke-width: 2; }
-.tide-svg .tide-fill { fill: rgba(77, 212, 255, 0.12); stroke: none; }
-.tide-svg .tide-now-line { stroke: #ffcc00; stroke-width: 1.2; stroke-dasharray: 3 3; }
-.tide-svg .tide-now-dot { fill: #ffcc00; }
-.tide-svg .tide-axis { stroke: #2b3542; stroke-width: 1; }
-.tide-svg text { fill: #c9d4df; font-size: 10px; }
-.tide-svg .tide-ext { fill: #e6edf3; font-weight: 700; }
-/* Rev484: interactive cursor on the tide curve. touch-action:none so a
-   finger drag moves the cursor instead of scrolling the popup. */
-.tide-svg { touch-action: none; cursor: crosshair; }
-.tide-svg .tide-cur-line { stroke: #4dd4ff; stroke-width: 1.2; }
-.tide-svg .tide-cur-dot { fill: #4dd4ff; stroke: #0a1220; stroke-width: 1.5; }
-.tide-svg .tide-cur-txt { fill: #4dd4ff; font-size: 11px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #0a1220; stroke-width: 3px; }
+/* Rev486: tide popup content. Popup chrome comes from .popup-box; only
+   the curve is styled here, with theme variables (UI_STYLE_GUIDE r.10). */
+.tide-body { margin-bottom: 14px; }
+.tide-svg { width: 100%; height: auto; display: block; touch-action: none; cursor: crosshair; }
+.tide-svg text { fill: var(--fg-dim); font-size: 12px; }
+.tide-svg .tide-axis { stroke: var(--border); stroke-width: 1; }
+.tide-svg .tide-curve { fill: none; stroke: var(--accent); stroke-width: 2; }
+.tide-svg .tide-fill { fill: var(--accent); fill-opacity: 0.12; stroke: none; }
+.tide-svg .tide-ext { fill: var(--fg); font-size: 13px; font-weight: 700; text-anchor: middle; }
+.tide-svg .tide-now-line { stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 3 3; }
+.tide-svg .tide-now-dot { fill: var(--warn); }
+.tide-svg .tide-now-box { fill: var(--bg-3); stroke: var(--warn); stroke-width: 1; }
+.tide-svg .tide-now-t1 { fill: var(--fg); font-size: 14px; font-weight: 800; }
+.tide-svg .tide-now-t2 { fill: var(--fg-dim); font-size: 13px; }
+.tide-svg .tide-cur-line { stroke: var(--accent); stroke-width: 1.2; }
+.tide-svg .tide-cur-dot { fill: var(--accent); stroke: var(--bg-2); stroke-width: 1.5; }
+.tide-svg .tide-cur-txt { fill: var(--accent); font-size: 14px; font-weight: 700; paint-order: stroke; stroke: var(--bg-2); stroke-width: 3px; }
