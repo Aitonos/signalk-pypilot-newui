@@ -33,7 +33,7 @@ inside pypilot-newui).
 | Plugin | Status | What it unlocks in pypilot-newui |
 |---|---|---|
 | [pypilot](https://github.com/pypilot/pypilot) / TinyPilot (`pypilot_web`) | **Required** | The autopilot itself. Set its host and port in the plugin config. |
-| [`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm) — **AnchorWatch Pro: Smart Anchoring, AIS & Tides** | **Recommended** | **Tide button on the rose** (just above the bottom-right corner tile): popup with the tide curve, current height, rising / falling, next HW / LW and coefficient, and a one-tap jump to the **AnchorWatch Pro anchor-watch visor inside the rose** (full-screen like the chart). Also fills AIS vessel names into Signal K, so AIS targets show names instead of raw MMSIs right after a server restart. The button only appears when the plugin is installed. |
+| [`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm) — **AnchorWatch Pro: Smart Anchoring, AIS & Tides** | **Recommended** | **Tide button on the rose** (just above the bottom-right corner tile): popup with the tide curve, current height, rising / falling, next HW / LW and coefficient, and a one-tap jump to the **AnchorWatch Pro anchor-watch visor inside the rose** (full-screen like the chart). Also fills AIS vessel names into Signal K, so AIS targets show names instead of raw MMSIs right after a server restart. Without the plugin, the button explains what it does and links straight to its App Store page. |
 | [`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk) | **Recommended** | **Integrated chartplotter**: double-tap the rose to open the chart inside it, kept loaded in the background so it opens instantly. |
 | [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) | **Required for the chartplotter** | Serves the chart tiles Freeboard-SK draws. **Without a chart provider the embedded chart stays empty.** Any other provider works too (see [below](#chart-provider-is-required-for-the-embedded-plotter)). |
 | [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing and distance, course line, infobox with the vessel name and ACK. |
@@ -107,9 +107,9 @@ up automatically.
     Freeboard-SK inside the rose box; kept loaded in the background so
     it opens instantly (per-device switch).
 13. **Tide at a glance** (with `signalk-mareas-ihm`) — button on the
-    rose opens a popup with the tide curve, current height, next HW/LW
-    and coefficient, and can open the anchor-watch visor inside the
-    rose.
+    rose opens a popup with an interactive tide curve, current height,
+    trend, next HW/LW and coefficient, and can open the anchor-watch
+    visor inside the rose.
 
 ### Autopilot enhancements — 12 new added functions
 
