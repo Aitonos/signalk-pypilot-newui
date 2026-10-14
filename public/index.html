@@ -842,27 +842,27 @@
                         fill="#fff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">!</text>
                 </svg>
                 <div class="overlay-title" data-i18n="dash.overlay.ais.title">AIS collision alarm</div>
-                <div class="overlay-needs" data-i18n="dash.overlay.ais.needs">Needs signalk-collision-alerts plugin installed in your SK server. Reads notifications.navigation.closestApproach.* and renders a red/orange hull on the rose with an infobox + ACK. Double-tap the rose to open Freeboard-SK embedded.</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.ais.needs">Warns when another AIS vessel may collide with us. It is drawn on the rose with its course and distance. Requires the signalk-collision-alerts plugin. Double-tap the rose to open the chart (Freeboard).</div>
                 <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap"
                      onclick="event.stopPropagation();">
                   <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
                     <input type="radio" name="ais-mode" value="off" id="dash-ais-mode-off" />
-                    <span data-i18n="dash.overlay.ais.mode.off">Puerto (sin alarmas)</span>
+                    <span data-i18n="dash.overlay.ais.mode.off">Harbour: no alerts</span>
                   </label>
                   <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
                     <input type="radio" name="ais-mode" value="anchor" id="dash-ais-mode-anchor" />
-                    <span data-i18n="dash.overlay.ais.mode.anchor">Fondeo (solo targets en movimiento)</span>
+                    <span data-i18n="dash.overlay.ais.mode.anchor">At anchor: moving vessels only</span>
                   </label>
                   <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
                     <input type="radio" name="ais-mode" value="underway" id="dash-ais-mode-underway" checked />
-                    <span data-i18n="dash.overlay.ais.mode.underway">Navegacion (completo)</span>
+                    <span data-i18n="dash.overlay.ais.mode.underway">Sailing: all alerts</span>
                   </label>
                 </div>
                 <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
                   <button type="button" id="dash-ais-alarm-config" class="ghost"
                           style="padding:6px 10px;font-size:12px"
                           data-i18n="dash.overlay.ais.config"
-                          onclick="event.preventDefault();event.stopPropagation();">Open plugin config</button>
+                          onclick="event.preventDefault();event.stopPropagation();">Distances and times (plugin)</button>
                   <button type="button" id="dash-ais-alarm-silenced" class="ghost"
                           style="padding:6px 10px;font-size:12px"
                           data-i18n="dash.overlay.ais.silenced"
@@ -877,7 +877,7 @@
                   <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;font-size:12px;color:var(--fg-dim);cursor:pointer"
                          onclick="event.stopPropagation();">
                     <input type="checkbox" id="dash-ais-alarm-harbor-auto" checked />
-                    <span data-i18n="dash.overlay.ais.harborAuto">Auto-OFF when moored (SOG=0 for 2 min)</span>
+                    <span data-i18n="dash.overlay.ais.harborAuto">Switch to Harbour by itself when stopped 2 min</span>
                   </label>
                 </div>
               </label>
@@ -2501,6 +2501,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev472"></script>
+  <script src="app.js?v=Rev473"></script>
 </body>
 </html>
