@@ -594,6 +594,19 @@
       "dash.overlay.ais.config": "Distances and times (plugin)",
       "dash.overlay.ais.voice":  "Voice alert",
       "dash.overlay.ais.harborAuto": "Switch to Harbour by itself when stopped 2 min",
+      "tide.title":   "Tide",
+      "tide.btn":     "Tide",
+      "tide.now":     "Now",
+      "tide.rising":  "rising",
+      "tide.falling": "falling",
+      "tide.slack":   "slack",
+      "tide.coef":    "coef.",
+      "tide.next":    "Next",
+      "tide.high":    "HW",
+      "tide.low":     "LW",
+      "tide.full":    "Open full Tides",
+      "tide.loading": "Loading…",
+      "tide.err":     "Tide data not available. Is AnchorWatch Pro (signalk-mareas-ihm) running?",
       "dash.overlay.fb.title":  "Chart in the background",
       "dash.overlay.fb.needs":  "Keeps Freeboard-SK loaded so a double-tap on the rose opens it instantly, with the AIS names already in place.",
       "dash.overlay.fb.toggle": "Keep the chart loaded",
@@ -1485,6 +1498,19 @@
       "dash.overlay.ais.config": "Distancias y tiempos (plugin)",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "dash.overlay.ais.harborAuto": "Pasar solo a Puerto al estar parados 2 min",
+      "tide.title":   "Marea",
+      "tide.btn":     "Marea",
+      "tide.now":     "Ahora",
+      "tide.rising":  "subiendo",
+      "tide.falling": "bajando",
+      "tide.slack":   "repunte",
+      "tide.coef":    "coef.",
+      "tide.next":    "Próxima",
+      "tide.high":    "PM",
+      "tide.low":     "BM",
+      "tide.full":    "Abrir Mareas completo",
+      "tide.loading": "Cargando…",
+      "tide.err":     "No hay datos de marea. ¿Está funcionando AnchorWatch Pro (signalk-mareas-ihm)?",
       "dash.overlay.fb.title":  "Carta en segundo plano",
       "dash.overlay.fb.needs":  "Mantiene Freeboard-SK cargado para que el doble toque en la rosa lo abra al instante, con los nombres AIS ya puestos.",
       "dash.overlay.fb.toggle": "Tener la carta cargada",
@@ -10472,6 +10498,140 @@
       if (fbClose) fbClose.addEventListener("click", closeFb);
       if (fbMax) fbMax.addEventListener("click", toggleMax);
     } catch (e) { console.warn("[rose] dblclick + freeboard wire:", e); }
+
+    // Rev478 (Carlos 2026-10-14): tide curve popup from the 3 o'clock
+    // rose button. Data from signalk-mareas-ihm (/api/extremes) + SK
+    // environment.tide.*; fetched only when the popup opens (extremes
+    // cached 15 min). The button only appears if mareas-ihm answers.
+    try {
+      const MAREAS = "/signalk-mareas-ihm";
+      const tideBtn = document.getElementById("rose-tide-btn");
+      const tideModal = document.getElementById("tide-modal");
+      const tideBody = document.getElementById("tide-body");
+      const tideFull = document.getElementById("tide-full");
+      let tideCache = null;  // { at, data }
+      const fmtHM = (d) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      const coefTxt = (c) => (typeof c === "number" ? String(Math.round(c <= 1.5 ? c * 100 : c)) : null);
+      // Cosine interpolation between consecutive extremes (same model the
+      // tides page draws). ext = [{t: ms, h: m}] sorted.
+      const tideAt = (ext, tt) => {
+        for (let i = 0; i < ext.length - 1; i++) {
+          const a = ext[i], b = ext[i + 1];
+          if (tt >= a.t && tt <= b.t) {
+            const f = (tt - a.t) / (b.t - a.t);
+            return (a.h + b.h) / 2 + (a.h - b.h) / 2 * Math.cos(Math.PI * f);
+          }
+        }
+        return null;
+      };
+      const renderTide = (data, sk) => {
+        const ext = (data.extremes || [])
+          .map((e) => ({ t: Date.parse(e.time), h: Number(e.value), type: e.type }))
+          .filter((e) => isFinite(e.t) && isFinite(e.h))
+          .sort((a, b) => a.t - b.t);
+        const now = Date.now();
+        const t0 = now - 6 * 3600e3, t1 = now + 12 * 3600e3;
+        const pts = [];
+        for (let tt = t0; tt <= t1; tt += 10 * 60e3) {
+          const h = tideAt(ext, tt);
+          if (h != null) pts.push([tt, h]);
+        }
+        if (pts.length < 2) throw new Error("no curve");
+        const hs = pts.map((p) => p[1]);
+        const hMin = Math.min(...hs), hMax = Math.max(...hs);
+        const pad = Math.max(0.1, (hMax - hMin) * 0.12);
+        const W = 320, Hh = 130, top = 16, bot = 20;
+        const X = (tt) => ((tt - t0) / (t1 - t0)) * W;
+        const Y = (h) => top + (1 - (h - (hMin - pad)) / ((hMax + pad) - (hMin - pad))) * (Hh - top - bot);
+        const line = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
+        const fill = `${line} L${X(pts[pts.length - 1][0]).toFixed(1)},${Hh - bot} L${X(pts[0][0]).toFixed(1)},${Hh - bot} Z`;
+        let svg = `<svg class="tide-svg" viewBox="0 0 ${W} ${Hh}">`;
+        svg += `<line class="tide-axis" x1="0" y1="${Hh - bot}" x2="${W}" y2="${Hh - bot}"/>`;
+        for (let k = -6; k <= 12; k += 3) {
+          const tt = now + k * 3600e3, x = X(tt);
+          svg += `<line class="tide-axis" x1="${x.toFixed(1)}" y1="${Hh - bot}" x2="${x.toFixed(1)}" y2="${Hh - bot + 3}"/>`;
+          svg += `<text x="${Math.min(W - 14, Math.max(14, x)).toFixed(1)}" y="${Hh - 6}" text-anchor="middle">${fmtHM(new Date(tt))}</text>`;
+        }
+        svg += `<path class="tide-fill" d="${fill}"/><path class="tide-curve" d="${line}"/>`;
+        for (const e of ext) {
+          if (e.t < t0 || e.t > t1) continue;
+          const x = X(e.t), y = Y(e.h), hi = /high/i.test(e.type);
+          const lbl = `${hi ? t("tide.high") : t("tide.low")} ${fmtHM(new Date(e.t))} ${e.h.toFixed(2)}`;
+          svg += `<text class="tide-ext" x="${Math.min(W - 40, Math.max(40, x)).toFixed(1)}" y="${(hi ? y - 5 : y + 12).toFixed(1)}" text-anchor="middle">${lbl}</text>`;
+        }
+        const hNowCurve = tideAt(ext, now);
+        const hNow = (sk && typeof sk.heightNow === "number") ? sk.heightNow : hNowCurve;
+        svg += `<line class="tide-now-line" x1="${X(now).toFixed(1)}" y1="${top - 6}" x2="${X(now).toFixed(1)}" y2="${Hh - bot}"/>`;
+        if (hNowCurve != null) svg += `<circle class="tide-now-dot" cx="${X(now).toFixed(1)}" cy="${Y(hNowCurve).toFixed(1)}" r="3.5"/>`;
+        svg += `</svg>`;
+        const tend = sk && sk.tendency ? t(`tide.${sk.tendency}`) : "";
+        const arrow = sk && sk.tendency === "rising" ? "\u2191" : (sk && sk.tendency === "falling" ? "\u2193" : "");
+        const coef = coefTxt(data.coef);
+        const next = ext.find((e) => e.t > now);
+        const station = (data.station && data.station.name) || "";
+        let html = `<div class="tide-now"><b>${station}</b> \u00b7 ${t("tide.now")} `
+          + `${hNow != null ? hNow.toFixed(2) + " m" : "\u2014"} ${arrow} ${tend}`
+          + `${coef ? ` \u00b7 ${t("tide.coef")} ${coef}` : ""}</div>`;
+        if (next) {
+          html += `<div class="tide-next">${t("tide.next")}: ${/high/i.test(next.type) ? t("tide.high") : t("tide.low")} `
+            + `${fmtHM(new Date(next.t))} (${next.h.toFixed(2)} m)</div>`;
+        }
+        tideBody.innerHTML = html + svg;
+      };
+      const loadTide = async () => {
+        tideBody.textContent = t("tide.loading");
+        try {
+          if (!tideCache || Date.now() - tideCache.at > 15 * 60e3) {
+            const r = await skFetch(`${MAREAS}/api/extremes`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            tideCache = { at: Date.now(), data: await r.json() };
+          }
+          let sk = null;
+          try {
+            const r2 = await skFetch("/signalk/v1/api/vessels/self/environment/tide");
+            if (r2.ok) {
+              const j = await r2.json();
+              sk = {
+                heightNow: j && j.heightNow ? j.heightNow.value : null,
+                tendency: j && j.tendency ? j.tendency.value : null,
+              };
+            }
+          } catch { /* the curve alone is still useful */ }
+          renderTide(tideCache.data, sk);
+        } catch (e) {
+          console.warn("[tide]", e);
+          tideBody.textContent = t("tide.err");
+        }
+      };
+      const openTide = () => { if (!tideModal) return; tideModal.hidden = false; loadTide(); };
+      const closeTide = () => { if (tideModal) tideModal.hidden = true; };
+      if (tideModal) {
+        tideModal.querySelectorAll("[data-tide-close]").forEach((el) => el.addEventListener("click", closeTide));
+      }
+      if (tideBtn) {
+        tideBtn.setAttribute("aria-label", t("tide.btn"));
+        tideBtn.setAttribute("title", t("tide.btn"));
+        tideBtn.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); openTide(); });
+        // A double-tap on the button must not open Freeboard.
+        tideBtn.addEventListener("dblclick", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+        setTimeout(() => {
+          skFetch(`${MAREAS}/api/build-info`)
+            .then((r) => { if (r.ok) tideBtn.hidden = false; })
+            .catch(() => { /* mareas-ihm not installed: no button */ });
+        }, 3000);
+      }
+      if (tideFull) {
+        tideFull.addEventListener("click", () => {
+          const lang = currentLang() === "es" ? "es" : "en";
+          tideBody.innerHTML = "";
+          const fr = document.createElement("iframe");
+          fr.className = "tide-iframe";
+          fr.title = "Tides";
+          fr.src = `${MAREAS}/mareas?embed=1&lang=${lang}`;
+          tideBody.appendChild(fr);
+        });
+      }
+    } catch (e) { console.warn("[rose] tide button wire:", e); }
 
     // Rev432 (fix #1 ACK no funcionaba): the AIS infobox + ACK button
     // live in the HTML DOM, not the SVG, so we wire ONE persistent

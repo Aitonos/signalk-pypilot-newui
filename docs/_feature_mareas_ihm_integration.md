@@ -236,3 +236,22 @@ todo muy lento." Hoy el iframe solo se carga en el primer doble toque
 - Coste aceptado: WS de Freeboard + render en segundo plano y descarga
   inicial de cartas. Si en tablet débil se nota, se añade un toggle.
 - Este mismo contenedor se reutilizará para el selector de webapps (Rev477).
+
+## Rev478 — botón de mareas a las 3 de la rosa + popup con la curva
+
+- Botón redondo pequeño a las 3 de la rosa (`.rose-side-btn.rs-right`,
+  dentro de `.rose-wrap`, z-index por debajo del embed de Freeboard).
+  Solo se muestra si `GET /signalk-mareas-ihm/api/build-info` responde OK.
+- El de las 9 (`.rs-left`) se queda en CSS, sin pintar, hasta que Carlos
+  decida su uso: un botón inerte confunde.
+- Popup con el estilo existente `pm-modal` / `pm-card` (no se improvisa
+  UI). Contenido:
+  - Cabecera: estación (`/api/extremes.station.name`).
+  - Línea "Ahora": `environment.tide.heightNow` + `tendency` (REST SK) +
+    coeficiente.
+  - Próximo extremo (PM/BM) con hora y altura.
+  - Curva SVG de −6 h a +12 h, con interpolación coseno entre extremos,
+    marca "ahora" y PM/BM etiquetadas.
+  - Pie: "Abrir Mareas completo" sustituye la curva por un iframe de
+    `/signalk-mareas-ihm/mareas?embed=1&lang=..` dentro del mismo popup.
+- Fetch solo al abrir; `/api/extremes` cacheado 15 min. Sin polling.

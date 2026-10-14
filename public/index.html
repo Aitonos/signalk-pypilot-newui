@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev477" />
+  <link rel="stylesheet" href="style.css?v=Rev478" />
 </head>
 <body class="theme-dark">
 
@@ -118,6 +118,11 @@
           <div class="dash-cell corner-tr" data-corner="tr"></div>
           <div class="dash-cell corner-bl" data-corner="bl"></div>
           <div class="dash-cell corner-br" data-corner="br"></div>
+          <!-- Rev478 (Carlos 2026-10-14): small side button at 3 o'clock of
+               the rose -> tide curve popup. Shown only when signalk-mareas-ihm
+               is installed. The 9 o'clock slot (.rs-left) is reserved. -->
+          <button type="button" class="rose-side-btn rs-right" id="rose-tide-btn" hidden
+                  aria-label="Tide" title="Tide">🌊</button>
           <!-- Rev432 (Carlos QA Rev431): AIS collision infobox + ACK as
                an HTML absolute div (not SVG) so the ACK click is 100 %
                reliable (no re-render-swallows-tap race), the box always
@@ -2507,6 +2512,22 @@
     </div>
   </div>
 
+  <!-- Rev478: tide curve popup (data from signalk-mareas-ihm). Reuses the
+       pm-modal / pm-card styling of "Gestionar perfiles". -->
+  <div id="tide-modal" class="pm-modal" hidden>
+    <div class="pm-backdrop" data-tide-close></div>
+    <div class="pm-card tide-card" role="dialog" aria-labelledby="tide-title">
+      <header class="pm-header">
+        <h3 id="tide-title" data-i18n="tide.title">Tide</h3>
+        <button type="button" class="pm-close ghost" data-tide-close aria-label="Close">✕</button>
+      </header>
+      <div class="tide-body" id="tide-body"></div>
+      <footer class="pm-footer">
+        <button type="button" id="tide-full" class="ghost" data-i18n="tide.full">Open full Tides</button>
+      </footer>
+    </div>
+  </div>
+
   <!-- Rev403: Modal "Gestionar perfiles" (draggable cards, multi-select) -->
   <div id="pm-modal" class="pm-modal" hidden>
     <div class="pm-backdrop" data-pm-close></div>
@@ -2527,6 +2548,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev477"></script>
+  <script src="app.js?v=Rev478"></script>
 </body>
 </html>

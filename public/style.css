@@ -4351,3 +4351,37 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
 /* Rev476: counterpart of the critical inline CSS in index.html <head>:
    the rose stays hidden until this stylesheet has loaded. */
 #wind-rose { visibility: visible; }
+
+/* Rev478: small side buttons on the rose (3 / 9 o'clock). Below the
+   Freeboard embed (z 25) so they disappear when the chart is open. */
+.rose-side-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #2b3542;
+  background: rgba(15, 22, 32, 0.88);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+.rose-side-btn[hidden] { display: none; }
+.rose-side-btn.rs-right { right: 0; }
+.rose-side-btn.rs-left  { left: 0; }
+.tide-card { width: min(560px, 94vw); }
+.tide-body { padding: 4px 16px 8px; }
+.tide-now { font-size: 15px; margin: 4px 0 2px; }
+.tide-next { font-size: 13px; color: var(--fg-dim, #8b98a5); margin-bottom: 8px; }
+.tide-svg { width: 100%; height: auto; display: block; }
+.tide-svg .tide-curve { fill: none; stroke: #4dd4ff; stroke-width: 2; }
+.tide-svg .tide-fill { fill: rgba(77, 212, 255, 0.12); stroke: none; }
+.tide-svg .tide-now-line { stroke: #ffcc00; stroke-width: 1.2; stroke-dasharray: 3 3; }
+.tide-svg .tide-now-dot { fill: #ffcc00; }
+.tide-svg .tide-axis { stroke: #2b3542; stroke-width: 1; }
+.tide-svg text { fill: #c9d4df; font-size: 10px; }
+.tide-svg .tide-ext { fill: #e6edf3; font-weight: 700; }
+.tide-iframe { width: 100%; height: 70vh; border: 0; display: block; }
