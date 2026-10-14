@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev484" />
+  <link rel="stylesheet" href="style.css?v=Rev485" />
 </head>
 <body class="theme-dark">
 
@@ -1932,6 +1932,15 @@
           </div>
         </div>
 
+        <!-- Rev485 (Carlos 2026-10-15): companion plugins with live
+             installed / missing status. Filled by _renderCompanions() when
+             the Info tab opens. -->
+        <div>
+          <div class="section-title" data-i18n="info.comp.title">Companion plugins</div>
+          <p data-i18n="info.comp.intro">The autopilot works with pypilot alone. These plugins unlock the rest; install them from the Signal K App Store.</p>
+          <ul class="info-list companion-list" id="info-companions"></ul>
+        </div>
+
         <!-- Quick instructions -->
         <div>
           <div data-lang="en">
@@ -2565,6 +2574,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev484"></script>
+  <script src="app.js?v=Rev485"></script>
 </body>
 </html>

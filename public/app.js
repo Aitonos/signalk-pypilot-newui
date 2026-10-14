@@ -594,6 +594,23 @@
       "dash.overlay.ais.config": "Distances and times (plugin)",
       "dash.overlay.ais.voice":  "Voice alert",
       "dash.overlay.ais.harborAuto": "Switch to Harbour by itself when stopped 2 min",
+      "info.comp.title":     "Companion plugins",
+      "info.comp.intro":     "The autopilot works with pypilot alone. These plugins unlock the rest; install them from the Signal K App Store.",
+      "info.comp.ok":        "installed",
+      "info.comp.missing":   "not installed",
+      "info.comp.unknown":   "cannot check without an admin login",
+      "info.comp.active":    "active (alarms received)",
+      "info.comp.otherProv": "another chart provider is active",
+      "info.comp.required":  "Required",
+      "info.comp.recommended": "Recommended",
+      "info.comp.reqChart":  "Required for the chart",
+      "info.comp.optional":  "Optional",
+      "info.comp.store":     "App Store",
+      "info.comp.pypilot":   "The autopilot itself (host and port in Setup).",
+      "info.comp.mareas":    "Tide button on the rose (tide curve, next HW/LW, coefficient) and the AnchorWatch Pro anchor-watch visor inside the rose. Also fills AIS vessel names into Signal K.",
+      "info.comp.freeboard": "Integrated chartplotter: double-tap the rose.",
+      "info.comp.charts":    "Serves the chart tiles; without a chart provider the embedded chart stays empty.",
+      "info.comp.collision": "AIS collision targets on the rose with name, distance and ACK.",
       "tide.title":   "Tide",
       "tide.btn":     "Tide",
       "tide.now":     "Now",
@@ -1498,6 +1515,23 @@
       "dash.overlay.ais.config": "Distancias y tiempos (plugin)",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "dash.overlay.ais.harborAuto": "Pasar solo a Puerto al estar parados 2 min",
+      "info.comp.title":     "Plugins compañeros",
+      "info.comp.intro":     "El piloto funciona solo con pypilot. Estos plugins desbloquean el resto; se instalan desde la App Store de Signal K.",
+      "info.comp.ok":        "instalado",
+      "info.comp.missing":   "no instalado",
+      "info.comp.unknown":   "no se puede comprobar sin login de admin",
+      "info.comp.active":    "activo (llegan alarmas)",
+      "info.comp.otherProv": "hay otro proveedor de cartas activo",
+      "info.comp.required":  "Necesario",
+      "info.comp.recommended": "Recomendado",
+      "info.comp.reqChart":  "Necesario para la carta",
+      "info.comp.optional":  "Opcional",
+      "info.comp.store":     "App Store",
+      "info.comp.pypilot":   "El propio piloto (host y puerto en Setup).",
+      "info.comp.mareas":    "Botón de mareas en la rosa (curva, próxima PM/BM, coeficiente) y el visor de fondeo de AnchorWatch Pro dentro de la rosa. Además pone los nombres AIS en Signal K.",
+      "info.comp.freeboard": "Carta integrada: doble toque en la rosa.",
+      "info.comp.charts":    "Sirve las cartas; sin un proveedor de cartas la carta integrada sale vacía.",
+      "info.comp.collision": "Barcos AIS con riesgo de colisión en la rosa, con nombre, distancia y ACK.",
       "tide.title":   "Marea",
       "tide.btn":     "Marea",
       "tide.now":     "Ahora",
@@ -4193,6 +4227,8 @@
     // re-enable finds the real id — but skip voice + render.
     const enabled = _aisAlarmEnabled();
     const mmsi = _mmsiFromAlarmPath(path) || _mmsiFromAlarmValue(value);
+    // Rev485: proof that signalk-collision-alerts is running (Info tab).
+    state._collisionAlertsSeen = true;
     if (!mmsi) return;
     const prev = state.aisAlarms.get(mmsi);
     const prevState = prev && prev.value && prev.value.state;
@@ -13818,7 +13854,76 @@
     });
     _tabPostActivate(id);
   }
+  // Rev485: companion plugins status in the Info tab. Admin token ->
+  // exact list from /skServer/plugins; otherwise anonymous probes
+  // (/plugins/* answers 401 for ANY id without login, so it cannot tell
+  // installed from missing).
+  async function _renderCompanions() {
+    const ul = document.getElementById("info-companions");
+    if (!ul) return;
+    const getJson = async (url) => {
+      try { const r = await skFetch(url); return r.ok ? await r.json() : null; } catch { return null; }
+    };
+    const okUrl = async (url) => {
+      try { const r = await skFetch(url); return r.ok; } catch { return false; }
+    };
+    const [plugins, webapps, charts, mareasUp] = await Promise.all([
+      getJson("/skServer/plugins"),
+      getJson("/skServer/webapps"),
+      getJson("/signalk/v2/api/resources/charts"),
+      okUrl("/signalk-mareas-ihm/api/build-info"),
+    ]);
+    const pluginIds = Array.isArray(plugins)
+      ? new Set(plugins.flatMap((p) => [p.id, p.packageName, p.name].filter(Boolean))) : null;
+    const webappNames = Array.isArray(webapps) ? new Set(webapps.map((w) => w.name)) : new Set();
+    const has = (pkg) => (pluginIds && pluginIds.has(pkg)) || webappNames.has(pkg);
+    const chartCount = charts && typeof charts === "object" ? Object.keys(charts).length : 0;
+    const rows = [
+      { name: "pypilot / TinyPilot", level: "required", what: "info.comp.pypilot",
+        st: state.pypilotHealthy === true ? "ok" : (state.pypilotHealthy === false ? "missing" : "unknown"), noStore: true },
+      { name: "AnchorWatch Pro (signalk-mareas-ihm)", pkg: "signalk-mareas-ihm", level: "recommended", what: "info.comp.mareas",
+        st: (mareasUp || has("signalk-mareas-ihm")) ? "ok" : "missing" },
+      { name: "Freeboard-SK", pkg: "@signalk/freeboard-sk", level: "recommended", what: "info.comp.freeboard",
+        st: has("@signalk/freeboard-sk") ? "ok" : "missing" },
+      { name: "signalk-charts-provider-simple", pkg: "signalk-charts-provider-simple", level: "reqChart", what: "info.comp.charts",
+        st: has("signalk-charts-provider-simple") ? "ok" : (chartCount > 0 ? "other" : "missing") },
+      { name: "signalk-collision-alerts", pkg: "signalk-collision-alerts", level: "recommended", what: "info.comp.collision",
+        st: (pluginIds && pluginIds.has("signalk-collision-alerts")) ? "ok"
+          : (state._collisionAlertsSeen ? "active" : (pluginIds ? "missing" : "unknown")) },
+    ];
+    const levelKey = { required: "info.comp.required", recommended: "info.comp.recommended", reqChart: "info.comp.reqChart" };
+    const stTxt = { ok: "\u2713 " + t("info.comp.ok"), active: "\u2713 " + t("info.comp.active"),
+      other: "\u2713 " + t("info.comp.otherProv"), missing: "\u2717 " + t("info.comp.missing"),
+      unknown: "? " + t("info.comp.unknown") };
+    const stColor = { ok: "#2ecc71", active: "#2ecc71", other: "#2ecc71", missing: "#f3c812", unknown: "#8b98a5" };
+    ul.textContent = "";
+    for (const r of rows) {
+      const li = document.createElement("li");
+      const b = document.createElement("b");
+      b.textContent = r.name;
+      const lvl = document.createElement("span");
+      lvl.textContent = ` \u00b7 ${t(levelKey[r.level])} \u00b7 `;
+      const st = document.createElement("span");
+      st.style.color = stColor[r.st];
+      st.textContent = stTxt[r.st];
+      li.appendChild(b); li.appendChild(lvl); li.appendChild(st);
+      if (r.st === "missing" && !r.noStore) {
+        const a = document.createElement("a");
+        a.href = "/admin/#/appstore/apps";
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = ` \u2192 ${t("info.comp.store")}`;
+        li.appendChild(a);
+      }
+      const what = document.createElement("div");
+      what.textContent = t(r.what);
+      li.appendChild(what);
+      ul.appendChild(li);
+    }
+  }
+
   function _tabPostActivate(id) {
+    if (id === "info") { _renderCompanions().catch(() => { /* silent */ }); }
     if (id === "paths") refreshPaths();
     // Rev96: Paths now lives inside Setup - entering Setup should still
     // refresh the paths table so counts stay live when the user opens it.
