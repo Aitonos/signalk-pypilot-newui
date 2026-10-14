@@ -4141,6 +4141,17 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
 }
 .ais-track-line.ais-warn   { stroke: #f5a623; }
 .ais-track-line.ais-acked  { stroke: #6b7a8f; opacity: 0.55; }
+/* Rev472: distance label under each AIS target on the rose. */
+.ais-dist-label {
+  font-size: 6px;
+  font-weight: 600;
+  fill: #e6edf3;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #0d1117;
+  stroke-width: 1.6px;
+  pointer-events: none;
+}
 @keyframes ais-blink {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
