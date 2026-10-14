@@ -29,9 +29,12 @@ The chartplotter embedded in the rose uses Freeboard-SK, which itself
 is only a renderer — it needs a Signal K **chart provider** plugin to
 know where to fetch tiles from. Any of the standard providers works:
 
+- **[`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple)**
+  by @dirkwa — a simple provider that serves local chart tilesets.
+  **Recommended** for Freeboard-SK embedded inside pypilot-newui.
 - **[`@signalk/charts-plugin`](https://www.npmjs.com/package/@signalk/charts-plugin)**
-  — serves local MBTiles / S57 / XYZ chart sets you drop into
-  `~/.signalk/charts/` (OpenCPN-style). Recommended default.
+  — the official Signal K provider; serves local MBTiles / S57 / XYZ
+  chart sets you drop into `~/.signalk/charts/` (OpenCPN-style).
 - **[`signalk-chart-tiler`](https://www.npmjs.com/package/signalk-chart-tiler)**
   or any other upstream raster/vector provider.
 

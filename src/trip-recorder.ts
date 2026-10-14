@@ -226,9 +226,23 @@ export class TripRecorder {
       else if (abs < 110) this.reachN += 1;
       else this.downwindN += 1;
       this.polN += 1;
-      // Sustained sign-flip = tack. Require >= 8 s since last flip so
-      // choppy AWA does not inflate the counter.
-      const sgn = s.awa > 0.05 ? 1 : (s.awa < -0.05 ? -1 : 0);
+      // Rev453 (Carlos sea trial 2026-10-10): "cualquier modificación de
+      // rumbo queda grabada como tack. Solo hay que marcar tacks que son
+      // verdaderamente tacks." The old threshold of 0.05 rad (2.8°) was
+      // way too permissive — a boat on a run can oscillate ±5° with
+      // every wave and each flip past 8s was counted. A gybe (|AWA|>90°)
+      // was also indistinguishable from a tack. Fix: only consider the
+      // boat "upwind-tacked" when |AWA| sits inside the close-hauled /
+      // tight-reach band on BOTH sides of the flip:
+      //   15° <= |AWA| <= 70°  → sign is meaningful (we are sailing a
+      //                          tack on this side).
+      // Everything else (|AWA|<15° drift at head-to-wind, |AWA|>70° reach
+      // or run) gets sgn=0 and does not drive the lastAwaSign history —
+      // so a wave in a dead run or a nudge at head-to-wind is a no-op.
+      const absAwaDeg = Math.abs(s.awa * RAD2DEG);
+      const sgn = (absAwaDeg >= 15 && absAwaDeg <= 70)
+        ? (s.awa > 0 ? 1 : -1)
+        : 0;
       if (sgn !== 0 && this.lastAwaSign !== 0 && sgn !== this.lastAwaSign
           && s.ts - this.lastTackSignFlipTs > 8000) {
         this.tackCount += 1;

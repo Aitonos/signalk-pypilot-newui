@@ -28,6 +28,14 @@
        1 s. Visual cue so the sailor can tell "red intermitente" from
        "bug del pilot" in agua. -->
   <div id="net-health-banner" hidden style="position:fixed;top:0;left:0;right:0;padding:8px 14px;text-align:center;font-size:13px;font-weight:600;letter-spacing:0.3px;z-index:9998;background:rgba(255,149,0,0.92);color:#0a1220;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>
+  <!-- Rev465 (Carlos safety audit 2026-10-12): bloqueante centrado que
+       aparece cuando el plugin backend reporta pypilot core offline.
+       Deshabilita visualmente los controles write-side (via CSS) +
+       pluginRaw() en app.js aborta los writes mientras esté activo. -->
+  <div id="pypilot-offline-banner">
+    <span data-i18n="pypilot.offline.title">SIN CONEXIÓN AL AUTOPILOTO</span>
+    <span class="subtle" data-i18n="pypilot.offline.hint">Los comandos están deshabilitados. El autopilot sigue en su último rumbo. Comprueba la conexión al Pi del pypilot.</span>
+  </div>
 
   <!-- Login modal: opens when SK returns 401 on a write. Gets a JWT from
        /signalk/v1/auth/login and caches it in localStorage - no more cookie
@@ -536,12 +544,20 @@
                   0 0 0 0 0.56
                   0 0 0 1 0"/>
               </filter>
+              <!-- Rev459: clip the AIS alarm layer to the rose circle so
+                   target hulls + their projected course lines never spill
+                   outside the compass ring. -->
+              <clipPath id="rose-clip">
+                <circle cx="0" cy="0" r="94"/>
+              </clipPath>
             </defs>
             <!-- Rev449: AIS targets as the LAST element inside the rose
                  SVG, so they are the top-most layer above wind arrows,
                  sectors, boat, countdown HUD, heading chip and rotation
-                 arc. Keeps the hull sprite always visible. -->
-            <g id="ais-alarm-layer"></g>
+                 arc. Keeps the hull sprite always visible.
+                 Rev459: clipped to the rose circle so projected course
+                 lines never leak outside. -->
+            <g id="ais-alarm-layer" clip-path="url(#rose-clip)"></g>
           </svg>
           <!-- Rev71: wind-speed chip promoted from SVG group to an HTML div
                overlaid on the rose bottom-center. Text baseline aligned
@@ -796,22 +812,39 @@
                    enabled. Opens signalk-collision-alerts plugin config
                    in the SK admin UI from "Config" so Carlos can change
                    Harbour/Coastal/Offshore + per-field thresholds. -->
-              <label class="overlay-card">
-                <input type="checkbox" id="dash-ais-alarm" checked />
+              <!-- Rev456 (Carlos QA Rev455, 2026-10-11): single ON/OFF
+                   toggle + auto "harbor mode" were replaced by a 3-way
+                   selector so the sailor explicitly tells the visor what
+                   situation he is in — Puerto / Fondeo / Navegacion.
+                   See _aisMode() + _handleAisAlarmDelta in app.js. -->
+              <label class="overlay-card" style="cursor:default">
                 <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
                   <polygon points="0,-50 10,-20 -10,-20" fill="#ff3b30" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
                   <text x="0" y="-35" text-anchor="middle" dominant-baseline="middle"
                         fill="#fff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">!</text>
                 </svg>
                 <div class="overlay-title" data-i18n="dash.overlay.ais.title">AIS collision alarm</div>
-                <div class="overlay-needs" data-i18n="dash.overlay.ais.needs">Needs signalk-collision-alerts plugin installed in your SK server. Reads notifications.navigation.closestApproach.* and renders a red/orange triangle on the rose with an infobox + ACK. Double-tap the rose to open Freeboard-SK embedded.</div>
-                <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                <div class="overlay-needs" data-i18n="dash.overlay.ais.needs">Needs signalk-collision-alerts plugin installed in your SK server. Reads notifications.navigation.closestApproach.* and renders a red/orange hull on the rose with an infobox + ACK. Double-tap the rose to open Freeboard-SK embedded.</div>
+                <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap"
+                     onclick="event.stopPropagation();">
+                  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                    <input type="radio" name="ais-mode" value="off" id="dash-ais-mode-off" />
+                    <span data-i18n="dash.overlay.ais.mode.off">Puerto (sin alarmas)</span>
+                  </label>
+                  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                    <input type="radio" name="ais-mode" value="anchor" id="dash-ais-mode-anchor" />
+                    <span data-i18n="dash.overlay.ais.mode.anchor">Fondeo (solo targets en movimiento)</span>
+                  </label>
+                  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                    <input type="radio" name="ais-mode" value="underway" id="dash-ais-mode-underway" checked />
+                    <span data-i18n="dash.overlay.ais.mode.underway">Navegacion (completo)</span>
+                  </label>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
                   <button type="button" id="dash-ais-alarm-config" class="ghost"
                           style="padding:6px 10px;font-size:12px"
                           data-i18n="dash.overlay.ais.config"
                           onclick="event.preventDefault();event.stopPropagation();">Open plugin config</button>
-                  <!-- Rev438: open the "silenciados" modal so Carlos can
-                       un-silence an MMSI before its 10-min TTL expires. -->
                   <button type="button" id="dash-ais-alarm-silenced" class="ghost"
                           style="padding:6px 10px;font-size:12px"
                           data-i18n="dash.overlay.ais.silenced"
@@ -820,6 +853,13 @@
                          onclick="event.stopPropagation();">
                     <input type="checkbox" id="dash-ais-alarm-voice" checked />
                     <span data-i18n="dash.overlay.ais.voice">Voice alert</span>
+                  </label>
+                  <!-- Rev464 (Carlos QA Rev463, 2026-10-11): toggle for
+                       the auto-silence-when-moored machine. Default ON. -->
+                  <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;font-size:12px;color:var(--fg-dim);cursor:pointer"
+                         onclick="event.stopPropagation();">
+                    <input type="checkbox" id="dash-ais-alarm-harbor-auto" checked />
+                    <span data-i18n="dash.overlay.ais.harborAuto">Auto-OFF when moored (SOG=0 for 2 min)</span>
                   </label>
                 </div>
               </label>
@@ -2443,6 +2483,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev449"></script>
+  <script src="app.js?v=Rev468"></script>
 </body>
 </html>

@@ -64,7 +64,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev450";
+const PLUGIN_REVISION = "Rev468";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2879,16 +2879,16 @@ module.exports = function (app: any) {
         }
         res.json({ ok: true, pseudoActive: _maneuverPseudoActive });
       });
+      const validKinds: ManeuverEventKind[] = [
+        "aproado_start", "aproado_pick", "aproado_teardown",
+        "empopado_start", "empopado_pick", "empopado_teardown",
+        "tack_tap", "tack_cancel",
+        "mode_change", "target_put", "engage", "disengage", "nudge", "other",
+      ];
       router.post("/maneuver-trace/event", (req: any, res: any) => {
         if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
         const body = req.body || {};
         const kind = String(body.kind || "").trim() as ManeuverEventKind;
-        const validKinds: ManeuverEventKind[] = [
-          "aproado_start", "aproado_pick", "aproado_teardown",
-          "empopado_start", "empopado_pick", "empopado_teardown",
-          "tack_tap", "tack_cancel",
-          "mode_change", "target_put", "engage", "disengage", "nudge", "other",
-        ];
         if (!validKinds.includes(kind)) {
           return res.status(400).json({ error: "unknown kind", kind });
         }
@@ -2901,6 +2901,36 @@ module.exports = function (app: any) {
           () => _captureManeuverContext(),
         );
         res.json({ ok: true, ts: entry.ts, kind: entry.kind });
+      });
+      // Rev468 (Carlos safety audit 2026-10-12): batch endpoint. The
+      // single-event endpoint above was generating hundreds of POSTs
+      // per minute during active navigation, saturating the sailor's
+      // flaky 4G link. This endpoint accepts {events: [{kind, payload,
+      // visorRev}, ...]} and records them in order. Malformed events
+      // are skipped silently (never block the batch). The visor side
+      // (public/app.js _mtLog + _mtFlush) encola localmente y envía
+      // cada 2 s en vez de uno a uno — ~20x menos HTTP overhead en
+      // navegación con muchos deltas.
+      router.post("/maneuver-trace/events", (req: any, res: any) => {
+        if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
+        const body = req.body || {};
+        const events = Array.isArray(body.events) ? body.events : null;
+        if (!events) return res.status(400).json({ error: "events must be an array" });
+        let count = 0, skipped = 0;
+        for (const ev of events) {
+          const kind = String(ev && ev.kind || "").trim() as ManeuverEventKind;
+          if (!validKinds.includes(kind)) { skipped++; continue; }
+          const payload = (ev.payload && typeof ev.payload === "object") ? ev.payload : {};
+          const visorRev = typeof ev.visorRev === "string" ? ev.visorRev : undefined;
+          const pre = _captureManeuverContext();
+          maneuverTrace.record(
+            { kind, payload, visorRev },
+            pre,
+            () => _captureManeuverContext(),
+          );
+          count++;
+        }
+        res.json({ ok: true, count, skipped });
       });
       // Rev176 (Carlos): manual purge endpoint - lets the user clear
       // legacy short-session noise on demand from Setup.

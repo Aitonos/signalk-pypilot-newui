@@ -1,5 +1,89 @@
 # Changelog
 
+## 3.1.3 — 2026-10-14 — Safety: offline-aware write gating + batched trace + AIS polish
+
+Rolls up Rev464 → Rev468 (5 revs) on top of 3.1.2. Patch bump: no
+breaking changes; set of safety-oriented fixes triggered by the
+2026-10-12 sea trial where the sailor "pasó miedo" when the 4G link
+dropped repeatedly and the visor's controls were still clickable while
+pypilot_web was silent.
+
+### Added
+
+- **Auto-OFF harbor-mode toggle in the AIS overlay card** (Rev464).
+  The 2-min SOG≈0 auto-silencer can now be flipped off from the
+  overlay-card without opening the plugin config, so sailors can keep
+  testing AIS behaviour while moored.
+- **AIS MMSI normalisation — root-cause fix for "no sale en posición
+  relativa"** (Rev463). `signalk-collision-alerts` publishes the full
+  URN as the path tail (`notifications.navigation.closestApproach.urn:mrn:imo:mmsi:XXXXX`);
+  our extractor used to return the URN verbatim, which was then
+  concatenated again when fetching the target's REST position → double
+  URN → 404. The hull fell back to `cpaPositions.target` (future CPA
+  position) instead of the real current position. Fixed by extracting
+  only the trailing numeric MMSI (`/(\d{6,})$/`). Hulls now paint at
+  the real bearing with the real COG, and the dashed track line
+  reflects reality.
+- **Pypilot-offline bloqueante banner + write gate across the board**
+  (Rev465). When the plugin backend reports pypilot core offline, a
+  centred red banner blinks over everything and every write-side
+  control is simultaneously:
+  1. Visually dimmed + `pointer-events: none` (CSS).
+  2. Gated in JS: `pluginRaw()`, `apEngage()`, `apDisengage()`,
+     `apSetMode()`, `apSetTargetRad()`, `apTack()` all return
+     `{ok:false, blocked:true}` before firing any HTTP write.
+  No stale commands can be queued while the pilot is unreachable.
+  See `docs/_audit_sea_trial_2026-10-12_network.md`.
+- **Batched maneuver-trace** (Rev468). New backend endpoint
+  `POST /plugins/signalk-pypilot-newui/maneuver-trace/events` accepts
+  `{events: [...]}`. The visor now queues events locally and flushes
+  every 2 s (or on 50-event cap, visibilitychange hidden, beforeunload)
+  instead of one POST per event. Active navigation went from
+  ~5-10 POST/s to ~0.5 POST/s on `maneuver-trace`; the sailor's 4G
+  link survives a lot longer under load.
+
+### Fixed
+
+- **WS close → pypilot marked offline immediately** (Rev466). The
+  visor's SK WebSocket drop used to leave `pypilotHealthy` stale
+  until the next `/status` poll — the controls stayed enabled during
+  the gap. The `ws.addEventListener('close')` now flips the state and
+  activates the banner within milliseconds. `_pypilotWriteBlocked()`
+  also checks `ws.readyState !== OPEN` so a write cannot slip through
+  on a dead socket.
+- **Setup-tab slider values no longer "tardan"** (Rev460). The
+  callback that applied the plugin's `/values` response to the Tune
+  sliders was missing after Rev459; sliders stayed on `---` until the
+  next render cycle. Now the response updates the slider in place.
+- **Freeboard-SK embed stays mounted** (Rev461). Closing the embed
+  no longer blanks the `<iframe src>`; reopens are instant without a
+  full chart + tile reload.
+- **Background refresh of plugin values every 10 s** (Rev461). The
+  initial boot loop stopped as soon as one AutopilotGain landed, so
+  the rest of the catalog filled in only when Setup was opened. A
+  low-rate background tick now keeps the cache warm, so Setup opens
+  pre-populated regardless of how long the sailor stayed on Control.
+
+### Changed
+
+- **README — chart provider recommendation** now puts
+  [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple)
+  (by @dirkwa, same maintainer as `signalk-collision-alerts`) as the
+  **recommended** pairing for the embedded Freeboard-SK, with
+  `@signalk/charts-plugin` kept as an alternative. Pointed by Carlos
+  as the simpler path for sailors new to Signal K charts.
+
+### Upstream coordination
+
+- `hkapanen/ais-forwarder#14` — added impact comment: 11+ days without
+  MarineTraffic / VesselFinder presence on Tunatunes while the plugin
+  stays disabled to prevent the uncaughtException cascade. Posted a
+  concrete minimal fix (`socket.on('error', ...)` + send callback) and
+  offered a PR.
+- `dirkwa/signalk-collision-alerts#17` — closed by maintainer with a
+  fix. Opened `#24` with proposal to suppress alerts when either
+  vessel is effectively stationary (SOG-aware threat check).
+
 ## 3.1.2 — 2026-10-10 — Compatibility with pypilot 0.71 (issue #3)
 
 Patch: swap socket.io transport order from

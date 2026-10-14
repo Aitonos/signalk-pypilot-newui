@@ -585,9 +585,13 @@
       "dash.overlays.title": "ROSE OVERLAYS",
       "dash.overlays.hint": "Toggle what floats on the compass rose. Each card lists what data it needs to render.",
       "dash.overlay.ais.title":  "AIS collision alarm",
+      "pypilot.offline.title":   "AUTOPILOT NOT REACHABLE",
+      "pypilot.offline.hint":    "Controls disabled. The autopilot keeps its last course. Check the connection to the pypilot Pi.",
       "dash.overlay.ais.needs":  "Needs signalk-collision-alerts plugin installed in your SK server. Reads notifications.navigation.closestApproach.* and renders a red/orange triangle on the rose with an infobox + ACK. Double-tap the rose to open Freeboard-SK embedded.",
       "dash.overlay.ais.config": "Open plugin config",
       "dash.overlay.ais.voice":  "Voice alert",
+      "dash.overlay.ais.harborAuto": "Auto-OFF when moored (SOG=0 for 2 min)",
+      "dash.overlay.ais.harbor": "Marina mode (auto-silence when moored)",
       "ais.objetivo":            "target",
       "ais.voice.alarm":         "AIS alarm",
       "ais.voice.warn":          "AIS warning",
@@ -1465,9 +1469,13 @@
       "dash.overlays.title": "CAPAS SOBRE LA ROSA",
       "dash.overlays.hint": "Activa las que quieras ver sobre la rosa. Cada tarjeta indica qué datos necesita.",
       "dash.overlay.ais.title":  "Alarma de colisión AIS",
+      "pypilot.offline.title":   "SIN CONEXIÓN AL AUTOPILOTO",
+      "pypilot.offline.hint":    "Los comandos están deshabilitados. El autopilot sigue en su último rumbo. Comprueba la conexión al Pi del pypilot.",
       "dash.overlay.ais.needs":  "Requiere el plugin signalk-collision-alerts instalado en tu servidor SK. Lee notifications.navigation.closestApproach.* y pinta un triángulo rojo/naranja sobre la rosa con infobox + ACK. Doble tap en la rosa abre Freeboard-SK embebido.",
       "dash.overlay.ais.config": "Abrir ajustes del plugin",
       "dash.overlay.ais.voice":  "Aviso de voz",
+      "dash.overlay.ais.harborAuto": "Auto-OFF al estar amarrado (SOG=0 durante 2 min)",
+      "dash.overlay.ais.harbor": "Modo marina (silencia al estar amarrados)",
       "ais.objetivo":            "objetivo",
       "ais.voice.alarm":         "Alarma AIS",
       "ais.voice.warn":          "Aviso AIS",
@@ -2537,6 +2545,19 @@
       try { handleDelta(JSON.parse(evt.data)); } catch { /* ignore */ }
     });
     ws.addEventListener("close", () => {
+      // Rev466 (Carlos safety 2026-10-12 trip): mark pypilot offline
+      // immediately when the WS drops, without waiting for the next
+      // /status poll (which may be seconds away). This activates the
+      // banner + write gate instantly so the sailor cannot blindly
+      // press controls during the gap. On successful reconnect the
+      // next /status poll will set pypilotHealthy back to true.
+      try {
+        if (state && state.pypilotHealthy !== false) {
+          state.pypilotHealthy = false;
+          document.body.classList.add("pypilot-offline");
+          console.warn("[pypilot-newui] WS closed → pypilot marked offline (banner activated)");
+        }
+      } catch { /* silent */ }
       setTimeout(connectSK, 2500);
     });
     ws.addEventListener("error", () => { try { ws.close(); } catch {} });
@@ -3119,7 +3140,8 @@
         if (state.windSpeedTrue == null) state.windSpeedTrue = numericOrNull(value);
         break;
       case "navigation.speedOverGround":
-        state.sog = numericOrNull(value); renderCogAndCurrent(); renderRoseBottomChip(); break;
+        state.sog = numericOrNull(value); renderCogAndCurrent(); renderRoseBottomChip();
+        try { _aisHarborTick(); } catch { /* silent */ } break;
       case "navigation.courseOverGroundTrue":
         state.cog = numericOrNull(value); renderCogAndCurrent(); break;
       case "navigation.speedThroughWater":
@@ -3882,16 +3904,22 @@
       const cur = state.aisTargetPos.get(mmsi);
       if (cur && (now - cur.fetchedAt) < AIS_TARGET_POS_FRESH_MS) return cur;
       const ctx = `urn:mrn:imo:mmsi:${mmsi}`;
-      const [posR, sogR] = await Promise.all([
+      const [posR, sogR, cogR] = await Promise.all([
         skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/position/value`),
         skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/speedOverGround/value`).catch(() => null),
+        // Rev457 (Carlos QA Rev456): fetch the target's true COG so the
+        // hull can face its actual course + draw a projected track
+        // line out of its bow instead of pointing at us.
+        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/courseOverGroundTrue/value`).catch(() => null),
       ]);
-      let pos = null, sog = null;
+      let pos = null, sog = null, cog = null;
       if (posR && posR.ok) pos = await posR.json().catch(() => null);
       if (sogR && sogR.ok) sog = await sogR.json().catch(() => null);
+      if (cogR && cogR.ok) cog = await cogR.json().catch(() => null);
       const rec = {
         pos: (pos && typeof pos.latitude === "number") ? pos : null,
         sog: (typeof sog === "number") ? sog : null,
+        cog: (typeof cog === "number") ? cog : null,  // radians (SK convention)
         fetchedAt: now,
       };
       state.aisTargetPos.set(mmsi, rec);
@@ -3899,24 +3927,53 @@
       return rec;
     } catch { return null; }
   }
-  // Rev434 (Carlos QA Rev433): toggles for the AIS overlay. Both default
-  // ON so the feature works out of the box; sailor can disable from the
-  // "AIS collision alarm" overlay-card in the rose overlays modal.
-  const AIS_ALARM_LS_KEY = "pypilotnewui.aisAlarm";
+  // Rev456 (Carlos QA Rev455, 2026-10-11): the single on/off toggle
+  // (Rev434) + the auto "harbor mode" (Rev451/454) are replaced by a
+  // 3-state selector the sailor flips manually in the AIS overlay-card:
+  //   "off"      → PUERTO: never pint, never speak, never pop up.
+  //                "en puerto si alguien llega nos dará un golpe sí o sí
+  //                porque el 99,99 % no estaremos en el barco" (Carlos).
+  //   "anchor"   → FONDEO: alarms ONLY for targets moving at or above
+  //                AIS_ANCHOR_MIN_TARGET_SOG_MS. A stopped neighbour is
+  //                not a collision threat when WE are stopped either.
+  //   "underway" → NAVEGACIÓN: original behaviour, every active alarm
+  //                goes through (minus the long-standing stationary
+  //                filter at AIS_IGNORE_SOG_MS = 0.08 m/s).
+  const AIS_MODE_LS_KEY = "pypilotnewui.aisMode";
+  const AIS_ALARM_LS_KEY = "pypilotnewui.aisAlarm";          // legacy; migrated
+  const AIS_HARBOR_LS_KEY = "pypilotnewui.aisHarborAuto";    // legacy; ignored
   const AIS_ALARM_VOICE_LS_KEY = "pypilotnewui.aisAlarmVoice";
-  function _aisAlarmEnabled() {
+  const AIS_ANCHOR_MIN_TARGET_SOG_MS = 1.0;  // ~ 2 kn
+  const AIS_MODES = ["off", "anchor", "underway"];
+  function _aisModeStored() {
     try {
-      const v = localStorage.getItem(AIS_ALARM_LS_KEY);
-      return v == null ? true : v === "true";
-    } catch { return true; }
+      const v = localStorage.getItem(AIS_MODE_LS_KEY);
+      if (AIS_MODES.includes(v)) return v;
+      const legacy = localStorage.getItem(AIS_ALARM_LS_KEY);
+      if (legacy === "false") return "off";
+      return "underway";
+    } catch { return "underway"; }
   }
-  function _aisAlarmSetEnabled(on) {
-    try { localStorage.setItem(AIS_ALARM_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
-    // Clear everything when disabled, so a stale triangle does not
-    // linger on the rose until the next delta.
-    if (!on) {
-      try { state.aisAlarms.clear(); renderAisAlarms(); } catch { /* silent */ }
-    }
+  // Rev462 (Carlos QA Rev461, 2026-10-11): "en puerto siempre OFF".
+  // The stored mode is the sailor's manual preference; but when WE are
+  // moored (SOG=0 for ≥ AIS_HARBOR_ENTER_HOLD_MS, i.e. 2 min) we
+  // override to "off" automatically — Carlos's rule for marina: no
+  // alarms at all, period. The auto only forces LESS-sensitive than the
+  // sailor's stored choice (never pushes from off/anchor up to underway).
+  function _aisMode() {
+    const stored = _aisModeStored();
+    if (state._aisHarborActive && stored !== "off") return "off";
+    return stored;
+  }
+  function _aisSetMode(mode) {
+    if (!AIS_MODES.includes(mode)) return;
+    try { localStorage.setItem(AIS_MODE_LS_KEY, mode); } catch { /* silent */ }
+    // Switching mode clears any stale hull on the rose; the next delta
+    // will repopulate under the new rules.
+    try { state.aisAlarms.clear(); renderAisAlarms(); } catch { /* silent */ }
+  }
+  function _aisAlarmEnabled() {
+    return _aisMode() !== "off";
   }
   function _aisAlarmVoiceEnabled() {
     try {
@@ -3927,9 +3984,92 @@
   function _aisAlarmSetVoiceEnabled(on) {
     try { localStorage.setItem(AIS_ALARM_VOICE_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
   }
+  // Rev451 (Carlos sea trial 2026-10-10): "en Marina sigue siendo una
+  // locura los avisos de AIS". When our own SOG is near zero for a
+  // sustained window, treat it as "we are moored / inside a marina"
+  // and auto-silence AIS alarms. Resumes automatically when we start
+  // moving again. Opt-in default ON; toggled from the AIS overlay-card.
+  const AIS_HARBOR_ENTER_SOG_MS   = 0.30;   // < 0.6 kn
+  const AIS_HARBOR_EXIT_SOG_MS    = 0.60;   // > 1.2 kn
+  const AIS_HARBOR_ENTER_HOLD_MS  = 120_000;
+  const AIS_HARBOR_EXIT_HOLD_MS   = 30_000;
+  // Rev454 (Carlos QA 2026-10-11, PIRATA DE ONZA at 10 kn silenced in
+  // marina): even in harbor mode let threats from targets travelling
+  // at or above this SOG through — a fast approaching vessel is a
+  // genuine danger regardless of whether we are moored.
+  const AIS_HARBOR_PASS_TARGET_SOG_MS = 1.0;  // ~ 2 kn
+  state._aisHarborActive = false;
+  state._aisHarborSlowSince = null;
+  state._aisHarborFastSince = null;
+  function _aisHarborAutoEnabled() {
+    // Rev464 (Carlos QA Rev463, 2026-10-11): re-add the ability to turn
+    // the SOG-based auto-silencer OFF so we can keep testing the AIS
+    // overlay while physically moored. Default ON preserves Rev462
+    // behaviour; sailor flips the checkbox in the AIS overlay-card to
+    // let alarms through even when SOG=0.
+    try {
+      const v = localStorage.getItem(AIS_HARBOR_LS_KEY);
+      return v == null ? true : v === "true";
+    } catch { return true; }
+  }
+  function _aisHarborSetAutoEnabled(on) {
+    try { localStorage.setItem(AIS_HARBOR_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
+    if (!on) {
+      state._aisHarborActive = false;
+      state._aisHarborSlowSince = null;
+      state._aisHarborFastSince = null;
+    }
+  }
+  // Called by the SOG delta handler. Updates the harbor-mode machine.
+  function _aisHarborTick() {
+    if (!_aisHarborAutoEnabled()) return;
+    const sog = (typeof state.sog === "number") ? state.sog : null;
+    if (sog == null) return;
+    const now = Date.now();
+    if (!state._aisHarborActive) {
+      if (sog < AIS_HARBOR_ENTER_SOG_MS) {
+        if (!state._aisHarborSlowSince) state._aisHarborSlowSince = now;
+        if (now - state._aisHarborSlowSince >= AIS_HARBOR_ENTER_HOLD_MS) {
+          state._aisHarborActive = true;
+          state._aisHarborFastSince = null;
+          console.info("[ais] harbor mode ON — silencing AIS alarms (SOG near zero)");
+          try { state.aisAlarms.clear(); renderAisAlarms(); } catch { /* silent */ }
+        }
+      } else {
+        state._aisHarborSlowSince = null;
+      }
+    } else {
+      if (sog > AIS_HARBOR_EXIT_SOG_MS) {
+        if (!state._aisHarborFastSince) state._aisHarborFastSince = now;
+        if (now - state._aisHarborFastSince >= AIS_HARBOR_EXIT_HOLD_MS) {
+          state._aisHarborActive = false;
+          state._aisHarborSlowSince = null;
+          console.info("[ais] harbor mode OFF — resuming AIS alarms (underway)");
+        }
+      } else {
+        state._aisHarborFastSince = null;
+      }
+    }
+  }
   function _mmsiFromAlarmPath(path) {
+    // Rev463 (Carlos QA Rev462, 2026-10-11, forensics from DevTools log):
+    // signalk-collision-alerts publishes the FULL URN as the last path
+    // segment, so path =
+    //   "notifications.navigation.closestApproach.urn:mrn:imo:mmsi:224261460"
+    // not just "...224261460". The old `path.slice(prefix.length)` yielded
+    // "urn:mrn:imo:mmsi:224261460", which then prefixed itself again when
+    // _aisRefreshTargetPos built `urn:mrn:imo:mmsi:${mmsi}` → the REST
+    // fetches came back 404 (double URN), the pos/sog/cog cache stayed
+    // empty, and the bearing calc fell back to `cpaPositions.target` —
+    // the FUTURE position at CPA. That is why the hull showed up "at the
+    // meeting point" instead of "where the target is now". Normalise to
+    // the pure numeric MMSI so the REST call is clean regardless of
+    // which path shape the upstream plugin emits now or later.
     const prefix = "notifications.navigation.closestApproach.";
-    return path.startsWith(prefix) ? path.slice(prefix.length) : null;
+    if (!path.startsWith(prefix)) return null;
+    const tail = path.slice(prefix.length);
+    const m = /(\d{6,})$/.exec(tail);
+    return m ? m[1] : tail;
   }
   function _mmsiFromAlarmValue(v) {
     try {
@@ -3985,19 +4125,45 @@
     // declares the threat gone (!isActive) or a stationary target
     // drops the entry. The ACK state is a per-render visual, not a
     // reason to remove the target from the rose.
-    if (!value || !isActive || targetStationary) {
+    // Rev451 → Rev454: harbor mode silences AIS alarms when WE are
+    // moored, but only from OTHER slow / moored vessels. A fast
+    // approaching target (SOG >= AIS_HARBOR_PASS_TARGET_SOG_MS, i.e.
+    // >= 2 kn) still gets through — it is a real collision threat even
+    // when we are stopped (Carlos QA 2026-10-11, PIRATA DE ONZA at
+    // 10 kn going straight at the dock). This keeps the "marina
+    // avalanche" of parked boats silenced without blinding us to
+    // genuine danger.
+    // Rev456 (Carlos 2026-10-11): mode-driven gate replaces harbor-auto.
+    //   PUERTO     mode "off"      : always silence.
+    //   FONDEO     mode "anchor"   : silence SLOW / MOORED targets only;
+    //                                moving targets (SOG >= 2 kn) still
+    //                                get through — the real danger when
+    //                                we are at anchor.
+    //   NAVEGACION mode "underway" : regular behaviour; only the
+    //                                long-standing stationary filter
+    //                                (SOG < 0.08 m/s) drops entries.
+    const aisMode = _aisMode();
+    const targetMoving = cached && typeof cached.sog === "number"
+      && cached.sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS;
+    let modeSilenced = false;
+    if (aisMode === "off") {
+      modeSilenced = true;
+    } else if (aisMode === "anchor" && !targetMoving) {
+      modeSilenced = true;
+    }
+    if (modeSilenced) {
+      state.aisAlarms.delete(mmsi);
+    } else if (!value || !isActive || targetStationary) {
       state.aisAlarms.delete(mmsi);
     } else {
       state.aisAlarms.set(mmsi, { value, mmsi });
-      // Fire a background refresh of the target's current position and
-      // SOG so the bearing render uses "where it is now" instead of
-      // cpaPositions.target (= future position at CPA time).
       _aisRefreshTargetPos(mmsi).catch(() => {});
     }
     try {
       if (enabled && _aisAlarmVoiceEnabled()
           && isActive && newState !== prevState
           && !locallyAcked
+          && !modeSilenced
           && !(value.status && value.status.acknowledged)) {
         _alSpeak(_aisVoiceMessage(value, mmsi, newState));
       }
@@ -4055,9 +4221,15 @@
     // The infobox nav still walks ALL alarms so the sailor can scroll
     // through hidden ones.
     const topN = alarms.slice(0, 3);
-    // Draw one small red boat per active threat. r = 92 lands on the
-    // outer edge of the compass circle (SVG viewBox -100 -110 200 220).
+    // Rev455 (Carlos QA Rev454): the hull used to be clamped to the
+    // compass circle (R=92) regardless of real distance, giving no
+    // sense of "cerca vs lejos". Now the radial position reflects the
+    // actual distance to the target, linearly up to AIS_RADIAL_MAX_NM
+    // (further out it saturates at the ring). A dashed line from the
+    // self (center) to the hull makes the collision bearing explicit.
     const R = 92;
+    const AIS_RADIAL_MAX_NM = 2.0;
+    const AIS_RADIAL_MIN_FRAC = 0.18;  // avoid overlapping with own boat
     for (const a of topN) {
       const d = a.value.data || {};
       // Rev436 (Carlos QA Rev435): use NOW positions, not cpaPositions
@@ -4084,9 +4256,42 @@
       const tgtPos = (cached && cached.pos) || d.cpaPositions?.target;
       const relDeg = _aisRelativeBearingDeg(selfPos, tgtPos, state.heading);
       if (relDeg == null) continue;
+      // Rev462 (Carlos QA 2026-10-11, "no sale en la posición relativa"):
+      // one-shot log per render so Carlos can confirm the geometry the
+      // visor sees vs what the chart shows. Capped at 1 Hz per mmsi.
+      try {
+        const now = Date.now();
+        state._aisDebugTs = state._aisDebugTs || new Map();
+        const last = state._aisDebugTs.get(a.mmsi) || 0;
+        if (now - last > 1000) {
+          state._aisDebugTs.set(a.mmsi, now);
+          const h = typeof state.heading === "number" ? (state.heading * RAD2DEG).toFixed(1) : "?";
+          console.info(
+            `[ais pos] mmsi=${a.mmsi}`,
+            `self=${selfPos && selfPos.latitude ? selfPos.latitude.toFixed(5)+","+selfPos.longitude.toFixed(5) : "?"}`,
+            `tgt=${tgtPos && tgtPos.latitude ? tgtPos.latitude.toFixed(5)+","+tgtPos.longitude.toFixed(5) : "?"}`,
+            `hdg=${h}° relDeg=${relDeg.toFixed(1)}°`,
+            `cachedCog=${cached && typeof cached.cog === "number" ? (cached.cog * RAD2DEG).toFixed(1)+"°" : "?"}`,
+            `cachedSog=${cached && typeof cached.sog === "number" ? (cached.sog * 1.94384).toFixed(1)+"kn" : "?"}`,
+          );
+        }
+      } catch { /* silent */ }
+      // Rev455: radial position reflects REAL distance from self to
+      // target, saturating at the compass ring beyond AIS_RADIAL_MAX_NM.
+      // _distanceNm uses short-key {lat, lon} shape — adapt both sides.
+      let rPx = R;
+      if (selfPos && tgtPos
+          && typeof selfPos.latitude === "number" && typeof tgtPos.latitude === "number") {
+        const distNm = _distanceNm(
+          { lat: selfPos.latitude, lon: selfPos.longitude },
+          { lat: tgtPos.latitude,  lon: tgtPos.longitude  },
+        );
+        const frac = Math.min(1, Math.max(AIS_RADIAL_MIN_FRAC, distNm / AIS_RADIAL_MAX_NM));
+        rPx = R * frac;
+      }
       const rad = (relDeg - 90) * Math.PI / 180; // SVG 0deg = east, we want 0deg = up
-      const x = R * Math.cos(rad);
-      const y = R * Math.sin(rad);
+      const x = rPx * Math.cos(rad);
+      const y = rPx * Math.sin(rad);
       // Pointing INWARD toward the self: rotate the triangle so its tip
       // points to (0,0). The triangle is drawn pointing up (0,-h), so
       // we rotate by relDeg + 180 to flip.
@@ -4105,17 +4310,29 @@
       // centred on the target position and the hull points toward
       // self (bow forward of the relative bearing).
       const scale = acked ? 1.0 : (a.value.state === "alarm" ? 1.5 : 1.0);
-      // Rev447 (Carlos QA Rev445): the triangle used in Rev441-442 had
-      // its tip at (0,-10) — "forward = -y local" — so `rotate(relDeg+180)`
-      // pointed the tip at self. The boat-cenital.svg hull has its BOW
-      // at +x local (the asset is drawn horizontal, bow to the right of
-      // the viewBox). The correct SVG rotation to point +x local at the
-      // origin from relative bearing B is `rotate(B + 90)`:
-      //   B=0 (target to N): rotate 90°  → bow faces +y global → origin
-      //   B=90 (target to E): rotate 180° → bow faces -x global → origin
-      //   B=180 (target to S): rotate 270° → bow faces -y global → origin
+      // Rev457 (Carlos QA Rev455/456, 2026-10-11): the hull now faces
+      // its REAL course (COG) relative to our heading, not toward us.
+      // From the bow we draw the projected track as a dashed line, so
+      // the sailor sees instantly "where this guy is going" instead of
+      // just "where he is". When the COG is unknown (REST cache not
+      // populated yet) we fall back to the collision bearing (points at
+      // self) so the hull is still readable.
+      const cogAbsRad = cached && typeof cached.cog === "number" ? cached.cog : null;
+      let hullRotDeg;
+      if (cogAbsRad != null && typeof state.heading === "number") {
+        // COG relative to boat frame: cogAbsRad - heading (both rad).
+        let cogRelDeg = (cogAbsRad - state.heading) * RAD2DEG;
+        while (cogRelDeg >  180) cogRelDeg -= 360;
+        while (cogRelDeg < -180) cogRelDeg += 360;
+        // boat-cenital.svg draws bow at +x local; same formula as the
+        // bearing rotation gives +x pointing at the "forward" direction.
+        hullRotDeg = cogRelDeg + 90;
+      } else {
+        // Fallback: point at self (previous behaviour).
+        hullRotDeg = relDeg + 90;
+      }
       g.setAttribute("transform",
-        `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${(relDeg + 90).toFixed(1)}) scale(${scale})`);
+        `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${hullRotDeg.toFixed(1)}) scale(${scale})`);
       const filterId = acked ? "ais-tint-acked"
         : (a.value.state === "alarm" ? "ais-tint-alarm" : "ais-tint-warn");
       // Base image: 28 × 9.3 units (viewBox 456×152 → aspect ≈ 3:1),
@@ -4130,6 +4347,24 @@
       img.setAttribute("filter", `url(#${filterId})`);
       img.setAttribute("preserveAspectRatio", "xMidYMid meet");
       g.appendChild(img);
+      // Rev459 (Carlos QA Rev458, 2026-10-11): "proyección de puntos
+      // desde su proa que atraviese la rosa para saber si el riesgo es
+      // por proa, por popa o directo a nuestro casco". A long dashed
+      // track line out of the bow (+x local, same axis as the hull
+      // bow). The ais-alarm-layer is clip-path'd to the rose circle,
+      // so the line visually ends at the ring regardless of how long
+      // we draw it. We cancel scale on stroke-width so the alarm 1.5x
+      // hull does not thicken its own line.
+      const bowStart = 14;             // half the hull width (28)
+      const projLenLocal = 400 / scale;  // guaranteed to cross the rose
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("class", `ais-track-line ais-${a.value.state}${acked ? " ais-acked" : ""}`);
+      line.setAttribute("x1", String(bowStart));
+      line.setAttribute("y1", "0");
+      line.setAttribute("x2", String(bowStart + projLenLocal));
+      line.setAttribute("y2", "0");
+      line.setAttribute("stroke-width", String(1.4 / scale));
+      g.appendChild(line);
       layer.appendChild(g);
     }
     // Rev432: infobox + ACK as a persistent HTML div.
@@ -5088,6 +5323,8 @@
     if (overlay && overlay.parentNode) overlay.parentNode.appendChild(overlay);
     _tackCountdownPhase = "executing";
     _tackCountdownExecuteStartTs = Date.now();
+    // Rev453: arm the stats trigger flag — see _tackCountdownHide.
+    _tackStats.firedThisCountdown = false;
     _tackCountdownEndTs = Date.now();  // no arming countdown
     // NOTE: NO _tackCountdownTimer / _tackCountdownTick. That timer
     // would have rate-of-turn fallback that closes prematurely and
@@ -5402,6 +5639,7 @@
         && (now - _lastTackStateSeenTs) > PYPILOT_TACK_SILENCE_MS
         && elapsed >= 15;
       if (arrived) {
+        _tackStats.firedThisCountdown = true;
         try { _tackStatsOnTackCompleted(); } catch { /* silent */ }
         // Rev345: NO mandar state=none al éxito — el pilot puede seguir
         // asentando; el próximo pypilot's own transition tack.state →
@@ -5426,6 +5664,7 @@
           el._hideTimer = setTimeout(() => { el.classList.remove("show"); }, 6000);
           try { _alSpeak(t("tack.pypilotSilentSpeak") || "Pypilot sin respuesta"); } catch { /* silent */ }
         } catch { /* silent */ }
+        _tackStats.firedThisCountdown = true;
         try { _tackStatsOnTackCancelled(); } catch { /* silent */ }
         // Try to tell pypilot to stop, best-effort (may fail if socket
         // is dead — that's the whole point).
@@ -5575,6 +5814,9 @@
   async function _tackCountdownToExecuting() {
     _tackCountdownPhase = "executing";
     _tackCountdownExecuteStartTs = Date.now();
+    // Rev453: arm the stats trigger flag so _tackCountdownHide knows
+    // whether a trigger fired during this countdown.
+    _tackStats.firedThisCountdown = false;
     // Rev197 (LLM audit): arming just ended - NOW send the queued
     // heading_command write to the AP. If cancel fired during arming,
     // _tackPendingFinalTargetRad was cleared by _tackCountdownHide and
@@ -5641,6 +5883,17 @@
     // start of executing so no arming-phase noise leaks into progress.
     _tackRotationDoneDeg = 0;
     _tackLastSampleRad = null;
+    // Rev452 (Carlos sea trial 2026-10-10, 17:37 bordo largo cancelled
+    // falsely): _lastTackStateSeenTs tracks the last time pypilot
+    // published an ap.tack.state delta. During normal navigation that
+    // last tick can be MINUTES in the past (pypilot only publishes on
+    // transitions). Without this reset the pypilot-silent watchdog
+    // (PYPILOT_TACK_SILENCE_MS = 40 s) is born already expired, so a
+    // long tack trips the "Pypilot sin respuesta: virada cancelada"
+    // toast at elapsed=15 s even when pypilot is working perfectly.
+    // Reset the clock at the start of the countdown so the 40 s window
+    // is measured from the maneuver kick-off, not from history.
+    _lastTackStateSeenTs = Date.now();
     const overlay = document.getElementById("tack-countdown-overlay");
     const phase = document.getElementById("tack-countdown-phase");
     const num = document.getElementById("tack-countdown-num");
@@ -5674,6 +5927,18 @@
       _closeExternalTackOverlay();
       return;
     }
+    // Rev453 (Carlos QA 2026-10-10): if this countdown exits WITHOUT
+    // having fired a stats trigger (arrived / silent / cancelled did
+    // not run — e.g. compass tack where pypilot never publishes a
+    // state transition and the user cancelled via overlay tap, or the
+    // 120s timeout kicked in silently), fire a completed trigger as a
+    // fallback so the stats HUD still shows. Idempotent: the flag
+    // ensures a trigger that already ran does not fire twice.
+    if (_tackStats.firedThisCountdown === false) {
+      _tackStats.firedThisCountdown = true;
+      try { _tackStatsOnTackCompleted(); } catch { /* silent */ }
+    }
+    _tackStats.firedThisCountdown = false;
     if (_tackCountdownTimer) { clearInterval(_tackCountdownTimer); _tackCountdownTimer = null; }
     _stopTackStepper();   // Rev214: real stop of long-arc stepper.
     _tackForceLongArcSign = 0;
@@ -5835,6 +6100,13 @@
     hideAt: 0,
     hudTimer: null,
     lastTackState: null,
+    // Rev453 (Carlos QA 2026-10-10): tracks whether the current
+    // countdown already fired a stats trigger (completed OR cancelled).
+    // When the countdown hides without any trigger (e.g. compass tack
+    // where pypilot never publishes a state transition and arrived /
+    // silent did not fire), _tackCountdownHide fires completed as a
+    // fallback so the HUD still appears.
+    firedThisCountdown: false,
   };
   const TACK_STATS_MAX_MS = 120_000;
   // Rev371 (Carlos, 2026-09-30): reduced post-tack measurement timing.
@@ -7214,30 +7486,34 @@
       // Rev139 (Carlos): plain-language explanation right under the row.
       _attachGainHelp(row, shortName);
       cont.appendChild(row);
-      // If cache is empty (stream started after gain deltas were emitted),
-      // fetch the current value via REST so the slider position reflects
-      // reality on first paint.
+      // Rev459 → Rev460 (Carlos QA 2026-10-11): "el plugin residente en
+      // la Pi5 debe siempre tener todos los datos listos para dispararlos
+      // al frontend, no el frontend pedirlos a la Pizero". The old path
+      // did skFetch(/signalk/v1/api/vessels/self/<skPath>) which SK
+      // served as 404 for pypilot gains (not published under
+      // navigation/*). The plugin ALREADY aggregates every pypilot
+      // value under /plugins/signalk-pypilot-newui/values (populated by
+      // refreshPypilotValues on boot + after mode/profile changes).
+      // Read from that cache; if it has not landed yet, trigger a
+      // refresh AND apply the result when it arrives — Rev459 only
+      // triggered without back-filling the slider, which is why the
+      // sliders "tardaban desde que he abierto la pestaña".
+      const applyToSlider = (pv) => {
+        if (!(typeof pv === "number" && isFinite(pv))) return false;
+        state.values[skPath] = pv;
+        if (!row.classList.contains("active")) rng.value = String(pv);
+        val.textContent = pv.toFixed(4);
+        if (!_tuneBaselines.has(baselineKey)) {
+          _tuneBaselines.set(baselineKey, pv);
+        }
+        return true;
+      };
       if (cur == null) {
-        skFetch(`/signalk/v1/api/vessels/self/${skPath.replace(/\./g, "/")}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((j) => {
-            if (!j) return;
-            const v = j.value ?? (j.values && j.values.value);
-            if (typeof v === "number") {
-              state.values[skPath] = v;
-              if (!row.classList.contains("active")) rng.value = String(v);
-              val.textContent = v.toFixed(4);
-              // Rev132: also capture the baseline once the async fetch
-              // arrives. The synchronous branch above only fires when
-              // the SK stream cached the gain BEFORE render; on first
-              // paint (Tune reset broken bug) that map was empty and
-              // the ↺ button had nothing to restore to.
-              if (!_tuneBaselines.has(baselineKey)) {
-                _tuneBaselines.set(baselineKey, v);
-              }
-            }
-          })
-          .catch(() => {});
+        if (!applyToSlider(state.pypilotValues ? state.pypilotValues[g] : null)) {
+          refreshPypilotValues()
+            .then(() => applyToSlider(state.pypilotValues ? state.pypilotValues[g] : null))
+            .catch(() => {});
+        }
       }
     }
   }
@@ -7901,21 +8177,57 @@
     }
     return true;
   }
-  // Rev322 (Carlos, 2026-09-27): maneuver-trace helper. Fires
-  // fire-and-forget - a failure never blocks the actual AP command.
-  // The backend is a no-op unless the sailor turned the toggle on
-  // from the Setup card. Callers just have to name the kind and pass
-  // whatever payload is useful for post-trial forensics.
-  function _mtLog(kind, payload) {
+  // Rev322 (Carlos, 2026-09-27) → Rev468 (safety audit 2026-10-12):
+  // maneuver-trace helper. Fires fire-and-forget - failure never blocks
+  // the actual AP command. Backend is a no-op unless the sailor turned
+  // the toggle on from the Setup card.
+  //
+  // Rev468 batches events locally and flushes to the backend every
+  // _MT_FLUSH_MS, instead of one POST per event (which saturated the
+  // 4G link on the 2026-10-12 sea trial). On busy navigation we were
+  // generating hundreds of POSTs per minute; batching gives ~20x less
+  // HTTP overhead. The queue is capped at _MT_QUEUE_MAX to bound
+  // memory + size of a batch; if a caller is bursty we flush as soon
+  // as the cap is reached.
+  const _MT_FLUSH_MS = 2000;
+  const _MT_QUEUE_MAX = 50;
+  let _mtQueue = [];
+  let _mtFlushTimer = null;
+  async function _mtFlush() {
+    if (_mtQueue.length === 0) return;
+    const batch = _mtQueue;
+    _mtQueue = [];
     try {
-      const body = { kind, payload: payload || {}, visorRev: (window.PLUGIN_REV || null) };
-      skFetch(`/plugins/${PLUGIN_ID}/maneuver-trace/event`, {
+      await skFetch(`/plugins/${PLUGIN_ID}/maneuver-trace/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).catch(() => { /* silent - forensics is best-effort */ });
+        body: JSON.stringify({ events: batch }),
+      });
+    } catch { /* silent - forensics is best-effort */ }
+  }
+  function _mtLog(kind, payload) {
+    try {
+      _mtQueue.push({ kind, payload: payload || {}, visorRev: (window.PLUGIN_REV || null) });
+      if (_mtQueue.length >= _MT_QUEUE_MAX) {
+        _mtFlush();
+        return;
+      }
+      if (!_mtFlushTimer) {
+        _mtFlushTimer = setTimeout(() => {
+          _mtFlushTimer = null;
+          _mtFlush();
+        }, _MT_FLUSH_MS);
+      }
     } catch { /* silent */ }
   }
+  // Flush on tab hide so forensics survive if the user closes the tab
+  // mid-maneuver (unload) or navigates away.
+  try {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") _mtFlush();
+    });
+    window.addEventListener("beforeunload", () => { _mtFlush(); });
+  } catch { /* silent */ }
   // Rev323 (Carlos, 2026-09-27): tell the backend a visor-side
   // pseudo-modo is active/inactive. Backend uses this to silence the
   // heading-deviation family of alarms during Aproado / Empopado. In
@@ -7931,19 +8243,43 @@
       }).catch(() => { /* silent - alarm gate is best-effort */ });
     } catch { /* silent */ }
   }
+  // Rev465 → Rev466 (Carlos safety audit 2026-10-12): belt-and-suspenders
+  // gate for every write that reaches pypilot. Reasons to block:
+  //   1. pypilot core reported offline by the plugin backend.
+  //   2. The SK WebSocket is not OPEN (we have no confirmation that
+  //      the server is reachable at all, so even if the HTTP side still
+  //      answered, we would be flying blind without delta feedback).
+  // In either case we abort BEFORE the HTTP POST, so the sailor's click
+  // produces zero traffic and zero potential stale command.
+  function _pypilotWriteBlocked(callerName) {
+    const wsOk = typeof ws !== "undefined" && ws && ws.readyState === WebSocket.OPEN;
+    const pypilotOk = !(state && state.pypilotHealthy === false);
+    if (wsOk && pypilotOk) return false;
+    const reason = !wsOk ? "ws_closed" : "pypilot_offline";
+    try {
+      console.warn(`[pypilot-newui] write blocked (${reason}): ${callerName}`);
+      if (typeof _mtLog === "function") {
+        _mtLog("other", { via: callerName, blocked: reason });
+      }
+    } catch { /* silent */ }
+    return true;
+  }
   async function apEngage() {
+    if (_pypilotWriteBlocked("apEngage")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
     _mtLog("engage", { via: "apEngage" });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
     return handleAuth(await skFetch(url, { method: "POST" }));
   }
   async function apDisengage() {
+    if (_pypilotWriteBlocked("apDisengage")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
     _mtLog("disengage", { via: "apDisengage" });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
     return handleAuth(await skFetch(url, { method: "POST" }));
   }
   async function apSetMode(mode) {
+    if (_pypilotWriteBlocked("apSetMode")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
     _mtLog("mode_change", { requested: mode });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/mode`;
@@ -7987,6 +8323,7 @@
     return r;
   }
   async function apSetTargetRad(rad) {
+    if (_pypilotWriteBlocked("apSetTargetRad")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
     // Rev415 (Carlos sea trial 2026-10-04, obs #1 "nudges silenciosos"):
     // enrich the target_put trace so a stale UI vs real-write mismatch
@@ -8018,6 +8355,7 @@
     return res;
   }
   async function apTack(direction) {
+    if (_pypilotWriteBlocked("apTack")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
     _mtLog("tack_tap", { direction });
     // Rev346: stamp so the delta observer knows this tack originated
@@ -9021,6 +9359,12 @@
   // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
   // profiles, calibration, tack detail), route through our own /raw endpoint.
   async function pluginRaw(name, value) {
+    // Rev465/466 (Carlos safety audit 2026-10-12 trip): abort BEFORE
+    // POST when pypilot offline OR WebSocket closed. See
+    // _pypilotWriteBlocked for the full rationale.
+    if (_pypilotWriteBlocked(`pluginRaw(${name})`)) {
+      return { ok: false, blocked: true, reason: "pypilot_or_ws_down" };
+    }
     // Rev344 (Carlos, 2026-09-28 port test): tack en modo wind viaja
     // por este endpoint (ap.tack.direction + ap.tack.state=begin), no
     // por apTack(). Como no emitía trace, en el forensics del sea trial
@@ -9963,7 +10307,13 @@
         fbBox.hidden = true;
         fbBox.classList.remove("maximized");
         if (fbMax) fbMax.textContent = "⤢";
-        fbIframe.src = "about:blank";
+        // Rev461 (Carlos QA Rev460, 2026-10-11): keep the Freeboard-SK
+        // iframe mounted after close so a reopen is instant. Previously
+        // we set src = "about:blank" to release Freeboard's socket, but
+        // the trade-off was that every reopen reloaded Freeboard from
+        // scratch (slow: chart tiles + SK handshake + AIS redraw).
+        // Keeping it mounted means Freeboard holds a websocket while
+        // hidden; worth the few extra bytes on an always-on tablet.
       };
       const toggleMax = () => {
         if (!fbBox) return;
@@ -12352,15 +12702,25 @@
     // Rev434 (Carlos QA Rev433): wire the AIS collision alarm overlay
     // card. Toggle on/off, toggle voice, and a shortcut to open the
     // collision-alerts plugin config in the SK admin UI.
-    const aisCb = document.getElementById("dash-ais-alarm");
-    if (aisCb) {
-      aisCb.checked = _aisAlarmEnabled();
-      aisCb.addEventListener("change", () => _aisAlarmSetEnabled(aisCb.checked));
+    // Rev456: 3-way mode selector replaces the single on/off checkbox.
+    const curMode = _aisMode();
+    for (const m of AIS_MODES) {
+      const r = document.getElementById(`dash-ais-mode-${m}`);
+      if (r) {
+        r.checked = (m === curMode);
+        r.addEventListener("change", () => { if (r.checked) _aisSetMode(m); });
+      }
     }
     const aisVoiceCb = document.getElementById("dash-ais-alarm-voice");
     if (aisVoiceCb) {
       aisVoiceCb.checked = _aisAlarmVoiceEnabled();
       aisVoiceCb.addEventListener("change", () => _aisAlarmSetVoiceEnabled(aisVoiceCb.checked));
+    }
+    // Rev464: toggle for the SOG-based auto-silencer. Default ON.
+    const aisHarborAutoCb = document.getElementById("dash-ais-alarm-harbor-auto");
+    if (aisHarborAutoCb) {
+      aisHarborAutoCb.checked = _aisHarborAutoEnabled();
+      aisHarborAutoCb.addEventListener("change", () => _aisHarborSetAutoEnabled(aisHarborAutoCb.checked));
     }
     const aisCfg = document.getElementById("dash-ais-alarm-config");
     if (aisCfg) {
@@ -16704,6 +17064,17 @@
         const gotCatalog = state.catalog && Object.keys(state.catalog).length > 5;
         if (gotCatalog && gainReady()) break;
       }
+      // Rev461 (Carlos QA Rev460, 2026-10-11): keep the plugin values
+      // cache warm with a low-rate background refresh. The initial boot
+      // loop above only runs until ONE AutopilotGain lands; the rest of
+      // the catalog (and any value updated by the pilot while the sailor
+      // was not watching) will not reach the cache until the next trigger.
+      // A 10 s background tick is cheap (~70 ms per call per the sea
+      // trial logs) and makes "open Setup → values already there" the
+      // common case regardless of how long the tab stayed on CONTROL.
+      setInterval(() => {
+        try { refreshPypilotValues().catch(() => {}); } catch { /* silent */ }
+      }, 10_000);
     })();
     connectSK();
     // Rev342 (Carlos, 2026-09-28): net health monitor. Independent of

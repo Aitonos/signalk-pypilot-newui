@@ -3812,15 +3812,21 @@ td.sq-action {
 .setup-block-status:empty { display: none; }
 .setup-block-status b { color: var(--fg); font-weight: 700; }
 
-/* Rev260/261 (Carlos): passive feedback when pypilot is offline.
-   Body carries the class; every write-side control below reads it.
-   No pointer-events:none - a stubborn click still travels and the
-   backend's authoritative Rev254/257 guard rejects it in 503. */
+/* Rev260/261 → Rev465 (Carlos sea trial 2026-10-12, safety audit):
+   when pypilot is offline we now BLOCK clicks on every write-side
+   control (pointer-events:none) AND show a centred red banner so the
+   sailor can see at a glance that his inputs are not reaching the
+   autopilot. Previously controls only dimmed visually but clicks
+   still travelled → backend answered 503 but the sailor had already
+   pressed several buttons blindly, and the queued writes could all
+   fire the moment pypilot_web came back online (Carlos: "pasé miedo"
+   on the 2026-10-12 trip). */
 body.pypilot-offline #engage-toggle,
 body.pypilot-offline #tack-port-btn,
 body.pypilot-offline #tack-star-btn,
 body.pypilot-offline .steer-btn[data-nudge-kind],
 body.pypilot-offline #mode-select,
+body.pypilot-offline #mode-select-btn,
 body.pypilot-offline #pilot-select,
 body.pypilot-offline #profile-select,
 body.pypilot-offline #calib-unlock,
@@ -3834,6 +3840,41 @@ body.pypilot-offline .pypilot-write {
   opacity: 0.35;
   filter: grayscale(1);
   cursor: not-allowed;
+  pointer-events: none;
+}
+/* Rev465: full-width centred banner. Hidden unless pypilot-offline. */
+#pypilot-offline-banner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #ff3b30;
+  color: #fff;
+  padding: 18px 28px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  animation: pypilot-offline-blink 1.4s ease-in-out infinite;
+  display: none;
+  max-width: 80vw;
+  line-height: 1.3;
+}
+body.pypilot-offline #pypilot-offline-banner { display: block; }
+#pypilot-offline-banner .subtle {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.88;
+}
+@keyframes pypilot-offline-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
 }
 
 /* Rev261 (Carlos): green transient toast when pypilot comes back. */
@@ -4086,6 +4127,20 @@ body.pypilot-offline .pypilot-write {
 }
 .ais-target.ais-alarm { animation: ais-blink 900ms infinite; }
 .ais-target.ais-acked { animation: none !important; }
+/* Rev457: projected track line out of the AIS target's bow. Lives
+   inside the hull <g>, so the parent rotation already orients it
+   along the target's COG. Length is driven by its SOG × 3 min
+   horizon. Colour matches the hull tint by state. */
+.ais-track-line {
+  fill: none;
+  stroke: #ff3b30;
+  stroke-dasharray: 3 3;
+  stroke-linecap: round;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.ais-track-line.ais-warn   { stroke: #f5a623; }
+.ais-track-line.ais-acked  { stroke: #6b7a8f; opacity: 0.55; }
 @keyframes ais-blink {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
@@ -4140,6 +4195,10 @@ body.pypilot-offline .pypilot-write {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Rev462 (Carlos QA Rev461, 2026-10-11): the X close button sits at
+     top-right in position:absolute; reserve space for it so the MMSI /
+     target name text does not slide underneath. */
+  padding-right: 22px;
 }
 .ais-infobox-body {
   font-size: 12px;
