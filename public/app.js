@@ -3898,28 +3898,36 @@
   if (!state.aisTargetPos) state.aisTargetPos = new Map();
   const AIS_TARGET_POS_FRESH_MS = 30 * 1000;
   const AIS_IGNORE_SOG_MS = 0.08;   // ~0.15 kn → stationary / moored
+  // Rev470: below this SOG the target's COG is GPS noise — no projected
+  // track line, and the hull is oriented by headingTrue instead of COG.
+  const AIS_PROJ_MIN_SOG_MS = 0.257;  // 0.5 kn
   async function _aisRefreshTargetPos(mmsi) {
     try {
       const now = Date.now();
       const cur = state.aisTargetPos.get(mmsi);
       if (cur && (now - cur.fetchedAt) < AIS_TARGET_POS_FRESH_MS) return cur;
       const ctx = `urn:mrn:imo:mmsi:${mmsi}`;
-      const [posR, sogR, cogR] = await Promise.all([
+      const [posR, sogR, cogR, hdgR] = await Promise.all([
         skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/position/value`),
         skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/speedOverGround/value`).catch(() => null),
         // Rev457 (Carlos QA Rev456): fetch the target's true COG so the
         // hull can face its actual course + draw a projected track
         // line out of its bow instead of pointing at us.
         skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/courseOverGroundTrue/value`).catch(() => null),
+        // Rev470: true heading orients the hull of a stopped / slow
+        // target (its COG is GPS noise below AIS_PROJ_MIN_SOG_MS).
+        skFetch(`/signalk/v1/api/vessels/${encodeURIComponent(ctx)}/navigation/headingTrue/value`).catch(() => null),
       ]);
-      let pos = null, sog = null, cog = null;
+      let pos = null, sog = null, cog = null, hdg = null;
       if (posR && posR.ok) pos = await posR.json().catch(() => null);
       if (sogR && sogR.ok) sog = await sogR.json().catch(() => null);
       if (cogR && cogR.ok) cog = await cogR.json().catch(() => null);
+      if (hdgR && hdgR.ok) hdg = await hdgR.json().catch(() => null);
       const rec = {
         pos: (pos && typeof pos.latitude === "number") ? pos : null,
         sog: (typeof sog === "number") ? sog : null,
         cog: (typeof cog === "number") ? cog : null,  // radians (SK convention)
+        hdg: (typeof hdg === "number") ? hdg : null,  // radians, true
         fetchedAt: now,
       };
       state.aisTargetPos.set(mmsi, rec);
@@ -4317,20 +4325,32 @@
       // just "where he is". When the COG is unknown (REST cache not
       // populated yet) we fall back to the collision bearing (points at
       // self) so the hull is still readable.
-      const cogAbsRad = cached && typeof cached.cog === "number" ? cached.cog : null;
+      // Rev470 (audit _audit_ais_rose_targets_rev470.md, Bug 2+3):
+      //  - boat-cenital.svg has its bow at +x local; the own boat uses
+      //    rotate(-90) to point up. So a direction at relative angle A
+      //    (0 = our bow, clockwise) needs rotate(A - 90). Rev457 used
+      //    +90 (copied from the point-at-self fallback) → hull and track
+      //    were drawn 180° off.
+      //  - A moored target's COG is GPS noise: orient the hull by its
+      //    headingTrue when available, by COG only when it is moving,
+      //    else fall back to pointing at us. The projected track is
+      //    drawn only when moving, and always along COG.
+      const relToBoat = (absRad) => {
+        let d = (absRad - state.heading) * RAD2DEG;
+        while (d >  180) d -= 360;
+        while (d < -180) d += 360;
+        return d;
+      };
+      const haveOwnHdg = typeof state.heading === "number";
+      const tgtMoving = cached && typeof cached.sog === "number" && cached.sog >= AIS_PROJ_MIN_SOG_MS;
+      const cogRelDeg = (haveOwnHdg && tgtMoving && typeof cached.cog === "number")
+        ? relToBoat(cached.cog) : null;
+      const hdgRelDeg = (haveOwnHdg && cached && typeof cached.hdg === "number")
+        ? relToBoat(cached.hdg) : null;
       let hullRotDeg;
-      if (cogAbsRad != null && typeof state.heading === "number") {
-        // COG relative to boat frame: cogAbsRad - heading (both rad).
-        let cogRelDeg = (cogAbsRad - state.heading) * RAD2DEG;
-        while (cogRelDeg >  180) cogRelDeg -= 360;
-        while (cogRelDeg < -180) cogRelDeg += 360;
-        // boat-cenital.svg draws bow at +x local; same formula as the
-        // bearing rotation gives +x pointing at the "forward" direction.
-        hullRotDeg = cogRelDeg + 90;
-      } else {
-        // Fallback: point at self (previous behaviour).
-        hullRotDeg = relDeg + 90;
-      }
+      if (hdgRelDeg != null) hullRotDeg = hdgRelDeg - 90;
+      else if (cogRelDeg != null) hullRotDeg = cogRelDeg - 90;
+      else hullRotDeg = relDeg + 90;  // fallback: bow points at self
       g.setAttribute("transform",
         `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${hullRotDeg.toFixed(1)}) scale(${scale})`);
       const filterId = acked ? "ais-tint-acked"
@@ -4347,25 +4367,26 @@
       img.setAttribute("filter", `url(#${filterId})`);
       img.setAttribute("preserveAspectRatio", "xMidYMid meet");
       g.appendChild(img);
-      // Rev459 (Carlos QA Rev458, 2026-10-11): "proyección de puntos
-      // desde su proa que atraviese la rosa para saber si el riesgo es
-      // por proa, por popa o directo a nuestro casco". A long dashed
-      // track line out of the bow (+x local, same axis as the hull
-      // bow). The ais-alarm-layer is clip-path'd to the rose circle,
-      // so the line visually ends at the ring regardless of how long
-      // we draw it. We cancel scale on stroke-width so the alarm 1.5x
-      // hull does not thicken its own line.
-      const bowStart = 14;             // half the hull width (28)
-      const projLenLocal = 400 / scale;  // guaranteed to cross the rose
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("class", `ais-track-line ais-${a.value.state}${acked ? " ais-acked" : ""}`);
-      line.setAttribute("x1", String(bowStart));
-      line.setAttribute("y1", "0");
-      line.setAttribute("x2", String(bowStart + projLenLocal));
-      line.setAttribute("y2", "0");
-      line.setAttribute("stroke-width", String(1.4 / scale));
-      g.appendChild(line);
       layer.appendChild(g);
+      // Rev459: dashed projected track ("¿por proa, por popa o directo a
+      // nuestro casco?"). Rev470: only for a moving target and along its
+      // COG, drawn in rose coords (not inside the hull <g>) because the
+      // hull may now be oriented by headingTrue, which differs from COG
+      // under current / leeway. The layer is clipped to the rose circle,
+      // so a long segment visually ends at the ring.
+      if (cogRelDeg != null) {
+        const cogA = cogRelDeg * Math.PI / 180;
+        const ux = Math.sin(cogA), uy = -Math.cos(cogA);
+        const start = 14 * scale;  // hull half-length
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("class", `ais-track-line ais-${a.value.state}${acked ? " ais-acked" : ""}`);
+        line.setAttribute("x1", (x + ux * start).toFixed(1));
+        line.setAttribute("y1", (y + uy * start).toFixed(1));
+        line.setAttribute("x2", (x + ux * 400).toFixed(1));
+        line.setAttribute("y2", (y + uy * 400).toFixed(1));
+        line.setAttribute("stroke-width", "1.4");
+        layer.appendChild(line);
+      }
     }
     // Rev432: infobox + ACK as a persistent HTML div.
     // Rev438: multi-target navigator — _aisInfoboxIdx is clamped to the
