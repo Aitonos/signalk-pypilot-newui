@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev476" />
+  <link rel="stylesheet" href="style.css?v=Rev477" />
 </head>
 <body class="theme-dark">
 
@@ -883,15 +883,30 @@
                     <input type="checkbox" id="dash-ais-alarm-harbor-auto" checked />
                     <span data-i18n="dash.overlay.ais.harborAuto">Switch to Harbour by itself when stopped 2 min</span>
                   </label>
-                  <!-- Rev476 (Carlos 2026-10-14): Freeboard background preload
-                       (Rev475) can be turned off per device. Default ON. -->
-                  <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;font-size:12px;color:var(--fg-dim);cursor:pointer"
-                         onclick="event.stopPropagation();">
-                    <input type="checkbox" id="dash-fb-preload" checked />
-                    <span data-i18n="dash.overlay.ais.fbPreload">Keep the chart (Freeboard) loaded in the background</span>
-                  </label>
+
                 </div>
               </label>
+              <!-- Rev477 (Carlos 2026-10-14): own card for the Freeboard
+                   background preload (Rev475/476) + "?" explaining when to
+                   turn it off. A <div>, not a <label>: inside a label a tap
+                   on the help text would toggle the checkbox. -->
+              <div class="overlay-card" style="cursor:default">
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <rect x="-24" y="-54" width="48" height="44" rx="4" fill="#1e5a8a" stroke="#fff" stroke-width="1"/>
+                  <path d="M-24,-28 C-12,-36 -4,-20 8,-30 S20,-34 24,-30 L24,-10 L-24,-10 Z" fill="#e8d27a"/>
+                  <polygon points="-6,-46 0,-40 -6,-34 -3,-40" fill="#ff3b30"/>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.fb.title">Chart in the background</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.fb.needs">Keeps Freeboard-SK loaded so a double-tap on the rose opens it instantly, with the AIS names already in place.</div>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+                  <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;font-size:13px;cursor:pointer">
+                    <input type="checkbox" id="dash-fb-preload" checked />
+                    <span data-i18n="dash.overlay.fb.toggle">Keep the chart loaded</span>
+                  </label>
+                  <button type="button" class="gain-help-btn" id="dash-fb-help-btn" aria-label="More info" title="More info">?</button>
+                </div>
+                <div class="gain-help-long" id="dash-fb-help" hidden data-i18n="dash.overlay.fb.help">Freeboard stays open in the background: it uses some CPU, data and battery even when you do not see it. If the visor feels slow (lag) or you want to save battery, turn this off: the chart will then load only when you open it (a few seconds slower). This setting applies to this device only.</div>
+              </div>
             </div>
           </div>
           <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
@@ -2512,6 +2527,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev476"></script>
+  <script src="app.js?v=Rev477"></script>
 </body>
 </html>

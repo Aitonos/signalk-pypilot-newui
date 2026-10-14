@@ -594,7 +594,10 @@
       "dash.overlay.ais.config": "Distances and times (plugin)",
       "dash.overlay.ais.voice":  "Voice alert",
       "dash.overlay.ais.harborAuto": "Switch to Harbour by itself when stopped 2 min",
-      "dash.overlay.ais.fbPreload": "Keep the chart (Freeboard) loaded in the background",
+      "dash.overlay.fb.title":  "Chart in the background",
+      "dash.overlay.fb.needs":  "Keeps Freeboard-SK loaded so a double-tap on the rose opens it instantly, with the AIS names already in place.",
+      "dash.overlay.fb.toggle": "Keep the chart loaded",
+      "dash.overlay.fb.help":   "Freeboard stays open in the background: it uses some CPU, data and battery even when you do not see it. If the visor feels slow (lag) or you want to save battery, turn this off: the chart will then load only when you open it (a few seconds slower). This setting applies to this device only.",
       "dash.overlay.ais.harbor": "Marina mode (auto-silence when moored)",
       "ais.objetivo":            "target",
       "ais.voice.alarm":         "AIS alarm",
@@ -1482,7 +1485,10 @@
       "dash.overlay.ais.config": "Distancias y tiempos (plugin)",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "dash.overlay.ais.harborAuto": "Pasar solo a Puerto al estar parados 2 min",
-      "dash.overlay.ais.fbPreload": "Tener la carta (Freeboard) cargada de fondo",
+      "dash.overlay.fb.title":  "Carta en segundo plano",
+      "dash.overlay.fb.needs":  "Mantiene Freeboard-SK cargado para que el doble toque en la rosa lo abra al instante, con los nombres AIS ya puestos.",
+      "dash.overlay.fb.toggle": "Tener la carta cargada",
+      "dash.overlay.fb.help":   "Freeboard queda abierto de fondo: gasta algo de CPU, datos y batería aunque no lo veas. Si notas el visor lento (lag) o quieres ahorrar batería, desactívalo: la carta se cargará solo al abrirla (tarda unos segundos más). Este ajuste es solo para este dispositivo.",
       "dash.overlay.ais.harbor": "Modo marina (silencia al estar amarrados)",
       "ais.objetivo":            "objetivo",
       "ais.voice.alarm":         "Alarma AIS",
@@ -10441,6 +10447,19 @@
       });
       // Preload only if enabled and Freeboard-SK is installed.
       setTimeout(preloadFb, 8000);
+      // Rev477: "?" next to the switch toggles the explanation.
+      const fbHelpBtn = document.getElementById("dash-fb-help-btn");
+      const fbHelp = document.getElementById("dash-fb-help");
+      if (fbHelpBtn && fbHelp) {
+        fbHelpBtn.setAttribute("aria-label", t("tune.gain.helpBtn") || "More info");
+        fbHelpBtn.setAttribute("title", t("tune.gain.helpBtn") || "More info");
+        fbHelpBtn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          fbHelp.hidden = !fbHelp.hidden;
+          fbHelpBtn.classList.toggle("open", !fbHelp.hidden);
+        });
+      }
       const fbPreloadCb = document.getElementById("dash-fb-preload");
       if (fbPreloadCb) {
         fbPreloadCb.checked = fbPreloadEnabled();
