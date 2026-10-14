@@ -3957,7 +3957,7 @@
       // cache was ALWAYS empty: the hull fell back to the FUTURE CPA
       // position and the SOG-based gates never had data.
       const ctx = `urn:mrn:imo:mmsi:${mmsi}`;
-      const [posR, sogR, cogR, hdgR] = await Promise.all([
+      const [posR, sogR, cogR, hdgR, nameR] = await Promise.all([
         skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/position/value`),
         skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/speedOverGround/value`).catch(() => null),
         // Rev457 (Carlos QA Rev456): fetch the target's true COG so the
@@ -3967,17 +3967,25 @@
         // Rev470: true heading orients the hull of a stopped / slow
         // target (its COG is GPS noise below AIS_PROJ_MIN_SOG_MS).
         skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/headingTrue/value`).catch(() => null),
+        // Rev481 (Carlos QA Rev480): the vessel name from SK (filled by
+        // the VHF static message or by signalk-mareas-ihm's AIS DB). The
+        // collision-alerts message keeps whatever name existed when the
+        // alarm was raised ("MMSI 261010366" right after an SK restart).
+        skFetch(`/signalk/v1/api/vessels/${ctx}/name`).catch(() => null),
       ]);
       let pos = null, sog = null, cog = null, hdg = null;
       if (posR && posR.ok) pos = await posR.json().catch(() => null);
       if (sogR && sogR.ok) sog = await sogR.json().catch(() => null);
       if (cogR && cogR.ok) cog = await cogR.json().catch(() => null);
       if (hdgR && hdgR.ok) hdg = await hdgR.json().catch(() => null);
+      let name = null;
+      if (nameR && nameR.ok) name = await nameR.json().catch(() => null);
       const rec = {
         pos: (pos && typeof pos.latitude === "number") ? pos : null,
         sog: (typeof sog === "number") ? sog : null,
         cog: (typeof cog === "number") ? cog : null,  // radians (SK convention)
         hdg: (typeof hdg === "number") ? hdg : null,  // radians, true
+        name: (typeof name === "string" && name.trim()) ? name.trim() : null,
         fetchedAt: now,
       };
       state.aisTargetPos.set(mmsi, rec);
@@ -4520,14 +4528,20 @@
     // follows "Collision risk: NAME, ...". If NAME equals the MMSI
     // (plugin fallback when the AIS target has no name yet) we show
     // "objetivo" instead of the long numeric string.
+    // Rev481: SK vessel name first (REST cache), then the alarm text.
+    // "MMSI 261010366" (collision-alerts fallback) is not a name.
+    const isRealName = (n) => !!n && n !== top.mmsi
+      && !/^\d{6,}$/.test(n) && !/^MMSI\s*\d+$/i.test(n);
     let name = null;
-    try {
-      const m = /Collision risk:\s*([^,]+),/.exec(String(top.value.message || ""));
-      if (m) name = m[1].trim();
-    } catch { /* silent */ }
-    if (!name || name === top.mmsi || /^\d{6,}$/.test(name)) {
-      name = t("ais.objetivo") || "objetivo";
+    const cachedTop = state.aisTargetPos.get(top.mmsi);
+    if (cachedTop && isRealName(cachedTop.name)) name = cachedTop.name;
+    if (!name) {
+      try {
+        const m = /Collision risk:\s*([^,]+),/.exec(String(top.value.message || ""));
+        if (m && isRealName(m[1].trim())) name = m[1].trim();
+      } catch { /* silent */ }
     }
+    if (!name) name = t("ais.objetivo") || "objetivo";
     const lvl = (top.value.state === "alarm") ? "ALARM" : "WARN";
     box.classList.remove("ais-warn", "ais-alarm");
     box.classList.add(`ais-${top.value.state}`);

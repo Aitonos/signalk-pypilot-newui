@@ -173,3 +173,16 @@ Fix Rev474:
 
 Lección: **verificar con curl la URL REST exacta** antes de dar por bueno
 un fix de AIS. Dos revisiones (Rev436 y Rev463) pasaron sin esa prueba.
+
+## Rev481 — nombre del target en la ficha
+
+QA Carlos (2026-10-15): la ficha mostraba "MMSI 261010366" mientras SK ya
+tenía "POLARYS". collision-alerts fija el texto al levantar la alarma (tras
+un reinicio de SK, sin nombre todavía) y el visor solo leía ese texto.
+Ahora el cache REST pide también `/vessels/<urn>/name` (verificado con curl:
+`"POLARYS"` [200]) y la ficha usa: nombre SK → nombre del texto de la
+alarma → "objetivo". "MMSI nnn" no cuenta como nombre.
+
+Geometría verificada en la misma captura: POLARYS sin heading, 1,2 kn,
+COG 89°, nosotros a 289° → casco y línea a +160° relativo (hacia nuestra
+aleta de estribor), dibujados así. La rosa es correcta.
