@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev478" />
+  <link rel="stylesheet" href="style.css?v=Rev479" />
 </head>
 <body class="theme-dark">
 
@@ -118,11 +118,21 @@
           <div class="dash-cell corner-tr" data-corner="tr"></div>
           <div class="dash-cell corner-bl" data-corner="bl"></div>
           <div class="dash-cell corner-br" data-corner="br"></div>
-          <!-- Rev478 (Carlos 2026-10-14): small side button at 3 o'clock of
-               the rose -> tide curve popup. Shown only when signalk-mareas-ihm
-               is installed. The 9 o'clock slot (.rs-left) is reserved. -->
-          <button type="button" class="rose-side-btn rs-right" id="rose-tide-btn" hidden
-                  aria-label="Tide" title="Tide">🌊</button>
+          <!-- Rev479 (Carlos QA Rev478): side buttons centred ON the compass
+               ring. .rose-frame is an invisible box with the SVG viewBox
+               ratio (200x220) centred in .rose-wrap, so a % position maps
+               to rose coordinates in portrait AND landscape without JS.
+               3 o'clock = tide curve popup; 9 o'clock slot (.rs-left)
+               reserved. Button look = existing .freeboard-embed-btn. -->
+          <div class="rose-frame">
+            <button type="button" class="freeboard-embed-btn rose-side-btn rs-right" id="rose-tide-btn" hidden
+                    aria-label="Tide" title="Tide">
+              <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+                <rect x="1.5" y="2.5" width="17" height="15" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M3.5,12 C6,6 8.5,6 10,10 S14,14 16.5,7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
           <!-- Rev432 (Carlos QA Rev431): AIS collision infobox + ACK as
                an HTML absolute div (not SVG) so the ACK click is 100 %
                reliable (no re-render-swallows-tap race), the box always
@@ -159,6 +169,17 @@
                hide it again. The iframe src is set lazily on open and
                cleared on close so Freeboard does not keep a websocket
                open while hidden. -->
+          <!-- Rev479 (Carlos QA Rev478): "Abrir Mareas completo" opens the
+               signalk-mareas-ihm anchor-watch visor INSIDE the rose, same
+               container + chrome as Freeboard (⤢ full screen, × close).
+               Unloaded on close (its SSE stream must not stay alive). -->
+          <div class="freeboard-embed" id="mareas-embed" hidden>
+            <div class="freeboard-embed-chrome">
+              <button type="button" class="freeboard-embed-btn" id="mareas-embed-max" aria-label="Maximize" title="Maximize">⤢</button>
+              <button type="button" class="freeboard-embed-btn" id="mareas-embed-close" aria-label="Close" title="Close">×</button>
+            </div>
+            <iframe id="mareas-embed-iframe" title="AnchorWatch Pro"></iframe>
+          </div>
           <div class="freeboard-embed" id="freeboard-embed" hidden>
             <div class="freeboard-embed-chrome">
               <button type="button" class="freeboard-embed-btn" id="freeboard-embed-max" aria-label="Maximize" title="Maximize">⤢</button>
@@ -2548,6 +2569,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev478"></script>
+  <script src="app.js?v=Rev479"></script>
 </body>
 </html>

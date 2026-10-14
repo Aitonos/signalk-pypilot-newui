@@ -10620,16 +10620,34 @@
             .catch(() => { /* mareas-ihm not installed: no button */ });
         }, 3000);
       }
+      // Rev479 (Carlos QA Rev478): "Mareas completo" = the anchor-watch
+      // visor of signalk-mareas-ihm, opened INSIDE the rose like
+      // Freeboard (same container classes, ⤢ maximize, × close).
+      // Unloaded on close so its SSE stream does not stay alive.
+      const mBox = document.getElementById("mareas-embed");
+      const mIframe = document.getElementById("mareas-embed-iframe");
+      const mMax = document.getElementById("mareas-embed-max");
+      const mClose = document.getElementById("mareas-embed-close");
+      const openMareas = () => {
+        if (!mBox || !mIframe) return;
+        if (!mIframe.src || mIframe.src === "about:blank") mIframe.src = `${MAREAS}/visorfondeo`;
+        mBox.hidden = false;
+      };
+      const closeMareas = () => {
+        if (!mBox || !mIframe) return;
+        mBox.hidden = true;
+        mBox.classList.remove("maximized");
+        if (mMax) mMax.textContent = "⤢";
+        mIframe.src = "about:blank";
+      };
+      if (mMax) mMax.addEventListener("click", () => {
+        const now = mBox.classList.toggle("maximized");
+        mMax.textContent = now ? "⤡" : "⤢";
+        mMax.setAttribute("title", now ? "Restore" : "Maximize");
+      });
+      if (mClose) mClose.addEventListener("click", closeMareas);
       if (tideFull) {
-        tideFull.addEventListener("click", () => {
-          const lang = currentLang() === "es" ? "es" : "en";
-          tideBody.innerHTML = "";
-          const fr = document.createElement("iframe");
-          fr.className = "tide-iframe";
-          fr.title = "Tides";
-          fr.src = `${MAREAS}/mareas?embed=1&lang=${lang}`;
-          tideBody.appendChild(fr);
-        });
+        tideFull.addEventListener("click", () => { closeTide(); openMareas(); });
       }
     } catch (e) { console.warn("[rose] tide button wire:", e); }
 

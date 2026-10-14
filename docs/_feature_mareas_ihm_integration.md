@@ -255,3 +255,17 @@ todo muy lento." Hoy el iframe solo se carga en el primer doble toque
   - Pie: "Abrir Mareas completo" sustituye la curva por un iframe de
     `/signalk-mareas-ihm/mareas?embed=1&lang=..` dentro del mismo popup.
 - Fetch solo al abrir; `/api/extremes` cacheado 15 min. Sin polling.
+
+### Rev479 — correcciones QA Carlos sobre Rev478
+
+- El botón no quedaba centrado en el aro: estaba pegado al borde de
+  `.rose-wrap`, que en horizontal es un rectángulo. Ahora va dentro de
+  `.rose-frame`, una capa invisible con la proporción del viewBox del SVG
+  (200×220) y centrada como él, así que `left: 97%; top: 50%` = las 3 del
+  aro (x = 94). Sin JS, y vale con `zoom`.
+- Aspecto: la clase existente `.freeboard-embed-btn` (cuadrado, como el
+  resto de la rosa). Sin estilos inventados; solo posicionamiento.
+- Icono: tabla con curva (SVG `currentColor`), no una ola.
+- "Abrir Mareas completo" = **visor de fondeo** (`/signalk-mareas-ihm/visorfondeo`)
+  dentro de la rosa en `#mareas-embed`, con las mismas clases que el embed
+  de Freeboard (⤢ / ×). Se descarga al cerrar (SSE).
