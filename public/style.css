@@ -856,7 +856,12 @@ main {
   border-radius: 8px;
   margin: 0 6px;
   transition: box-shadow 260ms ease, border-color 260ms ease;
-  animation: nav-toggle-glow 1.4s ease-in-out infinite;
+  /* Rev490 (GPU audit 2026-10-15): static glow instead of the infinite
+     `nav-toggle-glow` pulse. Animating a blurred box-shadow forced a
+     full-window recomposite at 60 fps: 72 % of the Pi 5 GPU in Firefox
+     for a 29x20 button that Rev184 already dims to opacity 0.28. */
+  box-shadow: 0 0 9px rgba(255, 178, 63, 0.6), 0 0 17px rgba(255, 178, 63, 0.28);
+  border-color: rgba(255, 178, 63, 0.6);
 }
 .nav-toggle .tri {
   display: inline-block;
@@ -864,10 +869,6 @@ main {
   transition: transform 200ms ease;
 }
 body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
-@keyframes nav-toggle-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(255, 178, 63, 0.35), 0 0 10px rgba(255, 178, 63, 0.12); border-color: rgba(255, 178, 63, 0.35); }
-  50%      { box-shadow: 0 0 14px rgba(255, 178, 63, 0.85), 0 0 24px rgba(255, 178, 63, 0.45); border-color: rgba(255, 178, 63, 0.9); }
-}
 #ftr, .info-bar { display: none !important; }   /* legacy hidden */
 .rose-svg {
   width: 100%;
@@ -4406,3 +4407,34 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
   font-weight: 700;
   line-height: 1.2;
 }
+
+/* ============================================================
+   Rev490 (GPU audit 2026-10-15): Pi-browser mode.
+   `body.pi-browser` is set by the inline detector in index.html when
+   the visor runs on the Raspberry Pi's own screen (V3D GPU). Same
+   recipe as signalk-mareas-ihm Rev188/211/331: on the Pi 5 + X11 any
+   running animation makes Firefox recomposite the whole window at
+   60 fps, and blur/drop-shadow re-run every frame. Animations and
+   transitions become instant (1 ms, end state kept, so animationend
+   logic still fires); blur and drop-shadow go away. Alarms stay red
+   and audible, they just do not pulse on the Pi screen.
+   ============================================================ */
+body.pi-browser *,
+body.pi-browser *::before,
+body.pi-browser *::after {
+  animation-duration: .001s !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001s !important;
+  transition-delay: 0s !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+body.pi-browser .swipe-hint .rudder-marker .rmk-tri,
+body.pi-browser .swipe-hint .rudder-marker .rmk-num {
+  filter: none !important;
+}
+/* Lost blur -> denser backgrounds to keep the HUD text readable. */
+body.pi-browser .regata-hud   { background: rgba(0, 20, 32, 0.92); }
+body.pi-browser .aproado-hud  { background: rgba(11, 15, 20, 0.92); }
+body.pi-browser .tide-cur-box { background: color-mix(in srgb, var(--bg) 88%, transparent); }

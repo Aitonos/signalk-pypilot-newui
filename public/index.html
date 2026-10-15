@@ -27,9 +27,36 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev489" />
+  <link rel="stylesheet" href="style.css?v=Rev492" />
 </head>
 <body class="theme-dark">
+  <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
+       as `pi-browser` BEFORE first paint (style.css drops animations /
+       blur there). Firefox on the Pi reports "X11; Linux x86_64", so the
+       UA alone is not enough: confirm via the WebGL renderer/vendor
+       (V3D / Broadcom). -->
+  <script>
+  (function () {
+    try {
+      var ua = navigator.userAgent;
+      var pi = /aarch64|armv\d|raspberry/i.test(ua);
+      if (!pi && /X11; Linux/.test(ua) && !/Android|Mobile|Tablet/i.test(ua)) {
+        var gl = document.createElement("canvas").getContext("webgl");
+        if (gl) {
+          var r = String(gl.getParameter(gl.RENDERER) || "");
+          var ext = gl.getExtension("WEBGL_debug_renderer_info");
+          // Firefox masks the renderer ("Generic Renderer") but keeps
+          // the unmasked vendor ("Broadcom") on the Pi.
+          if (ext) r += " " + gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) + " " + gl.getParameter(ext.UNMASKED_VENDOR_WEBGL);
+          pi = /V3D|VideoCore|Broadcom/i.test(r);
+          var lose = gl.getExtension("WEBGL_lose_context");
+          if (lose) lose.loseContext();
+        }
+      }
+      if (pi) document.body.classList.add("pi-browser");
+    } catch (e) { /* not fatal: full effects */ }
+  })();
+  </script>
 
   <!-- Rev39: Regatta timer HUD overlay. Visible in every tab except Regata
        itself when the timer is not idle. Semi-transparent so it does not
@@ -2586,6 +2613,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev489"></script>
+  <script src="app.js?v=Rev492"></script>
 </body>
 </html>

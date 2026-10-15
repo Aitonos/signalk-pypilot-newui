@@ -3277,6 +3277,27 @@
   }
 
   // ---- Renderers ----
+  // Rev490 (GPU audit 2026-10-15): write-if-changed helpers for the hot
+  // render path. Rewriting a DOM value with the SAME value still fires a
+  // mutation + restyle + repaint; the Control tab was doing ~120 identical
+  // writes/s, which kept Firefox on the Pi 5 at 94 % GPU.
+  function _setText(el, v) {
+    if (el && el.textContent !== v) el.textContent = v;
+  }
+  function _setAttr(el, name, v) {
+    if (el && el.getAttribute(name) !== v) el.setAttribute(name, v);
+  }
+  function _setHidden(el, hide) {
+    if (el && el.hidden !== hide) el.hidden = hide;
+  }
+  function _setDisplay(el, v) {
+    if (el && el.style.display !== v) el.style.display = v;
+  }
+  // SVG rotate() string rounded to 0.1 deg: invisible on screen, and it
+  // stops float noise (104.00000002374627) from defeating _setAttr.
+  function _rot(deg) {
+    return `rotate(${(Math.round(deg * 10) / 10)})`;
+  }
   function renderHeader() {
     // Header pills were removed in Rev10. Kept as no-op so the delta pipeline
     // can call renderHeader() without gating.
@@ -3292,8 +3313,9 @@
     const hdgDeg = document.getElementById("rose-hdg-deg");
     if (hdgTxt) {
       const s = state.heading == null ? "---" : Math.round(state.heading * RAD2DEG).toString().padStart(3, "0");
-      hdgTxt.textContent = s;
-      if (hdgDeg) {
+      const hdgChanged = hdgTxt.textContent !== s;
+      _setText(hdgTxt, s);
+      if (hdgDeg && (hdgChanged || !hdgDeg.getAttribute("x"))) {
         // getComputedTextLength() only works on rendered SVG text nodes.
         // Fall back to a heuristic width if the SVG has not laid out yet
         // (e.g. tab is not visible).
@@ -3303,7 +3325,7 @@
         let w;
         try { w = hdgTxt.getComputedTextLength(); } catch { w = s.length * 9; }
         if (!isFinite(w) || w <= 0) w = s.length * 9;
-        hdgDeg.setAttribute("x", (w / 2 + 1).toFixed(1));
+        _setAttr(hdgDeg, "x", (w / 2 + 1).toFixed(1));
       }
     }
     _dashRenderCorners();
@@ -3341,8 +3363,8 @@
       targetRad = (typeof state.target === "number") ? state.target : null;
     }
     if (!state.engaged || currentRad == null || targetRad == null) {
-      el.textContent = "--";
-      el.setAttribute("fill", "#8a98a8");
+      _setText(el, "--");
+      _setAttr(el, "fill", "#8a98a8");
       return;
     }
     // Sign convention Carlos: how much the pilot still has to correct.
@@ -3355,8 +3377,8 @@
     const abs = Math.abs(errDeg);
     const col = abs < 3 ? "#2ecc71" : (abs < 10 ? "#f5a623" : "#ff3b30");
     const sign = errDeg > 0 ? "+" : (errDeg < 0 ? "-" : "");
-    el.textContent = `${sign}${Math.abs(Math.round(errDeg))}°`;
-    el.setAttribute("fill", col);
+    _setText(el, `${sign}${Math.abs(Math.round(errDeg))}°`);
+    _setAttr(el, "fill", col);
   }
 
   // Rev48: 4 configurable corner tiles. Each corner shows one field
@@ -3531,13 +3553,15 @@
     const key = paths[state.roseBottomChipIdx];
     const entry = DASH_DATA[key];
     if (!entry) {
-      if (label) label.textContent = "?";
-      if (text)  text.textContent  = "---";
+      _setText(label, "?");
+      _setText(text, "---");
       return;
     }
-    if (label) label.textContent = _roseChipKeyLabel(entry);
-    if (text)  text.textContent  = _roseChipValueOf(entry);
-    if (chip) chip.classList.remove("wind-app", "wind-true");
+    _setText(label, _roseChipKeyLabel(entry));
+    _setText(text, _roseChipValueOf(entry));
+    if (chip && (chip.classList.contains("wind-app") || chip.classList.contains("wind-true"))) {
+      chip.classList.remove("wind-app", "wind-true");
+    }
   }
   function _cycleRoseBottomChip() {
     const paths = state.roseBottomChipPaths && state.roseBottomChipPaths.length
@@ -3678,21 +3702,25 @@
       // the label stays neutral so the tile does not look shouty.
       const paintedLabel = _paintABLabel(label, key);
       // Wind returns {value, sub}; the rest returns a string.
-      if (val && typeof val === "object" && "value" in val) {
-        el.innerHTML = `<div class="label">${paintedLabel}</div><div class="value">${val.value}</div><div class="sub">${val.sub}</div>`;
-      } else {
-        el.innerHTML = `<div class="label">${paintedLabel}</div><div class="value">${val}</div>`;
-      }
+      // Rev490: only touch the DOM when the tile content really changed
+      // (was a full innerHTML rewrite on every delta).
+      const html = (val && typeof val === "object" && "value" in val)
+        ? `<div class="label">${paintedLabel}</div><div class="value">${val.value}</div><div class="sub">${val.sub}</div>`
+        : `<div class="label">${paintedLabel}</div><div class="value">${val}</div>`;
+      if (el._lastHtml !== html) { el.innerHTML = html; el._lastHtml = html; }
       // Rev48: color coding by data type - keep classic traffic-signal palette.
       // Rev151: tgt goes red (matches the AP button); awa/aws lean amber;
       // twa/tws lean teal; wind combo picks amber/teal via the paint below.
-      el.classList.remove("heading","target","wind","sog","depth","cog","mode","twa","twd","wind-app","wind-true");
       const colorMap = { hdg:"heading", tgt:"target",
                          wind: state.windCornerShow === "twa" ? "wind-true" : "wind-app",
                          awa:"wind-app", aws:"wind-app",
                          twa:"wind-true", tws:"wind-true", twd:"twd",
                          sog:"sog", cog:"cog", depth:"depth", mode:"mode" };
-      if (colorMap[key]) el.classList.add(colorMap[key]);
+      const want = colorMap[key] || null;
+      for (const c of ["heading","target","wind","sog","depth","cog","mode","twa","twd","wind-app","wind-true"]) {
+        if (c !== want && el.classList.contains(c)) el.classList.remove(c);
+      }
+      if (want && !el.classList.contains(want)) el.classList.add(want);
     }
   }
   // Rev151: wrap the leading A / T of a corner label into a coloured
@@ -4321,11 +4349,10 @@
   function renderAisAlarms() {
     const layer = document.getElementById("ais-alarm-layer");
     if (!layer) return;
-    layer.textContent = "";
+    if (layer.firstChild) layer.textContent = "";
     const alarms = Array.from(state.aisAlarms.values());
     if (alarms.length === 0) {
-      const box = document.getElementById("ais-infobox");
-      if (box) box.hidden = true;
+      _setHidden(document.getElementById("ais-infobox"), true);
       return;
     }
     // Rank most-urgent first (lowest TCPA first; alarms before warns).
@@ -4740,7 +4767,7 @@
   function renderWindRose() {
     const card = document.getElementById("rose-card");
     if (card && state.heading != null) {
-      card.setAttribute("transform", `rotate(${-state.heading * RAD2DEG})`);
+      _setAttr(card, "transform", _rot(-state.heading * RAD2DEG));
     }
     // Rev431: refresh AIS alarm bearings on every heading-driven redraw
     // so the red triangles track the boat rotation.
@@ -4772,17 +4799,17 @@
     if (awa) {
       if (_windArrowShow.awa && awaRenderRad != null) {
         const awaDeg = awaRenderRad * RAD2DEG;
-        awa.setAttribute("transform", `rotate(${awaDeg})`);
+        _setAttr(awa, "transform", _rot(awaDeg));
         const awaLbl = document.getElementById("rose-piece-awa-label");
-        if (awaLbl) awaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -38)`);
-        awa.style.display = "";
+        _setAttr(awaLbl, "transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -38)`);
+        _setDisplay(awa, "");
         if (awaRaya) {
-          awaRaya.setAttribute("transform", `rotate(${awaDeg})`);
-          awaRaya.style.display = "";
+          _setAttr(awaRaya, "transform", _rot(awaDeg));
+          _setDisplay(awaRaya, "");
         }
       } else {
-        awa.style.display = "none";
-        if (awaRaya) awaRaya.style.display = "none";
+        _setDisplay(awa, "none");
+        _setDisplay(awaRaya, "none");
       }
     }
     const twa = document.getElementById("rose-piece-twa");           // teal piece = TWA
@@ -4790,17 +4817,17 @@
     if (twa) {
       if (_windArrowShow.twa && state.windAngleTrue != null) {
         const twaDeg = state.windAngleTrue * RAD2DEG;
-        twa.setAttribute("transform", `rotate(${twaDeg})`);
+        _setAttr(twa, "transform", _rot(twaDeg));
         const twaLbl = document.getElementById("rose-piece-twa-label");
-        if (twaLbl) twaLbl.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(twaDeg)}, 0, -56)`);
-        twa.style.display = "";
+        _setAttr(twaLbl, "transform", `rotate(${_pieceLabelFlipDeg(twaDeg)}, 0, -56)`);
+        _setDisplay(twa, "");
         if (twaRaya) {
-          twaRaya.setAttribute("transform", `rotate(${twaDeg})`);
-          twaRaya.style.display = "";
+          _setAttr(twaRaya, "transform", _rot(twaDeg));
+          _setDisplay(twaRaya, "");
         }
       } else {
-        twa.style.display = "none";
-        if (twaRaya) twaRaya.style.display = "none";
+        _setDisplay(twa, "none");
+        _setDisplay(twaRaya, "none");
       }
     }
 
@@ -4870,11 +4897,12 @@
       return;
     }
     const rot = deg.toFixed(1);
-    g.setAttribute("transform", `rotate(${rot})`);
-    g.style.display = "";
+    _setAttr(g, "transform", `rotate(${rot})`);
+    _setDisplay(g, "");
     // Rev187 (Carlos): blink while a tack is in progress.
-    if (_tackDiamondBlink) g.classList.add("tack-target-blink");
-    else g.classList.remove("tack-target-blink");
+    if (g.classList.contains("tack-target-blink") !== !!_tackDiamondBlink) {
+      g.classList.toggle("tack-target-blink", !!_tackDiamondBlink);
+    }
     // Rev185 (Carlos): tint the diamond by mode - red in compass, amber
     // (A palette) in apparent-wind, teal (T palette) in true-wind. In
     // any mode the diamond still means "target" and stays the loudest
@@ -6932,8 +6960,8 @@
     const lRight = $("#rudder-label-right");
     // Rev185 (Carlos): "sin mas ni menos" - end labels are just the
     // absolute magnitude. Side is conveyed by the label's position.
-    if (lLeft)  lLeft.textContent  = String(Math.round(rangeDeg));
-    if (lRight) lRight.textContent = String(Math.round(rangeDeg));
+    _setText(lLeft,  String(Math.round(rangeDeg)));
+    _setText(lRight, String(Math.round(rangeDeg)));
     if (rangeDeg !== _lastRudderRange) {
       _renderRudderScale(rangeDeg);
       _lastRudderRange = rangeDeg;
@@ -6941,8 +6969,9 @@
     // Update the chip label + tooltip to reflect the source.
     const chip = $("#helm-source-chip");
     if (chip) {
-      chip.textContent = src === "heel" ? "E" : "R";
-      chip.title = src === "heel" ? t("helmChip.heelTitle") : t("helmChip.rudderTitle");
+      _setText(chip, src === "heel" ? "E" : "R");
+      const title = src === "heel" ? t("helmChip.heelTitle") : t("helmChip.rudderTitle");
+      if (chip.title !== title) chip.title = title;
     }
     // Rev184 (Carlos): "sigue saliendo rudder cuando tenemos escora
     // activado". The legacy `#rudder-widget` (label + fill + value)
@@ -6951,18 +6980,19 @@
     const w = $("#rudder-widget");
     if (w) {
       if (src === "rudder" && state.rudderAngleRad != null) {
-        w.removeAttribute("hidden");
+        _setHidden(w, false);
         const deg = state.rudderAngleRad * RAD2DEG;
         const pct45 = Math.max(-1, Math.min(1, deg / 45));
         const fill = $("#rudder-fill");
         if (fill) {
-          fill.style.width = Math.abs(pct45 * 50) + "%";
-          fill.style.transform = pct45 < 0 ? "translateX(-100%)" : "translateX(0%)";
+          const fw = (Math.round(Math.abs(pct45 * 50) * 10) / 10) + "%";
+          const ft = pct45 < 0 ? "translateX(-100%)" : "translateX(0%)";
+          if (fill.style.width !== fw) fill.style.width = fw;
+          if (fill.style.transform !== ft) fill.style.transform = ft;
         }
-        const val = $("#rudder-value");
-        if (val) val.textContent = deg.toFixed(1) + " deg";
+        _setText($("#rudder-value"), deg.toFixed(1) + " deg");
       } else {
-        w.setAttribute("hidden", "");
+        _setHidden(w, true);
       }
     }
     // Move the marker + update its number.
@@ -6971,19 +7001,20 @@
     if (!marker) return;
     const raw = src === "heel" ? state.heelRad : state.rudderAngleRad;
     if (raw == null) {
-      marker.style.left = "50%";
-      if (numEl) numEl.textContent = "--";
+      if (marker.style.left !== "50%") marker.style.left = "50%";
+      _setText(numEl, "--");
       return;
     }
     const deg = raw * RAD2DEG;
     const pct = Math.max(-1, Math.min(1, deg / rangeDeg));
-    marker.style.left = (50 + pct * 50).toFixed(1) + "%";
-    if (numEl) {
-      // Rev185/186 (Carlos): plain absolute integer, no sign, no
-      // degree symbol - just the number. Position and legend say the
-      // rest.
-      numEl.textContent = String(Math.round(Math.abs(deg)));
-    }
+    // Number() drops a trailing ".0" so the string matches what the
+    // browser reports back from style.left ("50%", not "50.0%").
+    const left = Number((50 + pct * 50).toFixed(1)) + "%";
+    if (marker.style.left !== left) marker.style.left = left;
+    // Rev185/186 (Carlos): plain absolute integer, no sign, no
+    // degree symbol - just the number. Position and legend say the
+    // rest.
+    _setText(numEl, String(Math.round(Math.abs(deg))));
   }
 
   // Rev36 helper: build a slider row with nudge buttons -10/-1/+1/+10.
@@ -16827,8 +16858,7 @@
     return `${(r * RAD2DEG).toFixed(1)}°`;
   }
   function _setStatText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
+    _setText(document.getElementById(id), text);
   }
   function _renderStatSessionLine() {
     const el = document.getElementById("chart-session-line");
@@ -16875,8 +16905,9 @@
     const el = document.getElementById("sh-status");
     const status = _shCache.status || "--";
     if (el) {
-      el.textContent = status.toUpperCase();
-      el.className = "sh-status " + (["good","learning","elevated","high","idle"].includes(status) ? status : "");
+      _setText(el, status.toUpperCase());
+      const cls = "sh-status " + (["good","learning","elevated","high","idle"].includes(status) ? status : "");
+      if (el.className !== cls) el.className = cls;
     }
     _setStatText("sh-baseline",  _fmtA(_shCache.baselineA));
     _setStatText("sh-recent",    _fmtA(_shCache.recentAvgA));
@@ -16889,10 +16920,11 @@
     const fill = document.getElementById("sh-progress-fill");
     if (wrap && fill) {
       if (status === "learning" && typeof _shCache.learnedFrac === "number") {
-        wrap.hidden = false;
-        fill.style.width = `${Math.min(100, Math.max(0, _shCache.learnedFrac * 100)).toFixed(1)}%`;
+        _setHidden(wrap, false);
+        const w = `${Math.min(100, Math.max(0, _shCache.learnedFrac * 100)).toFixed(1)}%`;
+        if (fill.style.width !== w) fill.style.width = w;
       } else {
-        wrap.hidden = true;
+        _setHidden(wrap, true);
       }
     }
   }
