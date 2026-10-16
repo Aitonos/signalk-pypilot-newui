@@ -4369,24 +4369,13 @@
     // The infobox nav still walks ALL alarms so the sailor can scroll
     // through hidden ones.
     const topN = alarms.slice(0, 3);
-    // Rev455 (Carlos QA Rev454): the hull used to be clamped to the
-    // compass circle (R=92) regardless of real distance, giving no
-    // sense of "cerca vs lejos". Now the radial position reflects the
-    // actual distance to the target, linearly up to AIS_RADIAL_MAX_NM
-    // (further out it saturates at the ring). A dashed line from the
-    // self (center) to the hull makes the collision bearing explicit.
+    // Rev493 (Carlos QA 2026-10-16, "el target de AIS debe estar en la
+    // ROSA, no encima de mi barco"): the hull sits ON the compass ring at
+    // its relative bearing, whatever the distance. Rev455/472 mapped the
+    // distance onto the radius (log scale, 50 m .. 2 NM), which in a
+    // marina parked every target against our own hull. The real reading
+    // stays in the distance label and the infobox.
     const R = 92;
-    // Rev472 (audit Bug 1): the own-boat sprite is 100 × 33 units
-    // (boat-cenital 456×152 × 0.22), i.e. its bow sits at 54 % of R. The
-    // old linear scale (2 NM, floor 0.18 R) dropped every target closer
-    // than ~0.36 NM — all of them in a marina — UNDER our own hull.
-    // New mapping: log scale from AIS_RADIAL_MIN_M to AIS_RADIAL_MAX_NM
-    // over the free annulus between our hull outline (ellipse
-    // a=50 fore-aft, b=16.5 abeam, + margin) and the ring. A distance
-    // label next to each target gives the real reading.
-    const AIS_RADIAL_MAX_NM = 2.0;
-    const AIS_RADIAL_MIN_M = 50;
-    const OWN_HULL_A = 50, OWN_HULL_B = 16.5;
     for (const a of topN) {
       const d = a.value.data || {};
       // Rev436 (Carlos QA Rev435): use NOW positions, not cpaPositions
@@ -4437,10 +4426,10 @@
           );
         }
       } catch { /* silent */ }
-      // Rev455: radial position reflects REAL distance from self to
-      // target, saturating at the compass ring beyond AIS_RADIAL_MAX_NM.
-      // _distanceNm uses short-key {lat, lon} shape — adapt both sides.
-      let rPx = R;
+      // Hull centre half a hull-length inside the ring so the rose clip
+      // never cuts it (sprite half-length = 14 units x scale).
+      const spriteScale = _aisIsMmsiAcked(a.mmsi) ? 1.0 : (a.value.state === "alarm" ? 1.5 : 1.0);
+      const rPx = R - 14 * spriteScale;
       let distNm = null;
       if (selfPos && tgtPos
           && typeof selfPos.latitude === "number" && typeof tgtPos.latitude === "number") {
@@ -4448,18 +4437,6 @@
           { lat: selfPos.latitude, lon: selfPos.longitude },
           { lat: tgtPos.latitude,  lon: tgtPos.longitude  },
         );
-        // Inner edge of the annulus in this direction: own-hull ellipse
-        // radius at relDeg (0 = bow) + the target sprite half-length
-        // (14 units × its scale, worst case = hull pointing at us).
-        const spriteScale = _aisIsMmsiAcked(a.mmsi) ? 1.0 : (a.value.state === "alarm" ? 1.5 : 1.0);
-        const th = relDeg * Math.PI / 180;
-        const rHull = (OWN_HULL_A * OWN_HULL_B)
-          / Math.sqrt((OWN_HULL_B * Math.cos(th)) ** 2 + (OWN_HULL_A * Math.sin(th)) ** 2);
-        const rMin = Math.min(R, rHull + 14 * spriteScale + 1);
-        const dM = Math.max(AIS_RADIAL_MIN_M, distNm * 1852);
-        const frac = Math.min(1,
-          Math.log(dM / AIS_RADIAL_MIN_M) / Math.log(AIS_RADIAL_MAX_NM * 1852 / AIS_RADIAL_MIN_M));
-        rPx = rMin + (R - rMin) * frac;
       }
       const rad = (relDeg - 90) * Math.PI / 180; // SVG 0deg = east, we want 0deg = up
       const x = rPx * Math.cos(rad);
@@ -4532,13 +4509,19 @@
       img.setAttribute("preserveAspectRatio", "xMidYMid meet");
       g.appendChild(img);
       layer.appendChild(g);
-      // Rev472: distance label under the hull — with a log radial scale
-      // this is what gives the real reading ("50 m", "0.4 NM").
+      // Rev472: distance label ("50 m", "0.4 NM"). Rev493: placed just
+      // INSIDE the ring along the bearing, so the rose clip never cuts it
+      // when the hull sits on the bottom of the ring.
       if (distNm != null) {
         const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
         lbl.setAttribute("class", "ais-dist-label");
-        lbl.setAttribute("x", x.toFixed(1));
-        lbl.setAttribute("y", (y + 9 * scale + 4).toFixed(1));
+        // Inside the target hull, but never over our own hull (ellipse
+        // a=50 fore-aft, b=16.5 abeam, in rose units).
+        const th = relDeg * Math.PI / 180;
+        const rOwn = (50 * 16.5) / Math.sqrt((16.5 * Math.cos(th)) ** 2 + (50 * Math.sin(th)) ** 2);
+        const rLbl = Math.max(rOwn + 6, rPx - 14 * scale - 6);
+        lbl.setAttribute("x", (rLbl * Math.cos(rad)).toFixed(1));
+        lbl.setAttribute("y", (rLbl * Math.sin(rad) + 3).toFixed(1));
         const m = distNm * 1852;
         lbl.textContent = m < 1000 ? `${Math.round(m / 10) * 10} m` : `${distNm.toFixed(1)} NM`;
         layer.appendChild(lbl);
