@@ -164,3 +164,40 @@ propia para la carta (SVG separado rotado por CSS transform) o, en
 pi-browser, redondear rumbo a 1° para la rotación. Validar primero en
 navegación real (en puerto el rumbo apenas cambia; en mar sube la
 frecuencia de actualización).
+
+## 9. Ronda 3 (2026-10-16) — Carlos sigue viendo 75-80 % (panel `monitors`)
+
+Con Rev492 activa en el perfil real (pi-browser ON, 0 animaciones,
+~11 mut/s) la V3D sigue en 40-50 % (render+bin+tfu). La página ya no
+puede adelgazar mucho más: el coste es **el compositor GPU de Firefox
+(WebRender HW) sobre la V3D**, que redibuja la ventana entera por cada
+cambio.
+
+Prefs probadas sobre una COPIA del perfil de Carlos (copia limpia por
+prueba, 20 s GPU + 15 s CPU):
+
+| Pref | GPU | CPU |
+|---|---|---|
+| defaults (WebRender GPU) | 36-46 % | 19 % |
+| **`gfx.webrender.software = true`** | **2 %** | **20 %** |
+| `layout.frame_rate = 30` | 27-32 % | 27 % |
+| `gfx.webrender.max-partial-present-rects = 4` | 34-40 % | 18 % |
+
+Vídeo 1080p VP9 (formato YouTube) a pantalla completa, 15 s, perfil
+limpio, `getVideoPlaybackQuality()`:
+
+| Modo | Frames perdidos | GPU | CPU |
+|---|---|---|---|
+| WebRender GPU (default) | **286/450 (64 %)** | 84 % | 88 % |
+| WebRender software | **100/451 (22 %)** | 6 % | 90 % |
+
+Conclusión: en la Pi 5, el WebRender por GPU de Firefox es peor en todo
+(más GPU, igual CPU, más saltos de vídeo). Software WebRender lo arregla
+para el visor y mejora el vídeo; 1080p VP9 sigue limitado por la CPU
+(Pi 5 sin decoder HW VP9/AV1) → YouTube a 720p.
+
+Incidencias durante la prueba: dos caídas largas de la conexión
+Tailscale/4G (~4 h y ~2.5 h, la Pi no se reinició) y un script de
+prueba propio (`/tmp/nav.py`) que se quedó en bucle al 100 % de un
+núcleo + el Firefox de prueba reproduciendo el vídeo en bucle durante la
+caída. Ambos matados y limpiados (reposo GPU 0 % / CPU 8 %).
