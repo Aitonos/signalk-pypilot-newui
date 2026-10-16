@@ -4570,9 +4570,16 @@
     // Rev438: closing speed derived from range (m) and tcpa (s).
     // Positive only — if tcpa <= 0 the target has already passed and
     // we hide the row.
+    // Rev495 (Carlos QA 2026-10-16, moored PELAGOS "acercándose 37 kn"):
+    // range/tcpa is wrong — tcpa is the time to the CPA point, not to
+    // collision. Along the relative track the target covers
+    // sqrt(range² − cpa²) in tcpa, and the range-rate NOW is that speed
+    // projected on the line of sight: (range² − cpa²) / (range · tcpa).
     let closingKn = null;
-    if (typeof d.range === "number" && typeof d.tcpa === "number" && d.tcpa > 0) {
-      const mps = d.range / d.tcpa;
+    if (typeof d.range === "number" && typeof d.tcpa === "number" && d.tcpa > 0
+        && d.range > 0) {
+      const cpa = typeof d.cpa === "number" ? Math.min(d.cpa, d.range) : 0;
+      const mps = (d.range * d.range - cpa * cpa) / (d.range * d.tcpa);
       closingKn = mps * 1.94384;
     }
     // Rev434 (Carlos QA Rev433): "si solo hay MMSI, entonces obviar el
