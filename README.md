@@ -33,10 +33,10 @@ inside pypilot-newui).
 | Plugin | Status | What it unlocks in pypilot-newui |
 |---|---|---|
 | [pypilot](https://github.com/pypilot/pypilot) / TinyPilot (`pypilot_web`) | **Required** | The autopilot itself. Set its host and port in the plugin config. |
-| [`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm) — **AnchorWatch Pro: Smart Anchoring, AIS & Tides** | **Recommended** | **Tide button on the rose** (just above the bottom-right corner tile): popup with the tide curve, current height, rising / falling, next HW / LW and coefficient, and a one-tap jump to the **AnchorWatch Pro anchor-watch visor inside the rose** (full-screen like the chart). Also fills AIS vessel names into Signal K, so AIS targets show names instead of raw MMSIs right after a server restart. Without the plugin, the button explains what it does and links straight to its App Store page. |
+| [`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm) — **AnchorWatch Pro: Smart Anchoring, AIS & Tides** | **Recommended** | **Tide button on the rose** (just above the bottom-right corner tile): popup with the tide curve, current height, rising / falling, next HW / LW and coefficient, and a one-tap jump to the **anchor-watch visor inside the rose** (full-screen like the chart). Also fills AIS vessel names into Signal K, so AIS targets show names instead of raw MMSIs right after a server restart. Without the plugin, the button explains what it does and links straight to its App Store page. |
 | [`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk) | **Recommended** | **Integrated chartplotter**: double-tap the rose to open the chart inside it, kept loaded in the background so it opens instantly. |
-| [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) | **Required for the chartplotter** | Serves the chart tiles Freeboard-SK draws. **Without a chart provider the embedded chart stays empty.** Any other provider works too (see [below](#chart-provider-is-required-for-the-embedded-plotter)). |
-| [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing and distance, course line, infobox with the vessel name and ACK. |
+| [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) | **Required for the chartplotter** | Serves the chart tiles Freeboard-SK draws. **Without a chart provider the embedded chart stays empty.** The official provider works too (see [below](#chart-provider-is-required-for-the-embedded-plotter)). |
+| [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing, distance label, course line, infobox with the vessel name and ACK. |
 | [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider) | Optional | Shares the pypilot connection with other Signal K autopilot clients. |
 
 Details for each one in [Works well with](#works-well-with).
@@ -45,16 +45,15 @@ Details for each one in [Works well with](#works-well-with).
 
 The chartplotter embedded in the rose uses Freeboard-SK, which itself
 is only a renderer — it needs a Signal K **chart provider** plugin to
-know where to fetch tiles from. Any of the standard providers works:
+know where to fetch tiles from:
 
 - **[`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple)**
   by @dirkwa — a simple provider that serves local chart tilesets.
   **Recommended** for Freeboard-SK embedded inside pypilot-newui.
 - **[`@signalk/charts-plugin`](https://www.npmjs.com/package/@signalk/charts-plugin)**
-  — the official Signal K provider; serves local MBTiles / S57 / XYZ
-  chart sets you drop into `~/.signalk/charts/` (OpenCPN-style).
-- **[`signalk-chart-tiler`](https://www.npmjs.com/package/signalk-chart-tiler)**
-  or any other upstream raster/vector provider.
+  — the official Signal K provider; serves local **MBTiles** and **TMS**
+  tile sets from `~/.signalk/charts/`, plus online sources (WMS, WMTS,
+  tilejson) that you enter in its configuration.
 
 Without a provider, Freeboard-SK will open embedded in the rose but
 the map area will stay empty. Install one from the SK App Store, add
@@ -71,9 +70,9 @@ up automatically.
 
 | Tune · gain sliders | Chart · hover freeze |
 |---|---|
-| ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tune-sliders.png) | ![Chart - hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-race-timer.jpg) |
+| ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tune-sliders.png) | ![Chart - history window with hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-chart-history.png) |
 
-![Tack history - persistent per-tack log](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-info.jpg)
+![Tack history - persistent per-tack log](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-tack-history.png)
 
 ## What this plugin adds on top of pypilot
 
@@ -81,12 +80,15 @@ up automatically.
 
 1. **Compass rose** with colour-coded cardinals, hull-fixed sailing
    wedges, and 4 corner tiles configurable via long-press.
-2. **Concentric Target + Wind arrows** — cyan target diamond, amber
-   `A` (apparent wind), teal `T` (true wind). Interlock into a
-   droplet when the three align; open into V-notches with a colour
-   tick when they drift.
-3. **Gust marker overlay** — leaves a ghost `A` at the peak wind for
-   10 s.
+2. **Concentric Target + Wind arrows** — target diamond tinted by mode
+   (red compass, amber apparent wind, teal true wind), amber `A`
+   (apparent wind), teal `T` (true wind). Interlock into a droplet
+   when the three align; open into V-notches with a colour tick when
+   they drift.
+3. **Gust marker overlay** — a remarkable gust or wind shift leaves a
+   ghost `A` (or `T` in true-wind mode) at the angle where it hit,
+   with the wind speed beside it, fading out over 15 s. On / off per
+   device, with a test button.
 4. **COG line + Current vector** overlays, toggled from the same
    long-press menu.
 5. **Custom Signal K path** bindable to any corner tile.
@@ -100,8 +102,8 @@ up automatically.
 10. **Multi-language** EN / ES / DE / FR, auto-detected from the
     browser.
 11. **AIS collision targets on the rose** (with `signalk-collision-alerts`)
-    — each threat drawn at its real bearing and distance (log scale,
-    distance label), oriented by its heading / course with a projected
+    — each threat drawn on the compass ring at its real bearing with a
+    distance label, oriented by its heading / course with a projected
     track when moving, plus an infobox with the vessel name and ACK.
 12. **Integrated chartplotter** — double-tap the rose to open
     Freeboard-SK inside the rose box; kept loaded in the background so
@@ -134,11 +136,13 @@ up automatically.
 20. **Servo Health** — learns a baseline for typical servo duty at
     sea and flags recent, peak, temperature or voltage deviations
     from that baseline.
-21. **Alarm engine — 9 rules** — heading deviation, cruise drift,
-    unable-to-steer, servo overcurrent, servo temp, motor temp, high
-    AP load, low voltage, sensor lost, pypilot disconnected — all
-    published as canonical `notifications.autopilot.*` for any
-    downstream Signal K client.
+21. **Alarm engine — 14 rules** — heading deviation, cruise drift,
+    unable-to-steer, servo overcurrent, servo current near trip,
+    rudder near its end stop, servo controller temperature, motor
+    temperature, high AP load, low voltage, sensor lost, pypilot
+    disconnected, extreme heel, extreme pitch — all published as
+    canonical `notifications.autopilot.*` for any downstream Signal K
+    client.
 22. **Head-to-wind pseudo-mode** — a "raise the sails" mode not
     present in pypilot, with countdown and bow / stern swing
     selection.
@@ -149,7 +153,7 @@ up automatically.
     the void while the visor claims success.
 25. **Reconnect Restore banner** — snapshot of target and mode on
     outage, Yes / No offer to re-engage the same target when pypilot
-    is back within 20 s to 5 min.
+    is back.
 
 ### Data & reporting — 6 new added functions
 
@@ -158,8 +162,7 @@ up automatically.
     SOG / TWS / AWS averages and peaks, heel, tacks, points-of-sail
     split, min voltage, AP-engaged %), OpenSeaMap trace coloured by
     SOG with markers on peak gust, peak SOG, min voltage and every
-    detected tack. Share as portrait PNG report card or as WhatsApp
-    text.
+    detected tack. Share as portrait PNG report card or as plain text.
 27. **Chart tab** — 9 live Trip Stats cards, history with
     30 s / 2 min / 10 min windows and hover-freeze, plus a Servo
     Health card.
@@ -175,21 +178,21 @@ up automatically.
 
 ### Signal K integration — 8 new added functions
 
-32. **~110 Signal K paths** under `steering.autopilot.pypilot.*`,
-    opt-in per path so you never flood the bus.
+32. **The pypilot catalog as Signal K paths** under
+    `steering.autopilot.pypilot.*`, opt-in per path so you never flood
+    the bus.
 33. **Autopilot API v2 provider** (absorbable) — any downstream
     Signal K autopilot client talks to this plugin as the canonical
     autopilot.
 34. **Simple Switch action paths** — engage, nudge, tack,
     mode selector, profile selector.
-35. **9 momentary switches** — nudge ±10 / ±1, tack port / starboard
-    / cancel — as KIP boolean paths.
+35. **8 momentary switches** — nudge ±10 / ±1, tack port / starboard
+    / cancel, engage — as KIP boolean paths.
 36. **Radio switches** — mode and profile groups as KIP radio switch
     sets.
 37. **Publish-only-essentials toggle** — keeps the SK bus light on
     modest servers.
-38. **Config export / import** — Web Share API (email / WhatsApp /
-    AirDrop) or plain `.json`.
+38. **Config export / import** — Web Share API or plain `.json`.
 39. **Live status endpoint** — connection state, core-alive flag,
     catalog counters for external monitoring.
 
@@ -203,14 +206,19 @@ UI + intelligence + observability + Signal K bridge.
 > one step further: it picks the right pilot profile for the wind
 > you're in and reacts to gusts on its own.
 
+**Light on the Raspberry Pi's own screen** — when the visor runs in a
+browser on the Pi itself, it detects it and drops animations, blur and
+glow effects so the Pi's GPU stays free for other apps.
+
 See [`CHANGELOG.md`](./CHANGELOG.md) for the release-by-release
 history.
 
 ## Signal K paths and switches
 
-The touch visor is described above. Under the hood the plugin publishes:
-
-**~110 Signal K paths** under `steering.autopilot.pypilot.*` (opt-in per path), for example:
+The touch visor is described above. Under the hood the plugin publishes
+the **pypilot catalog** under `steering.autopilot.pypilot.*` (opt-in per
+path; how many depends on your pypilot version and what you enable),
+for example:
 
 - Gains per pilot (`P`, `I`, `D`, `DD`, `PR`, `FF`).
 - Servo telemetry (voltage, current, controller / motor temperatures, flags,
@@ -226,7 +234,7 @@ The touch visor is described above. Under the hood the plugin publishes:
 - `ap.state` — momentary boolean, engage / disengage.
 - `nudge.{bigPort,smallPort,smallStar,bigStar}` — momentary, auto-reset.
 - `tack.{port,starboard,cancel}` — momentary.
-- `mode.{compass,gps,wind,trueWind,nav}` — radio (mutually exclusive).
+- `mode.{compass,gps,wind,trueWind}` — radio (mutually exclusive).
 - `profile.<name>` — radio, dynamic per pilot profile.
 
 ## Installation
@@ -239,15 +247,15 @@ The touch visor is described above. Under the hood the plugin publishes:
    `pypilot_web` on ports 80 / 8000 of your subnet if you don't know the IP.
 5. Enable the plugin.
 
-**Webapp URL**: `http://<sk-host>:3000/signalk-pypilot-newui/`
+**Webapp URL**: `http://localhost:3000/signalk-pypilot-newui/` (replace
+`localhost` with your Signal K server address from another device).
 
 ## Works well with
 
 Pypilot-newui is built as a well-behaved citizen of the Signal K
 ecosystem — it consumes other mature plugins and standard APIs instead
-of reinventing them. The sections below describe the plugins we
-integrate with; none are hard dependencies (the autopilot visor works
-on its own), but installing them unlocks the features listed.
+of reinventing them. None are hard dependencies (the autopilot visor
+works on its own), but installing them unlocks the features listed.
 
 - **[`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk)**
   — Double-tap the compass rose to open Freeboard-SK embedded inside
@@ -256,23 +264,20 @@ on its own), but installing them unlocks the features listed.
   one tap, without leaving the pypilot-newui session. Freeboard is kept
   loaded in the background so it opens instantly (per-device switch in
   the "Chart in the background" card if a weak tablet prefers lazy
-  loading). **Pair with a
-  Signal K chart provider (e.g. `@signalk/charts-plugin`) or the chart
-  area will stay empty** — see
+  loading). **Pair with a Signal K chart provider or the chart area
+  will stay empty** — see
   [Chart provider is required](#chart-provider-is-required-for-the-embedded-plotter).
-  See `docs/_feature_ais_overlay.md`.
 
 - **[`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts)**
   by @dirkwa — Provides the CPA/TCPA engine behind our AIS collision
   overlay. Pypilot-newui subscribes to
   `notifications.navigation.closestApproach.*` and draws each target
-  on the rose at its real bearing and distance (log scale, distance
-  label), oriented by its heading / course with a projected track line
-  when it is moving, plus an infobox with ACK that routes
-  through the Signal K v2 Notifications API, so an ACK from
-  pypilot-newui is also seen by Freeboard-SK and every other SK
-  client.
-  See `docs/_feature_ais_overlay.md`.
+  on the compass ring at its real bearing with a distance label,
+  oriented by its heading / course with a projected track line when it
+  is moving, plus an infobox with ACK that routes through the Signal K
+  v2 Notifications API, so an ACK from pypilot-newui is also seen by
+  Freeboard-SK and every other SK client.
+  [Feature notes](https://github.com/Aitonos/signalk-pypilot-newui/blob/main/docs/_feature_ais_overlay.md).
 
 - **[`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm)**
   ("AnchorWatch Pro: Smart Anchoring, AIS & Tides" in the App Store) —
@@ -284,10 +289,8 @@ on its own), but installing them unlocks the features listed.
   right after a server restart.
 
 - **[`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)**
-  by Panaaj — Shares the single pypilot socket cleanly with our
-  autopilot provider (see next section) so KIP, Freeboard's Autopilot
-  Console and any other SK v2 Autopilot API client all drive the same
-  pilot without duplicate connections.
+  by Panaaj — the reference Autopilot API v2 provider for pypilot. See
+  the next section for how the two plugins share the pilot.
 
 ## Working alongside `pypilot-autopilot-provider`
 
@@ -299,11 +302,11 @@ any downstream Signal K autopilot client can drive pypilot through the canonical
 interface. Panaaj focuses tightly on that API and opens its own socket.io
 connection to `pypilot_web`.
 
-This plugin adds ~60 additional pypilot values on top (gains, servo telemetry,
-calibration, warnings, profiles, tack detail, etc.), ships the touch webapp,
-and can optionally register the Autopilot API v2 itself via the
-**absorbProvider** option in Setup, so a single socket hits `pypilot_web`
-instead of two — useful when pypilot runs on a Pi Zero W.
+This plugin adds the rest of the pypilot catalog on top (gains, servo
+telemetry, calibration, warnings, profiles, tack detail, etc.), ships the
+touch webapp, and can optionally register the Autopilot API v2 itself via
+the **absorbProvider** option in Setup, so a single socket hits
+`pypilot_web` instead of two — useful when pypilot runs on a Pi Zero W.
 
 Signal K only allows one provider per pilot ID, so if you turn on
 **absorbProvider** here you should disable Panaaj's plugin (otherwise both
@@ -318,7 +321,7 @@ register the same ID and behaviour is undefined). Valid setups:
 
 Absorb mode lives in **Setup → Autopilot Provider (one-socket mode)**.
 
-## Remote restart / reboot + Debug console
+## Remote restart / reboot + consoles
 
 When the autopilot process on the TinyPilot gets wedged you don't need to
 open an SSH session by hand. In **Setup → Emergency**, save the TinyPilot's
@@ -333,24 +336,29 @@ is at the helm before executing:
    autopilot for almost a minute. Last-resort when the box is in a bad
    state.
 
-The safe **restart pypilot_web** (web server only, does not interrupt
-steering) lives as a preset button in the **Debug console** below,
-alongside a closed whitelist of preset diagnostic commands over the same
-SSH session: `logs pypilot`, `logs pypilot_web`, `dmesg`, `top`, `uptime`,
+**Debug console** — a closed whitelist of preset commands over the same
+SSH session: `restart pypilot_web` (web server only, does not interrupt
+steering), `logs pypilot`, `logs pypilot_web`, `dmesg`, `top`, `uptime`,
 `df`, `pypilot --version`. Output goes into a scrollable textarea, a
 "Follow logs" toggle polls `journalctl --since '30 s ago'` every 3
-seconds, and Copy / Share buttons let you paste the dump straight into a
-GitHub issue or a WhatsApp / email conversation with your friendly rigger.
+seconds, and Copy / Share buttons let you paste the dump into a GitHub
+issue. Its endpoint (`POST /plugins/*/debug-cmd`) refuses anything that
+is not in the whitelist.
 
-The endpoint (`POST /plugins/*/debug-cmd`) refuses any command that is
-not in the whitelist, so a leaked JWT cannot be used to run arbitrary
-shell on the TinyPilot.
+**Remote Control Console** — a free-form SSH shell on the TinyPilot
+(`POST /plugins/*/ssh-exec`). It runs **any** command, so it is only
+available when **`allowWrites`** is on. Anyone holding a Signal K token
+with write access can use it: keep `allowWrites` off unless you need it.
 
-Signal K stores plugin configs in plain text under
-`~/.signalk/plugin-config-data/` so use credentials that are only valid for
-that isolated TinyPilot.
+Signal K stores plugin configs (including the SSH password) in plain text
+under `~/.signalk/plugin-config-data/`, so use credentials that are only
+valid for that isolated TinyPilot.
 
 ## HTTP endpoints (plugin router)
+
+The main endpoints are listed below; the plugin exposes more (trips,
+AIS, watch, supervisor, recorders…) — see `src/index.ts` for the full
+router.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -381,7 +389,7 @@ that isolated TinyPilot.
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/reset`  | Clear result, back to idle. |
 | `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH `sv restart` of pypilot core+web on the TinyPilot. |
 | `POST` | `/plugins/signalk-pypilot-newui/debug-cmd`     | Run one of a closed whitelist of preset diagnostic / restart commands over SSH. Body: `{ "preset": "<name>" }`. |
-| `POST` | `/plugins/signalk-pypilot-newui/ssh-exec`      | Free-form SSH command (Remote Control Console). Body: `{ "cmd": "<any shell>" }`. Requires `allowWrites`. |
+| `POST` | `/plugins/signalk-pypilot-newui/ssh-exec`      | **Free-form** SSH command (Remote Control Console). Body: `{ "cmd": "<any shell>" }`. Requires `allowWrites`. |
 | `POST` | `/plugins/signalk-pypilot-newui/pause`         | Disconnect local socket (for scripts). |
 | `POST` | `/plugins/signalk-pypilot-newui/resume`        | Reconnect local socket (for scripts). |
 
@@ -390,6 +398,7 @@ that isolated TinyPilot.
 - `allowDirectServo` defaults to **off** — the direct `servo.command` back-door
   used by pypilot's own UI for manual steering is not exposed until you enable
   it explicitly in the plugin config.
+- `allowWrites` gates every write to pypilot and the free-form SSH console.
 - All PUT handlers validate ranges from the pypilot catalog before sending.
 - On plugin stop the socket closes cleanly; the visor auto-reconnects on
   Signal K restart.
@@ -410,6 +419,9 @@ that isolated TinyPilot.
 - Panaaj — for
   [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider),
   the reference AP v2 provider this plugin builds on top of.
+- @dirkwa — for
+  [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts),
+  the CPA/TCPA engine behind the AIS overlay.
 
 ## Reporting issues / feature requests
 
@@ -426,10 +438,13 @@ git clone https://github.com/Aitonos/signalk-pypilot-newui
 cd signalk-pypilot-newui
 npm install
 npm run build
+npm test
 ```
 
-Deploy from a Windows laptop to a Raspberry Pi: `.\deploy.ps1 -Restart`.
+To try it on a Signal K server, link the folder into
+`~/.signalk/node_modules/signalk-pypilot-newui` and restart Signal K.
 
 ## License
 
-Apache-2.0, Aitonos. See `NOTICE` for third-party attributions.
+AGPL-3.0-or-later, Aitonos. See `LICENSE` and `NOTICE` for third-party
+attributions.
