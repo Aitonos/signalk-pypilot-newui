@@ -459,6 +459,23 @@ router.
   [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts),
   the CPA/TCPA engine behind the AIS overlay.
 
+## Troubleshooting
+
+**Firefox on a Raspberry Pi (Pi 5 tested) is slow — the visor, the
+chart and videos stutter, the whole desktop feels sluggish.** Firefox's
+GPU renderer (WebRender on the Pi's V3D graphics chip) is far more
+expensive there than software rendering: measured with the visor open,
+the GPU sat at ~90 % and a 1080p video dropped 64 % of its frames; with
+software rendering the GPU drops to ~3 % at the same CPU load. Fix it
+once in that Firefox:
+
+1. Type `about:config` in the address bar and accept the warning.
+2. Search `gfx.webrender.software` and set it to `true`.
+3. Restart Firefox.
+
+Chromium does not need this. The visor detects Firefox on the Pi's own
+screen and shows the same steps in its **Info** tab.
+
 ## Reporting issues / feature requests
 
 Open an issue on GitHub —
