@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev499" />
+  <link rel="stylesheet" href="style.css?v=Rev500" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1959,6 +1959,28 @@
           </div>
         </div>
 
+        <!-- Rev500 (Carlos 2026-10-18): Firefox on the Raspberry Pi's own
+             screen. Its GPU renderer (WebRender on the V3D) is ~6x more
+             expensive than software rendering there: visor and videos
+             stutter. Shown only when body.pi-browser + Firefox (app.js
+             _piFirefoxTip). Same look as the safety notice. -->
+        <div class="safety-notice" id="pi-firefox-tip" hidden>
+          <div data-lang="en">
+            <b>Firefox on this Raspberry Pi.</b> Firefox's GPU renderer overloads the Raspberry
+            Pi graphics chip: the visor, the chart and videos stutter and the whole desktop feels
+            slow. Fix it once in this Firefox: type <code>about:config</code> in the address bar,
+            accept the warning, search <code>gfx.webrender.software</code>, set it to
+            <code>true</code> and restart Firefox. Chromium does not need it.
+          </div>
+          <div data-lang="es">
+            <b>Firefox en esta Raspberry Pi.</b> El render por GPU de Firefox satura el chip gr&aacute;fico
+            de la Raspberry Pi: el visor, la carta y los v&iacute;deos van a trompicones y todo el escritorio
+            va lento. Se arregla una vez en este Firefox: escribe <code>about:config</code> en la barra
+            de direcciones, acepta el aviso, busca <code>gfx.webrender.software</code>, ponlo a
+            <code>true</code> y reinicia Firefox. Chromium no lo necesita.
+          </div>
+        </div>
+
         <!-- Rev485 (Carlos 2026-10-15): companion plugins with live
              installed / missing status. Filled by _renderCompanions() when
              the Info tab opens. -->
@@ -2613,6 +2635,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev499"></script>
+  <script src="app.js?v=Rev500"></script>
 </body>
 </html>

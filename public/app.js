@@ -617,6 +617,7 @@
       "tide.rising":  "Rising",
       "tide.falling": "Falling",
       "tide.slack":   "Slack",
+      "pifx.toast": "Firefox on this Raspberry Pi stutters: see the INFO tab for the one-time fix.",
       "tide.install.title": "AnchorWatch Pro",
       "tide.install.body":  "To see the tide curves of your nearest station you need to install AnchorWatch Pro (signalk-mareas-ihm).",
       "tide.install.btn":   "Open in the App Store",
@@ -1541,6 +1542,7 @@
       "tide.rising":  "Subiendo",
       "tide.falling": "Bajando",
       "tide.slack":   "Repunte",
+      "pifx.toast": "Firefox en esta Raspberry Pi va a trompicones: mira la pestaña INFO para arreglarlo.",
       "tide.install.title": "AnchorWatch Pro",
       "tide.install.body":  "Para ver las curvas de marea de tu estación más cercana debes instalar AnchorWatch Pro (signalk-mareas-ihm).",
       "tide.install.btn":   "Abrir en la App Store",
@@ -6622,6 +6624,35 @@
     if (!bigJump && !bigShift) return;
     _gustGhostLastTs = now;
     _gustGhostRender(awaRad, awsKn);
+  }
+  // Rev500 (Carlos 2026-10-18): Firefox on the Pi's own screen needs
+  // gfx.webrender.software=true (GPU WebRender on the V3D: ~94 % GPU with
+  // the visor, 64 % dropped video frames). A web page cannot change that
+  // pref, so explain it: a note in the Info tab (always, on Pi+Firefox)
+  // and a one-time toast pointing there (flag per browser: it is about
+  // THIS browser's config).
+  function _piFirefoxTip() {
+    try {
+      if (!document.body.classList.contains("pi-browser")) return;
+      if (!/Firefox\//.test(navigator.userAgent)) return;
+      const note = document.getElementById("pi-firefox-tip");
+      if (note) note.hidden = false;
+      const KEY = "pypilot-newui.piFirefoxTipShown";
+      if (localStorage.getItem(KEY)) return;
+      localStorage.setItem(KEY, "1");
+      let el = document.getElementById("pypilot-reconnect-toast");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "pypilot-reconnect-toast";
+        el.className = "pypilot-reconnect-toast";
+        document.body.appendChild(el);
+      }
+      el.classList.add("warn");
+      el.textContent = t("pifx.toast");
+      el.classList.add("show");
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(() => { el.classList.remove("show"); }, 12000);
+    } catch { /* silent */ }
   }
   function _gustGhostMaybeLog(now, payload) {
     // Persist last snapshot for remote inspection.
@@ -13295,6 +13326,7 @@
     _sessWire();
     _smartWire();
     _alarmsCfgWire();
+    _piFirefoxTip();
     _wireTackLogButtons();
     _tripsWire();
     // Rev172 (Carlos): gust ghost toggle in the corner-selector popup.
