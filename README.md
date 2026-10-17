@@ -474,7 +474,10 @@ once in that Firefox:
 3. Restart Firefox.
 
 Chromium does not need this. The visor detects Firefox on the Pi's own
-screen and shows the same steps in its **Info** tab.
+screen and shows the same steps in its **Info** tab, with an **Apply
+now** button: the plugin runs on that same Pi, so it writes the setting
+into that Firefox's profiles (`user.js`) for you — then close and reopen
+Firefox.
 
 ## Reporting issues / feature requests
 
