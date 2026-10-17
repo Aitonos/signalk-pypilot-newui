@@ -3,6 +3,13 @@
   "version": "3.2.0",
   "description": "Signal K friendly UI for the pypilot autopilot, with first-class Signal K paths and Simple Switches so any downstream Signal K client can drive or monitor the pilot. Touch-first mobile visor + full pypilot data (servo, gains, calibration, tack, warnings). Coexists with pypilot-autopilot-provider.",
   "main": "./dist/index.js",
+  "files": [
+    "dist/*.js",
+    "public",
+    "!public/Pypilot_New_UI.png",
+    "CHANGELOG.md",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
@@ -67,24 +74,15 @@
         "title": "Tune - PID gain sliders per pilot/profile with plain-language help ('act now reflex', 'closes sustained drift'), PROFILE badge, locked by default with +/-10 and +/-1 fine-tune buttons and a reset-to-baseline icon"
       },
       {
-        "src": "./public/screenshots/05-race-timer.jpg",
+        "src": "./public/screenshots/05-chart-history.png",
         "title": "Chart - history window with hover-freeze showing HDG cmd, HDG act, AWA, SOG and Servo A at any point of the timeline"
       },
       {
-        "src": "./public/screenshots/06-info.jpg",
+        "src": "./public/screenshots/06-tack-history.png",
         "title": "Tack history - persistent per-tack log with best retention and fastest recovery highlighted, filterable by day range"
       }
     ]
   },
-  "files": [
-    "dist/",
-    "public/",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "NOTICE",
-    "package.json"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Aitonos/signalk-pypilot-newui.git"
