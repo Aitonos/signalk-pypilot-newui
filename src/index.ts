@@ -12,6 +12,7 @@ import { AutopilotProvider } from "./autopilot-provider";
 import { Historian, Sample, SamplePath } from "./historian";
 import { KPIComputer, KPISnapshot } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
+import { VisorPrefs } from "./visor-prefs";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
 import { AlarmEngine } from "./alarms";
 import { runPrechecks } from "./prechecks";
@@ -64,7 +65,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev497";
+const PLUGIN_REVISION = "Rev499";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -286,6 +287,20 @@ module.exports = function (app: any) {
   let servoHealthMetaSent = false;
   // Rev158: periodic snapshot of the baseline learn state.
   let servoHealthPersistTimer: NodeJS.Timeout | null = null;
+  // Rev498: shared visor prefs (AIS mode / voice / harbour auto / gust
+  // ghost / AIS silenced MMSIs) — backend is the single source of truth
+  // so every device agrees. Created lazily: the router can be hit
+  // before start(). The 1 Hz timer feeds own SOG to the harbour machine.
+  let visorPrefs: VisorPrefs | null = null;
+  let visorPrefsTimer: NodeJS.Timeout | null = null;
+  const getVisorPrefs = (): VisorPrefs => {
+    if (!visorPrefs) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const p = require("path");
+      visorPrefs = new VisorPrefs(p.join(app.getDataDirPath ? app.getDataDirPath() : ".", "visor-prefs.json"));
+    }
+    return visorPrefs;
+  };
   // Rev164 (Carlos): supervisor state that watches TWS averaged over the
   // last 60 s and switches the pypilot profile when the wind band has
   // been stable for BAND_STABLE_MS. Kept off the historian tick to
@@ -843,6 +858,18 @@ module.exports = function (app: any) {
         app.debug?.(`[servo-health] baseline load skipped: ${e?.message || e}`);
       }
       if (servoHealthPersistTimer) { try { clearInterval(servoHealthPersistTimer); } catch {} }
+      if (visorPrefsTimer) { try { clearInterval(visorPrefsTimer); } catch {} }
+      visorPrefsTimer = setInterval(() => {
+        try {
+          const node = app.getSelfPath ? app.getSelfPath("navigation.speedOverGround") : null;
+          const v = node && typeof node === "object" ? (node as any).value : node;
+          const flipped = getVisorPrefs().tickHarbor(typeof v === "number" ? v : null);
+          if (flipped) app.debug?.(`[visor-prefs] harbour auto ${getVisorPrefs().snapshot().harborActive ? "ON" : "OFF"}`);
+        } catch { /* silent */ }
+      }, 1000);
+      if (typeof (visorPrefsTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
+        (visorPrefsTimer as NodeJS.Timeout & { unref: () => void }).unref();
+      }
       servoHealthPersistTimer = setInterval(() => {
         try {
           if (!servoHealth) return;
@@ -1073,6 +1100,10 @@ module.exports = function (app: any) {
       if (servoHealthPersistTimer) {
         try { clearInterval(servoHealthPersistTimer); } catch {}
         servoHealthPersistTimer = null;
+      }
+      if (visorPrefsTimer) {
+        try { clearInterval(visorPrefsTimer); } catch {}
+        visorPrefsTimer = null;
       }
       servoHealth = null;
       servoHealthMetaSent = false;
@@ -1437,6 +1468,28 @@ module.exports = function (app: any) {
           return;
         }
         res.json(servoHealth.snapshot());
+      });
+
+      // Rev498: shared visor prefs.
+      //   GET  /visor-prefs            - snapshot (+ harborActive, now)
+      //   PUT  /visor-prefs            - partial update {aisMode, aisVoice, aisHarborAuto, gustGhost}
+      //   POST /visor-prefs/ais-ack    - {mmsi, ttlMs?} silence one target on every device
+      //   POST /visor-prefs/ais-unack  - {mmsi} or {mmsi:"all"}
+      router.get("/visor-prefs", (_req: any, res: any) => {
+        res.json(getVisorPrefs().snapshot());
+      });
+      router.put("/visor-prefs", (req: any, res: any) => {
+        res.json(getVisorPrefs().update(req.body || {}));
+      });
+      router.post("/visor-prefs/ais-ack", (req: any, res: any) => {
+        const mmsi = String(req.body?.mmsi || "");
+        if (!/^\d{6,10}$/.test(mmsi)) { res.status(400).json({ error: "mmsi required" }); return; }
+        res.json(getVisorPrefs().ack(mmsi, req.body?.ttlMs));
+      });
+      router.post("/visor-prefs/ais-unack", (req: any, res: any) => {
+        const mmsi = String(req.body?.mmsi || "");
+        if (!mmsi) { res.status(400).json({ error: "mmsi required" }); return; }
+        res.json(getVisorPrefs().unack(mmsi));
       });
 
       // Rev100: alarm engine endpoints.

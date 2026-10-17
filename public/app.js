@@ -3991,6 +3991,77 @@
   // infobox resurrected. Map<mmsi, expireAtMs>; 10 minutes default.
   if (!state.aisLocalAckedMmsis) state.aisLocalAckedMmsis = new Map();
   const AIS_ACK_TTL_MS = 10 * 60 * 1000;
+  // Rev498 (Carlos 2026-10-17, tablet showed nothing while other devices
+  // warned): AIS mode / voice / harbour auto / gust ghost / silenced
+  // MMSIs live in the BACKEND (/visor-prefs), not in each browser's
+  // localStorage, so every device agrees. _vp is the local mirror,
+  // refreshed with the alarms poll (5 s) and updated optimistically on
+  // every local change. The old localStorage values are uploaded once,
+  // by the first visor that finds the backend uninitialized.
+  const _vp = { aisMode: "underway", aisVoice: true, aisHarborAuto: true, gustGhost: true, aisAcks: {}, loaded: false };
+  function _vpLegacyLocal() {
+    const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+    const out = {};
+    const m = get("pypilotnewui.aisMode");
+    if (["off", "anchor", "underway"].includes(m)) out.aisMode = m;
+    else if (get("pypilotnewui.aisAlarm") === "false") out.aisMode = "off";
+    const v = get("pypilotnewui.aisAlarmVoice"); if (v != null) out.aisVoice = v === "true";
+    const h = get("pypilotnewui.aisHarborAuto"); if (h != null) out.aisHarborAuto = h === "true";
+    const g = get("pypilotnewui.gustGhost"); if (g != null) out.gustGhost = g === "true";
+    return out;
+  }
+  function _vpApply(snap) {
+    if (!snap || typeof snap !== "object") return;
+    const prevMode = _aisMode();
+    _vp.aisMode = snap.aisMode; _vp.aisVoice = !!snap.aisVoice;
+    _vp.aisHarborAuto = !!snap.aisHarborAuto; _vp.gustGhost = !!snap.gustGhost;
+    _vp.aisAcks = snap.aisAcks || {}; _vp.loaded = true;
+    state._aisHarborActive = !!snap.harborActive;
+    // Server clock -> local clock for the TTLs.
+    const skew = typeof snap.now === "number" ? Date.now() - snap.now : 0;
+    state.aisLocalAckedMmsis.clear();
+    for (const [mmsi, exp] of Object.entries(_vp.aisAcks)) state.aisLocalAckedMmsis.set(mmsi, exp + skew);
+    // Keep the overlay-card controls in sync with what another device set.
+    // Radios show the sailor's CHOICE; harbour auto-silencing is shown by
+    // its own checkbox (showing the effective mode made a tap on
+    // "underway" in a marina bounce back to "off" on the next poll).
+    const chosen = _aisModeStored();
+    for (const m of ["off", "anchor", "underway"]) {
+      const r = document.getElementById(`dash-ais-mode-${m}`);
+      if (r && r.checked !== (m === chosen)) r.checked = (m === chosen);
+    }
+    const curMode = _aisMode();
+    const sync = (id, v) => { const el = document.getElementById(id); if (el && el.checked !== v) el.checked = v; };
+    sync("dash-ais-alarm-voice", _vp.aisVoice);
+    sync("dash-ais-alarm-harbor-auto", _vp.aisHarborAuto);
+    sync("dash-gust-ghost", _vp.gustGhost);
+    if (curMode !== prevMode) { try { state.aisAlarms.clear(); } catch { /* silent */ } }
+    try { renderAisAlarms(); } catch { /* silent */ }
+  }
+  async function _vpSend(method, sub, body) {
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/visor-prefs${sub}`, {
+        method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}),
+      });
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  }
+  async function _vpFetch() {
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/visor-prefs`);
+      if (!r.ok) return;
+      let snap = await r.json();
+      if (!snap.initialized) {
+        const up = await _vpSend("PUT", "", _vpLegacyLocal());
+        if (up) snap = up;
+      }
+      _vpApply(snap);
+    } catch { /* silent: keep last known */ }
+  }
+  function _vpSet(patch) {
+    Object.assign(_vp, patch);
+    _vpSend("PUT", "", patch).then((snap) => { if (snap) _vpApply(snap); });
+  }
   function _aisIsMmsiAcked(mmsi) {
     const exp = state.aisLocalAckedMmsis.get(mmsi);
     if (!exp) return false;
@@ -4088,13 +4159,8 @@
   const AIS_ANCHOR_MIN_TARGET_SOG_MS = 1.0;  // ~ 2 kn
   const AIS_MODES = ["off", "anchor", "underway"];
   function _aisModeStored() {
-    try {
-      const v = localStorage.getItem(AIS_MODE_LS_KEY);
-      if (AIS_MODES.includes(v)) return v;
-      const legacy = localStorage.getItem(AIS_ALARM_LS_KEY);
-      if (legacy === "false") return "off";
-      return "underway";
-    } catch { return "underway"; }
+    // Rev498: backend copy (see _vp).
+    return AIS_MODES.includes(_vp.aisMode) ? _vp.aisMode : "underway";
   }
   // Rev462 (Carlos QA Rev461, 2026-10-11): "en puerto siempre OFF".
   // The stored mode is the sailor's manual preference; but when WE are
@@ -4109,7 +4175,7 @@
   }
   function _aisSetMode(mode) {
     if (!AIS_MODES.includes(mode)) return;
-    try { localStorage.setItem(AIS_MODE_LS_KEY, mode); } catch { /* silent */ }
+    _vpSet({ aisMode: mode });
     // Switching mode clears any stale hull on the rose; the next delta
     // will repopulate under the new rules.
     try { state.aisAlarms.clear(); renderAisAlarms(); } catch { /* silent */ }
@@ -4118,13 +4184,10 @@
     return _aisMode() !== "off";
   }
   function _aisAlarmVoiceEnabled() {
-    try {
-      const v = localStorage.getItem(AIS_ALARM_VOICE_LS_KEY);
-      return v == null ? true : v === "true";
-    } catch { return true; }
+    return _vp.aisVoice;
   }
   function _aisAlarmSetVoiceEnabled(on) {
-    try { localStorage.setItem(AIS_ALARM_VOICE_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
+    _vpSet({ aisVoice: !!on });
   }
   // Rev451 (Carlos sea trial 2026-10-10): "en Marina sigue siendo una
   // locura los avisos de AIS". When our own SOG is near zero for a
@@ -4149,13 +4212,10 @@
     // overlay while physically moored. Default ON preserves Rev462
     // behaviour; sailor flips the checkbox in the AIS overlay-card to
     // let alarms through even when SOG=0.
-    try {
-      const v = localStorage.getItem(AIS_HARBOR_LS_KEY);
-      return v == null ? true : v === "true";
-    } catch { return true; }
+    return _vp.aisHarborAuto;
   }
   function _aisHarborSetAutoEnabled(on) {
-    try { localStorage.setItem(AIS_HARBOR_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
+    _vpSet({ aisHarborAuto: !!on });
     if (!on) {
       state._aisHarborActive = false;
       state._aisHarborSlowSince = null;
@@ -4164,7 +4224,9 @@
   }
   // Called by the SOG delta handler. Updates the harbor-mode machine.
   function _aisHarborTick() {
-    if (!_aisHarborAutoEnabled()) return;
+    // Rev498: the harbour machine runs in the backend now (one decision
+    // for every device); state._aisHarborActive comes from /visor-prefs.
+    if (_vp.loaded || !_aisHarborAutoEnabled()) return;
     const sog = (typeof state.sog === "number") ? state.sog : null;
     if (sog == null) return;
     const now = Date.now();
@@ -4687,6 +4749,7 @@
       m.querySelector("#ais-silenced-close").addEventListener("click", () => { m.hidden = true; });
       m.querySelector("#ais-silenced-clearall").addEventListener("click", () => {
         state.aisLocalAckedMmsis.clear();
+        _vpSend("POST", "/ais-unack", { mmsi: "all" }).then((snap) => { if (snap) _vpApply(snap); });
         m.hidden = true;
         try { renderAisAlarms(); } catch { /* silent */ }
       });
@@ -4718,6 +4781,7 @@
         btn.textContent = t("ais.silenced.unsilence") || "Reactivar";
         btn.addEventListener("click", () => {
           state.aisLocalAckedMmsis.delete(r.mmsi);
+          _vpSend("POST", "/ais-unack", { mmsi: r.mmsi }).then((snap) => { if (snap) _vpApply(snap); });
           _aisShowSilencedModal();  // re-render in place
         });
         li.appendChild(span);
@@ -4739,6 +4803,8 @@
     // no blink). The entry is dropped by handleDelta only when the
     // plugin declares the threat gone.
     try { state.aisLocalAckedMmsis.set(mmsi, Date.now() + AIS_ACK_TTL_MS); } catch { /* silent */ }
+    // Rev498: silence it on every device, not just this one.
+    _vpSend("POST", "/ais-ack", { mmsi, ttlMs: AIS_ACK_TTL_MS }).then((snap) => { if (snap) _vpApply(snap); });
     try { renderAisAlarms(); } catch { /* silent */ }
     if (!id) return;
     try {
@@ -6470,13 +6536,11 @@
   const GUST_GHOST_FADE_MS = 15_000;
   let _gustGhostLastTs = 0;
   function _gustGhostEnabled() {
-    try {
-      const raw = localStorage.getItem(GUST_GHOST_LS_KEY);
-      return raw == null ? true : raw === "true";
-    } catch { return true; }
+    // Rev498: backend copy (see _vp), shared by every device.
+    return _vp.gustGhost;
   }
   function _gustGhostSetEnabled(on) {
-    try { localStorage.setItem(GUST_GHOST_LS_KEY, on ? "true" : "false"); } catch { /* silent */ }
+    _vpSet({ gustGhost: !!on });
   }
   // Rev175 (Carlos): rolling snapshot of the last detector run so we
   // can dump it into the browser console every 15 s. Firefox mobile
@@ -13254,7 +13318,7 @@
     // card. Toggle on/off, toggle voice, and a shortcut to open the
     // collision-alerts plugin config in the SK admin UI.
     // Rev456: 3-way mode selector replaces the single on/off checkbox.
-    const curMode = _aisMode();
+    const curMode = _aisModeStored();
     for (const m of AIS_MODES) {
       const r = document.getElementById(`dash-ais-mode-${m}`);
       if (r) {
@@ -16255,6 +16319,8 @@
       _alRenderConfig();
       _alMaybePlaySound();
     } catch { /* silent */ }
+    // Rev498: shared visor prefs ride the same 5 s poll.
+    _vpFetch();
   }
   function _alSeverityIcon(sev) {
     return sev === "alarm" ? "!" : sev === "warn" ? "⚠" : "ℹ";

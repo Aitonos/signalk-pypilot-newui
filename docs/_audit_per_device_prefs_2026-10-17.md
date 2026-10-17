@@ -52,3 +52,24 @@ todos los visores se enteren al instante):
 Migración: el primer visor que arranque con valor local lo sube si el
 backend no tiene valor; a partir de ahí manda el backend.
 Requiere `.\deploy.ps1 -Restart` (cambio en src/).
+
+## Implementado Rev498-499 (2026-10-18, OK Carlos)
+
+- `src/visor-prefs.ts` (+ 6 tests): `visor-prefs.json` en el data dir con
+  aisMode / aisVoice / aisHarborAuto / gustGhost / aisAcks (mmsi -> TTL).
+  Puerto automático evaluado en backend (timer 1 Hz con la SOG propia,
+  mismos umbrales Rev462: <0.6 kn 2 min entra, >1.2 kn 30 s sale).
+- Endpoints `GET/PUT /visor-prefs`, `POST /visor-prefs/ais-ack`,
+  `POST /visor-prefs/ais-unack`.
+- Visor: getters/setters leen/escriben `_vp` (espejo del backend,
+  refrescado con el poll de alarmas cada 5 s). Primer visor con backend
+  sin inicializar sube sus valores de localStorage (migración).
+- Rev499: los radios muestran el modo ELEGIDO (no el efectivo); con
+  puerto automático activo un tap en "Navegación" ya no rebota a "off".
+
+Verificado en la Pi con 2 perfiles Firefox autenticados: migración OK,
+cambio de modo AIS y racha fantasma desde "otro dispositivo" llega en
+≤ 7 s sin recargar. 260/260 tests OK.
+
+Pendiente QA en barco: tablet + móvil + portátil a la vez (silenciar un
+AIS en uno y comprobar que se silencia en los otros).
