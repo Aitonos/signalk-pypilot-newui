@@ -10,15 +10,25 @@ watches how your autopilot is behaving and quietly suggests how to
 sharpen its settings, so you spend more time sailing and less time
 guessing which slider to move.
 
-Since **3.0.0** the visor also ships with an **integrated
-chartplotter**: double-tap the compass rose and
-[Freeboard-SK](https://www.npmjs.com/package/@signalk/freeboard-sk)
-opens embedded inside the rose box with every AIS target, your route
-and all overlays — side panels (mode, nudges, AP) stay reachable, no
-tab switching, no re-authentication. **For charts to render you need a
-Signal K chart provider installed and configured in Freeboard-SK**
-(see [Chart provider is required](#chart-provider-is-required-for-the-embedded-plotter)
-below).
+The visor also brings the rest of your boat into the same screen,
+through other Signal K plugins (all optional, see the table below):
+
+- **Tides and anchor watch** — with
+  [**AnchorWatch Pro**](https://www.npmjs.com/package/signalk-mareas-ihm)
+  (`signalk-mareas-ihm`): a tide button on the rose with the tide curve
+  of your nearest station, next HW / LW and coefficient, and its
+  anchor-watch visor opened inside the rose.
+- **Integrated chartplotter** — double-tap the rose and
+  [Freeboard-SK](https://www.npmjs.com/package/@signalk/freeboard-sk)
+  opens inside it with every AIS target, your route and all overlays;
+  the autopilot buttons stay reachable. Charts need a Signal K chart
+  provider.
+- **AIS collision targets on the rose** — with
+  [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts).
+- **Polar performance on the corner tiles** — polar speed, % of polar,
+  target angles and VMG from your boat's polar table, with
+  [`signalk-polar-performance-plugin`](https://www.npmjs.com/package/signalk-polar-performance-plugin)
+  and [`signalk-polar-management`](https://www.npmjs.com/package/signalk-polar-management).
 
 Runs alongside [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)
 by Panaaj — see [Working alongside pypilot-autopilot-provider](#working-alongside-pypilot-autopilot-provider).
@@ -37,6 +47,8 @@ inside pypilot-newui).
 | [`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk) | **Recommended** | **Integrated chartplotter**: double-tap the rose to open the chart inside it, kept loaded in the background so it opens instantly. |
 | [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) | **Required for the chartplotter** | Serves the chart tiles Freeboard-SK draws. **Without a chart provider the embedded chart stays empty.** The official provider works too (see [below](#chart-provider-is-required-for-the-embedded-plotter)). |
 | [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing, distance label, course line, infobox with the vessel name and ACK. |
+| [`signalk-polar-performance-plugin`](https://www.npmjs.com/package/signalk-polar-performance-plugin) | Optional | **Polar performance on the corner tiles**: polar speed, % of polar, target speed, beat / gybe angle and VMG, computed live from your active polar. |
+| [`signalk-polar-management`](https://www.npmjs.com/package/signalk-polar-management) | Needed by the polar plugin | Stores your boat's **polar table** (import ORC / CSV / text) and selects the active polar that `signalk-polar-performance-plugin` reads. |
 | [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider) | Optional | Shares the pypilot connection with other Signal K autopilot clients. |
 
 Details for each one in [Works well with](#works-well-with).
@@ -92,7 +104,11 @@ up automatically.
 4. **COG line + Current vector** overlays, toggled from the same
    long-press menu.
 5. **Custom Signal K path** bindable to any corner tile.
-6. **Signal K polar-performance** integration on corner tiles.
+6. **Polar performance on corner tiles** (with
+   `signalk-polar-performance-plugin` + `signalk-polar-management`) —
+   polar speed, % of polar, target speed, beat / gybe angle and VMG
+   from your boat's polar table, each one opt-in for the corner
+   selectors.
 7. **Bottom bar switcheable** rudder angle or boat heel, from the
    corner-config popup.
 8. **Race timer T1/T2** with beeps, screen flash and spoken
@@ -287,6 +303,15 @@ works on its own), but installing them unlocks the features listed.
   K tree from its own persistent AIS database, so pypilot-newui,
   Freeboard-SK and collision-alerts show names instead of raw MMSIs
   right after a server restart.
+
+- **[`signalk-polar-performance-plugin`](https://www.npmjs.com/package/signalk-polar-performance-plugin)**
+  by hanstool, with
+  **[`signalk-polar-management`](https://www.npmjs.com/package/signalk-polar-management)**
+  by Aswin Bouwmeester — polar-management keeps your boat's polar
+  table and selects the active polar; polar-performance turns it into
+  live `performance.*` values (polar speed, % of polar, target speed,
+  beat / gybe angle and VMG) that pypilot-newui offers on the corner
+  tiles.
 
 - **[`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider)**
   by Panaaj — the reference Autopilot API v2 provider for pypilot. See
