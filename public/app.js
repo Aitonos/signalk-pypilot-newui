@@ -619,6 +619,7 @@
       "tide.slack":   "Slack",
       "pifx.apply":   "Apply now",
       "pifx.applied": "Applied. Close and reopen Firefox to make it effective.",
+      "pifx.already": "Already applied in this Firefox.",
       "pifx.failed":  "Could not apply it: do it by hand with the steps above.",
       "pifx.toast": "Firefox on this Raspberry Pi stutters: see the INFO tab for the one-time fix.",
       "tide.install.title": "AnchorWatch Pro",
@@ -1547,6 +1548,7 @@
       "tide.slack":   "Repunte",
       "pifx.apply":   "Aplicar ahora",
       "pifx.applied": "Aplicado. Cierra y vuelve a abrir Firefox para que tenga efecto.",
+      "pifx.already": "Ya está aplicado en este Firefox.",
       "pifx.failed":  "No se ha podido aplicar: hazlo a mano con los pasos de arriba.",
       "pifx.toast": "Firefox en esta Raspberry Pi va a trompicones: mira la pestaña INFO para arreglarlo.",
       "tide.install.title": "AnchorWatch Pro",
@@ -6647,20 +6649,21 @@
       // as this same OS user, like the SSH presets do for the Pi Zero).
       const btn = document.getElementById("pi-firefox-fix-btn");
       const st = document.getElementById("pi-firefox-fix-status");
-      const show = (r) => {
+      // justNow: applied by this tap (restart needed) vs already in place.
+      const show = (r, justNow) => {
         if (!btn || !st) return;
-        if (r && r.applied) { btn.hidden = true; st.textContent = t("pifx.applied"); }
+        if (r && r.applied) { btn.hidden = true; st.textContent = t(justNow ? "pifx.applied" : "pifx.already"); }
         else { btn.hidden = false; btn.textContent = t("pifx.apply"); }
       };
-      show(null);
-      fetch(`/plugins/${PLUGIN_ID}/firefox-fix`).then((r) => r.ok ? r.json() : null).then(show).catch(() => {});
+      show(null, false);
+      fetch(`/plugins/${PLUGIN_ID}/firefox-fix`).then((r) => r.ok ? r.json() : null).then((r) => show(r, false)).catch(() => {});
       if (btn && !btn._wired) {
         btn._wired = true;
         btn.addEventListener("click", () => {
           btn.disabled = true;
           fetch(`/plugins/${PLUGIN_ID}/firefox-fix`, { method: "POST" })
             .then((r) => r.ok ? r.json() : null)
-            .then((r) => { if (r && r.applied) show(r); else if (st) st.textContent = t("pifx.failed"); })
+            .then((r) => { if (r && r.applied) show(r, true); else if (st) st.textContent = t("pifx.failed"); })
             .catch(() => { if (st) st.textContent = t("pifx.failed"); })
             .finally(() => { btn.disabled = false; });
         });
