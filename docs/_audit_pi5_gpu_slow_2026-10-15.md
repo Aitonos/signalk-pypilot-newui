@@ -3,7 +3,7 @@
 Síntoma (Carlos): la Pi va "lentísima de GPU", incluso recién reiniciada
 y "sin haber abierto pypilot"; YouTube a trompicones.
 
-Método: SSH a la Pi (100.127.222.27), medida de ocupación de la V3D
+Método: SSH a la Pi (Tailscale), medida de ocupación de la V3D
 leyendo `/sys/devices/platform/axi/1002000000.v3d/gpu_stats` (runtime de
 la cola `render`) + CPU de `/proc/stat`, ventanas de 10-15 s. Firefox de
 prueba con perfil temporal + Marionette para inyectar CSS/JS en vivo sin

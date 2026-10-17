@@ -11,8 +11,8 @@ y con los README de los plugins citados.
 | G1 | README § License | Dice **Apache-2.0**; el paquete es **AGPL-3.0-or-later** | `LICENSE` = GNU AGPL v3; `package.json` "license": "AGPL-3.0-or-later" |
 | G2 | README § Remote restart | "refuses any command not in the whitelist, so a leaked JWT cannot be used to run arbitrary shell" | `POST /ssh-exec` ejecuta **cualquier** comando (solo exige `allowWrites`); está en la propia tabla de endpoints |
 | G3 | README § Chart provider | Enlaza **`signalk-chart-tiler`**, que **no existe** en NPM | `npm view signalk-chart-tiler` → E404 |
-| G4 | Screenshots 05/06 | Capturas de móvil con barra de estado (VPN, WhatsApp) y la **IP Tailscale privada 100.127.222.27** en la URL | `public/screenshots/05-race-timer.jpg`, `06-info.jpg` |
-| G5 | Repo GitHub | IP Tailscale privada en `deploy.ps1`, `docs/QA_SEA_TRIAL.md`, `docs/_bootstrap_next_chat.md` (y mi audit GPU, aún sin push) | `git ls-files \| xargs grep 100.127.222.27` |
+| G4 | Screenshots 05/06 | Capturas de móvil con barra de estado (VPN, WhatsApp) y la **IP Tailscale privada** de la Pi en la URL | `public/screenshots/05-race-timer.jpg`, `06-info.jpg` |
+| G5 | Repo GitHub | IP Tailscale privada en `deploy.ps1`, `docs/QA_SEA_TRIAL.md`, `docs/_bootstrap_next_chat.md` (y mi audit GPU, aún sin push) | `git grep <IP>` — resuelto: host movido a `deploy.local.ps1` (gitignored)\| xargs grep 100.127.222.27` |
 
 ## Incorrecto / desactualizado
 

@@ -7,8 +7,8 @@ apuntando al Pi). Marca cada punto **OK / NO / NC** (no comprobado) y
 manda screenshots de lo que salga raro por el canal habitual.
 
 **URLs útiles desde el móvil (Tailscale conectado):**
-- Visor: `http://100.127.222.27:3000/signalk-pypilot-newui/`
-- Data Browser SK: `http://100.127.222.27:3000/admin/#/dataBrowser`
+- Visor: `http://localhost:3000/signalk-pypilot-newui/`
+- Data Browser SK: `http://localhost:3000/admin/#/dataBrowser`
 
 ---
 
@@ -32,7 +32,7 @@ Con la webapp abierta en Setup del visor, verifica que sale:
      comprobar en la primera escora sostenida).
 
 **No zarpes sin:**
-- Móvil con Tailscale conectado (probar `100.127.222.27` responde).
+- Móvil con Tailscale conectado (probar que la Pi responde por Tailscale).
 - Portátil en casa encendido con NordVPN **apagado** (memoria
   `feedback_nordvpn_breaks_tailscale`).
 - Esta sesión de Claude Code abierta en el portátil por si necesitas
@@ -74,7 +74,7 @@ Activar SI Y SOLO SI vas a hacer viradas deliberadas:
    claude.ai que active `tackCatchupDeg=5` y `tackCatchupTauSec=6`.
    - Alternativa: POST directo desde una terminal:
      ```
-     curl -X POST http://100.127.222.27:3000/plugins/signalk-pypilot-newui/supervisor/config \
+     curl -X POST http://localhost:3000/plugins/signalk-pypilot-newui/supervisor/config \
        -H "Content-Type: application/json" \
        -d '{"tackCatchupDeg":5,"tackCatchupTauSec":6}'
      ```
@@ -117,23 +117,23 @@ solo con una terminal (Termius / JuiceSSH):**
 
 ```
 # Encender TackCatchup con peak 5° y τ 6s
-curl -X POST http://100.127.222.27:3000/plugins/signalk-pypilot-newui/supervisor/config \
+curl -X POST http://localhost:3000/plugins/signalk-pypilot-newui/supervisor/config \
   -H "Content-Type: application/json" \
   -d '{"tackCatchupDeg":5,"tackCatchupTauSec":6}'
 
 # Bajar umbral heel al 25° para provocar la alarma
-curl -X POST http://100.127.222.27:3000/plugins/signalk-pypilot-newui/supervisor/config \
+curl -X POST http://localhost:3000/plugins/signalk-pypilot-newui/supervisor/config \
   -H "Content-Type: application/json" \
   -d '{"alarmAttitudeHeelDeg":25}'
 
 # Activar solo attitude-heel-extreme (silencia el resto)
-curl -X POST http://100.127.222.27:3000/plugins/signalk-pypilot-newui/supervisor/config \
+curl -X POST http://localhost:3000/plugins/signalk-pypilot-newui/supervisor/config \
   -H "Content-Type: application/json" \
   -d '{"alarmsEnabled":["attitude-heel-extreme"]}'
 
 # Volver a "modo legacy" (todas las alarmas activas) — mándalo si te
 # arrepientes de la selección anterior:
-curl -X POST http://100.127.222.27:3000/plugins/signalk-pypilot-newui/supervisor/config \
+curl -X POST http://localhost:3000/plugins/signalk-pypilot-newui/supervisor/config \
   -H "Content-Type: application/json" \
   -d '{"alarmsEnabled":null}'
 ```

@@ -30,15 +30,15 @@
 
 ## Infra operativa
 
-- **Pi5 (OpenPlotter V4, SK server)** — Tailscale `100.127.222.27`,
+- **Pi5 (OpenPlotter V4, SK server)** — Tailscale (host en `deploy.local.ps1`, gitignored),
   user `pi`. Accesible por SSH sin password (clave `id_ed25519`).
 - **Pi Zero (TinyPilot, pypilot core)** — `192.168.1.115`. **NO acepta
   SSH**. Caja negra. Datos solo via el stream SK o via la cache del
   plugin en el Pi5.
 - **Base del barco**: Puerto Deportivo de **Moaña, Ría de Vigo** (NO
   Combarro, NO Ría de Pontevedra — error mío que me corrigió Carlos).
-- **URL del visor**: `http://100.127.222.27:3000/signalk-pypilot-newui/`.
-- **Admin SK**: `http://100.127.222.27:3000/admin`.
+- **URL del visor**: `http://localhost:3000/signalk-pypilot-newui/`.
+- **Admin SK**: `http://localhost:3000/admin`.
 - **Dev laptop**: Windows 11 + PowerShell + Git Bash. Deploy via
   `.\deploy.ps1 -Restart` (default).
 
@@ -171,16 +171,16 @@ Leer PRIMERO cuando arranques el chat nuevo:
 .\deploy.ps1 -Restart
 
 # Ver estado reciente de un target AIS específico
-ssh pi@100.127.222.27 "curl -s 'http://localhost:3000/signalk/v1/api/vessels/urn:mrn:imo:mmsi:<MMSI>/navigation/position/value'"
+ssh $piHost "curl -s 'http://localhost:3000/signalk/v1/api/vessels/urn:mrn:imo:mmsi:<MMSI>/navigation/position/value'"
 
 # Ver notificaciones AIS activas
-ssh pi@100.127.222.27 "curl -s 'http://localhost:3000/signalk/v1/api/vessels/self/notifications/navigation/closestApproach'"
+ssh $piHost "curl -s 'http://localhost:3000/signalk/v1/api/vessels/self/notifications/navigation/closestApproach'"
 
 # Journal SK por rango
-ssh pi@100.127.222.27 "sudo journalctl -u signalk --since '2026-10-12 16:00' --until '2026-10-12 17:00' --no-pager | grep -iE 'pattern'"
+ssh $piHost "sudo journalctl -u signalk --since '2026-10-12 16:00' --until '2026-10-12 17:00' --no-pager | grep -iE 'pattern'"
 
 # Count kind distribution de un trace
-ssh pi@100.127.222.27 "awk -F'\"' '{for(i=1;i<=NF;i++) if (\$i == \"kind\") seen[\$(i+2)]++} END {for (k in seen) print seen[k], k}' <path> | sort -rn"
+ssh $piHost "awk -F'\"' '{for(i=1;i<=NF;i++) if (\$i == \"kind\") seen[\$(i+2)]++} END {for (k in seen) print seen[k], k}' <path> | sort -rn"
 ```
 
 ## Prompt para pegar en el próximo chat
@@ -197,7 +197,7 @@ En particular NO olvides:
   o `docs/_feature_*.md` ANTES de tocar código.
 - Español al chatear, inglés en código, ES/EN en UI.
 - Base del barco = Moaña, Ría de Vigo. NO Combarro.
-- Pi Zero (192.168.1.115) es caja negra. Pi5 (100.127.222.27) sí
+- Pi Zero (192.168.1.115) es caja negra. Pi5 (Tailscale) sí
   acepta SSH.
 - Deploy por defecto: `.\deploy.ps1 -Restart`.
 - NO publish NPM sin OK explícito en ESTE chat (no se hereda del
