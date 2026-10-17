@@ -44,7 +44,20 @@ $ErrorActionPreference = "Stop"
 # --- Anchor everything to the script's own directory ---
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$piHost = "pi@100.127.222.27"
+# --- Pi host: never committed. Resolved from (1) env var PYPILOT_PI_HOST,
+#     (2) deploy.local.ps1 next to this script (gitignored), which only
+#     needs one line:   $piHost = "pi@<your-pi-address>"
+$piHost = $env:PYPILOT_PI_HOST
+$localCfg = Join-Path $here "deploy.local.ps1"
+if (-not $piHost -and (Test-Path $localCfg)) { . $localCfg }
+if (-not $piHost) {
+    Write-Host "FAILED: no Pi host configured." -ForegroundColor Red
+    Write-Host "  Create deploy.local.ps1 next to deploy.ps1 with:" -ForegroundColor Yellow
+    Write-Host '    $piHost = "pi@<your-pi-address>"' -ForegroundColor Yellow
+    Write-Host "  or set the environment variable PYPILOT_PI_HOST." -ForegroundColor Yellow
+    exit 1
+}
+$piAddr = ($piHost -split "@")[-1]
 $piPath = "/home/pi/signalk-pypilot-newui"
 
 $sshOpts = @(
@@ -61,7 +74,7 @@ function Invoke-Native {
         Write-Host ""
         Write-Host "FAILED: $Description (exit code $LASTEXITCODE)" -ForegroundColor Red
         Write-Host "Aborting deploy. Quick checks:" -ForegroundColor Yellow
-        Write-Host "  ping 100.127.222.27"
+        Write-Host "  ping $piAddr"
         Write-Host "  ssh $piHost `"echo OK`""
         Write-Host "  Tailscale online?  NordVPN off?"
         exit 1
@@ -104,7 +117,7 @@ if ((Test-Path $htmlPath) -and ($revShipping -ne "?")) {
 
 # --- Pre-flight ---
 Write-Host ">> Pre-flight: ping $piHost..." -ForegroundColor Cyan
-Test-Connection -ComputerName "100.127.222.27" -Count 1 -Quiet -ErrorAction SilentlyContinue | Out-Null
+Test-Connection -ComputerName $piAddr -Count 1 -Quiet -ErrorAction SilentlyContinue | Out-Null
 
 # --- Build (in $here explicitly, do not trust cwd) ---
 if (-not $SkipBuild) {
@@ -268,6 +281,6 @@ if ($Restart) {
 }
 
 Write-Host ""
-Write-Host "Webapp URL:  http://100.127.222.27:3000/signalk-pypilot-newui/" -ForegroundColor Green
-Write-Host "Admin URL:   http://100.127.222.27:3000/admin  (Plugin Config -> PyPilot New-UI + SK Paths)" -ForegroundColor Green
+Write-Host "Webapp URL:  http://${piAddr}:3000/signalk-pypilot-newui/" -ForegroundColor Green
+Write-Host "Admin URL:   http://${piAddr}:3000/admin  (Plugin Config -> PyPilot New-UI + SK Paths)" -ForegroundColor Green
 Write-Host ""

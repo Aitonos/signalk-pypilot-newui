@@ -11,3 +11,5 @@ IMG-*.jpg
 WhatsApp Image*.jpeg
 WhatsApp Image*.jpg
 
+# Private deploy target (Pi address)
+deploy.local.ps1
