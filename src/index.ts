@@ -13,6 +13,7 @@ import { Historian, Sample, SamplePath } from "./historian";
 import { KPIComputer, KPISnapshot } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
+import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
 import { AlarmEngine } from "./alarms";
 import { runPrechecks } from "./prechecks";
@@ -65,7 +66,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev500";
+const PLUGIN_REVISION = "Rev501";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1490,6 +1491,23 @@ module.exports = function (app: any) {
         const mmsi = String(req.body?.mmsi || "");
         if (!mmsi) { res.status(400).json({ error: "mmsi required" }); return; }
         res.json(getVisorPrefs().unack(mmsi));
+      });
+
+      // Rev501: Firefox on the Pi's own screen - software WebRender.
+      //   GET  /firefox-fix  - profiles of THIS host's Firefox + applied flag
+      //   POST /firefox-fix  - write the pref into every profile's user.js
+      // Only meaningful when Firefox runs on the Signal K host itself
+      // (the Pi's own screen), same OS user. Firefox must be restarted.
+      router.get("/firefox-fix", (_req: any, res: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const profiles = firefoxFixStatus(require("os").homedir());
+        res.json({ profiles, applied: profiles.length > 0 && profiles.every((x) => x.applied) });
+      });
+      router.post("/firefox-fix", (_req: any, res: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const profiles = applyFirefoxFix(require("os").homedir());
+        app.debug?.(`[firefox-fix] applied to ${profiles.filter((x) => x.applied).length}/${profiles.length} profile(s)`);
+        res.json({ profiles, applied: profiles.length > 0 && profiles.every((x) => x.applied) });
       });
 
       // Rev100: alarm engine endpoints.
