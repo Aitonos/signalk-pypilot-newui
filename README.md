@@ -159,9 +159,20 @@ up automatically.
     disconnected, extreme heel, extreme pitch — all published as
     canonical `notifications.autopilot.*` for any downstream Signal K
     client.
-22. **Head-to-wind pseudo-mode** — a "raise the sails" mode not
-    present in pypilot, with countdown and bow / stern swing
-    selection.
+22. **Head-to-wind and Downwind pseudo-modes** — two sail-handling
+    manoeuvres not present in pypilot, each with a *by bow* / *by
+    stern* swing choice; on exit the previous mode, target, engage
+    state and profile are restored.
+    - **Head to wind (hoist sail)** — turns the bow into the wind and
+      holds it there (done when the wind stays within 10° of the bow
+      for 3 s). Above 10 kn of true wind it recommends swinging by
+      the bow, since gybing is risky.
+    - **Downwind (strike sail)** — puts the wind dead astern so the
+      sail comes down without flogging (done when |TWA| > 175° for
+      3 s). While it holds, the pilot runs a sharper PID (P ×1.5,
+      D ×1.7, rudder slew ×1.3) against an accidental gybe, warns by
+      voice if |TWA| drops below 160°, and cancels on its own below
+      140° for 2.5 s.
 23. **Synthetic tack** and **tack countdown UI** with planned final
     target and single-tap cancel on the circle.
 24. **Watchdog with core-alive detection** — distinguishes a live
