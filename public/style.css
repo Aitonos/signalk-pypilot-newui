@@ -3049,7 +3049,10 @@ body.setup-fullscreen-active #tabbar {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 900;
+  /* Rev496: an alarm that sounds must be visible. Was 900, below the
+     maximized Freeboard (1300), popups (3000), regata HUD (5000) and the
+     net / pypilot-offline banners (9998-10000). */
+  z-index: 10001;
   display: flex;
   flex-direction: column;
   gap: 2px;
