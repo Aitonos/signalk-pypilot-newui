@@ -74,17 +74,21 @@ up automatically.
 
 ## Screenshots
 
-![Control - compass rose with precision gauge + AIS collision target as a tinted top-view hull](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
+![Control - compass rose with an AIS collision target on the compass ring](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
 
-| Chartplotter embedded | Logbook · trip detail |
+| Chartplotter embedded | AnchorWatch Pro inside the rose |
 |---|---|
-| ![Chartplotter integrated - Freeboard-SK embedded in the rose box](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chartplotter-embedded.jpg) | ![Logbook trip detail - OpenSeaMap trace + SOG vs AWS chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-logbook-trip-detail.jpg) |
+| ![Freeboard-SK embedded in the rose box](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chartplotter-embedded.jpg) | ![Anchor-watch visor of AnchorWatch Pro inside the rose](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-anchorwatch-in-rose.jpg) |
 
-| Tune · gain sliders | Chart · hover freeze |
+| Tide at a glance | Modes · head to wind / downwind |
 |---|---|
-| ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tune-sliders.jpg) | ![Chart - history window with hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-chart-history.jpg) |
+| ![Tide popup with the tide curve](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tide-popup.jpg) | ![Mode picker with Head to wind and Head downwind](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-modes-head-to-wind-downwind.jpg) |
 
-![Tack history - persistent per-tack log](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-tack-history.jpg)
+| Tune · gain sliders | Logbook · trip detail |
+|---|---|
+| ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-tune-sliders.jpg) | ![Logbook trip detail - track and SOG vs AWS chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/07-logbook-trip-detail.jpg) |
+
+![Tack history - per-tack speed retention and recovery](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/08-tack-history.jpg)
 
 ## What this plugin adds on top of pypilot
 

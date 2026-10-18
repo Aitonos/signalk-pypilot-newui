@@ -71,8 +71,10 @@ settings, so nothing is lost.
   plugins named, Head-to-wind **and** Downwind pseudo-modes, every
   integration (AnchorWatch Pro, chartplotter, AIS, polars) in the intro,
   no invented plugins or path counts.
-- Screenshots as JPEG under 500 KB for the App Store; test files no
-  longer shipped in the package (64 → 47 files).
+- New App Store / README screenshots (8): rose with AIS, embedded chart,
+  AnchorWatch Pro inside the rose, tide popup, head to wind / downwind
+  modes, tune, logbook trip, tack history. JPEG under 500 KB each; test
+  files no longer shipped (package 3.4 MB → 1.4 MB).
 
 ## 3.2.0 — 2026-10-15 — AIS rose rebuilt on real positions, tide popup, chart kept warm
 

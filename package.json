@@ -59,27 +59,35 @@
     "screenshots": [
       {
         "src": "./public/screenshots/01-control-rose.jpg",
-        "title": "Control - compass rose with heading + precision gauge (green/orange/red), AWA/TWA wind arrows, hull-fixed sailing wedges, configurable bottom chip (SOG/depth/polar%/custom) and an AIS collision target painted as a tinted top-view hull"
+        "title": "Control - compass rose with heading, AWA/TWA wind arrows, hull-fixed sailing wedges, configurable corner tiles and an AIS collision target on the compass ring"
       },
       {
         "src": "./public/screenshots/02-chartplotter-embedded.jpg",
-        "title": "Chartplotter integrated - double-tap the rose to open Freeboard-SK embedded inside the rose box; every AIS target, route and your position with the autopilot buttons still reachable. Needs a Signal K chart provider (e.g. @signalk/charts-plugin)"
+        "title": "Chartplotter integrated - double-tap the rose to open Freeboard-SK inside it, with AIS targets and the anchor circle; the autopilot buttons stay reachable. Needs a Signal K chart provider"
       },
       {
-        "src": "./public/screenshots/03-logbook-trip-detail.jpg",
-        "title": "Logbook - auto-recorded trip detail with OpenSeaMap trace, speed-coloured track, gust / peak-SOG / low-voltage / tack markers and a SOG vs AWS chart"
+        "src": "./public/screenshots/03-anchorwatch-in-rose.jpg",
+        "title": "AnchorWatch Pro (signalk-mareas-ihm) anchor-watch visor opened inside the rose: swing circles, track, wind gusts, depth and tide"
       },
       {
-        "src": "./public/screenshots/04-tune-sliders.jpg",
-        "title": "Tune - PID gain sliders per pilot/profile with plain-language help ('act now reflex', 'closes sustained drift'), PROFILE badge, locked by default with +/-10 and +/-1 fine-tune buttons and a reset-to-baseline icon"
+        "src": "./public/screenshots/04-tide-popup.jpg",
+        "title": "Tide at a glance - tide curve of the nearest station with current height, trend, next high / low water and coefficient (with AnchorWatch Pro)"
       },
       {
-        "src": "./public/screenshots/05-chart-history.jpg",
-        "title": "Chart - history window with hover-freeze showing HDG cmd, HDG act, AWA, SOG and Servo A at any point of the timeline"
+        "src": "./public/screenshots/05-modes-head-to-wind-downwind.jpg",
+        "title": "Mode and profile picker - compass, GPS, apparent and true wind plus the Head to wind (hoist sail) and Head downwind (strike sail) manoeuvres"
       },
       {
-        "src": "./public/screenshots/06-tack-history.jpg",
-        "title": "Tack history - persistent per-tack log with best retention and fastest recovery highlighted, filterable by day range"
+        "src": "./public/screenshots/06-tune-sliders.jpg",
+        "title": "Tune - PID gains per pilot / profile with plain-language help, locked by default, fine-step buttons and reset to baseline"
+      },
+      {
+        "src": "./public/screenshots/07-logbook-trip-detail.jpg",
+        "title": "Logbook - auto-recorded trip with speed-coloured track, gust / peak SOG / low voltage / tack markers and a SOG vs AWS chart"
+      },
+      {
+        "src": "./public/screenshots/08-tack-history.jpg",
+        "title": "Tack history - every tack with speed retention and recovery time, best retention and fastest recovery highlighted"
       }
     ]
   },
