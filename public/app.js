@@ -68,12 +68,12 @@
       "mode.group":             "Mode",
       "profile.group":          "Profile",
       "unlock.prompt.title":    "Where do you want to edit?",
-      "unlock.prompt.body":     "Unlocking lets the sliders write directly to the active profile. Changes apply live, no need to close the screen.",
+      "unlock.prompt.body":     "This setting is stored in the profile (PROFILE badge). GLOBAL settings never ask. Changes apply live.",
       "unlock.prompt.active":   "Active profile: '{profile}' (pilot: {pilot})",
       "unlock.prompt.current":  "Edit in the active profile",
       "unlock.prompt.basic":    "Switch to 'basic' first",
       "unlock.prompt.cancel":   "Cancel",
-      "unlock.prompt.hint":     "'Switch to basic' changes the profile BEFORE unlocking. 'Edit in the active' keeps you on whatever profile is shown above.",
+      "unlock.prompt.hint":     "'Switch to basic' changes the profile BEFORE writing. 'Edit in the active' keeps you on the profile shown above. Asked once per unlock.",
       "tune.fork.title":    "Save gain changes",
       "tune.fork.body":     "You just tweaked a gain. Where should the change live?",
       "tune.fork.activeInfo": "Active profile: '{profile}' (pilot: {pilot})",
@@ -996,12 +996,12 @@
       "mode.group":             "Modo",
       "profile.group":          "Perfil",
       "unlock.prompt.title":    "¿Dónde quieres editar?",
-      "unlock.prompt.body":     "Al desbloquear, los sliders escribirán directamente al perfil que esté activo. Los cambios se aplican en el acto, no hace falta cerrar la pantalla.",
+      "unlock.prompt.body":     "Este ajuste se guarda en el perfil (etiqueta PERFIL). Los ajustes GLOBAL nunca preguntan. Los cambios se aplican en el acto.",
       "unlock.prompt.active":   "Perfil activo: '{profile}' (pilot: {pilot})",
       "unlock.prompt.current":  "Editar en el perfil actual",
       "unlock.prompt.basic":    "Cambiar a 'basic' primero",
       "unlock.prompt.cancel":   "Cancelar",
-      "unlock.prompt.hint":     "'Cambiar a basic' pasa al perfil 'basic' ANTES de desbloquear. 'Editar en el actual' se queda en el perfil que ves arriba.",
+      "unlock.prompt.hint":     "'Cambiar a basic' pasa al perfil 'basic' ANTES de escribir. 'Editar en el actual' se queda en el perfil que ves arriba. Se pregunta una vez por desbloqueo.",
       "tune.fork.title":    "Guardar cambios de ganancia",
       "tune.fork.body":     "Has movido una ganancia. ¿Dónde quieres guardar el cambio?",
       "tune.fork.activeInfo": "Perfil activo: '{profile}' (pilot: {pilot})",
@@ -7334,9 +7334,8 @@
   function renderConfigSliders() {
     const cont = $("#config-sliders");
     if (!cont) return;
-    cont.textContent = "";
     const cat = state.catalog;
-    if (!cat) return;
+    if (!cat) { cont.textContent = ""; delete cont.dataset.sig; return; }
     // Rev338 (Carlos, 2026-09-28): agrupar RangeSettings por categoría
     // en <details> colapsables ("desplegable para no apabullar con
     // opciones al usuario, se tocan muy pocas veces"). Cada grupo
@@ -7362,12 +7361,30 @@
       imu:   t("tune.group.imu")   || "IMU",
       other: t("tune.group.other") || "Other",
     };
+    // Rev507 (Carlos 2026-10-18): "cuando activas ajustes se borran los
+    // cambios si te vas a otro slider". The 10 s background refresh
+    // (Rev461) rebuilt every group here: locked, folded and painted
+    // from a cache that never held what the sailor had just written.
+    // Same catalog + language -> update the values in place and keep
+    // the open / unlocked groups as they are. Rebuild only when the
+    // slider set or the language changes.
+    const sig = names.join("|") + "#" + groupOrder.map((g) => labels[g]).join("|");
+    if (cont.dataset.sig === sig && cont.firstChild) {
+      _refreshConfigSliderValues(cont);
+      return;
+    }
+    const openGroups = new Set(
+      Array.from(cont.querySelectorAll("details.tune-group[open]")).map((d) => d.dataset.groupKey),
+    );
+    cont.textContent = "";
+    cont.dataset.sig = sig;
     for (const g of groupOrder) {
       const items = groups[g];
       if (!items.length) continue;
       const details = document.createElement("details");
       details.className = "tune-group";
       details.dataset.groupKey = g;
+      if (openGroups.has(g)) details.open = true;
       details.style.cssText = "margin:8px 0;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--bg-3)";
       const summary = document.createElement("summary");
       summary.style.cssText = "cursor:pointer;font-weight:600;padding:6px 4px;color:var(--fg);user-select:none;display:flex;align-items:center;gap:10px";
@@ -7401,14 +7418,16 @@
         if (typeof cur === "number" && isFinite(cur) && !_calBaselines.has(name)) {
           _calBaselines.set(name, cur);
         }
+        let refs = null;
         const { row, rng, val } = _buildSliderRow({
           name,
           min: meta.min, max: meta.max, step,
           decimals: 3,
           cur,
-          onChange: (v) => pluginRaw(name, v),
+          onChange: (v) => _writeConfigSlider(details, name, v, refs),
           unlocked: false, // Rev339: los grupos gestionan su propio lock
         });
+        refs = { row, rng, val };
         row.dataset.pypilot = name;
         // Rev338: cada slider en Ajustes también trae su explicación
         // corta + botón ? (larga) — antes solo aparecían en el bloque
@@ -7432,7 +7451,7 @@
             ? ` <span class="unit" style="font-size:11px;color:var(--fg-dim);margin-left:3px;font-weight:400">${unitStr}</span>`
             : "";
           val.innerHTML = `${Number(b).toFixed(3)}${unitHtml}`;
-          pluginRaw(name, b);
+          _writeConfigSlider(details, name, b, { row, rng, val });
           _stampCalAdjust();
         });
         const bot = row.querySelector(".gain-bot");
@@ -7450,32 +7469,67 @@
       // intermedio al pasar a checked:true. Si el sailor cancela, el
       // checkbox se desmarca y el grupo queda bloqueado. Si elige
       // "basic", hacemos el switch antes de desbloquear.
-      groupCb.addEventListener("change", async () => {
-        if (!groupCb.checked) {
-          _applyGroupUnlock(details, false);
-          return;
-        }
-        const choice = await _promptUnlockProfileChoice();
-        if (choice === "cancel") {
-          groupCb.checked = false;
-          return;
-        }
-        if (choice === "basic") {
-          try {
-            await pluginRaw("profile", "basic");
-            // Give the backend ~400ms to echo state.profile = basic
-            // before the sliders start accepting edits in the new scope.
-            await new Promise((r) => setTimeout(r, 400));
-          } catch (e) { console.warn("[unlock] switch to basic failed:", e); }
-        }
-        // "current" (or post-basic-switch): fall through and unlock.
-        // Suppress the fork modal on the first slider change — the
-        // sailor already decided scope here.
-        _tuneForkAsked.v = true;
-        _applyGroupUnlock(details, true);
+      // Rev507 (Carlos 2026-10-18): "me pide si lo quiero guardar en
+      // perfil cuando es algo global, BUG". Unlocking no longer asks;
+      // the profile question moved to the first change of a PERFIL
+      // slider (see _writeConfigSlider). GLOBAL sliders never ask.
+      groupCb.addEventListener("change", () => {
+        details._scopeAsked = false;
+        _applyGroupUnlock(details, groupCb.checked);
       });
       cont.appendChild(details);
     }
+  }
+  // Rev507: in-place value refresh for the Ajustes sliders. Skips the
+  // row the sailor is dragging. Values come from state.pypilotValues,
+  // which now also carries the sailor's own writes (pluginRaw).
+  function _refreshConfigSliderValues(cont) {
+    const vals = state.pypilotValues || {};
+    cont.querySelectorAll(".gain-row[data-pypilot]").forEach((row) => {
+      const name = row.dataset.pypilot;
+      const v = vals[name];
+      if (!(typeof v === "number" && isFinite(v))) return;
+      if (!_calBaselines.has(name)) _calBaselines.set(name, v);
+      if (row.classList.contains("active")) return;
+      const rng = row.querySelector("input[type=range]");
+      const val = row.querySelector(".value");
+      if (rng && Number(rng.value) !== v) rng.value = String(v);
+      if (val) {
+        const unitStr = _gainUnits(name);
+        const unitHtml = unitStr
+          ? ` <span class="unit" style="font-size:11px;color:var(--fg-dim);margin-left:3px;font-weight:400">${unitStr}</span>`
+          : "";
+        val.innerHTML = `${v.toFixed(3)}${unitHtml}`;
+      }
+    });
+  }
+  // Rev507: single write path for the Ajustes sliders (slider, nudge
+  // and restore). A PERFIL setting asks the scope question once per
+  // group unlock; cancel puts the slider back to the value it had.
+  async function _writeConfigSlider(details, name, v, refs) {
+    if (_isPerProfile(name) && !details._scopeAsked) {
+      const choice = await _promptUnlockProfileChoice();
+      if (choice === "cancel") {
+        const prev = (state.pypilotValues || {})[name];
+        if (refs && typeof prev === "number" && isFinite(prev)) {
+          refs.rng.value = String(prev);
+          _refreshConfigSliderValues(details);
+        }
+        return null;
+      }
+      details._scopeAsked = true;
+      // The sailor already chose the scope: no second (fork) modal.
+      _tuneForkAsked.v = true;
+      if (choice === "basic") {
+        try {
+          await pluginRaw("profile", "basic");
+          // Give the backend ~400 ms to echo profile = basic before
+          // writing in the new scope.
+          await new Promise((r) => setTimeout(r, 400));
+        } catch (e) { console.warn("[unlock] switch to basic failed:", e); }
+      }
+    }
+    return pluginRaw(name, v);
   }
   // Rev339 (Carlos, 2026-09-28): per-accordion enable. Sets/removes
   // `disabled` on every slider + nudge/reset button inside a group.
@@ -7689,6 +7743,10 @@
   // Now uses skFetch (adds JWT if we have one), retries with backoff, and
   // opens the login modal after 3 consecutive 401s.
   let _refreshValues401Streak = 0;
+  // Rev507: name -> ts of the sailor's last successful RangeSetting
+  // write (pluginRaw). See refreshPypilotValues.
+  const _pvLocalWriteTs = new Map();
+  const PV_LOCAL_WRITE_HOLD_MS = 5000;
   async function refreshPypilotValues(opts) {
     const replace = !!(opts && opts.replace);
     try {
@@ -7711,12 +7769,30 @@
       // {replace:true} for that case so the sliders reflect the new
       // profile instead of the previous one.
       const fetched = await r.json();
+      // Rev507: a value the sailor wrote < PV_LOCAL_WRITE_HOLD_MS ago
+      // wins over the snapshot (pypilot may not have echoed it yet).
+      const nowTs = Date.now();
+      const freshLocal = (k) => {
+        const ts = _pvLocalWriteTs.get(k);
+        return ts != null && (nowTs - ts) < PV_LOCAL_WRITE_HOLD_MS;
+      };
       if (replace) {
+        const prev = state.pypilotValues || {};
         state.pypilotValues = fetched || {};
+        for (const k of _pvLocalWriteTs.keys()) {
+          if (freshLocal(k) && prev[k] != null) state.pypilotValues[k] = prev[k];
+        }
       } else {
         if (!state.pypilotValues) state.pypilotValues = {};
+        const cat = state.catalog || {};
         for (const [k, v] of Object.entries(fetched || {})) {
           if (state.pypilotValues[k] == null) state.pypilotValues[k] = v;
+          // Rev507: RangeSettings follow pypilot. Before, the merge only
+          // filled empty keys, so a slider value stayed at the first one
+          // seen for the whole session (no WS delta writes this cache).
+          else if (cat[k]?.type === "RangeSetting" && v != null && !freshLocal(k)) {
+            state.pypilotValues[k] = v;
+          }
         }
       }
       // Rev310 (Carlos sea trial 2026-09-25, bug D revisited): el fix
@@ -9777,6 +9853,14 @@
       body: JSON.stringify({ name, value }),
     });
     handleAuth(res);
+    // Rev507: keep the values cache in step with what the sailor just
+    // wrote, so a refresh does not paint the old value back.
+    if (res.ok && state.catalog?.[name]?.type === "RangeSetting"
+        && typeof value === "number" && isFinite(value)) {
+      if (!state.pypilotValues) state.pypilotValues = {};
+      state.pypilotValues[name] = value;
+      _pvLocalWriteTs.set(name, Date.now());
+    }
     if (!res.ok) {
       const bodyTxt = await res.text().catch(() => "");
       console.warn("raw PUT failed", name, res.status, bodyTxt);
@@ -15284,6 +15368,17 @@
     // Rev129: every lock/unlock cycle re-arms the fork prompt so the
     // question is asked once per editing session.
     _tuneForkAsked.v = false;
+    // Rev507: groups are no longer rebuilt on every refresh, so the
+    // per-group checkboxes must follow the relock too.
+    if (locked) {
+      document.querySelectorAll("#config-sliders details.tune-group").forEach((d) => {
+        const cb = d.querySelector(".tune-group-unlock");
+        if (cb) cb.checked = false;
+        d._scopeAsked = false;
+        const icon = d.querySelector(".lock-lbl");
+        if (icon) icon.textContent = "🔒";
+      });
+    }
     const containers = [$("#gains-container"), $("#config-sliders")];
     for (const cont of containers) {
       if (!cont) continue;
