@@ -6877,7 +6877,13 @@
     // transform we could unknowingly inherit later.
     svg.appendChild(ghost);
     _gustGhostActive = { g: ghost, expireAt: Date.now() + GUST_GHOST_FADE_MS + 500 };
-    requestAnimationFrame(() => { ghost.style.opacity = "0"; });
+    // Rev509 (Carlos 2026-10-18, "las rachas no salen casi nunca"): one
+    // rAF is not enough - its callback runs before the browser has ever
+    // styled the new node, so there is no 0.5 starting point and the
+    // transition is skipped: the ghost went invisible at once (headless
+    // Chrome: opacity 0 after 1 s with one rAF, 0.47 with two). The second
+    // rAF starts the fade after the first frame painted it.
+    requestAnimationFrame(() => requestAnimationFrame(() => { ghost.style.opacity = "0"; }));
     setTimeout(() => {
       try { ghost.remove(); } catch { /* silent */ }
       _gustGhostActive = null;

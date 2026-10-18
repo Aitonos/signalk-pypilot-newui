@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (Rev509)
+
+### Fixed
+- **Gust ghost arrow almost never visible**: the fade started in the
+  same frame the ghost was created, so the browser skipped the 15 s
+  transition and hid it at once. It now fades as designed. The detector
+  itself was fine (today's wind would have drawn ~2.5 gusts per minute).
+
 ## 3.4.0 — 2026-10-18 — The sailor always wins, and the pilot gets unstuck
 
 Rolls up Rev506 → Rev508 on top of 3.3.0, from the strong-wind sea
