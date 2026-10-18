@@ -58,27 +58,27 @@
     "webapp": "./public",
     "screenshots": [
       {
-        "src": "./public/screenshots/01-control-rose.png",
+        "src": "./public/screenshots/01-control-rose.jpg",
         "title": "Control - compass rose with heading + precision gauge (green/orange/red), AWA/TWA wind arrows, hull-fixed sailing wedges, configurable bottom chip (SOG/depth/polar%/custom) and an AIS collision target painted as a tinted top-view hull"
       },
       {
-        "src": "./public/screenshots/02-chartplotter-embedded.png",
+        "src": "./public/screenshots/02-chartplotter-embedded.jpg",
         "title": "Chartplotter integrated - double-tap the rose to open Freeboard-SK embedded inside the rose box; every AIS target, route and your position with the autopilot buttons still reachable. Needs a Signal K chart provider (e.g. @signalk/charts-plugin)"
       },
       {
-        "src": "./public/screenshots/03-logbook-trip-detail.png",
+        "src": "./public/screenshots/03-logbook-trip-detail.jpg",
         "title": "Logbook - auto-recorded trip detail with OpenSeaMap trace, speed-coloured track, gust / peak-SOG / low-voltage / tack markers and a SOG vs AWS chart"
       },
       {
-        "src": "./public/screenshots/04-tune-sliders.png",
+        "src": "./public/screenshots/04-tune-sliders.jpg",
         "title": "Tune - PID gain sliders per pilot/profile with plain-language help ('act now reflex', 'closes sustained drift'), PROFILE badge, locked by default with +/-10 and +/-1 fine-tune buttons and a reset-to-baseline icon"
       },
       {
-        "src": "./public/screenshots/05-chart-history.png",
+        "src": "./public/screenshots/05-chart-history.jpg",
         "title": "Chart - history window with hover-freeze showing HDG cmd, HDG act, AWA, SOG and Servo A at any point of the timeline"
       },
       {
-        "src": "./public/screenshots/06-tack-history.png",
+        "src": "./public/screenshots/06-tack-history.jpg",
         "title": "Tack history - persistent per-tack log with best retention and fastest recovery highlighted, filterable by day range"
       }
     ]

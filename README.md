@@ -74,17 +74,17 @@ up automatically.
 
 ## Screenshots
 
-![Control - compass rose with precision gauge + AIS collision target as a tinted top-view hull](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.png)
+![Control - compass rose with precision gauge + AIS collision target as a tinted top-view hull](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
 
 | Chartplotter embedded | Logbook · trip detail |
 |---|---|
-| ![Chartplotter integrated - Freeboard-SK embedded in the rose box](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chartplotter-embedded.png) | ![Logbook trip detail - OpenSeaMap trace + SOG vs AWS chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-logbook-trip-detail.png) |
+| ![Chartplotter integrated - Freeboard-SK embedded in the rose box](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chartplotter-embedded.jpg) | ![Logbook trip detail - OpenSeaMap trace + SOG vs AWS chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-logbook-trip-detail.jpg) |
 
 | Tune · gain sliders | Chart · hover freeze |
 |---|---|
-| ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tune-sliders.png) | ![Chart - history window with hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-chart-history.png) |
+| ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tune-sliders.jpg) | ![Chart - history window with hover freeze](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-chart-history.jpg) |
 
-![Tack history - persistent per-tack log](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-tack-history.png)
+![Tack history - persistent per-tack log](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-tack-history.jpg)
 
 ## What this plugin adds on top of pypilot
 
