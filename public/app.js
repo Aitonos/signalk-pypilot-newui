@@ -4095,6 +4095,41 @@
   // noise of a moored class-B target (0.1-0.5 kn typical) — PELAGOS at
   // 0.1 kn kept alarming in Moaña. Same threshold as the track line.
   const AIS_IGNORE_SOG_MS = AIS_PROJ_MIN_SOG_MS;
+  // Rev503 (Carlos 2026-10-16/18: PELAGOS / POLARYS moored, class B,
+  // reporting 0.3-1.6 kn of GPS noise -> drawn with a course line and
+  // treated as moving). Effective SOG of a target:
+  //   - 0 when its AIS nav status says it is not under way (class A);
+  //   - 0 when, over >= 2 min of history, it never left a 30 m circle
+  //     around its first position (any class), as long as it reports
+  //     < 3 kn (a real 3 kn boat covers 90 m per minute);
+  //   - otherwise the reported SOG.
+  // Used by the stationary / anchor gates and by the course line.
+  const AIS_TRACK_KEEP_MS = 5 * 60 * 1000;
+  const AIS_STILL_WINDOW_MS = 2 * 60 * 1000;
+  const AIS_STILL_RADIUS_M = 30;
+  const AIS_STILL_MAX_SOG_MS = 1.5;  // ~3 kn
+  const AIS_NOT_UNDERWAY = ["moored", "anchored", "aground"];
+  function _aisEffectiveSog(cached) {
+    if (!cached || typeof cached.sog !== "number") return null;
+    if (cached.navState && AIS_NOT_UNDERWAY.includes(cached.navState)) return 0;
+    const tr = Array.isArray(cached.track) ? cached.track : [];
+    if (cached.sog < AIS_STILL_MAX_SOG_MS && tr.length >= 2
+        && tr[tr.length - 1].t - tr[0].t >= AIS_STILL_WINDOW_MS) {
+      const a = tr[0];
+      let maxM = 0;
+      for (const q of tr) {
+        maxM = Math.max(maxM, _distanceNm({ lat: a.lat, lon: a.lon }, { lat: q.lat, lon: q.lon }) * 1852);
+      }
+      if (maxM < AIS_STILL_RADIUS_M) return 0;
+    }
+    return cached.sog;
+  }
+  // Keep the history of every target that currently has an alarm
+  // flowing (the collision plugin may not re-emit for minutes).
+  setInterval(() => {
+    if (document.hidden || !state.aisAlarms || state.aisAlarms.size === 0) return;
+    for (const mmsi of state.aisAlarms.keys()) _aisRefreshTargetPos(mmsi).catch(() => {});
+  }, AIS_TARGET_POS_FRESH_MS);
   async function _aisRefreshTargetPos(mmsi) {
     try {
       const now = Date.now();
@@ -4106,7 +4141,7 @@
       // cache was ALWAYS empty: the hull fell back to the FUTURE CPA
       // position and the SOG-based gates never had data.
       const ctx = `urn:mrn:imo:mmsi:${mmsi}`;
-      const [posR, sogR, cogR, hdgR, nameR] = await Promise.all([
+      const [posR, sogR, cogR, hdgR, nameR, navR] = await Promise.all([
         skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/position/value`),
         skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/speedOverGround/value`).catch(() => null),
         // Rev457 (Carlos QA Rev456): fetch the target's true COG so the
@@ -4121,6 +4156,8 @@
         // collision-alerts message keeps whatever name existed when the
         // alarm was raised ("MMSI 261010366" right after an SK restart).
         skFetch(`/signalk/v1/api/vessels/${ctx}/name`).catch(() => null),
+        // Rev503: class A AIS nav status ("moored", "anchored", ...).
+        skFetch(`/signalk/v1/api/vessels/${ctx}/navigation/state/value`).catch(() => null),
       ]);
       let pos = null, sog = null, cog = null, hdg = null;
       if (posR && posR.ok) pos = await posR.json().catch(() => null);
@@ -4129,12 +4166,27 @@
       if (hdgR && hdgR.ok) hdg = await hdgR.json().catch(() => null);
       let name = null;
       if (nameR && nameR.ok) name = await nameR.json().catch(() => null);
+      let navState = null;
+      if (navR && navR.ok) navState = await navR.json().catch(() => null);
+      // Rev503: short position history (last 5 min) to tell a moored
+      // boat whose class-B GPS reports 0.3-1.6 kn of noise from one that
+      // really moves (see _aisEffectiveSog).
+      const track = (cur && Array.isArray(cur.track) ? cur.track : [])
+        .filter((q) => now - q.t <= AIS_TRACK_KEEP_MS);
+      if (pos && typeof pos.latitude === "number") {
+        const last = track[track.length - 1];
+        if (!last || last.lat !== pos.latitude || last.lon !== pos.longitude || now - last.t >= 30_000) {
+          track.push({ t: now, lat: pos.latitude, lon: pos.longitude });
+        }
+      }
       const rec = {
         pos: (pos && typeof pos.latitude === "number") ? pos : null,
         sog: (typeof sog === "number") ? sog : null,
         cog: (typeof cog === "number") ? cog : null,  // radians (SK convention)
         hdg: (typeof hdg === "number") ? hdg : null,  // radians, true
         name: (typeof name === "string" && name.trim()) ? name.trim() : null,
+        navState: (typeof navState === "string") ? navState : null,
+        track,
         fetchedAt: now,
       };
       state.aisTargetPos.set(mmsi, rec);
@@ -4323,7 +4375,7 @@
     const aisMode = _aisMode();
     if (aisMode === "off") return true;
     const cached = state.aisTargetPos.get(mmsi);
-    const sog = cached && typeof cached.sog === "number" ? cached.sog : null;
+    const sog = _aisEffectiveSog(cached);
     if (aisMode === "anchor") return !(sog != null && sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS);
     return sog != null && sog < AIS_IGNORE_SOG_MS;
   }
@@ -4555,7 +4607,8 @@
         return d;
       };
       const haveOwnHdg = typeof state.heading === "number";
-      const tgtMoving = cached && typeof cached.sog === "number" && cached.sog >= AIS_PROJ_MIN_SOG_MS;
+      const effSog = _aisEffectiveSog(cached);
+      const tgtMoving = effSog != null && effSog >= AIS_PROJ_MIN_SOG_MS;
       const cogRelDeg = (haveOwnHdg && tgtMoving && typeof cached.cog === "number")
         ? relToBoat(cached.cog) : null;
       const hdgRelDeg = (haveOwnHdg && cached && typeof cached.hdg === "number")
