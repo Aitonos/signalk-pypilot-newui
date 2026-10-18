@@ -4,7 +4,7 @@
 
 ## Qué pasa en este repo ahora mismo
 
-- **Publicado en NPM**: `3.2.0` (Rev482). **Desplegado en el Pi5: Rev503**,
+- **Publicado en NPM**: `3.2.0` (Rev482). **Desplegado en el Pi5: Rev504**,
   pendiente de publicar como **3.3.0** (CHANGELOG ya escrito).
 - **3.3.0 trae** (Rev483 → Rev503): ajustes del visor compartidos en
   backend (`src/visor-prefs.ts`, `/visor-prefs`: modo AIS, voz, puerto

@@ -2,7 +2,7 @@
 
 ## 3.3.0 — 2026-10-19 — Light on the Pi, AIS on the ring, settings shared by every device
 
-Rolls up Rev483 → Rev503 on top of 3.2.0. Minor bump: new shared
+Rolls up Rev483 → Rev504 on top of 3.2.0. Minor bump: new shared
 visor settings in the backend, Raspberry Pi performance work, AIS rose
 fixes from port and sea QA in Moaña, tide popup polish. No breaking
 changes; the first visor that connects uploads its old per-device
@@ -51,6 +51,15 @@ settings, so nothing is lost.
 - **Autopilot alarm banner always visible.** It was drawn below the
   maximised chart, popups, the regatta HUD and the network banners:
   the alarm beeped and spoke but could not be seen. (Rev497)
+
+### Fixed — other
+
+- **Recorded sessions / session tags / received advice dialogs could
+  trap you.** The only way out was the Close button at the end of the
+  content; with many sessions (224 on the test boat) it was pushed
+  off-screen. Now an X is always visible, the list scrolls inside the
+  dialog with title and Close fixed, and tapping outside or Escape
+  closes it. (Rev504)
 
 ### Docs / package
 
