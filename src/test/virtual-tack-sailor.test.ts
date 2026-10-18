@@ -133,6 +133,52 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev508: a recovery cycle keeps the tack alive, re-engages, and is not 'external'", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    let external = 0;
+    p.onExternalDisengage = () => { external++; };
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      await waitFor(() => p.getVirtualTackState()?.phase === "turning", 2000);
+      const r = await p.recoveryCycle(100);
+      assert.equal(r, "done");
+      assert.equal(p.isVirtualTackActive(), true, "the cycle must not annul the tack");
+      const enabledWrites = sim.writes.filter((w) => w.name === "ap.enabled").map((w) => w.value);
+      assert.deepEqual(enabledWrites, [false, true]);
+      await sleep(200);
+      assert.equal(sim.values["ap.enabled"], true);
+      assert.equal(external, 0);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev508: an order during the recovery gap wins (no re-engage)", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      const cyc = p.recoveryCycle(300);
+      await sleep(100);
+      await (p.toProviderInterface() as any).disengage("_default");
+      assert.equal(await cyc, "aborted");
+      await sleep(400);
+      assert.equal(sim.values["ap.enabled"], false);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev508: AP off from outside the app reports an external disengage", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    let external = 0;
+    p.onExternalDisengage = () => { external++; };
+    try {
+      p.receiveValue("ap.enabled", false);
+      assert.equal(external, 1);
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);

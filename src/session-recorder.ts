@@ -27,6 +27,8 @@ export interface SessionSample {
   servoCur: number | null;
   servoDuty: number | null;
   servoVolt: number | null;
+  // Rev508: pypilot servo.flags (e.g. "SYNC PORT_OVERCURRENT_FAULT").
+  servoFlags?: string | null;
   engaged: boolean;
   mode: string | null;
   tws: number | null;

@@ -14,6 +14,7 @@
 //     the emitted notification timestamp, so downstream SK clients
 //     never collapse two consecutive alerts into one.
 
+import type { SteerWatchSnapshot } from "./steer-watch";
 import { Sample } from "./historian";
 import { KPISnapshot } from "./kpis";
 import { QualitySnapshot } from "./sensor-quality";
@@ -56,6 +57,10 @@ export interface EvalContext {
   // barco (a veces) está girando por otras vías, así que la única
   // señal fiable de "estoy en maniobra" viene del propio visor.
   maneuverPseudoActive?: boolean;
+  // Rev508 (Carlos sea trial 2026-10-18): stuck-pilot watch snapshot
+  // (src/steer-watch.ts). Feeds steer-stuck / steer-gave-up /
+  // steer-dropped and the servo-fault branch of unable-to-steer.
+  steer?: SteerWatchSnapshot;
 }
 
 /** Per-install threshold overrides. Any field left undefined keeps
@@ -214,21 +219,61 @@ export const DEFAULT_RULES: RuleDef[] = [
     severity: "alarm",
     defaultEnabled: true,
     sustainSec: 20,
-    description: `Sustained high error AND servo running at ${(RULE_UNABLE_DUTY_MIN * 100) | 0}%+ duty - the AP is losing authority.`,
+    description: `Sustained high error AND servo running at ${(RULE_UNABLE_DUTY_MIN * 100) | 0}%+ duty (or stopped by an overcurrent fault) - the AP is losing authority.`,
     evaluate: (c) => {
       if (!c.kpis || !c.sample || !c.sample.engaged) return false;
       if (c.maneuverInProgress) return false; // Rev311: silencio en maniobra
       if (c.maneuverPseudoActive) return false; // Rev323: idem pseudo-modo
       const r = c.kpis.window1m.rmsErrorRad;
       const d = c.kpis.window1m.servoDutyPct;
-      return typeof r === "number" && r > RULE_UNABLE_ERR_RAD
-          && typeof d === "number" && d > RULE_UNABLE_DUTY_MIN;
+      if (typeof r !== "number" || r <= RULE_UNABLE_ERR_RAD) return false;
+      // Rev508: servoDuty never arrives from Carlos's TinyPilot, so the
+      // rule could not fire on 2026-10-18. A directional overcurrent
+      // fault (false end stop) with the same error is the same verdict.
+      if (c.steer?.dirFault) return true;
+      return typeof d === "number" && d > RULE_UNABLE_DUTY_MIN;
     },
     message: (c) => {
       const r = c.kpis?.window1m.rmsErrorRad ?? 0;
-      const d = c.kpis?.window1m.servoDutyPct ?? 0;
-      return `AP losing authority: ${(r * 180 / Math.PI).toFixed(0)}° error, servo ${(d * 100).toFixed(0)}% duty`;
+      const d = c.kpis?.window1m.servoDutyPct;
+      if (c.steer?.dirFault && !(typeof d === "number" && d > RULE_UNABLE_DUTY_MIN)) {
+        return `AP losing authority: ${(r * 180 / Math.PI).toFixed(0)}° error, servo stopped by overcurrent`;
+      }
+      return `AP losing authority: ${(r * 180 / Math.PI).toFixed(0)}° error, servo ${((d ?? 0) * 100).toFixed(0)}% duty`;
     },
+  },
+  // Rev508 (Carlos sea trial 2026-10-18): the pilot stopped steering.
+  // Opt-in like every alarm (BASIC vs Performance rule); enabled on the
+  // Tunatunes from Setup > Alarms. Sustain lives in steer-watch.
+  {
+    id: "steer-stuck",
+    label: "Pilot stuck",
+    severity: "alarm",
+    defaultEnabled: false,
+    sustainSec: 0,
+    description: "AP engaged, heading error > 25° and growing, servo not pushing (overcurrent false end stop or 0 A) for 4 s. With recovery enabled the plugin cycles AP off/on.",
+    evaluate: (c) => !!c.steer?.stuck && !c.steer.gaveUp,
+    message: () => "Pilot stuck: servo not pushing, error growing",
+  },
+  {
+    id: "steer-gave-up",
+    label: "Pilot cannot recover",
+    severity: "alarm",
+    defaultEnabled: false,
+    sustainSec: 0,
+    description: "Three recovery cycles in one minute did not get the servo pushing again. Steer by hand.",
+    evaluate: (c) => !!c.steer?.gaveUp,
+    message: () => "Pilot cannot recover: steer by hand",
+  },
+  {
+    id: "steer-dropped",
+    label: "AP disengaged from outside the app",
+    severity: "alarm",
+    defaultEnabled: false,
+    sustainSec: 0,
+    description: "ap.enabled went off with no order from this app (TinyPilot keys, remote, native UI) while underway. Clears on re-engage or after 60 s.",
+    evaluate: (c) => !!c.steer?.droppedActive,
+    message: () => "AP disengaged from outside the app (remote / TinyPilot)",
   },
   {
     id: "servo-overcurrent",

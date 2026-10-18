@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased (Rev506 → Rev508) — the sailor always wins, and the pilot gets unstuck
+
+From the strong-wind sea trial of 2026-10-18 (26 kn TWS, 48° heel).
+Not published yet.
+
+### Added
+- **Stuck pilot recovery** (Smart Pilot card, opt-in). With no rudder
+  sensor, pypilot treats an overcurrent as the end of rudder travel and
+  stops driving that way. If the AP is engaged, the heading error is
+  over 25° and growing and the servo is not pushing for 4 s, the plugin
+  turns the AP off and on (0.7 s, same mode and target), which clears
+  that fault in pypilot. At most 3 tries per minute. An order from the
+  sailor during the cycle wins, and a running virtual tack is kept.
+- **New alarms** (opt-in, Setup > Alarms): `steer-stuck`,
+  `steer-gave-up` ("steer by hand") and `steer-dropped` (AP disengaged
+  from the remote or the TinyPilot keys while underway).
+- **+-1 / +-10 during a virtual tack** move the tack's final heading
+  instead of being rejected.
+- `servo.flags` is watched and saved in every session sample.
+
+### Fixed
+- **Taking the AP off now cancels a virtual tack**, whatever the source
+  (visor, KIP, remote, TinyPilot). Before, the tack kept running and
+  rejected the sailor's own headings until it finished. After a cancel
+  the boat holds its current wind angle.
+- Repeated taps on the tack button within 1.5 s no longer chain
+  start / cancel / start (wind modes).
+- `unable-to-steer` can fire again: it required servo duty, which the
+  TinyPilot never reports. It now also fires on a large error while the
+  servo is stopped by an overcurrent fault.
+- Settings tab: unlocking a group no longer asks about the profile; the
+  question appears only for PROFILE settings. Open or unlocked groups
+  are no longer folded, relocked and reset to old values by the 10 s
+  background refresh.
+
 ## 3.3.0 — 2026-10-19 — Light on the Pi, AIS on the ring, settings shared by every device
 
 Rolls up Rev483 → Rev505 on top of 3.2.0. Minor bump: new shared

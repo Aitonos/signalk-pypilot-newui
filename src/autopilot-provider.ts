@@ -152,6 +152,11 @@ export class AutopilotProvider {
   // in index.ts when the trace is enabled. No-op when undefined so
   // the provider stays cheap in production runs with trace OFF.
   private onStageEvent?: (stage: string, event: Record<string, unknown>) => void;
+  /** Rev508: ap.enabled went false with no order of ours (TinyPilot keys,
+   *  physical remote, native UI). Not called for our recovery cycles. */
+  onExternalDisengage?: () => void;
+  /** Rev508: any engage / disengage order through this provider. */
+  onAppEngageOrder?: () => void;
 
   constructor(
     private client: PypilotClient,
@@ -362,6 +367,10 @@ export class AutopilotProvider {
           // Rev506: AP off from ANY source (pypilot itself, physical
           // remote, native UI, KIP switch, /raw) annuls the virtual tack.
           if (!eng) this._cancelVirtualTackOnDisengage("disengaged externally");
+          // Rev508: steer-dropped alarm (skip our own recovery cycle).
+          if (!eng && Date.now() >= this._recoveryCycleUntil) {
+            try { this.onExternalDisengage?.(); } catch { /* observer only */ }
+          }
         }
         this.onStageEvent?.("provider", {
           path: "ap.enabled",
@@ -442,6 +451,7 @@ export class AutopilotProvider {
     // FSM used to keep driving after a disengage and then rejected the
     // sailor's own targets ("FSM is driving") until it finished.
     if (!eng) this._cancelVirtualTackOnDisengage("disengage order");
+    try { this.onAppEngageOrder?.(); } catch { /* observer only */ }
     // Rev271 (audit R01+R04): bump generation and cancel any NAV
     // pending timer. If this call is superseded before we make it past
     // the retry backoff, the stale isStale() check aborts the retry
@@ -1400,6 +1410,40 @@ export class AutopilotProvider {
   /** Rev506: recovery cycles (steer-recovery) toggle the AP off/on on
    *  purpose; that must NOT annul the tack the cycle is trying to save. */
   private _recoveryCycleUntil = 0;
+
+  /** Rev508 (steer recovery): AP off -> gapMs -> AP on, same mode and
+   *  target (pypilot keeps both). Changing ap.enabled clears pypilot's
+   *  directional overcurrent fault (servo.py), the false end stop that
+   *  left the servo at 0 A on 2026-10-18. A running virtual tack is NOT
+   *  annulled by the cycle. If any other engage/disengage order arrives
+   *  meanwhile, the cycle aborts and does not re-engage. */
+  async recoveryCycle(gapMs = 700): Promise<"done" | "skipped" | "aborted"> {
+    if (!this.data.engaged || !this.client.connected) return "skipped";
+    this._recoveryCycleUntil = Date.now() + gapMs + 3000;
+    try {
+      await this.setState("disabled");
+    } catch {
+      this._recoveryCycleUntil = 0;
+      return "aborted";
+    }
+    const gen = this.engageGen;
+    await new Promise<void>((r) => setTimeout(r, gapMs));
+    if (this.engageGen !== gen) {
+      // The sailor gave an order during the gap: theirs wins. If it was a
+      // disengage, the tack must be annulled as usual.
+      this._recoveryCycleUntil = 0;
+      if (!this.data.engaged) this._cancelVirtualTackOnDisengage("disengage during recovery");
+      return "aborted";
+    }
+    try {
+      await this.setState("enabled");
+    } catch {
+      this._recoveryCycleUntil = 0;
+      this._cancelVirtualTackOnDisengage("recovery re-engage failed");
+      return "aborted";
+    }
+    return "done";
+  }
 
   private _cancelVirtualTackOnDisengage(reason: string): void {
     if (Date.now() < this._recoveryCycleUntil) return;

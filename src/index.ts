@@ -58,6 +58,7 @@ import {
   type CourseData,
 } from "./nav-bearing";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
+import { SteerWatch } from "./steer-watch";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
   ManeuverTraceLog,
@@ -67,7 +68,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev507";
+const PLUGIN_REVISION = "Rev508";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -259,6 +260,9 @@ interface PluginProps {
   // Rev166: auto-disengage safety. When RMS > 30 deg sustained 10 s AND
   // duty > 0.90, cut the AP. Opt-in - defaults OFF until validated at sea.
   autoDisengageOnLostAuthority?: boolean;
+  // Rev508 (Carlos sea trial 2026-10-18): stuck-pilot recovery cycle
+  // (AP off -> on clears pypilot's false end stop). Opt-in.
+  steerRecoveryEnabled?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -355,6 +359,12 @@ module.exports = function (app: any) {
   const AUTHORITY_LOST_COOLDOWN_MS  = 60_000;   // after auto-disengage, block re-arm 60 s
   let _authorityLostSinceMs: number | null = null;
   let _authorityLastAutoDisengageTs: number | null = null;
+  // Rev508: stuck-pilot watch + recovery cycle bookkeeping.
+  let steerWatch = new SteerWatch();
+  let _steerRecoveryInFlight = false;
+  let _steerRecoveryTotal = 0;
+  let _steerRecoveryLastTs: number | null = null;
+  let _steerRecoveryLastResult: string | null = null;
   // Rev176 (Carlos): debounce the raw `engaged` flag so a rebound
   // caused by a competing client (pypilot_web on another device, a KIP
   // widget cycling, socket races) does not open+close a JSONL every 5 s.
@@ -799,6 +809,22 @@ module.exports = function (app: any) {
               try { maneuverTrace?.logStageEvent(stage, ev); } catch { /* silent */ }
             },
           });
+          // Rev508: steer-dropped alarm inputs. An app order (visor, KIP,
+          // SK PUT) clears it; an AP off from outside the app (TinyPilot
+          // keys, remote, native UI) while underway raises it.
+          apProvider.onAppEngageOrder = () => { steerWatch.noteAppOrder(); };
+          apProvider.onExternalDisengage = () => {
+            // Our own authority-lost cut writes straight to pypilot.
+            if (_authorityLastAutoDisengageTs && Date.now() - _authorityLastAutoDisengageTs < 5000) return;
+            const sog = (() => {
+              try {
+                const v = app.getSelfPath("navigation.speedOverGround.value");
+                return typeof v === "number" && isFinite(v) ? v : null;
+              } catch { return null; }
+            })();
+            steerWatch.noteExternalDisengage(Date.now(), sog);
+            app.debug?.(`[steer-watch] AP disengaged from outside the app (sog=${sog})`);
+          };
           app.registerAutopilotProvider(
             apProvider.toProviderInterface(),
             apProvider.pilotIds
@@ -891,6 +917,7 @@ module.exports = function (app: any) {
       // Health. Rules that fire publish canonical SK notifications and
       // land in /alarms/state for the visor banner.
       alarms = new AlarmEngine();
+      steerWatch = new SteerWatch();
       // Rev292 (Carlos, navigating): apply the user's chosen pypilot-
       // disconnect sustain window on start-up, in case pluginOptions
       // already carries a value.
@@ -1040,6 +1067,8 @@ module.exports = function (app: any) {
         // Rev164/165/166: supervisor layer. Each helper is cheap and
         // returns immediately when its feature is disabled.
         try { _supervisorTick(s); } catch (e: any) { app.debug?.(`[supervisor] tick: ${e?.message || e}`); }
+        // Rev508: stuck-pilot watch (feeds the steer-* alarms below).
+        try { _steerWatchTick(s); } catch (e: any) { app.debug?.(`[steer-watch] tick: ${e?.message || e}`); }
         // Rev100: run the alarm engine last so it has every input up to
         // date. Changed rules trigger SK notification deltas.
         try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
@@ -2388,6 +2417,14 @@ module.exports = function (app: any) {
             currentlyLostSinceSec: _authorityLostSinceMs ? Math.floor((Date.now() - _authorityLostSinceMs) / 1000) : null,
             lastAutoDisengageTs: _authorityLastAutoDisengageTs,
           },
+          // Rev508: stuck-pilot watch + recovery.
+          steerRecovery: {
+            enabled: !!props.steerRecoveryEnabled,
+            ...steerWatch.snapshot(),
+            totalCycles: _steerRecoveryTotal,
+            lastCycleTs: _steerRecoveryLastTs,
+            lastResult: _steerRecoveryLastResult,
+          },
           // Rev167: gust strategy runtime state.
           gust: {
             strategy: props.gustStrategy ?? "off",
@@ -2417,6 +2454,7 @@ module.exports = function (app: any) {
           autoProfileHeavy:  props.autoProfileHeavy  || "",
           gustStrategy: props.gustStrategy ?? "off",
           autoDisengageOnLostAuthority: !!props.autoDisengageOnLostAuthority,
+          steerRecoveryEnabled: !!props.steerRecoveryEnabled,
           rollFfGain: props.rollFfGain ?? 0,
           rollFfTauSec: props.rollFfTauSec ?? 3,
           rollFfTwaGateDeg: props.rollFfTwaGateDeg ?? 90,
@@ -2456,6 +2494,9 @@ module.exports = function (app: any) {
         }
         if (typeof b.autoDisengageOnLostAuthority === "boolean") {
           patch.autoDisengageOnLostAuthority = b.autoDisengageOnLostAuthority;
+        }
+        if (typeof b.steerRecoveryEnabled === "boolean") {
+          patch.steerRecoveryEnabled = b.steerRecoveryEnabled;
         }
         // Rev282: Roll FF live-tunable knobs. Clamped in normalizeProps
         // on plugin restart; also clamped here to keep an out-of-range
@@ -3576,6 +3617,7 @@ module.exports = function (app: any) {
       gustStrategy: (["off","warn","freeze-target","boost-D","temp-heavy"] as const)
         .includes(options.gustStrategy as any) ? options.gustStrategy : "off",
       autoDisengageOnLostAuthority: options.autoDisengageOnLostAuthority === true,
+      steerRecoveryEnabled: options.steerRecoveryEnabled === true,
       rollFfGain: clampNumber(options.rollFfGain, 0, 2, 0),
       rollFfTauSec: clampNumber(options.rollFfTauSec, 0.5, 30, 3),
       rollFfTwaGateDeg: clampNumber(options.rollFfTwaGateDeg, 30, 179, 90),
@@ -3969,17 +4011,7 @@ module.exports = function (app: any) {
       // `true wind` mode it's the true-wind-angle setpoint compared
       // with TWA. Storing the wrong error made every wind-mode session
       // look catastrophic on the offline analyser.
-      const modeStr = String(s.mode || "").toLowerCase();
-      let hdgErr: number | null = null;
-      if (typeof s.headingCmd === "number") {
-        if (modeStr.includes("true") && modeStr.includes("wind")) {
-          if (typeof twaRad === "number") hdgErr = _wrapPi(s.headingCmd - twaRad);
-        } else if (modeStr.includes("wind")) {
-          if (typeof s.awa === "number") hdgErr = _wrapPi(s.headingCmd - s.awa);
-        } else if (typeof s.headingActual === "number") {
-          hdgErr = _wrapPi(s.headingCmd - s.headingActual);
-        }
-      }
+      const hdgErr = _modeAwareErrRad(s, twaRad);
       const sample: SessionSample = {
         ts: s.ts,
         hdgCmd: s.headingCmd,
@@ -3991,6 +4023,7 @@ module.exports = function (app: any) {
         servoCur: s.servoCurrent,
         servoDuty: null,
         servoVolt: s.servoVoltage,
+        servoFlags: typeof pv["servo.flags"] === "string" ? pv["servo.flags"] as string : null,
         engaged: engagedNow,
         mode: s.mode,
         tws: s.tws,
@@ -4004,6 +4037,59 @@ module.exports = function (app: any) {
       };
       sessionRecorder.sample(sample);
     }
+  }
+  function _readTwaRad(): number | null {
+    try {
+      const v = app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null;
+      return typeof v === "number" && isFinite(v) ? v : null;
+    } catch { return null; }
+  }
+  // Rev176 (Carlos): hdgErr depends on the AP mode. In compass/gps/nav
+  // the target and the actual are both boat headings; in `wind` mode
+  // heading_command is the AWA setpoint compared with AWA; in `true
+  // wind` mode the TWA setpoint compared with TWA. Rev508: shared by the
+  // session recorder and steer-watch.
+  function _modeAwareErrRad(s: Sample, twaRad: number | null): number | null {
+    if (typeof s.headingCmd !== "number") return null;
+    const modeStr = String(s.mode || "").toLowerCase();
+    if (modeStr.includes("true") && modeStr.includes("wind")) {
+      return typeof twaRad === "number" ? _wrapPi(s.headingCmd - twaRad) : null;
+    }
+    if (modeStr.includes("wind")) {
+      return typeof s.awa === "number" ? _wrapPi(s.headingCmd - s.awa) : null;
+    }
+    return typeof s.headingActual === "number" ? _wrapPi(s.headingCmd - s.headingActual) : null;
+  }
+  // Rev508 (Carlos sea trial 2026-10-18): stuck pilot -> recovery cycle.
+  // See src/steer-watch.ts and docs/_audit_sea_trial_2026-10-18.md s.9.
+  function _steerWatchTick(s: Sample): void {
+    const pv = (client && client.connected) ? client.getValues() : {};
+    const errRad = _modeAwareErrRad(s, _readTwaRad());
+    const action = steerWatch.tick({
+      nowMs: Date.now(),
+      engaged: !!s.engaged,
+      errDeg: errRad == null ? null : errRad * 180 / Math.PI,
+      servoCurrentA: s.servoCurrent,
+      servoFlags: typeof pv["servo.flags"] === "string" ? pv["servo.flags"] as string : null,
+      nativeTack: !!(_tackStatePrev && _tackStatePrev !== "none"),
+      recoveryEnabled: !!props.steerRecoveryEnabled && !!props.allowWrites && !!apProvider,
+    });
+    if (action !== "cycle" || !apProvider || _steerRecoveryInFlight) return;
+    _steerRecoveryInFlight = true;
+    _steerRecoveryTotal += 1;
+    _steerRecoveryLastTs = Date.now();
+    const errTxt = errRad == null ? "?" : (errRad * 180 / Math.PI).toFixed(0);
+    app.debug?.(`[steer-watch] pilot stuck (err=${errTxt}deg, servo=${s.servoCurrent}A, flags=${pv["servo.flags"]}) -> recovery cycle #${_steerRecoveryTotal}`);
+    // eslint-disable-next-line no-console
+    console.log(`[steer-watch] recovery cycle #${_steerRecoveryTotal}: err=${errTxt}deg servo=${s.servoCurrent}A flags=${pv["servo.flags"]}`);
+    apProvider.recoveryCycle()
+      .then((r) => {
+        _steerRecoveryLastResult = r;
+        // eslint-disable-next-line no-console
+        console.log(`[steer-watch] recovery cycle #${_steerRecoveryTotal} -> ${r}`);
+      })
+      .catch((e: any) => { _steerRecoveryLastResult = `error: ${e?.message || e}`; })
+      .finally(() => { _steerRecoveryInFlight = false; });
   }
   // Rev164/165/166: supervisor layer. Runs on every historian tick.
   // Three independent responsibilities:
@@ -4500,6 +4586,8 @@ module.exports = function (app: any) {
       maneuverInProgress: !!(_tackStatePrev && _tackStatePrev !== "none"),
       // Rev323 (Carlos, 2026-09-27): flag pseudo-modo del visor.
       maneuverPseudoActive: _maneuverPseudoActive,
+      // Rev508: stuck pilot / recovery / external disengage.
+      steer: steerWatch.snapshot(),
     };
     const changed = alarms.tick(ctx);
     // Rev283: feed the servo error log AFTER the tick so its snapshot
@@ -4951,6 +5039,9 @@ module.exports = function (app: any) {
       name === "servo.amp_hours"
     ) return WATCH_MED;
     if (name === "imu.warning" || name === "imu.error") return WATCH_MED;
+    // Rev508: false end stop evidence for steer-watch + session log.
+    if (name === "servo.flags") return WATCH_MED;
+    if (name === "servo.faults") return WATCH_LOW;
     // Rev155 (Carlos): pypilot exposes its own hardware ceilings as
     // RangeSettings (servo.max_current, .max_motor_temp,
     // .max_controller_temp). Watching them at 10 s gives the Doctor +

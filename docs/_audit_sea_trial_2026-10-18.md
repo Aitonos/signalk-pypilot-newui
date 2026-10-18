@@ -185,3 +185,65 @@ E. Servo: grabar `servo.flags` en las sesiones; alarma de corte por
 F. Investigar el delta -278°.
 G. Mostrar en todas las pantallas el modo de la maniobra mientras dura
    (p.ej. "VIRANDO → VIENTO") en vez de compás/viento a secas.
+
+## 9. Implementado (Rev506-Rev508)
+
+### Rev506 — el patrón siempre manda en la virada
+- AP off (visor, KIP, mando, TinyPilot) anula la virada virtual; el barco
+  queda donde está (objetivo = ángulo actual al viento).
+- ±1/±10 durante la virada mueven el destino final (re-apunta los pasos
+  que quedan y el objetivo de viento final). Límite ±60°.
+- Botón de virada: ignora toques repetidos < 1.5 s (en modo viento).
+- Backend publica `remainingDeg` en cada tick (falta mostrarlo en visor).
+
+### Rev507 — Ajustes
+- El candado del grupo ya no pregunta perfil; la pregunta sale al tocar
+  el primer ajuste PERFIL (una vez por desbloqueo). GLOBAL nunca pregunta.
+- El refresco de fondo de 10 s ya no reconstruye los grupos (se cerraban,
+  se bloqueaban y pintaban el valor viejo).
+
+### Rev508 — piloto pillado: detección, recuperación y alarmas
+
+**Lo que dice el código de pypilot** (`/usr/local/lib/python3.11/dist-packages/pypilot/servo.py`):
+- Sin sensor de timón, al saltar la sobrecorriente pypilot pone
+  `PORT_OVERCURRENT_FAULT` o `STARBOARD_OVERCURRENT_FAULT` (según el
+  sentido en que iba) y fija la posición estimada al tope de ese lado.
+  Desde ese momento **se niega a empujar en ese sentido** ("fin de
+  carrera" falso). Es exactamente el servo a 0 A con 60° de error.
+- Ese fallo direccional **solo se borra** al moverse lo bastante al otro
+  lado o **cuando cambia `ap.enabled`** (`servo.poll`, "if ap_enabled !=
+  last_ap_enabled: clearbit(...)"). Un ciclo AP off/on lo limpia.
+- Al reacoplar pypilot conserva modo y `heading_command` (solo reinicia
+  el integral). No hace falta reescribir el objetivo.
+- **El núcleo de pypilot nunca se desacopla solo.** `ap.enabled=false`
+  sin orden nuestra viene de otro cliente: botonera/mando de la
+  TinyPilot (tecla AUTO alterna), UI nativa. 18:15 y 18:20 fueron eso
+  (pulsación o tecla espuria con mar). No se puede distinguir una
+  pulsación intencionada de una espuria → alarma, nunca re-acople
+  automático.
+
+**Detección "pillado"** (`src/steer-watch.ts`, puro, con tests):
+acoplado ≥ 5 s, |error| > 25° (error según modo: compás/viento
+aparente/real), el error **no converge** (no ha bajado ≥ 3° en 4 s) y el
+servo **no empuja** (fallo direccional en `servo.flags` o corriente
+< 0.3 A), todo sostenido 4 s. El "no converge" evita confundirlo con
+timón a tope de verdad en una virada (el barco gira y el error baja).
+
+**Recuperación** (opción `steerRecoveryEnabled`, por defecto OFF según
+la regla de alarmas/automatismos opt-in; activada en el Tunatunes):
+ciclo AP off → 0.7 s → AP on, mismo modo. Máx. 3 ciclos por 60 s y
+≥ 10 s entre ciclos. Si el patrón da cualquier orden de acople durante
+el ciclo, se aborta y no se reacopla. La virada en curso NO se anula por
+el ciclo. Sin efecto durante una virada nativa de pypilot.
+
+**Alarmas nuevas** (reglas del motor de alarmas, banner + voz en todas
+las pantallas, opt-in):
+- `steer-stuck` — servo sin empujar con error creciendo.
+- `steer-gave-up` — 3 ciclos sin éxito: gobierna a mano.
+- `steer-dropped` — desacoplado desde fuera de la app (mando/TinyPilot)
+  navegando (SOG > 1 kn). Se apaga al reacoplar o a los 60 s.
+- `unable-to-steer` arreglada: `servoDuty` nunca llega en esta TinyPilot;
+  ahora también salta con error RMS > 30° y servo con fallo direccional.
+
+**Registro**: `servo.flags` vigilado a 1 Hz y `servo.faults` a 0.1 Hz;
+`servoFlags` se graba en cada muestra de sesión.

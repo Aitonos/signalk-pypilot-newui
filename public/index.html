@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev507" />
+  <link rel="stylesheet" href="style.css?v=Rev508" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1581,6 +1581,17 @@
           <div id="smart-auto-dis-status" class="hint" style="font-family:ui-monospace,monospace"></div>
         </div>
 
+        <!-- Rev508: stuck pilot recovery (AP off/on clears pypilot's false end stop). -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="smart.steerRec.title">Stuck pilot recovery</div>
+          <div class="hint" data-i18n="smart.steerRec.hint">If the AP is engaged, the error is over 25° and growing and the servo is not pushing for 4 s, the plugin turns the AP off and on to clear the fault.</div>
+          <label class="smart-toggle-row">
+            <input type="checkbox" id="smart-steer-recovery-enabled" />
+            <span data-i18n="smart.steerRec.enable">Enable automatic recovery</span>
+          </label>
+          <div id="smart-steer-rec-status" class="hint" style="font-family:ui-monospace,monospace"></div>
+        </div>
+
         <!-- Subsection 4: sensor helpers (Rev300, unified in Rev304). -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="smart.helpers.title">Sensor helpers</div>
@@ -2640,6 +2651,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev507"></script>
+  <script src="app.js?v=Rev508"></script>
 </body>
 </html>

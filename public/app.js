@@ -306,6 +306,13 @@
       "alarm.rule.cruise-drift.msg":           "Boat drifting {deg}° to {side} of target",
       "alarm.rule.unable-to-steer.label":      "Unable to steer",
       "alarm.rule.unable-to-steer.msg":        "AP losing authority: {deg}° error, servo at {duty}% duty",
+      "alarm.rule.unable-to-steer.msgFault":   "AP losing authority: {deg}° error, servo stopped by overcurrent",
+      "alarm.rule.steer-stuck.label":          "Pilot stuck",
+      "alarm.rule.steer-stuck.msg":            "Pilot stuck: servo not pushing and the error keeps growing",
+      "alarm.rule.steer-gave-up.label":        "Pilot cannot recover",
+      "alarm.rule.steer-gave-up.msg":          "The pilot cannot recover. Steer by hand",
+      "alarm.rule.steer-dropped.label":        "AP disengaged",
+      "alarm.rule.steer-dropped.msg":          "Autopilot disengaged from the remote or the TinyPilot",
       "alarm.rule.servo-overcurrent.label":    "Servo overcurrent",
       "alarm.rule.servo-overcurrent.msg":      "Servo overcurrent {amp} A",
       "alarm.rule.servo-temp-high.label":      "Servo controller temperature high",
@@ -369,6 +376,9 @@
       "smart.autoDis.title":       "Emergency: auto-disengage on lost authority",
       "smart.autoDis.hint":        "If RMS heading error > 30° AND servo duty > 90% sustained 10 s, the plugin disengages the AP and fires an emergency notification. Re-engage is manual.",
       "smart.autoDis.enable":      "Enable auto-disengage",
+      "smart.steerRec.title":      "Stuck pilot recovery",
+      "smart.steerRec.hint":       "With no rudder sensor, pypilot treats an overcurrent as the end of travel and stops pushing that way. If the AP is engaged, the error is over 25° and growing and the servo is not pushing for 4 s, the plugin turns the AP off and on (0.7 s, same mode and target). That clears the fault. At most 3 tries per minute, then the 'steer by hand' alarm. The alarms are enabled in Setup > Alarms.",
+      "smart.steerRec.enable":     "Enable automatic recovery",
       "smart.save":                "Save Smart Pilot settings",
       "smart.saving":              "saving...",
       "smart.saved":               "saved",
@@ -1230,6 +1240,13 @@
       "alarm.rule.cruise-drift.msg":           "El barco corre {deg}° a {side} del rumbo objetivo",
       "alarm.rule.unable-to-steer.label":      "Piloto sin autoridad",
       "alarm.rule.unable-to-steer.msg":        "El piloto pierde autoridad: {deg}° de error, servo al {duty}%",
+      "alarm.rule.unable-to-steer.msgFault":   "El piloto pierde autoridad: {deg}° de error, servo parado por sobrecorriente",
+      "alarm.rule.steer-stuck.label":          "Piloto pillado",
+      "alarm.rule.steer-stuck.msg":            "Piloto pillado: el servo no empuja y el error crece",
+      "alarm.rule.steer-gave-up.label":        "Piloto sin recuperación",
+      "alarm.rule.steer-gave-up.msg":          "El piloto no se recupera. Gobierna a mano",
+      "alarm.rule.steer-dropped.label":        "Piloto desacoplado",
+      "alarm.rule.steer-dropped.msg":          "Piloto desacoplado desde el mando o la TinyPilot",
       "alarm.rule.servo-overcurrent.label":    "Sobrecorriente servo",
       "alarm.rule.servo-overcurrent.msg":      "Sobrecorriente en el servo: {amp} A",
       "alarm.rule.servo-temp-high.label":      "Temperatura controladora servo alta",
@@ -1292,6 +1309,9 @@
       "smart.autoDis.title":       "Emergencia: desenganchar si pierde autoridad",
       "smart.autoDis.hint":        "Si el error RMS supera 30° Y el servo trabaja al >90% durante 10 s, el plugin desengancha el AP y dispara notificacion de emergencia. Reenganchar es accion manual.",
       "smart.autoDis.enable":      "Activar auto-desenganche",
+      "smart.steerRec.title":      "Recuperación del piloto pillado",
+      "smart.steerRec.hint":       "Sin sensor de timón, pypilot toma una sobrecorriente como fin de carrera y deja de empujar hacia ese lado. Si el piloto está acoplado, el error pasa de 25° y crece, y el servo no empuja durante 4 s, el plugin quita y pone el AP (0,7 s, mismo modo y rumbo). Eso borra el fallo. Máximo 3 intentos por minuto; después, alarma 'gobierna a mano'. Las alarmas se activan en Setup > Alarmas.",
+      "smart.steerRec.enable":     "Activar recuperación automática",
       "smart.save":                "Guardar ajustes del Piloto Inteligente",
       "smart.saving":              "guardando...",
       "smart.saved":               "guardado",
@@ -2053,6 +2073,13 @@
       "alarm.rule.heading-deviation.msg":      "AP-Kursfehler {deg}° anhaltend",
       "alarm.rule.unable-to-steer.label":      "AP verliert Steuerung",
       "alarm.rule.unable-to-steer.msg":        "AP verliert Autoritaet: {deg}° Fehler, Servo {duty}%",
+      "alarm.rule.unable-to-steer.msgFault":   "AP verliert Autoritaet: {deg}° Fehler, Servo durch Ueberstrom gestoppt",
+      "alarm.rule.steer-stuck.label":          "Pilot blockiert",
+      "alarm.rule.steer-stuck.msg":            "Pilot blockiert: Servo drueckt nicht, Fehler waechst",
+      "alarm.rule.steer-gave-up.label":        "Pilot erholt sich nicht",
+      "alarm.rule.steer-gave-up.msg":          "Der Pilot erholt sich nicht. Von Hand steuern",
+      "alarm.rule.steer-dropped.label":        "AP ausgekuppelt",
+      "alarm.rule.steer-dropped.msg":          "Autopilot ueber Fernbedienung oder TinyPilot ausgekuppelt",
       "alarm.rule.servo-overcurrent.label":    "Servo-Ueberstrom",
       "alarm.rule.servo-overcurrent.msg":      "Servo-Ueberstrom {amp} A",
       "alarm.rule.servo-temp-high.label":      "Servo-Temperatur hoch",
@@ -2245,6 +2272,13 @@
       "alarm.rule.heading-deviation.msg":      "Erreur de cap AP {deg}° soutenue",
       "alarm.rule.unable-to-steer.label":      "AP en perte d'autorite",
       "alarm.rule.unable-to-steer.msg":        "AP en perte d'autorite: {deg}° d'erreur, servo a {duty}%",
+      "alarm.rule.unable-to-steer.msgFault":   "AP en perte d'autorite: {deg}° d'erreur, servo arrete par surintensite",
+      "alarm.rule.steer-stuck.label":          "Pilote bloque",
+      "alarm.rule.steer-stuck.msg":            "Pilote bloque : le servo ne pousse plus et l'erreur augmente",
+      "alarm.rule.steer-gave-up.label":        "Pilote sans recuperation",
+      "alarm.rule.steer-gave-up.msg":          "Le pilote ne recupere pas. Barrez a la main",
+      "alarm.rule.steer-dropped.label":        "AP debraye",
+      "alarm.rule.steer-dropped.msg":          "Pilote debraye depuis la telecommande ou le TinyPilot",
       "alarm.rule.servo-overcurrent.label":    "Surintensite servo",
       "alarm.rule.servo-overcurrent.msg":      "Surintensite servo {amp} A",
       "alarm.rule.servo-temp-high.label":      "Temperature servo elevee",
@@ -12137,6 +12171,8 @@
       const ss  = document.getElementById("smart-gust-strategy");
       if (cb1) cb1.checked = !!j.autoProfileEnabled;
       if (cb2) cb2.checked = !!j.autoDisengageOnLostAuthority;
+      const cb3 = document.getElementById("smart-steer-recovery-enabled");
+      if (cb3) cb3.checked = !!j.steerRecoveryEnabled;
       if (ss)  ss.value    = j.gustStrategy || "warn";
       _smartFillProfiles(document.getElementById("smart-auto-profile-light"),  j.autoProfileLight);
       _smartFillProfiles(document.getElementById("smart-auto-profile-medium"), j.autoProfileMedium);
@@ -12186,6 +12222,19 @@
         if (ge.lastAlertTs)   bits.push(`last gust: ${new Date(ge.lastAlertTs).toLocaleTimeString()}`);
         el2.textContent = bits.join("  ·  ");
       }
+      // Rev508: stuck pilot recovery status line.
+      const sr = j.steerRecovery || {};
+      const el4 = document.getElementById("smart-steer-rec-status");
+      if (el4) {
+        const bits = [];
+        bits.push(sr.enabled ? (t("smart.st.armed") || "armed") : (t("smart.st.disabled") || "disabled"));
+        if (sr.stuck) bits.push("STUCK");
+        if (sr.gaveUp) bits.push("GAVE UP");
+        if (sr.dirFault) bits.push("servo fault (false end stop)");
+        if (sr.totalCycles) bits.push(`cycles: ${sr.totalCycles}`);
+        if (sr.lastCycleTs) bits.push(`last: ${new Date(sr.lastCycleTs).toLocaleTimeString()} ${sr.lastResult || ""}`.trim());
+        el4.textContent = bits.join("  ·  ");
+      }
       const el3 = document.getElementById("smart-auto-dis-status");
       if (el3) {
         if (!ad.enabled) el3.textContent = t("smart.st.disabled") || "disabled";
@@ -12226,6 +12275,7 @@
       autoProfileHeavy:   document.getElementById("smart-auto-profile-heavy")?.value || "",
       gustStrategy:       document.getElementById("smart-gust-strategy")?.value || "warn",
       autoDisengageOnLostAuthority: !!document.getElementById("smart-auto-disengage-enabled")?.checked,
+      steerRecoveryEnabled: !!document.getElementById("smart-steer-recovery-enabled")?.checked,
       // Rev300: helpers section shares the same POST endpoint.
       leewayAdjustment:   Number(_smartHelpersState.leewayAdjustment) || 0,
       failSafeBspKn:      Number(_smartHelpersState.failSafeBspKn)    || 0,
@@ -16609,6 +16659,9 @@
     } else if (id === "unable-to-steer") {
       const r = /: ([\d.]+)° error, servo ([\d.]+)%/.exec(msg);
       if (r) { out.deg = r[1]; out.duty = r[2]; }
+      // Rev508: "servo stopped by overcurrent" variant (no duty).
+      const f = /: ([\d.]+)° error, servo stopped by overcurrent/.exec(msg);
+      if (f) { out.deg = f[1]; out.__variant = "msgFault"; }
     } else if (id === "servo-overcurrent") {
       const r = /([\d.]+) A/.exec(msg);
       if (r) out.amp = r[1];
@@ -16637,12 +16690,16 @@
     const labelKey = `alarm.rule.${a.ruleId}.label`;
     const labelT = t(labelKey);
     const label = (labelT === labelKey) ? a.label : labelT;
-    const msgKey = `alarm.rule.${a.ruleId}.msg`;
+    const args = _alExtractArgs(a.ruleId, a.message || "");
+    // Rev508: a rule may pick an alternate message key (msgFault).
+    const msgKey = `alarm.rule.${a.ruleId}.${args.__variant || "msg"}`;
+    delete args.__variant;
     const msgT = t(msgKey);
     if (msgT === msgKey) return { label, message: a.message };
-    const args = _alExtractArgs(a.ruleId, a.message || "");
     let msg = msgT;
     for (const [k, v] of Object.entries(args)) msg = msg.replaceAll(`{${k}}`, v);
+    // Unparsed placeholders: the backend text is better than "{deg}".
+    if (/\{[a-z]+\}/.test(msg)) return { label, message: a.message };
     return { label, message: msg };
   }
   function _alRenderBanner() {
