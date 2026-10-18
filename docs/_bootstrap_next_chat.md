@@ -4,8 +4,18 @@
 
 ## Qué pasa en este repo ahora mismo
 
-- **Publicado en NPM**: `3.3.0` (Rev505), 2026-10-18, tag `v3.3.0`.
+- **Publicado en NPM**: `3.4.0` (Rev508), 2026-10-18, tag `v3.4.0`.
   Desplegado en el Pi5.
+- **3.4.0 trae** (Rev506 → Rev508, salida de viento fuerte 2026-10-18,
+  `docs/_audit_sea_trial_2026-10-18.md` s.9): AP off anula la virada
+  virtual; ±1/±10 durante la virada mueven el destino; recuperación del
+  piloto pillado (`src/steer-watch.ts`, ciclo AP off/on que borra el
+  fin de carrera falso de pypilot); alarmas steer-stuck / steer-gave-up /
+  steer-dropped; Ajustes sin pregunta de perfil en GLOBAL y sin borrado
+  por el refresco de 10 s. En el Tunatunes están activadas las 3 alarmas
+  y la recuperación (backup config `.bak-rev508`).
+- **QA en agua pendiente 3.4.0**: recuperación con servo a 0 A, alarma
+  steer-dropped navegando, ±10 durante virada, AP off durante virada.
 - **3.3.0 trae** (Rev483 → Rev503): ajustes del visor compartidos en
   backend (`src/visor-prefs.ts`, `/visor-prefs`: modo AIS, voz, puerto
   automático, racha fantasma, silenciados por MMSI); modo ligero en la

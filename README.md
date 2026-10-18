@@ -147,7 +147,12 @@ up automatically.
     for 20 s, temporarily switch to the Heavy profile for 30 s, or
     just warn.
 17. **Auto-disengage on lost authority** — RMS heading error > 30°
-    with servo duty > 90% sustained 10 s.
+    with servo duty > 90% sustained 10 s. **Stuck pilot recovery**
+    (opt-in): with no rudder sensor, pypilot treats an overcurrent as
+    the end of rudder travel and stops driving that way; when the error
+    keeps growing and the servo is not pushing, the plugin turns the AP
+    off and on (same mode and target) to clear it, at most 3 times per
+    minute.
 18. **Pre-departure Autopilot Check** — a single READY / CAVEATS /
     DO-NOT-ENGAGE verdict aggregating every sensor, servo, voltage
     and link signal.
@@ -156,8 +161,9 @@ up automatically.
 20. **Servo Health** — learns a baseline for typical servo duty at
     sea and flags recent, peak, temperature or voltage deviations
     from that baseline.
-21. **Alarm engine — 14 rules** — heading deviation, cruise drift,
-    unable-to-steer, servo overcurrent, servo current near trip,
+21. **Alarm engine — 17 rules** — heading deviation, cruise drift,
+    unable-to-steer, pilot stuck, pilot cannot recover, AP disengaged
+    from the remote / TinyPilot, servo overcurrent, servo current near trip,
     rudder near its end stop, servo controller temperature, motor
     temperature, high AP load, low voltage, sensor lost, pypilot
     disconnected, extreme heel, extreme pitch — all published as

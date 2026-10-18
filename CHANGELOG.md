@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased (Rev506 → Rev508) — the sailor always wins, and the pilot gets unstuck
+## 3.4.0 — 2026-10-18 — The sailor always wins, and the pilot gets unstuck
 
-From the strong-wind sea trial of 2026-10-18 (26 kn TWS, 48° heel).
-Not published yet.
+Rolls up Rev506 → Rev508 on top of 3.3.0, from the strong-wind sea
+trial of 2026-10-18 (26 kn TWS, 48° heel). Minor bump: new opt-in
+recovery and alarms. No breaking changes; everything new is off until
+enabled.
 
 ### Added
 - **Stuck pilot recovery** (Smart Pilot card, opt-in). With no rudder
