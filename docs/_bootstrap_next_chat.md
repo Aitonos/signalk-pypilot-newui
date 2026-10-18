@@ -4,28 +4,35 @@
 
 ## Qué pasa en este repo ahora mismo
 
-- **Versión publicada en NPM**: `3.2.0` (Rev482). Desplegada en el Pi5.
-- **signalk-mareas-ihm** publicado a la vez: `2.13.0` (Rev888), nombres AIS
-  rellenados en el árbol SK para todas las apps.
-- Working tree limpio.
-- **3.2.0 trae**: rosa AIS rehecha sobre posiciones reales (causa raíz: la
-  URN codificada daba 404 en REST, Rev474), escala log + etiqueta de
-  distancia, nombre SK en la ficha, botón de mareas sobre la esquina
-  inferior derecha + popup con curva, visor de fondeo de Mareas embebido
-  en la rosa, Freeboard precargado de fondo (ficha propia con
-  interruptor por dispositivo).
-- Docs vivos: `docs/_audit_ais_rose_targets_rev470.md`,
-  `docs/_feature_mareas_ihm_integration.md`.
+- **Publicado en NPM**: `3.2.0` (Rev482). **Desplegado en el Pi5: Rev503**,
+  pendiente de publicar como **3.3.0** (CHANGELOG ya escrito).
+- **3.3.0 trae** (Rev483 → Rev503): ajustes del visor compartidos en
+  backend (`src/visor-prefs.ts`, `/visor-prefs`: modo AIS, voz, puerto
+  automático, racha fantasma, silenciados por MMSI); modo ligero en la
+  pantalla de la Pi (`body.pi-browser`) + write-if-changed en el render;
+  arreglo Firefox Pi (`src/firefox-fix.ts`, botón "Aplicar ahora" en
+  Info); blancos AIS sobre el anillo; barcos amarrados con SOG efectiva
+  0 (nav status o posición quieta 2 min / 30 m); velocidad de
+  acercamiento corregida; banner de alarmas del piloto por encima de
+  todo; curva de marea interactiva.
+- Docs vivos de este ciclo: `docs/_audit_pi5_gpu_slow_2026-10-15.md`,
+  `docs/_audit_per_device_prefs_2026-10-17.md`,
+  `docs/_audit_npm_readme_3.2.0_2026-10-18.md`.
+- `deploy.ps1` lee el host de `deploy.local.ps1` (gitignored).
 
 ## Pendiente inmediato
 
-- **QA en agua 3.2.0**: barco AIS en movimiento real → casco donde está,
-  línea en su rumbo; barcos amarrados sin línea ni alarma.
-- **POLARYS amarrado reporta 1,6 kn** (ruido GPS > umbral 0,5 kn). Si se
-  repite con más barcos: subir umbral o usar `navigation.state` "moored".
+- **Publicar 3.3.0**: faltan capturas `public/screenshots/05-chart-history.jpg`
+  y `06-tack-history.jpg` (Carlos), borrar las viejas `05-race-timer.jpg`
+  / `06-info.jpg` (llevan IP), bump `package.json` 3.3.0 con OK explícito.
+- **QA en barco Rev499**: tablet + móvil + portátil a la vez (modo AIS,
+  silenciar un blanco, racha fantasma) — deben coincidir en ~5 s.
+- **QA en barco Rev503**: barcos amarrados sin estela ni alarma; uno que
+  se mueve de verdad sigue con estela.
+- **Registro RSS de SK** en `/home/pi/sk-rss.log` hasta 2026-10-20 01:35
+  (tras eso, leer tendencia y borrar `/home/pi/sk-rss-log.sh`).
 - **Pulsación larga en la rosa → selector de webapps SK**
   (`/skServer/webapps`), diseño en `_feature_mareas_ihm_integration.md`.
-- **Botón de las 9** reservado, sin uso decidido.
 - Issue #5 iOS: seguimos esperando a @eric-fitzsimon.
 
 ## Infra operativa
