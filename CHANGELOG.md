@@ -1,5 +1,67 @@
 # Changelog
 
+## 3.3.0 — 2026-10-19 — Light on the Pi, AIS on the ring, settings shared by every device
+
+Rolls up Rev483 → Rev503 on top of 3.2.0. Minor bump: new shared
+visor settings in the backend, Raspberry Pi performance work, AIS rose
+fixes from port and sea QA in Moaña, tide popup polish. No breaking
+changes; the first visor that connects uploads its old per-device
+settings, so nothing is lost.
+
+### Added
+
+- **Settings shared by every device.** AIS mode (harbour / at anchor /
+  sailing), AIS voice, harbour auto-silencer, gust ghost and the list
+  of silenced AIS targets now live in the plugin (`/visor-prefs`), not
+  in each browser. Silencing a target on the tablet silences it on the
+  phone and the laptop too; the harbour auto-silencer is decided once,
+  from the boat's SOG, instead of separately by each screen. (Rev498,
+  Rev499)
+- **Light mode on the Raspberry Pi's own screen.** The visor detects
+  the Pi's browser and drops animations, blur and glow, and only
+  touches the page when a value really changes (291 → ~9 DOM writes
+  per second). Pi GPU with the visor open: Chromium 15 % → 3 %.
+  (Rev490 → Rev492)
+- **Firefox on the Pi: one-tap fix.** Firefox's GPU renderer overloads
+  the Pi's graphics chip (GPU ~90 %, 64 % of video frames dropped). The
+  Info tab explains it and an **Apply now** button writes
+  `gfx.webrender.software` into that Firefox's profiles; a one-time
+  notice points there. Also in the README (Troubleshooting).
+  (Rev500 → Rev502)
+- **Interactive tide curve** in the tide popup: hover / drag cursor
+  with time, height and trend, big trend arrow, collision-free labels;
+  tide button always shown, with an install prompt and App Store link
+  when AnchorWatch Pro is missing. (Rev483 → Rev489)
+- **Info tab: companion plugins** with live installed / missing status
+  and App Store links. (Rev485)
+
+### Fixed — AIS
+
+- **Targets sit on the compass ring** at their real bearing, with a
+  distance label, instead of being parked on top of our own hull in a
+  marina (the log distance scale put every target under 50 m there).
+  (Rev494)
+- **Moored boats no longer "move".** Class B boats report 0.3-1.6 kn of
+  GPS noise when tied up; a target counts as stopped when its AIS nav
+  status says moored / anchored / aground, or when two minutes of its
+  positions stay inside 30 m. No course line, no "moving" alarms.
+  (Rev503)
+- **"Closing" speed in the infobox** was distance / TCPA (a moored boat
+  at 48 m showed 37 kn); now the real range rate. (Rev495)
+- **Autopilot alarm banner always visible.** It was drawn below the
+  maximised chart, popups, the regatta HUD and the network banners:
+  the alarm beeped and spoke but could not be seen. (Rev497)
+
+### Docs / package
+
+- README rewritten against the code: license (AGPL-3.0-or-later), the
+  free-form SSH console described honestly, 14 alarm rules, polar
+  plugins named, Head-to-wind **and** Downwind pseudo-modes, every
+  integration (AnchorWatch Pro, chartplotter, AIS, polars) in the intro,
+  no invented plugins or path counts.
+- Screenshots as JPEG under 500 KB for the App Store; test files no
+  longer shipped in the package (64 → 47 files).
+
 ## 3.2.0 — 2026-10-15 — AIS rose rebuilt on real positions, tide popup, chart kept warm
 
 Rolls up Rev470 → Rev482 on top of 3.1.4. Minor bump: new UI (tide
