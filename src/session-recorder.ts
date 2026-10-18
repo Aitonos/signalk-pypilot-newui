@@ -88,6 +88,7 @@ export class SessionRecorder {
     // and again inside start() so a long uptime with many sessions
     // does not grow unbounded either.
     try { this.pruneToBudget(); } catch { /* silent */ }
+    try { this.pruneToCount(); } catch { /* silent */ }
     // Rev176 (Carlos): purge "short session" files left over by earlier
     // Revs. Before Rev176 the recorder opened a JSONL on every
     // engage->disengage transition without debouncing. External clients
@@ -184,6 +185,28 @@ export class SessionRecorder {
     return { deleted, freedBytes: freed };
   }
 
+  // Rev505 (Carlos 2026-10-18, "últimas 50"): keep only the newest
+  // `maxCount` sessions. 224 had piled up (one per engage) and made the
+  // recorded-sessions list unusable. Oldest first by file name, which
+  // embeds the start time (session-YYYYMMDD-HHMMSS-...), so it does not
+  // depend on mtime. Never touches the session being recorded.
+  pruneToCount(maxCount = 50): { deleted: number } {
+    let deleted = 0;
+    let names: string[] = [];
+    try {
+      names = fs.readdirSync(this.dir).filter((f) => f.startsWith("session-") && f.endsWith(".jsonl"));
+    } catch { return { deleted }; }
+    names.sort();  // ascending = oldest first
+    const current = this.currentFile ? path.basename(this.currentFile) : null;
+    const closed = names.filter((n) => n !== current);
+    const keepClosed = Math.max(0, maxCount - (current ? 1 : 0));
+    for (const name of closed.slice(0, Math.max(0, closed.length - keepClosed))) {
+      try { fs.unlinkSync(path.join(this.dir, name)); deleted += 1; } catch { /* skip */ }
+    }
+    if (deleted > 0) this.log("info", `[session] pruned ${deleted} old sessions (keeping the newest ${maxCount})`);
+    return { deleted };
+  }
+
   isRecording(): boolean { return this.currentFile != null; }
   currentSessionId(): string | null { return this.currentId; }
   currentSampleCount(): number { return this.sampleCount; }
@@ -210,6 +233,8 @@ export class SessionRecorder {
     const suffix = String(Date.now() % 100000).padStart(5, "0");
     this.currentId = `${yy}${mo}${dd}-${hh}${mi}${ss}-${suffix}`;
     this.currentFile = path.join(this.dir, `session-${this.currentId}.jsonl`);
+    // Rev505: after currentFile is set, so the new session counts in the 50.
+    try { this.pruneToCount(); } catch { /* silent */ }
     this.startTs = Date.now();
     this.sampleCount = 0;
     this.tags = {};
