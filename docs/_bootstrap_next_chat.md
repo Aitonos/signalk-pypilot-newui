@@ -4,8 +4,8 @@
 
 ## Qué pasa en este repo ahora mismo
 
-- **Publicado en NPM**: `3.2.0` (Rev482). **Desplegado en el Pi5: Rev505**,
-  pendiente de publicar como **3.3.0** (CHANGELOG ya escrito).
+- **Publicado en NPM**: `3.3.0` (Rev505), 2026-10-18, tag `v3.3.0`.
+  Desplegado en el Pi5.
 - **3.3.0 trae** (Rev483 → Rev503): ajustes del visor compartidos en
   backend (`src/visor-prefs.ts`, `/visor-prefs`: modo AIS, voz, puerto
   automático, racha fantasma, silenciados por MMSI); modo ligero en la
@@ -22,9 +22,6 @@
 
 ## Pendiente inmediato
 
-- **Publicar 3.3.0**: faltan capturas `public/screenshots/05-chart-history.jpg`
-  y `06-tack-history.jpg` (Carlos), borrar las viejas `05-race-timer.jpg`
-  / `06-info.jpg` (llevan IP), bump `package.json` 3.3.0 con OK explícito.
 - **QA en barco Rev499**: tablet + móvil + portátil a la vez (modo AIS,
   silenciar un blanco, racha fantasma) — deben coincidir en ~5 s.
 - **QA en barco Rev503**: barcos amarrados sin estela ni alarma; uno que
