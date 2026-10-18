@@ -24,6 +24,9 @@ import {
   VirtualTackState,
   WindMode,
   makeInitialState as makeVirtualTackInitialState,
+  adjustedFinalCompassRad,
+  adjustedFinalWindRad,
+  accumulateTackAdjust,
 } from "./virtual-tack";
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -329,6 +332,7 @@ export class AutopilotProvider {
           const pendVal = this.pendingEngaged.value;
           if (eng === pendVal) {
             this.pendingEngaged = null;
+            if (!eng) this._cancelVirtualTackOnDisengage("disengage echo");
             this.onStageEvent?.("provider", {
               path: "ap.enabled",
               decision: "echo_dropped_match",
@@ -355,6 +359,9 @@ export class AutopilotProvider {
           this.data.engaged = eng;
           changed = true;
           changedField = "engaged";
+          // Rev506: AP off from ANY source (pypilot itself, physical
+          // remote, native UI, KIP switch, /raw) annuls the virtual tack.
+          if (!eng) this._cancelVirtualTackOnDisengage("disengaged externally");
         }
         this.onStageEvent?.("provider", {
           path: "ap.enabled",
@@ -430,6 +437,11 @@ export class AutopilotProvider {
     // echoes while pending.
     const eng = st.engaged;
     const apSt: ApState = eng ? "enabled" : "disabled";
+    // Rev506 (Carlos sea trial 2026-10-18): taking the AP off annuls a
+    // running virtual tack ("si quito AP la virada queda anulada"). The
+    // FSM used to keep driving after a disengage and then rejected the
+    // sailor's own targets ("FSM is driving") until it finished.
+    if (!eng) this._cancelVirtualTackOnDisengage("disengage order");
     // Rev271 (audit R01+R04): bump generation and cancel any NAV
     // pending timer. If this call is superseded before we make it past
     // the retry backoff, the stale isStale() check aborts the retry
@@ -1042,22 +1054,32 @@ export class AutopilotProvider {
       // pypilot pick the short arc in the WRONG direction).
       let remainingIntermediates = geometry.intermediatesRad.slice();
       let stepCounter = 0;
-      let finalCompassTargetRad = geometry.hTargetRad;
+      // Rev506: final targets follow the sailor's nudges (adjustRad).
+      const curAdjust = (): number =>
+        (this._virtualTack && this._virtualTack.id === vtId) ? this._virtualTack.adjustRad : 0;
+      const curAdjustVersion = (): number =>
+        (this._virtualTack && this._virtualTack.id === vtId) ? this._virtualTack.adjustVersion : 0;
+      const finalCompass = (): number => adjustedFinalCompassRad(geometry, curAdjust());
+      const finalWind = (): number => adjustedFinalWindRad(geometry, curAdjust());
+      let seenAdjustVersion = curAdjustVersion();
+      // Rev506: publish remaining degrees on every tick (not only per
+      // step) so the countdown shows what is LEFT to turn.
+      const publishRemaining = (hRad: number | null) => {
+        if (hRad === null || !this._virtualTack || this._virtualTack.id !== vtId) return;
+        const rem = Math.abs(shortestArcRad(finalCompass(), hRad) * RAD_TO_DEG);
+        const prev = this._virtualTack.remainingDeg;
+        if (prev === null || Math.abs(prev - rem) >= 1) {
+          this._virtualTack.remainingDeg = rem;
+          try { this.notifyChanged("virtualTack"); } catch { /* noop */ }
+        }
+      };
 
       // Rev410 (fix T.1-A, Carlos 2026-10-04): publish an initial
       // `remainingDeg` so the visor's mirror HUD shows a meaningful
       // number from the first snapshot, not just elapsed seconds.
       // Granularity thereafter is "once per intermediate step reached"
       // (option A, confirmed by Carlos — no 500 ms tick).
-      {
-        const h0 = this._readHeadingRad();
-        if (h0 !== null && this._virtualTack && this._virtualTack.id === vtId) {
-          this._virtualTack.remainingDeg = Math.abs(
-            shortestArcRad(finalCompassTargetRad, h0) * RAD_TO_DEG,
-          );
-          try { this.notifyChanged("virtualTack"); } catch { /* noop */ }
-        }
-      }
+      publishRemaining(this._readHeadingRad());
 
       while (remainingIntermediates.length > 0) {
         checkCancelled();
@@ -1074,8 +1096,16 @@ export class AutopilotProvider {
         // if they want to abort for any other reason.
         let lastHeadingRad: number | null = null;
         let lastHeadingChangeTs = Date.now();
+        let retarget = false;
         while (true) {
           const hNow = this._readHeadingRad();
+          publishRemaining(hNow);
+          // Rev506: sailor nudged the destination -> re-aim from here.
+          if (curAdjustVersion() !== seenAdjustVersion) {
+            seenAdjustVersion = curAdjustVersion();
+            retarget = true;
+            break;
+          }
           if (hNow !== null) {
             if (
               isAtTarget({
@@ -1107,26 +1137,34 @@ export class AutopilotProvider {
           checkCancelled();
         }
 
+        if (retarget) {
+          const hNow = this._readHeadingRad();
+          if (hNow !== null) {
+            remainingIntermediates = recomputeRemainingIntermediates({
+              hNowRad: hNow,
+              finalCompassTargetRad: finalCompass(),
+              originalDeltaSign: Math.sign(geometry.deltaHRad),
+            });
+          } else {
+            // No heading: keep the plan but aim the last step at the new final.
+            remainingIntermediates[remainingIntermediates.length - 1] = finalCompass();
+          }
+          // eslint-disable-next-line no-console
+          console.log(`[virtual-tack ${vtId}] re-aimed by sailor: adjust=${(curAdjust() * RAD_TO_DEG).toFixed(0)}deg, steps=${remainingIntermediates.length}`);
+          continue;  // write the new first step; nothing was "reached"
+        }
         // Step reached. Pop it and recompute the rest from REAL heading.
         remainingIntermediates.shift();
         stepCounter++;
         // Rev410 (fix T.1-A): refresh `remainingDeg` from the current
         // heading. One update per step reached is the agreed granularity.
-        {
-          const hAfter = this._readHeadingRad();
-          if (hAfter !== null && this._virtualTack && this._virtualTack.id === vtId) {
-            this._virtualTack.remainingDeg = Math.abs(
-              shortestArcRad(finalCompassTargetRad, hAfter) * RAD_TO_DEG,
-            );
-            try { this.notifyChanged("virtualTack"); } catch { /* noop */ }
-          }
-        }
+        publishRemaining(this._readHeadingRad());
         if (remainingIntermediates.length > 0) {
           const hNow = this._readHeadingRad();
           if (hNow !== null) {
             remainingIntermediates = recomputeRemainingIntermediates({
               hNowRad: hNow,
-              finalCompassTargetRad,
+              finalCompassTargetRad: finalCompass(),
               originalDeltaSign: Math.sign(geometry.deltaHRad),
             });
           }
@@ -1146,8 +1184,9 @@ export class AutopilotProvider {
       }
       checkCancelled();
       this._vtInternalWrite = true;
-      try { await this.setTarget(geometry.angleNewRad); } finally { this._vtInternalWrite = false; }
+      try { await this.setTarget(finalWind()); } finally { this._vtInternalWrite = false; }
       checkCancelled();
+      seenAdjustVersion = curAdjustVersion();
 
       // Rev387: settling phase. Watches the wind angle error until
       // it stays under tolerance for a short dwell.
@@ -1188,11 +1227,19 @@ export class AutopilotProvider {
             if (Number.isFinite(parsed)) sampleAgeMs = Date.now() - parsed;
           }
         } catch { /* noop */ }
+        // Rev506: a nudge during settling re-aims the wind target.
+        if (curAdjustVersion() !== seenAdjustVersion) {
+          seenAdjustVersion = curAdjustVersion();
+          this._vtInternalWrite = true;
+          try { await this.setTarget(finalWind()); } finally { this._vtInternalWrite = false; }
+          checkCancelled();
+          dwellStart = null;
+        }
         const sampleFresh = windNowRad !== null && (sampleAgeMs === null || sampleAgeMs < STALE_SAMPLE_MS);
         if (sampleFresh) {
           awaEmaRad = awaEmaStep(awaEmaRad, windNowRad!, EMA_ALPHA);
           const errDeg = Math.abs(
-            ((((awaEmaRad - geometry.angleNewRad) * RAD_TO_DEG) + 540) % 360) - 180,
+            ((((awaEmaRad - finalWind()) * RAD_TO_DEG) + 540) % 360) - 180,
           );
           if (errDeg < SETTLE_TOLERANCE_DEG) {
             if (dwellStart === null) dwellStart = Date.now();
@@ -1317,15 +1364,47 @@ export class AutopilotProvider {
    *  when the sailor taps the tack button a second time (frontend
    *  Rev379). Sets phase to "abort" so the running driver bails and
    *  rolls back on its next await. */
-  cancelVirtualTack(): void {
+  cancelVirtualTack(reason = "user cancelled"): void {
     if (!this._virtualTack) return;
     const terminal = ["completed", "cancelled", "failed"];
     if (terminal.includes(this._virtualTack.phase)) return;
     // eslint-disable-next-line no-console
-    console.log(`[virtual-tack] external cancel at phase=${this._virtualTack.phase}`);
+    console.log(`[virtual-tack] external cancel at phase=${this._virtualTack.phase} (${reason})`);
     this._virtualTack.phase = "cancelling";
-    this._virtualTack.outcomeReason = "user cancelled";
+    this._virtualTack.outcomeReason = reason;
     this.notifyChanged("all");
+  }
+
+  /** Rev506 (Carlos sea trial 2026-10-18): +-1/+-10 during a virtual tack
+   *  move its final destination. deltaRad is bow-relative, positive = bow
+   *  to starboard (same sign as the visor's nudge buttons). Returns false
+   *  when no tack is running so the caller can fall back to a normal nudge. */
+  adjustVirtualTack(deltaRad: number): boolean {
+    if (!Number.isFinite(deltaRad) || !this.isVirtualTackActive()) return false;
+    const vt = this._virtualTack!;
+    if (vt.phase === "cancelling") return false;
+    vt.adjustRad = accumulateTackAdjust(vt.adjustRad, deltaRad);
+    vt.adjustVersion += 1;
+    // eslint-disable-next-line no-console
+    console.log(`[virtual-tack ${vt.id}] sailor adjust ${(deltaRad * RAD_TO_DEG).toFixed(0)}deg -> total ${(vt.adjustRad * RAD_TO_DEG).toFixed(0)}deg`);
+    this.notifyChanged("virtualTack");
+    return true;
+  }
+
+  /** Rev506: true while a virtual tack is running (not terminal). */
+  isVirtualTackActive(): boolean {
+    const vt = this._virtualTack;
+    return !!vt && !["idle", "completed", "cancelled", "failed"].includes(vt.phase);
+  }
+
+  /** Rev506: recovery cycles (steer-recovery) toggle the AP off/on on
+   *  purpose; that must NOT annul the tack the cycle is trying to save. */
+  private _recoveryCycleUntil = 0;
+
+  private _cancelVirtualTackOnDisengage(reason: string): void {
+    if (Date.now() < this._recoveryCycleUntil) return;
+    if (!this.isVirtualTackActive()) return;
+    this.cancelVirtualTack(reason);
   }
 
   private async engage(): Promise<void> {

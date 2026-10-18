@@ -88,6 +88,13 @@ export interface VirtualTackState {
    *  the FSM has driven the first step. The mirror HUD on the visor
    *  reads this instead of showing bare elapsed seconds. */
   remainingDeg: number | null;
+  /** Rev506 (Carlos sea trial 2026-10-18): sailor nudges (±1/±10) during
+   *  the manoeuvre move its FINAL destination instead of being rejected.
+   *  Accumulated bow-relative correction in radians, positive = bow to
+   *  starboard. `adjustVersion` bumps on every change so the running
+   *  driver can re-aim. */
+  adjustRad: number;
+  adjustVersion: number;
 }
 
 export const TWO_PI = Math.PI * 2;
@@ -325,7 +332,31 @@ export function makeInitialState(): VirtualTackState {
     outcomeReason: null,
     requestId: null,
     remainingDeg: null,
+    adjustRad: 0,
+    adjustVersion: 0,
   };
+}
+
+/** Rev506: largest total nudge accepted during one manoeuvre. */
+export const MAX_TACK_ADJUST_RAD = 60 * DEG;
+
+/** Rev506: final compass heading of the rotation phase after the
+ *  sailor's nudges. Bow to starboard = heading increases. */
+export function adjustedFinalCompassRad(g: TackGeometry, adjustRad: number): number {
+  return normalizeTwoPi(g.hTargetRad + adjustRad);
+}
+
+/** Rev506: final wind-angle target after the sailor's nudges. Turning the
+ *  bow +d to starboard lowers the (SK-signed) wind angle by d, same rule
+ *  the visor uses for wind-mode nudges (modeSign = -1). */
+export function adjustedFinalWindRad(g: TackGeometry, adjustRad: number): number {
+  return normalizeSignedPi(g.angleNewRad - adjustRad);
+}
+
+/** Rev506: accumulate one nudge, clamped to ±MAX_TACK_ADJUST_RAD. */
+export function accumulateTackAdjust(currentRad: number, deltaRad: number): number {
+  const next = currentRad + deltaRad;
+  return Math.max(-MAX_TACK_ADJUST_RAD, Math.min(MAX_TACK_ADJUST_RAD, next));
 }
 
 /**

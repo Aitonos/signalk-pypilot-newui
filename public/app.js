@@ -2925,6 +2925,13 @@
           try { _lastTackDirSeen = state.virtualTack.direction; } catch {}
           try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(state.virtualTack); } catch (e) { console.warn("[vt] open overlay", e); }
         }
+        // Rev506: +-1/+-10 during the tack move its destination; keep the
+        // diamond on the (adjusted) final target on every snapshot.
+        if (wasActive && isActive && typeof state.virtualTack.finalWindTargetRad === "number"
+            && state.target !== state.virtualTack.finalWindTargetRad) {
+          state.target = state.virtualTack.finalWindTargetRad;
+          try { renderTargetArrow(); } catch {}
+        }
         // Rev393 (Carlos, 2026-10-01, Round-2 GPT-Codex H6):
         // Dedupe terminal snapshots by VT id. The 5s linger timer on
         // the backend sends another notifyChanged('all') which republishes
@@ -6302,6 +6309,15 @@
     _tackDiamondBlink = false;
     renderTargetArrow();
   }
+  // Rev506: a cancelled virtual tack leaves the boat where it IS (backend
+  // keeps the wind mode with the CURRENT wind angle as target, Rev408).
+  // Paint that, not the pre-tack angle, so the diamond never shows a
+  // destination the pilot is not going to.
+  function _vtCancelTargetRad() {
+    const wm = String((state.virtualTack && state.virtualTack.windMode) || state.mode || "").toLowerCase();
+    if (wm.includes("true")) return (typeof state.windAngleTrue === "number") ? state.windAngleTrue : null;
+    return (typeof state.windAngle === "number") ? state.windAngle : null;
+  }
   function _wireTackCountdownClick() {
     const overlay = document.getElementById("tack-countdown-overlay");
     if (!overlay || overlay.__wired) return;
@@ -6333,10 +6349,7 @@
       // terminal snapshot arrived "al rato" (Carlos QA screenshot).
       if (state.virtualTack && state.virtualTack.active && state.virtualTack.cancellable) {
         try {
-          const restoreRadVt =
-            (typeof state.virtualTack.originalWindTargetRad === "number")
-              ? state.virtualTack.originalWindTargetRad
-              : (typeof state._targetBeforeVt === "number" ? state._targetBeforeVt : null);
+          const restoreRadVt = _vtCancelTargetRad();
           if (typeof restoreRadVt === "number") {
             state.target = restoreRadVt;
             _countdownPlannedTargetRad = null;
@@ -9907,6 +9920,26 @@
         // during ap.tack.state != none aborts the maneuver on both
         // UIs. Mirror = observer-only. Flash the button to acknowledge
         // the tap without acting.
+        // Rev506 (Carlos sea trial 2026-10-18): during a plugin virtual tack
+        // the nudge moves the tack's FINAL destination (backend re-aims).
+        // An absolute target write would be rejected by the FSM, which is
+        // why "+10 did nothing" mid-tack. 409 = tack already over -> fall
+        // through to the normal nudge below.
+        if (state.virtualTack && state.virtualTack.active) {
+          b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
+          skFetch(`/plugins/${PLUGIN_ID}/virtual-tack/adjust`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deltaDeg: nudge }),
+          }).then((r) => {
+            try { _mtLog("other", { via: "vtAdjust", deltaDeg: nudge, status: r && r.status }); } catch { /* silent */ }
+            if (r && r.status === 409) {
+              // Tack ended meanwhile: apply as a normal nudge on next tap.
+              console.info("[nudge] vt adjust refused (no tack running)");
+            }
+          }).catch((e) => console.warn("[nudge] vt adjust failed:", e));
+          return;
+        }
         if (_externalManeuver) {
           b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
           console.info("[nudge] blocked while mirror active (external tack in progress)");
@@ -10584,8 +10617,26 @@
     // gesture but a LABEL derived from wind geometry (see the label
     // update in _tackCountdownStart / _tackCountdownToExecuting). The
     // sailor just picks the side and how many taps.
+    // Rev506 (Carlos sea trial 2026-10-18): 4 taps in 5 s chained
+    // start/cancel/start/cancel/start and left a tack alive in the
+    // background (18:07, 19:39). In wind modes (plugin virtual tack) a tap
+    // closer than 1.5 s to the previous one is ignored. Compass mode keeps
+    // its multi-tap "extend the rotation" behaviour (Rev204) untouched.
+    let _vtLastTapTs = 0;
+    const VT_TAP_GUARD_MS = 1500;
     const tackHandler = (dir) => async () => {
       _tackStatsDismissIfShown();
+      {
+        const vtPath = String(state.mode || "").toLowerCase().includes("wind")
+          || !!(state.virtualTack && state.virtualTack.active);
+        const nowTap = Date.now();
+        if (vtPath && nowTap - _vtLastTapTs < VT_TAP_GUARD_MS) {
+          console.info("[tack] tap ignored: < 1.5 s since the previous one");
+          try { _mtLog("other", { via: "tackTapGuard", dir }); } catch { /* silent */ }
+          return;
+        }
+        if (vtPath) _vtLastTapTs = nowTap;
+      }
       if (!state.engaged) {
         const bp = $("#tack-port-btn"), bs = $("#tack-star-btn");
         for (const b of [bp, bs]) {
@@ -10611,10 +10662,7 @@
         // originalWindTargetRad (Rev396) if present, else the pre-tack
         // snapshot the visor kept.
         try {
-          const restoreRad =
-            (typeof state.virtualTack.originalWindTargetRad === "number")
-              ? state.virtualTack.originalWindTargetRad
-              : (typeof state._targetBeforeVt === "number" ? state._targetBeforeVt : null);
+          const restoreRad = _vtCancelTargetRad();
           if (typeof restoreRad === "number") {
             state.target = restoreRad;
             // _countdownPlannedTargetRad was pinned to finalWindTargetRad

@@ -13,6 +13,7 @@ import { Historian, Sample, SamplePath } from "./historian";
 import { KPIComputer, KPISnapshot } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
+import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
 import { AlarmEngine } from "./alarms";
@@ -66,7 +67,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev505";
+const PLUGIN_REVISION = "Rev506";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1953,6 +1954,19 @@ module.exports = function (app: any) {
         (apProvider as any).cancelVirtualTack?.();
         res.json({ ok: true });
       });
+      // Rev506 (Carlos sea trial 2026-10-18): +-1/+-10 during a virtual
+      // tack move its final destination. Body: { deltaDeg } bow-relative,
+      // positive = bow to starboard. 409 when no tack is running so the
+      // visor falls back to a normal nudge.
+      router.post("/virtual-tack/adjust", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
+        if (!apProvider) return res.status(503).json({ error: "no ap provider" });
+        const d = Number(req.body?.deltaDeg);
+        if (!Number.isFinite(d) || Math.abs(d) > 30) return res.status(400).json({ error: "deltaDeg must be a number in [-30, 30]" });
+        const ok = apProvider.adjustVirtualTack(d * Math.PI / 180);
+        if (!ok) return res.status(409).json({ error: "no virtual tack running" });
+        res.json({ ok: true });
+      });
       // Rev387 (Carlos, 2026-10-01): idempotent start endpoint.
       // Body: { direction: "port"|"starboard", requestId?: string }.
       // The visor Rev388 will use this instead of the two-PUT /raw
@@ -3731,7 +3745,11 @@ module.exports = function (app: any) {
             // from |AWA| vs 90Â°. "tack" = rotation crosses bow; "jibe"
             // = crosses stern.
             maneuverKind: g?.maneuverKind ?? null,
-            finalWindTargetRad: g?.angleNewRad ?? null,
+            // Rev506: includes the sailor's +-1/+-10 made during the tack.
+            finalWindTargetRad: (g && typeof g.angleNewRad === "number")
+              ? adjustedFinalWindRad(g, typeof (vt as any).adjustRad === "number" ? (vt as any).adjustRad : 0)
+              : null,
+            adjustDeg: typeof (vt as any).adjustRad === "number" ? (vt as any).adjustRad * 180 / Math.PI : 0,
             // Rev396 (Carlos, 2026-10-02, Round-4 Codex+Gemini): publish
             // the pre-tack wind angle so the visor does NOT have to snapshot
             // state.target at snapshot-arrival time. The visor's local
