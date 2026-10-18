@@ -121,3 +121,67 @@ Por orden de seguridad:
    o confirmación).
 6. Reactividad por ángulo al viento y cambio de modo por cuadrante
    (diseño aparte, validar en agua).
+
+## 8. Ronda 2 (correcciones de Carlos + viradas)
+
+Carlos: 18:07-18:12 desacoplaba porque **tablet y móvil mostraban modos
+distintos**; 360° automático **descartado** (manual); el problema de
+cancelar no es el toque sino que **pypilot se queda con órdenes
+fantasma**; el contador de grados no muestra lo que **falta**; con mucho
+viento la virada **se para a mitad** — debe ser rápida y decidida (la
+pausa era solo para trasluchadas).
+
+### 8.1 Viradas virtuales de hoy (journal)
+
+13 arrancadas, 7 canceladas, 6 completadas. Destacan:
+- **19:39:06-19:39:11**: 4 toques en 5 s → start/cancel/start/cancel/
+  **start**: la 4ª queda viva. El patrón desacopla y reacopla (19:39:13)
+  y **la virada sigue**; sus rumbos de 19:39:14 y 19:39:30 se
+  **rechazan** ("FSM is driving") hasta que termina sola a 19:39:47.
+- **18:08:45**: virada de 62 s sin converger; el rumbo -39° del patrón
+  a 18:09:32 también **rechazado**.
+- 18:07:25: start/cancel/start en 0.5 s (doble disparo del toque).
+- **18:11:44: delta -278° (steps=2)** — casi una vuelta por el lado
+  largo. Sin explicar, investigar.
+
+### 8.2 Por qué se para a mitad (sesión 17:45)
+
+18:08:48-18:09:12 error -160° con **servo 0 A durante 24 s** (el barco
+gira por inercia ~2.5°/s); 18:09:18-18:09:42 vuelta a modo viento con
+AWA atascado en -40/-50° vs objetivo -103° → **60° de error con 0 A
+otros 24 s**.
+
+Hipótesis (muy probable, falta confirmar con `servo.flags`): sin sensor
+de timón, pypilot usa la **sobrecorriente como fin de carrera**: al
+superar `max_current` (6.75 A) en un sentido, deja de empujar en ese
+sentido hasta que se mueva al contrario. Con 25 kn y 40-48° de escora la
+carga normal supera 6.75 A → "fin de carrera" falso a mitad de
+recorrido → servo parado con error grande. Encaja con
+`servo.faults = 2585`.
+
+### 8.3 Modo distinto en dos pantallas (18:07-18:12)
+
+Los dos visores registraron **los mismos cambios a la vez** (backend y
+visores coherentes). Durante la virada el plugin pone pypilot en
+**compás** y al terminar vuelve a **viento**; una pantalla puede mostrar
+el modo real (compás) y la otra el de la maniobra. El patrón, al ver la
+discrepancia, desacopla/reacopla — y **desacoplar no detiene la virada
+en curso**.
+
+### 8.4 Plan propuesto (pendiente de OK)
+
+A. **El patrón siempre manda**: cualquier orden suya (±1/±10, rumbo,
+   modo, desacoplar, cancelar) **cancela en el acto** la virada en curso
+   y se aplica; nunca más "rejected (FSM is driving)". Desacoplar aborta
+   la virada.
+B. Botón de virada: ignorar toques repetidos < 1.5 s (doble disparo).
+C. Contador: grados **que faltan** hasta el rumbo final.
+D. Virada con viento fuerte: sin pasos ni pausa, objetivo final de una
+   vez, mantener compás hasta el rumbo final (no volver a viento a 20°
+   de llegar), PID "caliente" durante la virada como en el empopado.
+E. Servo: grabar `servo.flags` en las sesiones; alarma de corte por
+   sobrecorriente / fin de carrera falso; alarma "piloto desacoplado
+   sin orden"; recomendación de `max_current` + revisión eléctrica.
+F. Investigar el delta -278°.
+G. Mostrar en todas las pantallas el modo de la maniobra mientras dura
+   (p.ej. "VIRANDO → VIENTO") en vez de compás/viento a secas.
