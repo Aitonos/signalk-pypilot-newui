@@ -11726,11 +11726,22 @@
       m = document.createElement("div");
       m.id = "sess-modal";
       m.className = "tune-fork-backdrop";
-      m.innerHTML = `<div class="modal-card" style="max-width:520px;width:92%;max-height:80vh;overflow:auto"><h3 id="sess-modal-title"></h3><div id="sess-modal-body"></div><div id="sess-modal-actions" class="tune-fork-actions" style="margin-top:12px"></div></div>`;
+      // Rev504 (Carlos 2026-10-18, "no hay X para cerrar y ya no soy capaz
+      // de salir"): the only way out was the Close button at the END of
+      // the content; with many recorded sessions the card (max 80vh,
+      // whole card scrolling) pushed it off-screen. Now: X always
+      // visible top-right, title + actions fixed, only the body scrolls,
+      // tap outside or Escape also closes.
+      m.innerHTML = `<div class="modal-card" style="max-width:520px;width:92%;max-height:80vh;display:flex;flex-direction:column;position:relative;overflow:hidden"><div class="mode-select-modal-close" id="sess-modal-x" role="button" aria-label="Close">×</div><h3 id="sess-modal-title" style="padding-right:36px"></h3><div id="sess-modal-body" style="flex:1 1 auto;min-height:0;overflow:auto"></div><div id="sess-modal-actions" class="tune-fork-actions" style="margin-top:12px;flex:0 0 auto"></div></div>`;
       document.body.appendChild(m);
+      const hide = () => { m.hidden = true; m.classList.remove("open"); };
+      m.querySelector("#sess-modal-x").addEventListener("click", hide);
+      m.addEventListener("click", (ev) => { if (ev.target === m) hide(); });
+      document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !m.hidden) hide(); });
     }
     m.querySelector("#sess-modal-title").textContent = title;
     m.querySelector("#sess-modal-body").innerHTML = bodyHtml;
+    m.querySelector("#sess-modal-body").scrollTop = 0;
     const actEl = m.querySelector("#sess-modal-actions");
     actEl.innerHTML = "";
     const close = () => { m.hidden = true; m.classList.remove("open"); };
