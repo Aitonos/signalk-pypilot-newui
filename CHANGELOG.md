@@ -2,7 +2,7 @@
 
 ## 3.3.0 — 2026-10-19 — Light on the Pi, AIS on the ring, settings shared by every device
 
-Rolls up Rev483 → Rev504 on top of 3.2.0. Minor bump: new shared
+Rolls up Rev483 → Rev505 on top of 3.2.0. Minor bump: new shared
 visor settings in the backend, Raspberry Pi performance work, AIS rose
 fixes from port and sea QA in Moaña, tide popup polish. No breaking
 changes; the first visor that connects uploads its old per-device
@@ -60,6 +60,9 @@ settings, so nothing is lost.
   off-screen. Now an X is always visible, the list scrolls inside the
   dialog with title and Close fixed, and tapping outside or Escape
   closes it. (Rev504)
+- **Recorded sessions capped at the newest 50** (one is recorded per
+  engage; 224 had piled up). On top of the existing 200 MB budget.
+  (Rev505)
 
 ### Docs / package
 
