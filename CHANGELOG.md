@@ -1,8 +1,17 @@
 # Changelog
 
-## Unreleased (Rev517)
+## Unreleased (Rev517 → Rev518)
 
 ### Added
+- **AUTO WIND pseudo-mode**: apparent wind below 120° TWA, true wind
+  above (hysteresis ±5°, 10 s sustained, at most one switch per 30 s;
+  never during a tack, head-to-wind, head-downwind or with the AP off).
+  Each side has its own pypilot profile, chosen in the mode window, so
+  the true-wind side can be the more reactive one. Runs in the backend
+  (works with the visor closed); picking any other mode, or compass from
+  the remote, turns it off. Mode button shows "AUTO · REAL / APPARENT".
+- **Logbook button**: while a trip is being recorded it opens that trip;
+  in port it opens the logbook list.
 - **Logbook button on the rose**: a helm icon on the left, mirroring the
   tide button on the right, opens the Logbook full screen; its x goes
   back to the rose.

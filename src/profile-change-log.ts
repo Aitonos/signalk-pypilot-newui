@@ -26,6 +26,7 @@
 export type ProfileChangeSource =
   | "user"
   | "auto-profile"
+  | "autowind"
   | "gust-heavy"
   | "gust-heavy-restore"
   | "doctor"

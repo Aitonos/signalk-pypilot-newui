@@ -1,6 +1,10 @@
 # Propuesta — viento real / aparente por cuadrantes y reactividad (2026-10-19)
 
-Estado: **propuesta para revisar con Carlos. Sin código.**
+Estado: **A implementada como pseudo-modo AUTO VIENTO (Rev518)** a
+petición de Carlos: corte 120° TWA (histéresis ±5°, 10 s, ≥ 30 s entre
+cambios), un perfil por lado elegido en la ventana de modo (la
+reactividad de real viene de su perfil, sin multiplicadores ocultos).
+B (ganancias por ángulo) sigue como propuesta.
 
 ## Lo que dicen los datos
 

@@ -59,6 +59,7 @@ import {
 } from "./nav-bearing";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { SteerWatch } from "./steer-watch";
+import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG } from "./autowind";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
   ManeuverTraceLog,
@@ -68,7 +69,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev517";
+const PLUGIN_REVISION = "Rev518";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -263,6 +264,12 @@ interface PluginProps {
   // Rev508 (Carlos sea trial 2026-10-18): stuck-pilot recovery cycle
   // (AP off -> on clears pypilot's false end stop). Opt-in.
   steerRecoveryEnabled?: boolean;
+  // Rev518 (Carlos 2026-10-19): pseudo-mode AUTOWIND - apparent below
+  // the threshold, true wind above, one profile for each side.
+  autowindEnabled?: boolean;
+  autowindProfileApparent?: string;
+  autowindProfileTrue?: string;
+  autowindThresholdDeg?: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -365,6 +372,11 @@ module.exports = function (app: any) {
   let _steerRecoveryTotal = 0;
   let _steerRecoveryLastTs: number | null = null;
   let _steerRecoveryLastResult: string | null = null;
+  // Rev518: AUTOWIND state.
+  let autowind = new AutowindDecider();
+  let _autowindLastSwitchTs: number | null = null;
+  let _autowindLastReason: string | null = null;
+  let _autowindOffFamilySince: number | null = null;
   // Rev176 (Carlos): debounce the raw `engaged` flag so a rebound
   // caused by a competing client (pypilot_web on another device, a KIP
   // widget cycling, socket races) does not open+close a JSONL every 5 s.
@@ -926,6 +938,8 @@ module.exports = function (app: any) {
       // land in /alarms/state for the visor banner.
       alarms = new AlarmEngine();
       steerWatch = new SteerWatch();
+      autowind = new AutowindDecider();
+      setTimeout(() => { try { _autowindPublish(); } catch { /* silent */ } }, 5000);
       // Rev292 (Carlos, navigating): apply the user's chosen pypilot-
       // disconnect sustain window on start-up, in case pluginOptions
       // already carries a value.
@@ -1077,6 +1091,8 @@ module.exports = function (app: any) {
         try { _supervisorTick(s); } catch (e: any) { app.debug?.(`[supervisor] tick: ${e?.message || e}`); }
         // Rev508: stuck-pilot watch (feeds the steer-* alarms below).
         try { _steerWatchTick(s); } catch (e: any) { app.debug?.(`[steer-watch] tick: ${e?.message || e}`); }
+        // Rev518: AUTOWIND (apparent <-> true wind by TWA).
+        try { _autowindTick(); } catch (e: any) { app.debug?.(`[autowind] tick: ${e?.message || e}`); }
         // Rev100: run the alarm engine last so it has every input up to
         // date. Changed rules trigger SK notification deltas.
         try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
@@ -2460,6 +2476,38 @@ module.exports = function (app: any) {
       // Rev167: config read + write for the Smart Pilot card. All the
       // toggles live in the visor, not in the SK Admin schema. Writes
       // go through app.savePluginOptions so they survive restart.
+      // Rev518: AUTOWIND config + state.
+      router.get("/autowind", (_req: any, res: any) => {
+        res.json(_autowindState());
+      });
+      router.post("/autowind", async (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const b = req.body || {};
+        let changed = false;
+        if (typeof b.profileApparent === "string") { props.autowindProfileApparent = b.profileApparent.trim(); changed = true; }
+        if (typeof b.profileTrue === "string") { props.autowindProfileTrue = b.profileTrue.trim(); changed = true; }
+        if (typeof b.thresholdDeg === "number") {
+          props.autowindThresholdDeg = clampNumber(b.thresholdDeg, 90, 150, AUTOWIND_DEFAULT_THRESHOLD_DEG);
+          changed = true;
+        }
+        if (changed) { try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ } }
+        if (typeof b.enabled === "boolean") {
+          const was = !!props.autowindEnabled;
+          _autowindSetEnabled(b.enabled, b.enabled ? "selected" : "another mode selected");
+          if (b.enabled && !was) {
+            // Pick the side now, no waiting.
+            const sub = autowind.initial(_autowindTwaDeg(), props.autowindThresholdDeg);
+            await _autowindApply(sub, "AUTOWIND on");
+          }
+        }
+        // New profile for the side that is active right now: apply it.
+        if (props.autowindEnabled && changed && apProvider) {
+          const mode = String(apProvider.data.mode || "").toLowerCase();
+          if (mode === "wind" || mode === "true wind") _autowindApplyProfile(mode as WindSubMode, "profile chosen");
+        }
+        _autowindPublish();
+        res.json(_autowindState());
+      });
       router.get("/supervisor/config", (_req: any, res: any) => {
         res.json({
           autoProfileEnabled: !!props.autoProfileEnabled,
@@ -3637,6 +3685,10 @@ module.exports = function (app: any) {
         .includes(options.gustStrategy as any) ? options.gustStrategy : "off",
       autoDisengageOnLostAuthority: options.autoDisengageOnLostAuthority === true,
       steerRecoveryEnabled: options.steerRecoveryEnabled === true,
+      autowindEnabled: options.autowindEnabled === true,
+      autowindProfileApparent: typeof options.autowindProfileApparent === "string" ? options.autowindProfileApparent : "",
+      autowindProfileTrue: typeof options.autowindProfileTrue === "string" ? options.autowindProfileTrue : "",
+      autowindThresholdDeg: clampNumber(options.autowindThresholdDeg, 90, 150, AUTOWIND_DEFAULT_THRESHOLD_DEG),
       rollFfGain: clampNumber(options.rollFfGain, 0, 2, 0),
       rollFfTauSec: clampNumber(options.rollFfTauSec, 0.5, 30, 3),
       rollFfTwaGateDeg: clampNumber(options.rollFfTwaGateDeg, 30, 179, 90),
@@ -4116,6 +4168,102 @@ module.exports = function (app: any) {
       .catch((e: any) => { _steerRecoveryLastResult = `error: ${e?.message || e}`; })
       .finally(() => { _steerRecoveryInFlight = false; });
   }
+  // Rev518 (Carlos 2026-10-19): AUTOWIND. See src/autowind.ts.
+  function _autowindState(): Record<string, unknown> {
+    const mode = apProvider ? String(apProvider.data.mode || "") : "";
+    return {
+      enabled: !!props.autowindEnabled,
+      subMode: mode === "wind" || mode === "true wind" ? mode : null,
+      profileApparent: props.autowindProfileApparent || "",
+      profileTrue: props.autowindProfileTrue || "",
+      thresholdDeg: props.autowindThresholdDeg ?? AUTOWIND_DEFAULT_THRESHOLD_DEG,
+      lastSwitchTs: _autowindLastSwitchTs,
+      lastReason: _autowindLastReason,
+    };
+  }
+  function _autowindPublish(): void {
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [
+          { path: "steering.autopilot.autowind", value: _autowindState() },
+        ] }],
+      });
+    } catch { /* silent */ }
+  }
+  function _autowindProfileFor(sub: WindSubMode): string {
+    return (sub === "true wind" ? props.autowindProfileTrue : props.autowindProfileApparent) || "";
+  }
+  function _autowindApplyProfile(sub: WindSubMode, reason: string): void {
+    const want = _autowindProfileFor(sub);
+    if (!want || !client || !client.connected) return;
+    if (client.getValues()["profile"] === want) return;
+    try {
+      profileChangeLog.markPlannedWrite(want, "autowind", reason);
+      client.set("profile", want);
+    } catch { /* silent */ }
+  }
+  async function _autowindApply(sub: WindSubMode, reason: string): Promise<void> {
+    if (!apProvider) return;
+    _autowindLastReason = reason;
+    const cur = String(apProvider.data.mode || "").toLowerCase();
+    if (cur !== sub) {
+      // wind <-> true wind share the angle space: pypilot keeps the
+      // heading itself on the mode change, nothing else is written.
+      try { await (apProvider.toProviderInterface() as any).setMode(sub, apProvider.deviceId); }
+      catch (e: any) { app.debug?.(`[autowind] setMode ${sub}: ${e?.message || e}`); return; }
+      _autowindLastSwitchTs = Date.now();
+      autowind.noteSwitch(_autowindLastSwitchTs);
+    }
+    _autowindApplyProfile(sub, reason);
+    // eslint-disable-next-line no-console
+    console.log(`[autowind] ${reason} -> ${sub}${_autowindProfileFor(sub) ? ` / profile ${_autowindProfileFor(sub)}` : ""}`);
+    _autowindPublish();
+  }
+  function _autowindSetEnabled(on: boolean, why: string): void {
+    if (!!props.autowindEnabled === on) return;
+    props.autowindEnabled = on;
+    try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ }
+    // eslint-disable-next-line no-console
+    console.log(`[autowind] ${on ? "on" : "off"} (${why})`);
+    _autowindLastReason = why;
+    _autowindPublish();
+  }
+  function _autowindTwaDeg(): number | null {
+    const r = _readTwaRad();
+    return r == null ? null : r * 180 / Math.PI;
+  }
+  function _autowindTick(): void {
+    if (!props.autowindEnabled || !apProvider) return;
+    const mode = String(apProvider.data.mode || "").toLowerCase();
+    const blocked = apProvider.isVirtualTackActive()
+      || !!(_tackStatePrev && _tackStatePrev !== "none")
+      || _maneuverPseudoActive;
+    // Sailor (remote, TinyPilot, KIP) moved to compass/gps: AUTOWIND
+    // ends, like picking another mode in the visor. 5 s so a transient
+    // write race never switches it off.
+    if (!blocked && mode !== "wind" && mode !== "true wind" && mode !== "") {
+      if (_autowindOffFamilySince == null) _autowindOffFamilySince = Date.now();
+      else if (Date.now() - _autowindOffFamilySince > 5000) {
+        _autowindOffFamilySince = null;
+        _autowindSetEnabled(false, `mode changed to ${mode}`);
+      }
+      return;
+    }
+    _autowindOffFamilySince = null;
+    const want = autowind.tick({
+      nowMs: Date.now(),
+      twaDeg: _autowindTwaDeg(),
+      mode,
+      engaged: !!apProvider.data.engaged,
+      blocked,
+      thresholdDeg: props.autowindThresholdDeg,
+    });
+    if (want) {
+      const twa = _autowindTwaDeg();
+      void _autowindApply(want, `TWA ${twa == null ? "?" : Math.abs(twa).toFixed(0)} deg`);
+    }
+  }
   // Rev164/165/166: supervisor layer. Runs on every historian tick.
   // Three independent responsibilities:
   //   - Auto-profile switch by wind band (only while engaged, opt-in).
@@ -4196,7 +4344,7 @@ module.exports = function (app: any) {
       }
     }
     // ------------------ Rev164: auto-profile by wind band ------------------
-    if (props.autoProfileEnabled && apProvider && client && historian) {
+    if (props.autoProfileEnabled && !props.autowindEnabled && apProvider && client && historian) {
       const engaged = !!apProvider.data.engaged;
       if (!engaged) {
         _autoProfilePendingBand = null;

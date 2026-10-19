@@ -467,6 +467,11 @@
       "vt.longJibe.title":    "Gybe the long way?",
       "vt.longJibe.body":     "The wind is on the other bow: this button turns through the stern ({deg}°). To tack, use the other button.",
       "mode.label.true-wind": "TRUE WIND",
+      "mode.label.autowind":  "AUTO WIND",
+      "mode.label.autowind.long": "AUTO WIND (apparent / true at 120°)",
+      "autowind.short":       "AUTO",
+      "autowind.prof.apparent": "Apparent wind",
+      "autowind.prof.true":   "True wind",
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "HEAD TO WIND",
       "mode.label.empopado":    "HEAD DOWNWIND",
@@ -1407,6 +1412,11 @@
       "vt.longJibe.title":    "¿Trasluchar por popa?",
       "vt.longJibe.body":     "El viento está en la otra amura: este botón da la vuelta por popa ({deg}°). Para virar, usa el otro botón.",
       "mode.label.true-wind": "REAL",
+      "mode.label.autowind":  "AUTO VIENTO",
+      "mode.label.autowind.long": "AUTO VIENTO (aparente / real a 120°)",
+      "autowind.short":       "AUTO",
+      "autowind.prof.apparent": "Viento aparente",
+      "autowind.prof.true":   "Viento real",
       "mode.label.nav":       "RUMBO A WAYPOINT",
       "mode.label.aproado":   "APROADO",
       "mode.label.empopado":    "EMPOPADO",
@@ -2732,6 +2742,8 @@
       // Rev388 Fase B: backend FSM publishes snapshots here; visor
       // opens the read-only HUD + pins mode/target when active.
       "steering.autopilot.virtualTack",
+      // Rev518: AUTOWIND state (enabled, sub-mode, profile pair).
+      "steering.autopilot.autowind",
       "steering.autopilot.pypilot.ap.tack.state",
       "steering.autopilot.pypilot.ap.tack.direction",
       "steering.autopilot.pypilot.ap.mode",
@@ -2945,6 +2957,12 @@
         state.target = numericOrNull(value);
         renderTargetArrow();
         break;
+      case "steering.autopilot.autowind": {
+        state.autowind = (value && typeof value === "object") ? value : null;
+        try { _renderModeSelectBtn(); } catch { /* silent */ }
+        try { _rebuildModePopupProfiles(); } catch { /* silent */ }
+        break;
+      }
       case "steering.autopilot.virtualTack": {
         // Rev388 Fase B: structured snapshot from the backend FSM.
         // Open the HUD overlay on first active snapshot, close it on
@@ -8233,6 +8251,7 @@
       const modeList = Array.isArray(state.modeList) ? state.modeList : [];
       let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
       if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
+      if (_autowindAvailable() && !withPseudo.includes("autowind")) withPseudo = [...withPseudo, "autowind"];
       el.textContent = "";
       // Hidden placeholder (Rev250 race-guard carryover).
       const ph = document.createElement("option");
@@ -8269,7 +8288,37 @@
       return;
     }
     const m = state.mode || "";
+    // Rev518: AUTOWIND -> "AUTO · REAL" / "AUTO · APARENTE".
+    if (state.autowind && state.autowind.enabled && (m === "wind" || m === "true wind")) {
+      btn.textContent = `${t("autowind.short")} · ${_modeLabel(m)}`;
+      return;
+    }
     btn.textContent = m ? _modeLabel(m) : "—";
+  }
+  // Rev518: AUTOWIND needs both wind modes from pypilot.
+  function _autowindAvailable() {
+    const ml = Array.isArray(state.modeList) ? state.modeList : [];
+    return ml.includes("wind") && ml.includes("true wind");
+  }
+  async function _autowindPost(body) {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/autowind`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) {
+        state.autowind = await r.json();
+        _renderModeSelectBtn();
+        _rebuildModePopupProfiles();
+      }
+    } catch (e) { console.warn("[autowind] post", e); }
+  }
+  async function _autowindFetch() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/autowind`);
+      if (r.ok) { state.autowind = await r.json(); _renderModeSelectBtn(); }
+    } catch { /* silent */ }
   }
   // Rev427 (Carlos QA Rev426, 2026-10-08): "es mejor que se abra una
   // ventana grande centrada". Replaced the anchored popup with a
@@ -8284,6 +8333,19 @@
     // produce visible flashes (Rev428 lesson applied to the new DOM).
     const btn = document.getElementById("mode-popup-profile-btn");
     const list = document.getElementById("mode-popup-profile-list");
+    // Rev518: with AUTOWIND on, the profile area shows the pair.
+    const aw = document.getElementById("mode-popup-aw");
+    if (aw) {
+      const awOn = !!(state.autowind && state.autowind.enabled);
+      aw.hidden = !awOn;
+      const plainWrap = btn ? btn.closest(".mode-popup-profile-wrap") : null;
+      if (plainWrap) plainWrap.hidden = awOn;
+      const set = (id, txt) => { const el = document.getElementById(id); if (el && el.textContent !== txt) el.textContent = txt; };
+      set("mode-popup-aw-lbl-app", t("autowind.prof.apparent"));
+      set("mode-popup-aw-lbl-true", t("autowind.prof.true"));
+      set("mode-popup-aw-btn-app", (state.autowind && state.autowind.profileApparent) || "—");
+      set("mode-popup-aw-btn-true", (state.autowind && state.autowind.profileTrue) || "—");
+    }
     if (!btn && !list) return;
     const profiles = Array.isArray(state.profiles) ? state.profiles : [];
     if (btn) {
@@ -8336,6 +8398,13 @@
       `      <ul id="mode-popup-profile-list" class="mode-popup-list mode-popup-profile-list" role="listbox" hidden></ul>` +
       `      <button type="button" id="mode-popup-profile-btn" class="mode-popup-profile-btn"></button>` +
       `    </div>` +
+      `    <div class="mode-popup-profile-wrap" id="mode-popup-aw" hidden>` +
+      `      <div class="mode-popup-group-label" id="mode-popup-aw-lbl-app"></div>` +
+      `      <button type="button" id="mode-popup-aw-btn-app" class="mode-popup-profile-btn" data-side="apparent"></button>` +
+      `      <div class="mode-popup-group-label" id="mode-popup-aw-lbl-true"></div>` +
+      `      <button type="button" id="mode-popup-aw-btn-true" class="mode-popup-profile-btn" data-side="true"></button>` +
+      `      <ul id="mode-popup-aw-list" class="mode-popup-list mode-popup-profile-list" role="listbox" hidden></ul>` +
+      `    </div>` +
       `  </div>` +
       `</div>`;
     document.body.appendChild(m);
@@ -8385,6 +8454,38 @@
         _modeSelectPopupClose();
       });
     }
+    // Rev518: AUTOWIND profile pair. Each button opens the shared list
+    // for its side; picking a profile stores it in the backend.
+    const awList = m.querySelector("#mode-popup-aw-list");
+    for (const id of ["#mode-popup-aw-btn-app", "#mode-popup-aw-btn-true"]) {
+      const b = m.querySelector(id);
+      if (!b || !awList) continue;
+      b.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const side = b.dataset.side;
+        if (!awList.hidden && awList.dataset.side === side) { awList.hidden = true; return; }
+        awList.dataset.side = side;
+        const cur = side === "true" ? state.autowind?.profileTrue : state.autowind?.profileApparent;
+        awList.textContent = "";
+        for (const pName of (Array.isArray(state.profiles) ? state.profiles : [])) {
+          const li = document.createElement("li");
+          li.className = "mode-popup-item";
+          li.dataset.profile = String(pName);
+          li.textContent = String(pName);
+          if (pName === cur) li.classList.add("active");
+          awList.appendChild(li);
+        }
+        b.after(awList);
+        awList.hidden = false;
+      });
+    }
+    if (awList) awList.addEventListener("click", (ev) => {
+      const li = ev.target.closest(".mode-popup-item");
+      if (!li) return;
+      const key = awList.dataset.side === "true" ? "profileTrue" : "profileApparent";
+      _autowindPost({ [key]: li.dataset.profile });
+      awList.hidden = true;
+    });
     return m;
   }
   function _modeSelectPopupOpen() {
@@ -8408,13 +8509,15 @@
     const modeList = Array.isArray(state.modeList) ? state.modeList : [];
     let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
     if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
+    if (_autowindAvailable() && !withPseudo.includes("autowind")) withPseudo = [...withPseudo, "autowind"];
+    const awOn = !!(state.autowind && state.autowind.enabled);
     list.textContent = "";
     for (const v of withPseudo) {
       const li = document.createElement("li");
       li.className = "mode-popup-item";
       li.setAttribute("role", "option");
       li.dataset.mode = String(v);
-      if (v === state.mode) li.classList.add("active");
+      if (awOn ? v === "autowind" : v === state.mode) li.classList.add("active");
       // Rev441 (Carlos 2026-10-10): the modal shows the LONG labels
       // ("Viento Aparente", "Viento Real") so wind modes are explicit
       // on first open. The button on the bbar still uses the SHORT
@@ -10509,6 +10612,14 @@
     $("#mode-select").addEventListener("change", (e) => {
       _msCollapse();
       const chosen = e.target.value;
+      // Rev518: pseudo-mode AUTOWIND lives in the backend.
+      if (chosen === "autowind") {
+        _autowindPost({ enabled: true });
+        return;
+      }
+      if (state.autowind && state.autowind.enabled) {
+        _autowindPost({ enabled: false });
+      }
       // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
       // choice modal (bow / stern) and starts the maneuver on confirmation.
       if (chosen === "aproado") {
@@ -11398,10 +11509,19 @@
         logBtn.setAttribute("title", t("logbook.btn"));
         logBtn.addEventListener("click", (ev) => {
           ev.preventDefault(); ev.stopPropagation();
-          const block = document.querySelector('.setup-block[data-block-key="trips"]');
-          if (!block) return;
-          _setupFullscreenOn(block);
-          try { _tripsRefresh(); } catch { /* silent */ }
+          // Rev518 (Carlos): sailing -> the trip being recorded; in port ->
+          // the logbook list as before.
+          (async () => {
+            try {
+              const r = await skFetch(`/plugins/${PLUGIN_ID}/trip-recorder/status`);
+              const st = r.ok ? await r.json() : null;
+              if (st && st.recording && st.tripId) { _tripsOpenDetail(st.tripId); return; }
+            } catch { /* fall back to the list */ }
+            const block = document.querySelector('.setup-block[data-block-key="trips"]');
+            if (!block) return;
+            _setupFullscreenOn(block);
+            try { _tripsRefresh(); } catch { /* silent */ }
+          })();
         });
         logBtn.addEventListener("dblclick", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
         const blCell = document.querySelector(".dash-rose .dash-cell.corner-bl");
@@ -16871,6 +16991,7 @@
     } catch { /* silent */ }
     // Rev498: shared visor prefs ride the same 5 s poll.
     _vpFetch();
+    _autowindFetch();
   }
   function _alSeverityIcon(sev) {
     return sev === "alarm" ? "!" : sev === "warn" ? "⚠" : "ℹ";
