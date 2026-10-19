@@ -15,18 +15,18 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const wrapDeg = (d: number) => ((d % 360) + 360) % 360;
 const signedDeg = (d: number) => ((d + 540) % 360) - 180;
 
-function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: number }) {
+function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: number; compassStallDeg?: number }) {
   const values: Record<string, unknown> = {
     "ap.enabled": true, "ap.mode": "wind", "ap.heading_command": 0,
   };
   let headingDeg = opts.headingDeg;
-  const writes: Array<{ t: number; name: string; value: unknown }> = [];
+  const writes: Array<{ t: number; name: string; value: unknown; headingDeg: number }> = [];
   let provider: AutopilotProvider | null = null;
   const awaDeg = () => signedDeg(opts.twdDeg - headingDeg);
   const client = {
     connected: true,
     set(name: string, value: unknown) {
-      writes.push({ t: Date.now(), name, value });
+      writes.push({ t: Date.now(), name, value, headingDeg });
       values[name] = value;
       // pypilot echoes asynchronously
       setTimeout(() => provider?.receiveValue(name, value), 5);
@@ -50,7 +50,11 @@ function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: nu
     const mode = String(values["ap.mode"]);
     const cmd = Number(values["ap.heading_command"]);
     let err: number;
-    if (mode === "compass") err = signedDeg(cmd - headingDeg);
+    if (mode === "compass") {
+      err = signedDeg(cmd - headingDeg);
+      // Weather helm: the hull stops short of the compass target.
+      if (opts.compassStallDeg && Math.abs(err) <= opts.compassStallDeg) err = 0;
+    }
     else err = -signedDeg(cmd - awaDeg()); // wind: AWA target, bow opposite
     if (Math.abs(err) > 0.5) headingDeg += Math.sign(err) * Math.min(step, Math.abs(err));
   }, 20);
@@ -176,6 +180,35 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     try {
       p.receiveValue("ap.enabled", false);
       assert.equal(external, 1);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev510: stays in compass until ~6 deg from the final heading", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      const g = p.getVirtualTackState()!.geometry!;
+      const finalDeg = wrapDeg(g.hTargetRad / D);
+      const backToWind = () => sim.writes.find((w) => w.name === "ap.mode" && w.value === "wind");
+      assert.ok(await waitFor(() => !!backToWind(), 15000), "hands back to wind mode");
+      const offAtHandover = Math.abs(signedDeg(wrapDeg(backToWind()!.headingDeg) - finalDeg));
+      assert.ok(offAtHandover <= 8, `handover at ${offAtHandover.toFixed(1)} deg from final (was up to 20)`);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev510: hull hovering 12 deg short still hands over after ~5 s", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 3, compassStallDeg: 12 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      await waitFor(() => p.getVirtualTackState()?.phase === "turning", 2000);
+      const t0 = Date.now();
+      const ok = await waitFor(() => ["handover", "settling", "completed"].includes(String(p.getVirtualTackState()?.phase)), 12000);
+      assert.ok(ok, "must not hang in compass");
+      assert.ok(Date.now() - t0 >= 4500, "waited the approach window first");
     } finally { sim.stop(); }
   });
 

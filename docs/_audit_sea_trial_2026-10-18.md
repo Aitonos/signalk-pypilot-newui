@@ -247,3 +247,22 @@ las pantallas, opt-in):
 
 **Registro**: `servo.flags` vigilado a 1 Hz y `servo.faults` a 0.1 Hz;
 `servoFlags` se graba en cada muestra de sesión.
+
+## 10. Rev510 — contador, modo en pantalla, compás hasta el final
+
+- **Contador (C)**: la pantalla que lanzaba la virada integraba el giro
+  del AWA (deriva con rachas y con el barco frenando, y no veía los
+  ±10). Ahora usa `remainingDeg` del backend (rumbo real contra rumbo
+  final, ±10 incluidos) y el total `totalDeg` nuevo en el snapshot.
+- **Modos distintos en dos pantallas (G)**: al empezar la virada el visor
+  guardaba `state.mode` para restaurarlo; si el delta de "compass" de la
+  propia virada llegaba antes que el snapshot, guardaba "compass" y al
+  terminar se quedaba en COMPÁS (las otras en VIENTO) hasta el refresco
+  de 30 s. Ahora el modo final sale del backend (`windMode`, que la FSM
+  restaura al completar, cancelar o fallar) y durante la maniobra el
+  botón de modo muestra "VIRANDO → <modo>" en todas las pantallas.
+- **Compás hasta el rumbo final (D, parte)**: el último paso volvía a
+  modo viento a 20° de llegar. Ahora sigue en compás hasta 6°; si se
+  queda rondando dentro de 20° durante 5 s, entrega igualmente.
+  **Pendiente de decidir**: PID "caliente" durante la virada con viento
+  fuerte (cambia ganancias; no aplicado).

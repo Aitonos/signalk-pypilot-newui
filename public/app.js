@@ -462,6 +462,8 @@
       "mode.label.compass":   "COMPASS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "APPARENT WIND",
+      "mode.vt.tack":         "TACKING →",
+      "mode.vt.jibe":         "GYBING →",
       "mode.label.true-wind": "TRUE WIND",
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "HEAD TO WIND",
@@ -1395,6 +1397,8 @@
       "mode.label.compass":   "COMPÁS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "APARENTE",
+      "mode.vt.tack":         "VIRANDO →",
+      "mode.vt.jibe":         "TRASLUCHANDO →",
       "mode.label.true-wind": "REAL",
       "mode.label.nav":       "RUMBO A WAYPOINT",
       "mode.label.aproado":   "APROADO",
@@ -1998,6 +2002,8 @@
       "mode.label.compass":   "KOMPASS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "SCHEINBARER WIND",
+      "mode.vt.tack":         "WENDE →",
+      "mode.vt.jibe":         "HALSE →",
       "mode.label.true-wind": "WAHRER WIND",
       "mode.label.nav":       "WEGPUNKT",
       "mode.label.aproado":   "AUFSCHIESSEN",
@@ -2197,6 +2203,8 @@
       "mode.label.compass":   "COMPAS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "VENT APPARENT",
+      "mode.vt.tack":         "VIRE →",
+      "mode.vt.jibe":         "EMPANNAGE →",
       "mode.label.true-wind": "VENT REEL",
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "FACE AU VENT",
@@ -2956,6 +2964,7 @@
             try { renderTargetArrow(); } catch {}
           }
           try { setSelect("#mode-select", state.virtualTack.windMode || state.mode); } catch {}
+          try { _renderModeSelectBtn(); } catch {}
           try { _lastTackDirSeen = state.virtualTack.direction; } catch {}
           try { if (typeof _openExternalTackOverlay === "function") _openExternalTackOverlay(state.virtualTack); } catch (e) { console.warn("[vt] open overlay", e); }
         }
@@ -2984,10 +2993,18 @@
             } else if (typeof state._targetBeforeVt === "number") {
               state.target = state._targetBeforeVt;
             }
-            if (typeof state._modeBeforeVt === "string") {
-              state.mode = state._modeBeforeVt;
-              try { setSelect("#mode-select", state._modeBeforeVt); } catch {}
+            // Rev510: the FSM restores its windMode on completed, cancelled
+            // and failed. _modeBeforeVt could hold "compass" when the
+            // FSM's own compass delta beat the first VT snapshot to this
+            // device - that left one screen on COMPASS and another on WIND.
+            const modeAfter = (typeof state.virtualTack?.windMode === "string" && state.virtualTack.windMode)
+              ? state.virtualTack.windMode
+              : state._modeBeforeVt;
+            if (typeof modeAfter === "string") {
+              state.mode = modeAfter;
+              try { setSelect("#mode-select", modeAfter); } catch {}
             }
+            try { _renderModeSelectBtn(); } catch {}
             // Rev410 (fix U.3, Carlos 2026-10-04): explicit failure toast
             // fed by the backend's `outcomeReason`, replacing the fragile
             // time-since-delta heuristic. Fires on `failed` only — a
@@ -5743,6 +5760,16 @@
           } else {
             el.textContent = "— —";
           }
+          // Rev510: "de Y°" under the number, like the device that started it.
+          const degLine = document.getElementById("tack-countdown-deg");
+          if (degLine) {
+            if (vt && vt.active && typeof vt.totalDeg === "number" && vt.totalDeg > 0 && !inSettling) {
+              degLine.textContent = `de ${Math.round(vt.totalDeg)}°`;
+              degLine.style.display = "";
+            } else {
+              degLine.style.display = "none";
+            }
+          }
         }
         // Re-detect kind if direction/AWA showed up after open.
         if (_lastTackDirSeen && _tackCountdownDir !== _lastTackDirSeen) {
@@ -5891,7 +5918,11 @@
       _tackSampleRotation();
       const elapsed = Math.floor((Date.now() - _tackCountdownExecuteStartTs) / 1000);
       const leftDeg = _tackCountdownDegRemaining();
-      if (leftDeg != null) {
+      const vtNow = _vtActiveSnapshot();
+      if (vtNow && (vtNow.phase === "handover" || vtNow.phase === "settling")) {
+        // Rev510: same as the mirror HUD - the turn is done, wind settles.
+        num.textContent = t("tack.settling") || "settling";
+      } else if (leftDeg != null) {
         num.textContent = `${leftDeg}°`;
       } else {
         num.textContent = elapsed.toString();
@@ -6114,6 +6145,8 @@
   let _externalManeuverTimer = null;    // pure UI refresh, no logic
   let _externalManeuverWatchdog = null; // 60 s safety close
   function _tackCountdownDegTotal() {
+    const vt = _vtActiveSnapshot();
+    if (vt && typeof vt.totalDeg === "number" && vt.totalDeg > 0) return Math.round(vt.totalDeg);
     if (_tackAccumulatedRotationDeg > 0) return Math.round(_tackAccumulatedRotationDeg);
     const raw = state.pypilotValues?.["ap.tack.angle"];
     if (typeof raw === "number" && raw > 10 && raw < 180) return Math.round(raw);
@@ -6169,7 +6202,18 @@
     const expectSign = isWind ? -hullSign : hullSign;
     _tackRotationDoneDeg = Math.max(0, _tackRotationDoneDeg + deltaDeg * expectSign);
   }
+  // Rev510 (Carlos sea trial 2026-10-18: "te pone los grados, pero no los
+  // que le quedan por llegar"): while a virtual tack runs, the backend's
+  // remainingDeg (real heading vs the FINAL compass target, +-10 included)
+  // is the truth. The local AWA integration drifted with gusts, the boat
+  // slowing down and the sailor's adjustments.
+  function _vtActiveSnapshot() {
+    const vt = state.virtualTack;
+    return (vt && vt.active) ? vt : null;
+  }
   function _tackCountdownDegRemaining() {
+    const vt = _vtActiveSnapshot();
+    if (vt && typeof vt.remainingDeg === "number") return Math.max(0, Math.round(vt.remainingDeg));
     const total = _tackAccumulatedRotationDeg > 0 ? _tackAccumulatedRotationDeg : null;
     if (total == null) return null;
     return Math.max(0, Math.round(total - _tackRotationDoneDeg));
@@ -8097,6 +8141,17 @@
   function _renderModeSelectBtn() {
     const btn = document.getElementById("mode-select-btn");
     if (!btn) return;
+    // Rev510 (Carlos sea trial 2026-10-18, 18:07-18:12: "la tablet decia
+    // un modo y el telefono decia otro"): during a virtual tack pypilot is
+    // in compass on purpose. Every visor shows the manoeuvre and the mode
+    // it returns to, from the backend snapshot (same on every screen).
+    const vt = state.virtualTack;
+    if (vt && vt.active) {
+      const kind = vt.maneuverKind === "jibe" ? "jibe" : "tack";
+      const txt = `${t(`mode.vt.${kind}`)} ${_modeLabel(vt.windMode || state.mode || "wind")}`;
+      if (btn.textContent !== txt) btn.textContent = txt;
+      return;
+    }
     const m = state.mode || "";
     btn.textContent = m ? _modeLabel(m) : "—";
   }

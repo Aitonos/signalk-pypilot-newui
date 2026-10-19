@@ -68,7 +68,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev509";
+const PLUGIN_REVISION = "Rev510";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3806,6 +3806,11 @@ module.exports = function (app: any) {
             stepIndex: vt.stepIndex,
             totalSteps: g?.intermediatesRad?.length ?? 0,
             remainingDeg,
+            // Rev510: whole compass rotation of this tack, sailor's +-1/+-10
+            // included, so every visor can show "X deg of Y".
+            totalDeg: (g && typeof g.deltaHRad === "number")
+              ? Math.abs(g.deltaHRad * RAD2DEG + (typeof (vt as any).adjustRad === "number" ? (vt as any).adjustRad * RAD2DEG : 0))
+              : null,
             outcomeReason: vt.outcomeReason ?? null,
           },
         });

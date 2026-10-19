@@ -1036,6 +1036,16 @@ export class AutopilotProvider {
     // sooner and cancel manually.
     const PYPILOT_STUCK_MS = 60_000;
     const STUCK_HEADING_TOL_DEG = 0.5;
+    // Rev510 (Carlos sea trial 2026-10-18: "la virada se para a mitad",
+    // "mantener compás hasta el rumbo final"): the LAST step used to hand
+    // over to wind mode 20 deg before the final heading. With the boat
+    // slowed by the tack and the apparent wind swinging, wind mode then
+    // finished those 20 deg slowly or not at all. Stay in compass until
+    // FINAL_STEP_TOL_DEG; if the hull hovers inside 20 deg for
+    // FINAL_APPROACH_MAX_MS without getting closer (weather helm), hand
+    // over anyway so the tack never hangs in compass.
+    const FINAL_STEP_TOL_DEG = 6;
+    const FINAL_APPROACH_MAX_MS = 5000;
 
     try {
       // ─── Phase turning: compass + fractionated rotation ───
@@ -1107,6 +1117,8 @@ export class AutopilotProvider {
         let lastHeadingRad: number | null = null;
         let lastHeadingChangeTs = Date.now();
         let retarget = false;
+        const isFinalStep = remainingIntermediates.length === 1;
+        let insideApproachSince: number | null = null;
         while (true) {
           const hNow = this._readHeadingRad();
           publishRemaining(hNow);
@@ -1117,14 +1129,24 @@ export class AutopilotProvider {
             break;
           }
           if (hNow !== null) {
-            if (
-              isAtTarget({
-                hNowRad: hNow,
-                hTargetRad: stepTargetRad,
-                toleranceDeg: DEFAULT_PHASE_TOLERANCE_DEG,
-              })
-            ) {
-              break;
+            const insideApproach = isAtTarget({
+              hNowRad: hNow,
+              hTargetRad: stepTargetRad,
+              toleranceDeg: DEFAULT_PHASE_TOLERANCE_DEG,
+            });
+            if (insideApproach && !isFinalStep) break;
+            if (isFinalStep) {
+              if (isAtTarget({ hNowRad: hNow, hTargetRad: stepTargetRad, toleranceDeg: FINAL_STEP_TOL_DEG })) break;
+              if (insideApproach) {
+                if (insideApproachSince === null) insideApproachSince = Date.now();
+                else if (Date.now() - insideApproachSince > FINAL_APPROACH_MAX_MS) {
+                  // eslint-disable-next-line no-console
+                  console.log(`[virtual-tack ${vtId}] final approach: hovering within ${DEFAULT_PHASE_TOLERANCE_DEG}deg for ${FINAL_APPROACH_MAX_MS / 1000}s, handing over`);
+                  break;
+                }
+              } else {
+                insideApproachSince = null;
+              }
             }
             if (lastHeadingRad === null) {
               lastHeadingRad = hNow;

@@ -1,8 +1,21 @@
 # Changelog
 
-## Unreleased (Rev509)
+## Unreleased (Rev509 → Rev510)
+
+### Changed
+- **Virtual tack holds compass until the final heading**: the last step
+  handed back to wind mode 20° short; it now stays in compass until 6°
+  (or hands over after 5 s hovering inside 20°, so it never hangs).
 
 ### Fixed
+- **Tack countdown shows the degrees left**: the device that started the
+  tack counted apparent-wind rotation, which drifts with gusts and the
+  boat slowing down. It now shows the backend's distance from the real
+  heading to the final heading (+-10 included), "of Y°" on every screen.
+- **Two screens showing different modes after a tack**: a visor that got
+  the tack's own compass delta before the tack snapshot restored
+  "compass" at the end. The mode now comes from the backend. During the
+  manoeuvre every screen shows "TACKING → <mode>".
 - **Gust ghost arrow almost never visible**: the fade started in the
   same frame the ghost was created, so the browser skipped the 15 s
   transition and hid it at once. It now fades as designed. The detector
