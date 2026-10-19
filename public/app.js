@@ -470,6 +470,7 @@
       "mode.label.autowind":  "AUTO WIND",
       "mode.label.autowind.long": "AUTO WIND (apparent / true at 120°)",
       "autowind.short":       "AUTO",
+      "autowind.needsGps":    "needs GPS for true wind",
       "autowind.prof.apparent": "Apparent wind",
       "autowind.prof.true":   "True wind",
       "mode.label.nav":       "WAYPOINT",
@@ -1415,6 +1416,7 @@
       "mode.label.autowind":  "AUTO VIENTO",
       "mode.label.autowind.long": "AUTO VIENTO (aparente / real a 120°)",
       "autowind.short":       "AUTO",
+      "autowind.needsGps":    "necesita GPS para el viento real",
       "autowind.prof.apparent": "Viento aparente",
       "autowind.prof.true":   "Viento real",
       "mode.label.nav":       "RUMBO A WAYPOINT",
@@ -8421,6 +8423,7 @@
         const li = ev.target.closest(".mode-popup-item");
         if (!li) return;
         const chosen = li.dataset.mode;
+        if (!chosen) return;   // Rev519: greyed-out entry (AUTO WIND without GPS)
         _modeSelectPopupClose();
         const nativeSel = document.getElementById("mode-select");
         if (nativeSel) {
@@ -8509,7 +8512,10 @@
     const modeList = Array.isArray(state.modeList) ? state.modeList : [];
     let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
     if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
-    if (_autowindAvailable() && !withPseudo.includes("autowind")) withPseudo = [...withPseudo, "autowind"];
+    // Rev519: AUTO WIND always listed when pypilot has wind; greyed out
+    // with the reason when true wind is missing (no GPS).
+    const awNoTrue = !_autowindAvailable() && (Array.isArray(state.modeList) && state.modeList.includes("wind"));
+    if ((_autowindAvailable() || awNoTrue) && !withPseudo.includes("autowind")) withPseudo = [...withPseudo, "autowind"];
     const awOn = !!(state.autowind && state.autowind.enabled);
     list.textContent = "";
     for (const v of withPseudo) {
@@ -8523,6 +8529,12 @@
       // on first open. The button on the bbar still uses the SHORT
       // label ("Aparente" / "Real") to fit the narrow chip.
       li.textContent = _modeLabel(v, true);
+      if (v === "autowind" && awNoTrue) {
+        li.dataset.mode = "";
+        li.style.opacity = "0.45";
+        li.style.cursor = "default";
+        li.textContent = `${_modeLabel(v)} (${t("autowind.needsGps")})`;
+      }
       list.appendChild(li);
     }
     // Refresh the profile sub-select so its header shows the active one.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev517 → Rev518)
+## Unreleased (Rev517 → Rev519)
 
 ### Added
 - **AUTO WIND pseudo-mode**: apparent wind below 120° TWA, true wind
@@ -10,6 +10,9 @@
   the true-wind side can be the more reactive one. Runs in the backend
   (works with the visor closed); picking any other mode, or compass from
   the remote, turns it off. Mode button shows "AUTO · REAL / APPARENT".
+  Without GPS pypilot offers no true wind: the entry is shown greyed out
+  ("needs GPS for true wind"), and pypilot's own drop to compass on a
+  GPS loss does not turn AUTO WIND off.
 - **Logbook button**: while a trip is being recorded it opens that trip;
   in port it opens the logbook list.
 - **Logbook button on the rose**: a helm icon on the left, mirroring the

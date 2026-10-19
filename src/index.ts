@@ -69,7 +69,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev518";
+const PLUGIN_REVISION = "Rev519";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -4242,7 +4242,10 @@ module.exports = function (app: any) {
     // Sailor (remote, TinyPilot, KIP) moved to compass/gps: AUTOWIND
     // ends, like picking another mode in the visor. 5 s so a transient
     // write race never switches it off.
-    if (!blocked && mode !== "wind" && mode !== "true wind" && mode !== "") {
+    // pypilot drops to compass on its own when it loses GPS / true wind
+    // (and returns when it is back): that is not the sailor leaving.
+    const trueWindAvailable = ((apProvider as any).pypilotModes || []).includes("true wind");
+    if (!blocked && trueWindAvailable && mode !== "wind" && mode !== "true wind" && mode !== "") {
       if (_autowindOffFamilySince == null) _autowindOffFamilySince = Date.now();
       else if (Date.now() - _autowindOffFamilySince > 5000) {
         _autowindOffFamilySince = null;
