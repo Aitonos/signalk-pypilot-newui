@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev521 → Rev523)
+## Unreleased (Rev521 → Rev524)
 
 ### Added
 - **Saved displays**: name the rose layout (corners, arrows, overlays,
@@ -9,7 +9,7 @@
 - **Tap sound** (rose configuration, off by default): a short, bright
   sound on every button tap so you know it registered in wind and noise.
   Five lower sounds to choose from (wood, drop, soft thud, low bell, low
-  click) with a test button.
+  click) with a test button; soft thud by default.
 
 ### Changed
 - Rose ring, ticks, degree labels, heading / SOG frames and card and

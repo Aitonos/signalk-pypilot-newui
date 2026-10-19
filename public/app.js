@@ -4179,7 +4179,7 @@
   // refreshed with the alarms poll (5 s) and updated optimistically on
   // every local change. The old localStorage values are uploaded once,
   // by the first visor that finds the backend uninitialized.
-  const _vp = { aisMode: "underway", aisVoice: true, aisHarborAuto: true, gustGhost: true, tapSound: false, tapSoundType: "wood", aisAcks: {}, loaded: false };
+  const _vp = { aisMode: "underway", aisVoice: true, aisHarborAuto: true, gustGhost: true, tapSound: false, tapSoundType: "thud", aisAcks: {}, loaded: false };
   function _vpLegacyLocal() {
     const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
     const out = {};
@@ -4360,7 +4360,7 @@
       if (!AC) return;
       if (!_tapAudio) _tapAudio = new AC();
       if (_tapAudio.state === "suspended") _tapAudio.resume();
-      _tapSynth(_tapAudio, type || _vp.tapSoundType || "wood");
+      _tapSynth(_tapAudio, type || _vp.tapSoundType || "thud");
     } catch { /* silent */ }
   }
   // Rev523 (Carlos: "es muy agudo, hazmelo más grave, dame sonidos"):
@@ -14293,7 +14293,7 @@
         o.value = k; o.textContent = t(`dash.overlay.tap.s.${k}`);
         tsType.appendChild(o);
       }
-      tsType.value = _vp.tapSoundType || "wood";
+      tsType.value = _vp.tapSoundType || "thud";
       tsType.addEventListener("click", (ev) => { ev.stopPropagation(); });
       tsType.addEventListener("change", () => {
         _vpSet({ tapSoundType: tsType.value });

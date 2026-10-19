@@ -46,7 +46,7 @@ export const DEFAULT_VISOR_PREFS: VisorPrefsData = {
   aisHarborAuto: true,
   gustGhost: true,
   tapSound: false,
-  tapSoundType: "wood",
+  tapSoundType: "thud",   // Rev524 (Carlos): soft thud by default
   aisAcks: {},
   initialized: false,
   updatedAt: 0,
