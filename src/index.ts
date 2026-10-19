@@ -68,7 +68,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev515";
+const PLUGIN_REVISION = "Rev516";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3157,9 +3157,12 @@ module.exports = function (app: any) {
         if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
         // Return list + attach summary for each so the visor can render
         // the card grid with one call.
+        const liveId = tripRecorder.currentTripId();
         const rows = tripRecorder.list().map((r) => ({
           ...r,
           summary: tripRecorder!.summary(r.id),
+          // Rev516: the trip being recorded right now.
+          live: r.id === liveId,
         }));
         res.json({ trips: rows });
       });
@@ -3190,6 +3193,8 @@ module.exports = function (app: any) {
         const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
+        // Rev516: trip in progress -> write the pending samples first.
+        if (id === tripRecorder.currentTripId()) tripRecorder.flushNow();
         const file = tripRecorder.jsonlPath(id);
         if (!fs.existsSync(file)) return res.status(404).json({ error: "not found" });
         res.setHeader("Content-Disposition", `attachment; filename="trip-${id}.jsonl"`);

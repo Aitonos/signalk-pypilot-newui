@@ -743,6 +743,8 @@
       "trips.caption.voltMin":  "Min volt",
       "trips.caption.sags":     "sags",
       "trips.status.recording": "LOGBOOK ENTRY IN PROGRESS for",
+      "trips.live":             "IN PROGRESS",
+      "tackStats.hdg":          "HDG",
       "trips.status.navState":  "Nav state",
       "trips.status.noneOpen":  "no logbook entry in progress.",
       "trips.status.disabled":  "Logbook recording is OFF.",
@@ -1686,6 +1688,8 @@
       "trips.caption.voltMin":  "Volt min",
       "trips.caption.sags":     "caidas",
       "trips.status.recording": "BITÁCORA EN CURSO desde hace",
+      "trips.live":             "EN CURSO",
+      "tackStats.hdg":          "RUMBO",
       "trips.status.navState":  "Estado nav",
       "trips.status.noneOpen":  "sin bitácora en curso.",
       "trips.status.disabled":  "Grabación de bitácora OFF.",
@@ -6612,6 +6616,8 @@
       awaSigned: typeof state.windAngle === "number" ? state.windAngle : null,
       twaSigned: typeof state.windAngleTrue === "number" ? state.windAngleTrue : null,
       sog: typeof state.sog === "number" ? state.sog * 1.94384 : null,
+      // Rev516: heading for the compass-mode summary.
+      hdg: typeof state.heading === "number" ? state.heading : null,
     });
     // Rev172 (Carlos): the gust-ghost detector piggybacks on this 1 Hz
     // ring buffer - baseline AWS and rolling AWA both come from the
@@ -6643,8 +6649,10 @@
     // Rev225 (Carlos): also keep the SIGN of AWA so the HUD can show
     // "45deg B" or "45deg E" instead of the bare absolute value.
     let awaSignedSum = 0, awaSignedN = 0;
+    let hx = 0, hy = 0, hN = 0;
     for (const s of _tackStats.samples) {
       if (s.ts < fromTs || s.ts > toTs) continue;
+      if (typeof s.hdg === "number") { hx += Math.cos(s.hdg); hy += Math.sin(s.hdg); hN += 1; }
       if (typeof s.tws === "number")     { tws += s.tws;     twsN += 1; }
       if (typeof s.awaAbs === "number")  { awa += s.awaAbs;  awaN += 1; }
       if (typeof s.awaSigned === "number") {
@@ -6658,6 +6666,7 @@
       awa: awaN > 0 ? awa / awaN : null,
       awaSide: awaSignedN > 0 ? (awaSignedSum >= 0 ? "E" : "B") : null,
       sog: sogN > 0 ? sog / sogN : null,
+      hdg: hN > 0 ? ((Math.atan2(hy, hx) * RAD2DEG) + 360) % 360 : null,
     };
   }
   function _tackStatsOnTackCompleted() {
@@ -7114,8 +7123,23 @@
       if (o == null || o.awa == null) return (isPost && pending) ? "…" : "--";
       return `${Math.round(o.awa)}° ${o.awaSide || ""}`.trim();
     };
-    set("tack-stats-awa-before", awaFmt(pre, false));
-    set("tack-stats-awa-after",  awaFmt(post, true));
+    // Rev516 (Carlos 2026-10-19: "cuando estamos en modo compás no debe
+    // hablar del viento aparente sino del rumbo"): compass manoeuvre ->
+    // mean heading before / after.
+    // Frozen when the summary first shows, so a mode change before the
+    // post window lands does not flip the row.
+    if (post == null || _tackStats.compassStats == null) {
+      const modeNow = String(_maneuverModeAtStart || state.mode || "").toLowerCase();
+      _tackStats.compassStats = !modeNow.includes("wind");
+    }
+    const compassStats = _tackStats.compassStats;
+    set("tack-stats-awa-lbl", compassStats ? (t("tackStats.hdg") || "HDG") : "AWA");
+    const hdgFmt = (o, isPost) => {
+      if (o == null || o.hdg == null) return (isPost && pending) ? "…" : "--";
+      return `${String(Math.round(o.hdg) % 360).padStart(3, "0")}°`;
+    };
+    set("tack-stats-awa-before", compassStats ? hdgFmt(pre, false) : awaFmt(pre, false));
+    set("tack-stats-awa-after",  compassStats ? hdgFmt(post, true) : awaFmt(post, true));
     set("tack-stats-sog-before", (pre?.sog == null ? "--" : pre.sog.toFixed(1) + " kn"));
     set("tack-stats-sog-after",  fmt(post?.sog, " kn", 1));
     // Rev224: execution time (from arming-to-executing switch to
@@ -12639,10 +12663,15 @@
     // Rev330 (Carlos, 2026-09-28): tipografía más grande + colores del
     // sistema (--fg, --fg-dim, --accent). Nombre en accent cuando
     // existe, fecha siempre en fg-dim.
+    // Rev516 (Carlos 2026-10-19: consult the logbook while sailing): the
+    // trip being recorded shows live stats and this badge.
+    const liveBadge = trip.live
+      ? `<span style="display:inline-block;margin-left:8px;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:0.5px;color:#ff9500;background:rgba(255,149,0,0.15);border:1px solid #ff9500;vertical-align:middle">● ${t("trips.live")}</span>`
+      : "";
     const titleHtml = nameEsc
-      ? `<div style="font-size:16px;font-weight:600;color:var(--accent,#4dd4ff);line-height:1.2">${nameEsc}</div>
+      ? `<div style="font-size:16px;font-weight:600;color:var(--accent,#4dd4ff);line-height:1.2">${nameEsc}${liveBadge}</div>
          <div style="font-size:13px;color:var(--fg-dim);margin-top:2px">${dateStr}</div>`
-      : `<div style="font-size:15px;font-weight:600;color:var(--fg);line-height:1.2">${dateStr}</div>`;
+      : `<div style="font-size:15px;font-weight:600;color:var(--fg);line-height:1.2">${dateStr}${liveBadge}</div>`;
     const kpiHtml = s
       ? `<div style="font-size:13px;color:var(--fg);margin-top:6px"><b>${distNm} nm</b> · ${durMin} min · SOG ${avg} ${sog} kn</div>
          <div style="font-size:12px;color:var(--fg-dim);margin-top:2px">TWS ${avg} ${tws} kn · ${tacks} ${bordos} · peak SOG ${s.sogMaxKn?.toFixed(1) ?? "?"} kn · peak TWS ${s.twsMaxKn?.toFixed(1) ?? "?"} kn</div>`
@@ -13642,6 +13671,11 @@
     // set, falling back to the timestamp. Inline pencil button reopens
     // the rename prompt.
     _tripsRenderTitle(id, s.name || null, dateStr);
+    if (s.live) {
+      // Rev516: trip still being recorded - stats and track up to now.
+      const titleEl = document.getElementById("trip-detail-title");
+      if (titleEl) titleEl.insertAdjacentHTML("beforeend", `<span style="margin-left:8px;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;color:#ff9500;background:rgba(255,149,0,0.15);border:1px solid #ff9500">● ${t("trips.live")}</span>`);
+    }
     // Rev332 (Carlos, 2026-09-28): "quita los colorines" — todas las
     // KPI cards con el mismo color neutro var(--fg). El tint arg se
     // conserva por si un día queremos volver a resaltar algo, pero por

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev509 → Rev515)
+## Unreleased (Rev509 → Rev516)
 
 Rev515 comes from the sail of 2026-10-19: it reverts two changes that
 made things worse (Rev510 compass-until-6°, Rev512 head-to-wind in
@@ -22,6 +22,11 @@ compass) and fixes what the sail showed. Audit:
   are translated.
 
 ### Added
+- **Logbook while sailing**: the trip being recorded appears in the
+  logbook with an "IN PROGRESS" badge, live statistics (distance, time,
+  speeds, wind, tacks, energy...) and the track on the chart up to now.
+- **Tack summary in compass mode** shows the mean heading before / after
+  instead of the apparent wind angle.
 - **Confirmation before a gybe the long way** (see above).
 
 ### Fixed

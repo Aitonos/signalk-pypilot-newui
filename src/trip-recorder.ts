@@ -308,10 +308,23 @@ export class TripRecorder {
     }));
     this.flush();
     if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
-    // Compute summary.
-    const summary: TripSummary = {
+    const summary = this._buildSummary(endTs);
+    try {
+      if (this.currentSummaryFile) fs.writeFileSync(this.currentSummaryFile, JSON.stringify(summary, null, 2));
+    } catch (e: any) {
+      this.log("error", `trip summary write failed: ${e?.message || e}`);
+    }
+    this.log("info", `[trip] closed ${this.currentId} (${this.sampleCount} samples, ${summary.distanceNm.toFixed(1)} nm, ${this.tackCount} tacks)`);
+    this._resetActive();
+    return summary;
+  }
+
+  // Rev516: shared by stop() and liveSummary().
+  private _buildSummary(endTs: number): TripSummary {
+    const durMs = endTs - (this.startTs as number);
+    return {
       id: this.currentId!,
-      startTs: this.startTs,
+      startTs: this.startTs as number,
       endTs,
       durationMs: durMs,
       distanceNm: this.distanceMeters / 1852,
@@ -353,15 +366,19 @@ export class TripRecorder {
       revision: this.header?.revision ?? "?",
       sampleCount: this.sampleCount,
     };
-    try {
-      if (this.currentSummaryFile) fs.writeFileSync(this.currentSummaryFile, JSON.stringify(summary, null, 2));
-    } catch (e: any) {
-      this.log("error", `trip summary write failed: ${e?.message || e}`);
-    }
-    this.log("info", `[trip] closed ${this.currentId} (${this.sampleCount} samples, ${summary.distanceNm.toFixed(1)} nm, ${this.tackCount} tacks)`);
-    this._resetActive();
-    return summary;
   }
+
+  /** Rev516 (Carlos 2026-10-19: "que lo que se está grabando de bitácora
+   *  se pueda consultar mientras está navegando"): summary of the trip in
+   *  progress from the same running stats stop() uses. */
+  liveSummary(): (TripSummary & { live: true }) | null {
+    if (!this.currentFile || this.startTs == null || !this.currentId) return null;
+    return { ...this._buildSummary(Date.now()), live: true };
+  }
+
+  /** Rev516: write the pending samples so a download of the trip in
+   *  progress carries the track up to now (buffer flushes every 30 s). */
+  flushNow(): void { this.flush(); }
 
   private flush(): void {
     if (!this.currentFile || this.buffer.length === 0) return;
@@ -461,6 +478,7 @@ export class TripRecorder {
   }
 
   summary(id: string): TripSummary | null {
+    if (this.currentId && id === this.currentId) return this.liveSummary();
     const sumPath = path.join(this.dir, `trip-${id}.summary.json`);
     try { return JSON.parse(fs.readFileSync(sumPath, "utf8")) as TripSummary; } catch { return null; }
   }
