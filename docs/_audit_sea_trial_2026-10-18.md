@@ -282,3 +282,16 @@ con |AWA| < 90°) necesita confirmación. Backend devuelve 428 con
 `code: confirm_long_jibe`; el visor pregunta "¿Trasluchar por popa?
 … Para virar, usa el otro botón." Trasluchadas normales desde un largo y
 viradas largas desde popa no preguntan.
+
+## 12. Rev512 — aproado en compás (punto 4 del plan)
+
+El aproado seguía en modo viento a AWA 0° también en la fase "activa"
+(19:40-19:42: +5…-33° durante 2 min, barco parado); solo pasaba a
+compás al pulsar SALIR, y ese compás sí aguantó 5 min. Ahora, al
+lograrse (|AWA| < 10° durante 3 s), pasa a compás con rumbo = rumbo +
+AWA (proa al viento). Sigue los roles despacio: reapunta si la media de
+AWA de 15 s se va más de 12°, como mucho 15° por corrección y ≥ 15 s
+entre correcciones. Un ±1/±10 del patrón manda: pasa a ser la base y
+pausa el reapuntado 60 s. Si el visor se cierra, el compás mantiene el
+último rumbo (fallo seguro). SALIR igual que antes (compás al rumbo
+actual).

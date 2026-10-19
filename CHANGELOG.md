@@ -1,8 +1,13 @@
 # Changelog
 
-## Unreleased (Rev509 → Rev511)
+## Unreleased (Rev509 → Rev512)
 
 ### Changed
+- **Head to wind holds in compass**: once head-to-wind is reached, the
+  pilot holds the heading that puts the bow into the wind in compass
+  mode (wind mode at AWA 0° swung up to 33° with the boat stopped). Wind
+  shifts are followed slowly (mean AWA off by > 12° for 15 s, at most
+  15° per correction); a +-1/+-10 from the sailor wins.
 - **Virtual tack holds compass until the final heading**: the last step
   handed back to wind mode 20° short; it now stays in compass until 6°
   (or hands over after 5 s hovering inside 20°, so it never hangs).

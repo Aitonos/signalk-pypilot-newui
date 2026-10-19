@@ -9266,6 +9266,72 @@
     _setPhase("active");
     const hud = _aproadoHud();
     if (hud) hud.classList.remove("transit");
+    _aproadoStartCompassHold(apr);
+  }
+
+  // Rev512 (Carlos sea trial 2026-10-18, 19:40-19:42): holding head-to-
+  // wind in WIND mode at AWA 0 swung +5..-33 deg for 2 min with the boat
+  // stopped; the compass phase after SALIR held within ~10 deg for 5 min.
+  // Once aproado is achieved, hold it in COMPASS on the heading that puts
+  // the bow into the wind (heading + AWA), and follow wind shifts slowly:
+  // re-aim only when the 15 s mean AWA is off by > 12 deg, at most 15 deg
+  // per correction, >= 15 s apart. A sailor's +-1/+-10 pauses the re-aim
+  // for 60 s and becomes the new base. If the visor goes away the pilot
+  // simply keeps the last compass heading (safe).
+  const APROADO_HOLD_REAIM_DEG = 12;
+  const APROADO_HOLD_WINDOW_MS = 15_000;
+  const APROADO_HOLD_MIN_GAP_MS = 15_000;
+  const APROADO_HOLD_MAX_STEP_DEG = 15;
+  const APROADO_HOLD_SAILOR_PAUSE_MS = 60_000;
+  async function _aproadoStartCompassHold(apr) {
+    if (typeof state.heading !== "number" || typeof state.windAngle !== "number") return;
+    const target = _wrapRad(state.heading + state.windAngle);
+    try {
+      await apSetModeAndWait("compass");
+      if (state.aproado !== apr || apr.phase !== "active") return;
+      await apSetTargetRad(target);
+      // echoUntil: our own write is not echoed yet; do not read the old
+      // state.target as a sailor's nudge.
+      apr._hold = { targetRad: target, lastReaimTs: Date.now(), awa: [], pausedUntil: 0, echoUntil: Date.now() + 3000 };
+      console.info(`aproado: holding head-to-wind in compass @ ${(((target * RAD2DEG) + 360) % 360).toFixed(0)} deg (Rev512)`);
+      if (typeof _mtLog === "function") _mtLog("other", { stage: "visor", via: "aproado-compass-hold", targetRad: target });
+    } catch (e) {
+      console.warn("aproado: compass hold failed, staying in wind mode", e);
+    }
+  }
+  function _wrapRad(r) {
+    let x = r;
+    while (x > Math.PI) x -= 2 * Math.PI;
+    while (x < -Math.PI) x += 2 * Math.PI;
+    return x;
+  }
+  function _aproadoHoldTick(apr) {
+    const h = apr && apr._hold;
+    if (!h || apr.phase !== "active") return;
+    const now = Date.now();
+    // The sailor nudged (target differs from ours): theirs is the new base.
+    if (now >= h.echoUntil && typeof state.target === "number"
+        && Math.abs(_wrapRad(state.target - h.targetRad)) > 1 * DEG2RAD) {
+      h.targetRad = state.target;
+      h.pausedUntil = now + APROADO_HOLD_SAILOR_PAUSE_MS;
+      h.awa = [];
+    }
+    if (typeof state.windAngle === "number") h.awa.push({ ts: now, a: state.windAngle });
+    while (h.awa.length && now - h.awa[0].ts > APROADO_HOLD_WINDOW_MS) h.awa.shift();
+    if (now < h.pausedUntil || now - h.lastReaimTs < APROADO_HOLD_MIN_GAP_MS) return;
+    if (h.awa.length < 20) return;  // ~10 s of samples at the 500 ms HUD tick
+    let sx = 0, sy = 0;
+    for (const p of h.awa) { sx += Math.cos(p.a); sy += Math.sin(p.a); }
+    const meanDeg = Math.atan2(sy, sx) * RAD2DEG;
+    if (Math.abs(meanDeg) <= APROADO_HOLD_REAIM_DEG) return;
+    const stepDeg = Math.max(-APROADO_HOLD_MAX_STEP_DEG, Math.min(APROADO_HOLD_MAX_STEP_DEG, meanDeg));
+    const next = _wrapRad(h.targetRad + stepDeg * DEG2RAD);
+    h.targetRad = next;
+    h.lastReaimTs = now;
+    h.echoUntil = now + 3000;
+    h.awa = [];
+    console.info(`aproado hold: wind shifted ${meanDeg.toFixed(0)} deg -> re-aim ${stepDeg.toFixed(0)} deg`);
+    apSetTargetRad(next).catch((e) => console.warn("aproado hold: re-aim failed", e));
   }
 
   // Cancel from choosing OR countdown phase. Nothing was sent to pypilot
@@ -9879,6 +9945,8 @@
     if (!apr || !hud) return;
     // Rev90: check for phase transition transit -> active.
     _aproadoCheckAchieved();
+    // Rev512: follow wind shifts while holding head-to-wind in compass.
+    try { _aproadoHoldTick(apr); } catch (e) { console.warn("aproado hold tick", e); }
     // Distance covers transit + active + summary. Elapsed clock only
     // ticks once startTs has been armed (aproado achieved OR summary).
     if ((apr.phase === "active" || apr.phase === "transit") &&
