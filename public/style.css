@@ -478,7 +478,7 @@ main {
   min-width: 72px;
   padding: 3px 10px;
   background: rgba(0, 0, 0, 0.72);
-  border: 1px solid #6f8296;
+  border: 1px solid #ffffff;   /* Rev522: white frame (sunlight) */
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
@@ -493,7 +493,7 @@ main {
   font-size: 11px;
   line-height: 1;
   margin-bottom: 2px;
-  color: var(--fg-dim);
+  color: var(--fg);   /* Rev522 */
   letter-spacing: 1.2px;
   font-weight: 700;
 }
@@ -580,7 +580,7 @@ main {
   line-height: 1;
   margin-bottom: 2px;
   width: 100%;
-  color: var(--fg-dim);
+  color: var(--fg);   /* Rev522: corner titles in white (sunlight) */
 }
 /* Rev51: values scale with viewport but never exceed 36 px so a 3-digit
    number always fits inside 28 % of the rose square. Sub-line stays
@@ -917,7 +917,7 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
 }
 
 .dash-cell .label {
-  color: var(--fg-dim);
+  color: var(--fg);   /* Rev522: corner tile titles in white */
   font-size: 12px;
   letter-spacing: 1px;
   font-weight: 600;
@@ -1789,7 +1789,7 @@ hr.tune-separator {
 body.adjusting main #tab-tune .gain-row:not(.active) { opacity: 0.32; transition: opacity 0.1s ease; }
 
 .section-title {
-  color: var(--fg-dim);
+  color: var(--fg);   /* Rev522 (Carlos): card titles in white */
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;

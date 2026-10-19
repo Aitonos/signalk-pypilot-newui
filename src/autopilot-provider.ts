@@ -370,7 +370,11 @@ export class AutopilotProvider {
           // remote, native UI, KIP switch, /raw) annuls the virtual tack.
           if (!eng) this._cancelVirtualTackOnDisengage("disengaged externally");
           // Rev508: steer-dropped alarm (skip our own recovery cycle).
-          if (!eng && Date.now() >= this._recoveryCycleUntil) {
+          // Rev522: only a real engaged -> disengaged transition. The
+          // first ap.enabled=false after a (re)connect is the initial
+          // sync, not someone taking the AP off (fired on every SK
+          // restart in port).
+          if (!eng && prevEngaged === true && Date.now() >= this._recoveryCycleUntil) {
             try { this.onExternalDisengage?.(); } catch { /* observer only */ }
           }
         }

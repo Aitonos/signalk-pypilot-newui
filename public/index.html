@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev521" />
+  <link rel="stylesheet" href="style.css?v=Rev522" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -223,7 +223,9 @@
           </div>
           <svg id="wind-rose" class="rose-svg" viewBox="-100 -110 200 220" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
-            <circle cx="0" cy="0" r="94" fill="none" stroke="#4a5a6e" stroke-width="2"/>
+            <!-- Rev522 (Carlos, sunlight): ring, ticks, degree labels and the
+                 heading chip frame in white. -->
+            <circle cx="0" cy="0" r="94" fill="none" stroke="#ffffff" stroke-width="2"/>
             <!-- Rev58: sailing zones as PIE SLICES from origin (r=0) out
                  to the compass ring (r=90). The boat SVG renders AFTER the
                  wedges so its opaque hull hides the inner tips - visually
@@ -534,7 +536,7 @@
                  Colors updated per Carlos: N amarillo (accent),
                  S azul, E rojo, W verde (estribor-boat). -->
             <g id="rose-card">
-              <g stroke="#3a4553" stroke-width="1">
+              <g stroke="#ffffff" stroke-width="1">
                 <line x1="0" y1="-94" x2="0" y2="-84"/>
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(30)"/>
                 <line x1="0" y1="-94" x2="0" y2="-84" transform="rotate(60)"/>
@@ -557,7 +559,7 @@
               <text x="0"  y="70"  text-anchor="middle" dominant-baseline="middle" fill="#6faaff" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="13" font-weight="800">S</text>
               <text x="-70" y="0"  text-anchor="middle" dominant-baseline="middle" fill="#e74c3c" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="13" font-weight="800">W</text>
               <!-- 8 numeric labels at 30 deg increments (skip cardinals). -->
-              <g fill="#b8c4d0" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
+              <g fill="#ffffff" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
                 <text transform="rotate(30)  translate(0,-72)">030</text>
                 <text transform="rotate(60)  translate(0,-72)">060</text>
                 <text transform="rotate(120) translate(0,-72)">120</text>
@@ -579,7 +581,7 @@
                  of the ring. Bottom edge stays at y=-84 as before. -->
             <g id="rose-hdg-chip">
               <rect x="-22" y="-110" width="44" height="26" rx="4" ry="4"
-                    fill="rgba(0,0,0,0.78)" stroke="#6f8296" stroke-width="1"/>
+                    fill="rgba(0,0,0,0.78)" stroke="#ffffff" stroke-width="1"/>
               <text id="rose-hdg-value" x="0" y="-100" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
               <text id="rose-hdg-deg"   x="0" y="-100" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
               <text id="rose-hdg-prec"  x="0" y="-89" text-anchor="middle" dominant-baseline="middle" fill="#b8c4d0" font-size="9" font-weight="800" font-family="ui-monospace, monospace">--</text>
@@ -789,6 +791,20 @@
           <button class="popup-close" onclick="document.getElementById('dash-help-pop').classList.remove('open')">✕</button>
           <div class="popup-body">
           <p class="dash-help-body" data-i18n="dash.help.body">Pick which datum shows in each corner. Saved in your browser.</p>
+          <!-- Rev522 (Carlos): named display presets of the rose, saved on
+               this device or on the server for every device. -->
+          <div class="dash-corner-cfg" style="gap:8px" id="dash-presets">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.presets.title">SAVED DISPLAYS</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.presets.hint">Save this rose layout with a name.</div>
+            <label><span data-i18n="dash.presets.pick">Saved</span> <select id="dash-preset-select"></select></label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="primary" id="dash-preset-apply" data-i18n="dash.presets.apply">Apply</button>
+              <button type="button" class="ghost" id="dash-preset-save-local" data-i18n="dash.presets.saveLocal">Save on this device</button>
+              <button type="button" class="ghost" id="dash-preset-save-server" data-i18n="dash.presets.saveServer">Save for all devices</button>
+              <button type="button" class="ghost" id="dash-preset-delete" data-i18n="dash.presets.delete">Delete</button>
+            </div>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
           <div class="dash-corner-cfg">
             <label><span data-i18n="dash.corner.tl">Top left</span> <select id="dash-corner-tl" data-corner="tl"></select></label>
             <label><span data-i18n="dash.corner.tr">Top right</span> <select id="dash-corner-tr" data-corner="tr"></select></label>
@@ -888,6 +904,17 @@
                         style="margin-top:6px;padding:6px 10px;font-size:12px;align-self:flex-start"
                         data-i18n="dash.overlay.gust.test"
                         onclick="event.preventDefault();event.stopPropagation();">Test now</button>
+              </label>
+              <!-- Rev522 (Carlos): tap sound toggle, same overlay-card look. -->
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-tap-sound" />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <path d="M -14,-38 L -6,-38 L 4,-48 L 4,-12 L -6,-22 L -14,-22 Z" fill="#ffffff"/>
+                  <path d="M 10,-38 Q 15,-30 10,-22" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
+                  <path d="M 15,-44 Q 24,-30 15,-16" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.tap.title">Tap sound</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.tap.needs">A short click on every button you tap.</div>
               </label>
               <!-- Rev434 (Carlos QA Rev433): AIS collision overlay toggle.
                    Same overlay-card layout as the gust ghost. Default
@@ -2662,6 +2689,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev521"></script>
+  <script src="app.js?v=Rev522"></script>
 </body>
 </html>

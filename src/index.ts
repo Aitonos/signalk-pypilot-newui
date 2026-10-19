@@ -13,6 +13,7 @@ import { Historian, Sample, SamplePath } from "./historian";
 import { KPIComputer, KPISnapshot } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
+import { DisplayPresets } from "./display-presets";
 import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
@@ -69,7 +70,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev521";
+const PLUGIN_REVISION = "Rev522";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -313,6 +314,16 @@ module.exports = function (app: any) {
       visorPrefs = new VisorPrefs(p.join(app.getDataDirPath ? app.getDataDirPath() : ".", "visor-prefs.json"));
     }
     return visorPrefs;
+  };
+  // Rev522: named rose display presets (lazy, same data dir).
+  let displayPresets: DisplayPresets | null = null;
+  const getDisplayPresets = (): DisplayPresets => {
+    if (!displayPresets) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const p = require("path");
+      displayPresets = new DisplayPresets(p.join(app.getDataDirPath ? app.getDataDirPath() : ".", "display-presets.json"));
+    }
+    return displayPresets;
   };
   // Rev164 (Carlos): supervisor state that watches TWS averaged over the
   // last 60 s and switches the pypilot profile when the wind band has
@@ -1530,6 +1541,22 @@ module.exports = function (app: any) {
       //   PUT  /visor-prefs            - partial update {aisMode, aisVoice, aisHarborAuto, gustGhost}
       //   POST /visor-prefs/ais-ack    - {mmsi, ttlMs?} silence one target on every device
       //   POST /visor-prefs/ais-unack  - {mmsi} or {mmsi:"all"}
+      // Rev522: named rose display presets shared by every device.
+      //   GET    /display-presets         - list
+      //   PUT    /display-presets         - {name, data} create / overwrite
+      //   DELETE /display-presets/:name
+      router.get("/display-presets", (_req: any, res: any) => {
+        res.json({ presets: getDisplayPresets().list() });
+      });
+      router.put("/display-presets", (req: any, res: any) => {
+        const saved = getDisplayPresets().save(req.body?.name, req.body?.data);
+        if (!saved) { res.status(400).json({ error: "invalid name or too many presets" }); return; }
+        res.json({ ok: true, preset: saved, presets: getDisplayPresets().list() });
+      });
+      router.delete("/display-presets/:name", (req: any, res: any) => {
+        const ok = getDisplayPresets().remove(decodeURIComponent(String(req.params?.name || "")));
+        res.json({ ok, presets: getDisplayPresets().list() });
+      });
       router.get("/visor-prefs", (_req: any, res: any) => {
         res.json(getVisorPrefs().snapshot());
       });

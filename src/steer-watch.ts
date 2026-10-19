@@ -157,7 +157,8 @@ export class SteerWatch {
 
   /** An ap.enabled=false that no app order explains (remote, TinyPilot keys). */
   noteExternalDisengage(nowMs: number, sogMs: number | null): void {
-    if (typeof sogMs === "number" && sogMs < DROPPED_MIN_SOG_MS) return;
+    // Rev522: underway must be KNOWN (no GPS -> no SOG -> no alarm).
+    if (typeof sogMs !== "number" || !isFinite(sogMs) || sogMs < DROPPED_MIN_SOG_MS) return;
     this.droppedAtMs = nowMs;
   }
 

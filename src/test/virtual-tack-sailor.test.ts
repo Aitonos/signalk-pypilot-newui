@@ -210,6 +210,18 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev522: the first ap.enabled=false after (re)connect is not an external disengage", () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    let external = 0;
+    p.onExternalDisengage = () => { external++; };
+    try {
+      p.receiveValue("ap.modes", ["compass", "wind"]);
+      p.receiveValue("ap.enabled", false);   // initial sync, never engaged
+      assert.equal(external, 0);
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);

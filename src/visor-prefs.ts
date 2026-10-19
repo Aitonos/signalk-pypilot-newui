@@ -22,6 +22,8 @@ export interface VisorPrefsData {
   aisVoice: boolean;
   aisHarborAuto: boolean;
   gustGhost: boolean;
+  /** Rev522: short click on every tap (off by default). */
+  tapSound: boolean;
   /** mmsi -> silenced-until epoch ms */
   aisAcks: Record<string, number>;
   /** false until the first visor uploads its legacy localStorage values */
@@ -39,6 +41,7 @@ export const DEFAULT_VISOR_PREFS: VisorPrefsData = {
   aisVoice: true,
   aisHarborAuto: true,
   gustGhost: true,
+  tapSound: false,
   aisAcks: {},
   initialized: false,
   updatedAt: 0,
@@ -183,6 +186,7 @@ function sanitize(raw: unknown, base: VisorPrefsData): VisorPrefsData {
   if (typeof r.aisVoice === "boolean") out.aisVoice = r.aisVoice;
   if (typeof r.aisHarborAuto === "boolean") out.aisHarborAuto = r.aisHarborAuto;
   if (typeof r.gustGhost === "boolean") out.gustGhost = r.gustGhost;
+  if (typeof r.tapSound === "boolean") out.tapSound = r.tapSound;
   if (typeof r.initialized === "boolean") out.initialized = r.initialized;
   if (typeof r.updatedAt === "number" && isFinite(r.updatedAt)) out.updatedAt = r.updatedAt;
   if (r.aisAcks && typeof r.aisAcks === "object") {

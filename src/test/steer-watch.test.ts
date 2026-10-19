@@ -141,6 +141,12 @@ describe("steer-watch (Rev508)", () => {
     assert.equal(w.snapshot().droppedActive, false);
   });
 
+  it("Rev522: SOG unknown (no GPS) is not an alarm", () => {
+    const w = new SteerWatch();
+    w.noteExternalDisengage(1000, null);
+    assert.equal(w.snapshot().droppedActive, false);
+  });
+
   it("external disengage moored (SOG < 1 kn) is not an alarm", () => {
     const w = new SteerWatch();
     w.noteExternalDisengage(1000, 0.1);

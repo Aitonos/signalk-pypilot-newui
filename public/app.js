@@ -701,6 +701,20 @@
       "dash.overlay.gust.title": "Gust marker",
       "dash.overlay.gust.needs": "Leaves a ghost A arrow at the gust speed; fades in 10 s. Needs a wind sensor.",
       "dash.overlay.gust.test":  "Test now",
+      "dash.overlay.tap.title":  "Tap sound",
+      "dash.presets.title":      "SAVED DISPLAYS",
+      "dash.presets.hint":       "Save this rose layout (corners, arrows, overlays, bottom bar) with a name, on this device or for every device, and switch between layouts in one tap.",
+      "dash.presets.pick":       "Saved",
+      "dash.presets.apply":      "Apply",
+      "dash.presets.saveLocal":  "Save on this device",
+      "dash.presets.saveServer": "Save for all devices",
+      "dash.presets.delete":     "Delete",
+      "dash.presets.none":       "(none yet)",
+      "dash.presets.local":      "this device",
+      "dash.presets.server":     "all devices",
+      "dash.presets.namePrompt": "Name for this display",
+      "dash.presets.deleteQ":    "Delete this saved display?",
+      "dash.overlay.tap.needs":  "A short click on every button you tap, so you know it registered with wind and noise around. Off for everyone if it bothers someone.",
       "tack.port.title":     "Tack to port",
       "tack.star.title":     "Tack to starboard",
       "nav.toggle.aria":     "Show / hide tab bar",
@@ -1653,6 +1667,20 @@
       "dash.overlay.gust.title": "Marca de ráfagas",
       "dash.overlay.gust.needs": "Deja una flecha A fantasma con la velocidad de la racha; se desvanece en 10 s. Necesita sensor de viento.",
       "dash.overlay.gust.test":  "Probar ahora",
+      "dash.overlay.tap.title":  "Sonido al tocar",
+      "dash.presets.title":      "PANTALLAS GUARDADAS",
+      "dash.presets.hint":       "Guarda esta disposición de la rosa (esquinas, flechas, capas, barra inferior) con un nombre, en este dispositivo o para todos, y cambia entre ellas de un toque.",
+      "dash.presets.pick":       "Guardadas",
+      "dash.presets.apply":      "Aplicar",
+      "dash.presets.saveLocal":  "Guardar en este dispositivo",
+      "dash.presets.saveServer": "Guardar para todos",
+      "dash.presets.delete":     "Borrar",
+      "dash.presets.none":       "(ninguna todavía)",
+      "dash.presets.local":      "este dispositivo",
+      "dash.presets.server":     "todos los dispositivos",
+      "dash.presets.namePrompt": "Nombre para esta pantalla",
+      "dash.presets.deleteQ":    "¿Borrar esta pantalla guardada?",
+      "dash.overlay.tap.needs":  "Un clic corto en cada botón que tocas, para saber que se ha registrado con viento y ruido. Desactívalo si molesta a alguien.",
       "tack.port.title":     "Virar a babor",
       "tack.star.title":     "Virar a estribor",
       "nav.toggle.aria":     "Mostrar / ocultar barra de pestañas",
@@ -2600,24 +2628,60 @@
   // tap handler. Chrome/Edge auto-release on hidden; we hook
   // visibilitychange to re-request when the user comes back.
   let _wakeLock = null;
+  // Rev522 (Carlos: "pantalla siempre encendida no siempre funciona,
+  // creo que solo cuando activamos freeboard"): the Wake Lock API only
+  // exists in secure contexts (https / localhost) - the tablet opens the
+  // visor over plain http://<ip>:3000, so navigator.wakeLock is missing.
+  // Freeboard keeps the screen on with a looping video; same fallback
+  // here: a tiny silent black video (public/keepawake.*, ~2 KB, served by
+  // the plugin so it works offline) playing in a 1 px corner.
+  let _keepAwakeVideo = null;
+  function _keepAwakeVideoStart() {
+    try {
+      if (!_keepAwakeVideo) {
+        const v = document.createElement("video");
+        v.setAttribute("playsinline", "");
+        v.setAttribute("title", "keep screen on");
+        v.loop = true;
+        v.style.cssText = "position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1";
+        for (const [src, type] of [["keepawake.webm", "video/webm"], ["keepawake.mp4", "video/mp4"]]) {
+          const so = document.createElement("source");
+          so.src = src; so.type = type;
+          v.appendChild(so);
+        }
+        document.body.appendChild(v);
+        _keepAwakeVideo = v;
+      }
+      const pr = _keepAwakeVideo.play();
+      if (pr && pr.catch) pr.catch((e) => console.info("[wake] video fallback failed:", e && e.name));
+    } catch (e) { console.info("[wake] video fallback error:", e); }
+  }
+  function _keepAwakeVideoStop() {
+    try { if (_keepAwakeVideo) _keepAwakeVideo.pause(); } catch { /* silent */ }
+  }
   async function _acquireWakeLock() {
     try {
-      if (!("wakeLock" in navigator)) return;
+      if (!("wakeLock" in navigator)) { _keepAwakeVideoStart(); return; }
       if (_wakeLock && !_wakeLock.released) return;
       _wakeLock = await navigator.wakeLock.request("screen");
       _wakeLock.addEventListener && _wakeLock.addEventListener("release", () => {
         console.info("[wake] lock released");
+        // Rev522: the browser releases it when the tab is hidden; mark it
+        // gone so visibilitychange re-acquires it (it never did before).
+        _wakeLock = null;
       });
       console.info("[wake] lock acquired");
     } catch (e) {
       // Common: NotAllowedError if called outside a user gesture, or
-      // the tab is hidden. Not fatal.
+      // the tab is hidden. Fall back to the video.
       console.info("[wake] request failed:", e && e.name);
+      _keepAwakeVideoStart();
     }
   }
   async function _releaseWakeLock() {
     try { if (_wakeLock) await _wakeLock.release(); } catch { /* silent */ }
     _wakeLock = null;
+    _keepAwakeVideoStop();
   }
   // Rev448 (Carlos): fullscreen + keep-awake "always on" by default.
   // Browsers require a user gesture to request either, so we hook the
@@ -2654,8 +2718,9 @@
           await _releaseWakeLock();
         } else {
           _fsSetAuto(true);
+          const wl = _acquireWakeLock().catch(() => {});   // Rev522: before fullscreen
           await enterFs();
-          await _acquireWakeLock();
+          await wl;
         }
       } catch (e) { console.warn("[fs] toggle failed:", e); }
       updateIcon();
@@ -2665,6 +2730,10 @@
       if (document.visibilityState === "visible" && _wakeLock === null && _fsAutoEnabled()) {
         _acquireWakeLock().catch(() => {});
       }
+      // Rev522: the browser pauses the fallback video in the background.
+      if (document.visibilityState === "visible" && _keepAwakeVideo && _fsAutoEnabled()) {
+        _keepAwakeVideoStart();
+      }
     });
     // Auto-arm on the FIRST user interaction. Fullscreen + Wake Lock
     // need a user gesture, so we piggy-back on whatever the sailor taps
@@ -2673,8 +2742,12 @@
       const armOnce = async () => {
         document.removeEventListener("pointerdown", armOnce, true);
         document.removeEventListener("keydown",     armOnce, true);
+        // Rev522: keep-awake FIRST, synchronously inside the gesture:
+        // requestFullscreen consumes the user activation and the video
+        // fallback's play() was then refused (NotAllowedError).
+        const wl = _acquireWakeLock().catch(() => {});
         try { await enterFs(); } catch { /* silent */ }
-        try { await _acquireWakeLock(); } catch { /* silent */ }
+        await wl;
         updateIcon();
       };
       document.addEventListener("pointerdown", armOnce, true);
@@ -4096,7 +4169,7 @@
   // refreshed with the alarms poll (5 s) and updated optimistically on
   // every local change. The old localStorage values are uploaded once,
   // by the first visor that finds the backend uninitialized.
-  const _vp = { aisMode: "underway", aisVoice: true, aisHarborAuto: true, gustGhost: true, aisAcks: {}, loaded: false };
+  const _vp = { aisMode: "underway", aisVoice: true, aisHarborAuto: true, gustGhost: true, tapSound: false, aisAcks: {}, loaded: false };
   function _vpLegacyLocal() {
     const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
     const out = {};
@@ -4113,6 +4186,7 @@
     const prevMode = _aisMode();
     _vp.aisMode = snap.aisMode; _vp.aisVoice = !!snap.aisVoice;
     _vp.aisHarborAuto = !!snap.aisHarborAuto; _vp.gustGhost = !!snap.gustGhost;
+    _vp.tapSound = !!snap.tapSound;
     _vp.aisAcks = snap.aisAcks || {}; _vp.loaded = true;
     state._aisHarborActive = !!snap.harborActive;
     // Server clock -> local clock for the TTLs.
@@ -4133,9 +4207,172 @@
     sync("dash-ais-alarm-voice", _vp.aisVoice);
     sync("dash-ais-alarm-harbor-auto", _vp.aisHarborAuto);
     sync("dash-gust-ghost", _vp.gustGhost);
+    sync("dash-tap-sound", _vp.tapSound);
     if (curMode !== prevMode) { try { state.aisAlarms.clear(); } catch { /* silent */ } }
     try { renderAisAlarms(); } catch { /* silent */ }
   }
+  // Rev522 (Carlos: "guardar ajustes de display en la rosa en local o en
+  // server y darle nombre"). A preset = the rose layout keys of this
+  // browser; applying writes them back and reloads the visor (every
+  // renderer reads them at boot). Server presets: /display-presets.
+  const DISPLAY_PRESET_KEYS = [
+    "pypilot-newui.dashCorners", "pypilot-newui.dashExtras", "pypilot-newui.dashCustom",
+    "pypilot-newui.roseBottomChipPaths", "pypilot-newui.windCornerShow", "pypilot-newui.windCornerPinned",
+    "pypilot-newui.windArrow.awa", "pypilot-newui.windArrow.twa", "pypilot-newui.showCog",
+    "pypilot-newui.showCurrent", "pypilotnewui.helmBar",
+  ];
+  const DISPLAY_PRESETS_LOCAL_KEY = "pypilot-newui.displayPresets";
+  let _dashPresetsServer = [];
+  function _dashPresetsLocal() {
+    try { const a = JSON.parse(localStorage.getItem(DISPLAY_PRESETS_LOCAL_KEY) || "[]"); return Array.isArray(a) ? a : []; }
+    catch { return []; }
+  }
+  function _dashPresetsLocalSave(list) {
+    try { localStorage.setItem(DISPLAY_PRESETS_LOCAL_KEY, JSON.stringify(list)); } catch { /* silent */ }
+  }
+  function _dashPresetSnapshot() {
+    const data = {};
+    for (const k of DISPLAY_PRESET_KEYS) { try { data[k] = localStorage.getItem(k); } catch { data[k] = null; } }
+    return data;
+  }
+  function _dashPresetsFill(selectValue) {
+    const sel = document.getElementById("dash-preset-select");
+    if (!sel) return;
+    const prev = selectValue || sel.value;
+    sel.textContent = "";
+    const items = [
+      ..._dashPresetsServer.map((p) => ({ v: "s:" + p.name, l: `${p.name} · ${t("dash.presets.server")}` })),
+      ..._dashPresetsLocal().map((p) => ({ v: "l:" + p.name, l: `${p.name} · ${t("dash.presets.local")}` })),
+    ];
+    if (!items.length) {
+      const o = document.createElement("option"); o.value = ""; o.textContent = t("dash.presets.none"); sel.appendChild(o);
+      return;
+    }
+    for (const it of items) {
+      const o = document.createElement("option"); o.value = it.v; o.textContent = it.l; sel.appendChild(o);
+    }
+    if (prev && items.some((it) => it.v === prev)) sel.value = prev;
+  }
+  async function _dashPresetsLoad(selectValue) {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/display-presets`);
+      if (r.ok) _dashPresetsServer = (await r.json()).presets || [];
+    } catch { /* keep the last list */ }
+    _dashPresetsFill(selectValue);
+  }
+  function _dashPresetFind(v) {
+    if (!v) return null;
+    const name = v.slice(2);
+    return v.startsWith("s:") ? _dashPresetsServer.find((p) => p.name === name) : _dashPresetsLocal().find((p) => p.name === name);
+  }
+  async function _dashPresetSave(scope) {
+    const sel = document.getElementById("dash-preset-select");
+    const cur = _dashPresetFind(sel && sel.value);
+    const name = await _pmPrompt(t("dash.presets.namePrompt"), cur ? cur.name : "");
+    if (!name || !String(name).trim()) return;
+    const clean = String(name).trim().slice(0, 40);
+    const data = _dashPresetSnapshot();
+    if (scope === "server") {
+      try {
+        const r = await skFetch(`/plugins/${PLUGIN_ID}/display-presets`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: clean, data }),
+        });
+        if (r.ok) _dashPresetsServer = (await r.json()).presets || _dashPresetsServer;
+      } catch (e) { console.warn("[presets] save", e); }
+      _dashPresetsFill("s:" + clean);
+    } else {
+      const list = _dashPresetsLocal().filter((p) => p.name !== clean);
+      list.push({ name: clean, data, updatedAt: Date.now() });
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      _dashPresetsLocalSave(list);
+      _dashPresetsFill("l:" + clean);
+    }
+  }
+  function _dashPresetApply() {
+    const sel = document.getElementById("dash-preset-select");
+    const p = _dashPresetFind(sel && sel.value);
+    if (!p || !p.data) return;
+    for (const k of DISPLAY_PRESET_KEYS) {
+      if (!(k in p.data)) continue;
+      try {
+        if (p.data[k] == null) localStorage.removeItem(k);
+        else localStorage.setItem(k, p.data[k]);
+      } catch { /* silent */ }
+    }
+    location.reload();
+  }
+  async function _dashPresetDelete() {
+    const sel = document.getElementById("dash-preset-select");
+    const v = sel && sel.value;
+    const p = _dashPresetFind(v);
+    if (!p) return;
+    if (!(await _pmConfirm(t("dash.presets.deleteQ"), p.name))) return;
+    if (v.startsWith("s:")) {
+      try {
+        const r = await skFetch(`/plugins/${PLUGIN_ID}/display-presets/${encodeURIComponent(p.name)}`, { method: "DELETE" });
+        if (r.ok) _dashPresetsServer = (await r.json()).presets || [];
+      } catch { /* silent */ }
+    } else {
+      _dashPresetsLocalSave(_dashPresetsLocal().filter((x) => x.name !== p.name));
+    }
+    _dashPresetsFill();
+  }
+  function _dashPresetsWire() {
+    const on = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener("click", (ev) => { ev.preventDefault(); fn(); }); };
+    on("dash-preset-apply", _dashPresetApply);
+    on("dash-preset-save-local", () => _dashPresetSave("local"));
+    on("dash-preset-save-server", () => _dashPresetSave("server"));
+    on("dash-preset-delete", _dashPresetDelete);
+    // Refresh the list every time the rose config popup opens.
+    const pop = document.getElementById("dash-help-pop");
+    if (pop && typeof MutationObserver === "function") {
+      new MutationObserver(() => { if (pop.classList.contains("open")) _dashPresetsLoad(); })
+        .observe(pop, { attributes: true, attributeFilter: ["class"] });
+    }
+    _dashPresetsLoad();
+  }
+  // Rev522 (Carlos): "un sonido agradable y reconocible en un ambiente
+  // marino con viento, para saber si hemos hecho tap". A short bright
+  // "tock": 1.4 kHz + 2.8 kHz partial, 3 ms attack, ~70 ms decay.
+  // Synthesised (no file), throttled, never on sliders.
+  let _tapAudio = null;
+  let _tapLastTs = 0;
+  function _tapSoundPlay(force) {
+    if (!force && !_vp.tapSound) return;
+    const now = performance.now();
+    if (now - _tapLastTs < 40) return;
+    _tapLastTs = now;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!_tapAudio) _tapAudio = new AC();
+      if (_tapAudio.state === "suspended") _tapAudio.resume();
+      const ctx = _tapAudio, t0 = ctx.currentTime;
+      const out = ctx.createGain();
+      out.gain.setValueAtTime(0.0001, t0);
+      out.gain.exponentialRampToValueAtTime(0.45, t0 + 0.003);
+      out.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.075);
+      out.connect(ctx.destination);
+      for (const [f, g] of [[1400, 1], [2800, 0.35]]) {
+        const o = ctx.createOscillator();
+        const og = ctx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(f, t0);
+        o.frequency.exponentialRampToValueAtTime(f * 0.92, t0 + 0.07);
+        og.gain.value = g;
+        o.connect(og); og.connect(out);
+        o.start(t0); o.stop(t0 + 0.08);
+      }
+    } catch { /* silent */ }
+  }
+  document.addEventListener("pointerdown", (ev) => {
+    if (!_vp.tapSound) return;
+    const el = ev.target && ev.target.closest
+      ? ev.target.closest('button, .mode-popup-item, .tab-btn, .dash-cell, [role="button"], input[type="checkbox"], input[type="radio"], select, a')
+      : null;
+    if (el) _tapSoundPlay(false);
+  }, true);
   async function _vpSend(method, sub, body) {
     try {
       const r = await fetch(`/plugins/${PLUGIN_ID}/visor-prefs${sub}`, {
@@ -13984,6 +14221,17 @@
       gg.checked = _gustGhostEnabled();
       gg.addEventListener("change", () => _gustGhostSetEnabled(gg.checked));
     }
+    // Rev522 (Carlos): named rose display presets.
+    try { _dashPresetsWire(); } catch (e) { console.warn("[presets] wire", e); }
+    // Rev522 (Carlos): tap sound toggle (shared visor pref).
+    const ts = document.getElementById("dash-tap-sound");
+    if (ts) {
+      ts.checked = !!_vp.tapSound;
+      ts.addEventListener("change", () => {
+        _vpSet({ tapSound: ts.checked });
+        if (ts.checked) _tapSoundPlay(true);
+      });
+    }
     // Rev175 (Carlos): "Probar" button inside the RÁFAGAS overlay-card.
     // Fires a ghost at the current AWA / AWS ignoring cooldown, so the
     // rendering can be validated at the dock or under low wind.
@@ -17117,7 +17365,11 @@
       ackBtn.textContent = a.ackedAtMs ? t("alarm.acked") : t("alarm.ack");
       ackBtn.disabled = !!a.ackedAtMs;
       ackBtn.addEventListener("click", () => {
-        fetch(`/plugins/${PLUGIN_ID}/alarms/ack/${a.ruleId}`, { method: "POST" })
+        // Rev522 (Carlos: "ACK no cierra el mensaje"): ACK silences AND
+        // closes the banner row (until the alarm fires again).
+        _al.dismissedIds.add(a.ruleId);
+        _alRenderBanner();
+        skFetch(`/plugins/${PLUGIN_ID}/alarms/ack/${a.ruleId}`, { method: "POST" })
           .then(() => _alFetch())
           .catch(() => {});
       });

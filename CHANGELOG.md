@@ -1,8 +1,18 @@
 # Changelog
 
-## Unreleased (Rev521)
+## Unreleased (Rev521 → Rev522)
+
+### Added
+- **Saved displays**: name the rose layout (corners, arrows, overlays,
+  bottom bar) and keep it on this device or on the server for every
+  device; apply it in one tap from the rose configuration window.
+- **Tap sound** (rose configuration, off by default): a short, bright
+  click on every button tap so you know it registered in wind and noise.
 
 ### Changed
+- Rose ring, ticks, degree labels, heading / SOG frames and card and
+  corner titles in white.
+- An ACK on an alarm banner also closes it.
 - **More contrast for sunlight**: white text, brighter secondary text,
   borders and separators.
 - **AUTO WIND** also switches with the AP disengaged (engaging lands in
@@ -14,6 +24,13 @@
 ### Fixed
 - Tack buttons: the arrow is centred when there is no number under it
   (wind modes).
+- **Screen kept on over plain http** (tablet at http://<ip>:3000): the
+  Wake Lock API only exists on https / localhost; a tiny silent looping
+  video now keeps the screen on there, and the lock is re-taken after
+  the browser releases it.
+- **"AP disengaged from outside the app" fired in port** on every
+  Signal K restart (the first ap.enabled=false is the initial sync) and
+  with no GPS (unknown speed counted as underway).
 
 ## 3.6.0 — 2026-10-19 — AUTO WIND and a logbook button on the rose
 
