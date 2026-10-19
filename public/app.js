@@ -462,10 +462,10 @@
       "mode.label.compass":   "COMPASS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "APPARENT WIND",
-      "mode.vt.tack":         "TACKING →",
+      "dlg.yes":              "Yes",
+      "dlg.no":               "No",
       "vt.longJibe.title":    "Gybe the long way?",
       "vt.longJibe.body":     "The wind is on the other bow: this button turns through the stern ({deg}°). To tack, use the other button.",
-      "mode.vt.jibe":         "GYBING →",
       "mode.label.true-wind": "TRUE WIND",
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "HEAD TO WIND",
@@ -1399,10 +1399,10 @@
       "mode.label.compass":   "COMPÁS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "APARENTE",
-      "mode.vt.tack":         "VIRANDO →",
+      "dlg.yes":              "Sí",
+      "dlg.no":               "No",
       "vt.longJibe.title":    "¿Trasluchar por popa?",
       "vt.longJibe.body":     "El viento está en la otra amura: este botón da la vuelta por popa ({deg}°). Para virar, usa el otro botón.",
-      "mode.vt.jibe":         "TRASLUCHANDO →",
       "mode.label.true-wind": "REAL",
       "mode.label.nav":       "RUMBO A WAYPOINT",
       "mode.label.aproado":   "APROADO",
@@ -2006,8 +2006,8 @@
       "mode.label.compass":   "KOMPASS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "SCHEINBARER WIND",
-      "mode.vt.tack":         "WENDE →",
-      "mode.vt.jibe":         "HALSE →",
+      "dlg.yes":              "Ja",
+      "dlg.no":               "Nein",
       "mode.label.true-wind": "WAHRER WIND",
       "mode.label.nav":       "WEGPUNKT",
       "mode.label.aproado":   "AUFSCHIESSEN",
@@ -2207,8 +2207,8 @@
       "mode.label.compass":   "COMPAS",
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "VENT APPARENT",
-      "mode.vt.tack":         "VIRE →",
-      "mode.vt.jibe":         "EMPANNAGE →",
+      "dlg.yes":              "Oui",
+      "dlg.no":               "Non",
       "mode.label.true-wind": "VENT REEL",
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "FACE AU VENT",
@@ -5632,13 +5632,46 @@
     // hudOwner semantics: overlay open + _externalManeuver=false
     // means the local path owns it; we must not intrude.
     if (overlayOpen && !_externalManeuver) return;
+    // Rev515: a new tack while the previous one is still finishing.
+    if (isActive && !wasActive && _externalArrivalTimer) {
+      _closeExternalTackOverlay();
+    }
     if (isActive && !wasActive && !_externalManeuver) {
       _openExternalTackOverlay();
       return;
     }
     if (!isActive && _externalManeuver) {
+      // Rev515 (Carlos 2026-10-19 18:55: "se desactiva el HUD antes de
+      // terminar la virada"): pypilot ends its tack at ap.tack.threshold
+      // (50 %) with ~40 deg still to turn. For pypilot's own tacks keep
+      // the HUD until the boat is within 10 deg of the new target, max
+      // 15 s. Virtual tacks close from their own snapshot as before.
+      if (!state.virtualTack) { _closeExternalWhenArrived(); return; }
       _closeExternalTackOverlay();
     }
+  }
+  let _externalArrivalTimer = null;
+  function _closeExternalWhenArrived() {
+    if (_externalArrivalTimer) return;
+    const t0 = Date.now();
+    _externalArrivalTimer = setInterval(() => {
+      const modeStr = String(state.mode || "").toLowerCase();
+      const cur = modeStr.includes("wind")
+        ? (modeStr.includes("true") ? state.windAngleTrue : state.windAngle)
+        : state.heading;
+      let arrived = false;
+      if (typeof cur === "number" && typeof state.target === "number") {
+        let e = (cur - state.target) * RAD2DEG;
+        while (e > 180) e -= 360;
+        while (e < -180) e += 360;
+        arrived = Math.abs(e) < 10;
+      }
+      if (arrived || Date.now() - t0 > 15000 || !_externalManeuver) {
+        clearInterval(_externalArrivalTimer);
+        _externalArrivalTimer = null;
+        if (_externalManeuver) _closeExternalTackOverlay();
+      }
+    }, 500);
   }
   function _openExternalTackOverlay(vt = null) {
     // Rev358 (Carlos, 2026-09-30, QA Rev355): a new external maneuver
@@ -5646,6 +5679,9 @@
     // the mirror overlay and get overwritten later when this new tack
     // completes.
     try { if (_tackStats.hideAt) _tackStatsHide(); } catch { /* silent */ }
+    // Rev515 (Carlos 2026-10-19 19:19): the previous manoeuvre's post
+    // window (5 s + 10 s) re-showed its summary in the middle of this one.
+    _tackStats.postScheduledFor = 0;
     // Rev395 (Carlos, 2026-10-02, Round-3): prefer the backend snapshot
     // over local heuristics for direction, mode and maneuverKind. The
     // backend knows WHICH side it is driving and WHICH classification
@@ -5754,12 +5790,13 @@
           // `remainingDeg` is no longer the useful metric. Show a short
           // "settling" label so Carlos reads the correct phase.
           const vt = state.virtualTack;
-          const inSettling = vt && (vt.phase === "handover" || vt.phase === "settling");
-          const remDeg = (vt && vt.active && typeof vt.remainingDeg === "number")
-            ? vt.remainingDeg : null;
-          if (inSettling) {
-            el.textContent = t("tack.settling") || "settling";
-          } else if (remDeg !== null) {
+          // Rev515: wind arrow -> diamond (what the rose shows), also while
+          // settling; no "ajustando" text (Carlos: read as a new mode).
+          const inSettling = false;
+          const remDeg = (vt && vt.active)
+            ? (_vtWindRemainingDeg(vt) ?? (typeof vt.remainingDeg === "number" ? vt.remainingDeg : null))
+            : null;
+          if (remDeg !== null) {
             el.textContent = `${Math.round(remDeg)}°`;
           } else {
             el.textContent = "— —";
@@ -5776,7 +5813,11 @@
           }
         }
         // Re-detect kind if direction/AWA showed up after open.
-        if (_lastTackDirSeen && _tackCountdownDir !== _lastTackDirSeen) {
+        // Rev515 (Carlos 2026-10-19 18:53-18:55, HUD turning the wrong way):
+        // only when the direction was unknown at open. pypilot's wind log
+        // (tacking.py poll) overwrites ap.tack.direction with the wind side
+        // ~0.5 s after the remote's begin; the value at begin is the turn.
+        if (!_tackCountdownDir && _lastTackDirSeen && _lastTackDirSeen !== "none") {
           _tackCountdownDir = _lastTackDirSeen === "port" ? "port" : "starboard";
           try { _refreshOverlayKind(); } catch { /* silent */ }
         }
@@ -5803,6 +5844,7 @@
     }
   }
   function _closeExternalTackOverlay() {
+    if (_externalArrivalTimer) { clearInterval(_externalArrivalTimer); _externalArrivalTimer = null; }
     if (_externalManeuverTimer) { clearInterval(_externalManeuverTimer); _externalManeuverTimer = null; }
     if (_externalManeuverWatchdog) { clearTimeout(_externalManeuverWatchdog); _externalManeuverWatchdog = null; }
     _externalManeuver = false;
@@ -5833,6 +5875,9 @@
     // does not stay behind the new countdown and confuse the sailor
     // when the new maneuver completes and overwrites its content.
     try { if (_tackStats.hideAt) _tackStatsHide(); } catch { /* silent */ }
+    // Rev515 (Carlos 2026-10-19 19:19): the previous manoeuvre's post
+    // window (5 s + 10 s) re-showed its summary in the middle of this one.
+    _tackStats.postScheduledFor = 0;
     _tackCountdownKind = MANEUVER_STYLES[kind] ? kind : "tack";
     _tackDiamondBlink = true;
     renderTargetArrow();
@@ -5922,11 +5967,7 @@
       _tackSampleRotation();
       const elapsed = Math.floor((Date.now() - _tackCountdownExecuteStartTs) / 1000);
       const leftDeg = _tackCountdownDegRemaining();
-      const vtNow = _vtActiveSnapshot();
-      if (vtNow && (vtNow.phase === "handover" || vtNow.phase === "settling")) {
-        // Rev510: same as the mirror HUD - the turn is done, wind settles.
-        num.textContent = t("tack.settling") || "settling";
-      } else if (leftDeg != null) {
+      if (leftDeg != null) {
         num.textContent = `${leftDeg}°`;
       } else {
         num.textContent = elapsed.toString();
@@ -6215,9 +6256,32 @@
     const vt = state.virtualTack;
     return (vt && vt.active) ? vt : null;
   }
+  // Rev515 (Carlos 2026-10-19: "el contador miente … no se corresponde
+  // flecha viento con target y dato"): count what the rose shows - the
+  // wind arrow's distance to the target diamond, along the turn. Near the
+  // target (settling, overshoot) the plain error; no "ajustando" text.
+  function _vtWindRemainingDeg(vt) {
+    if (!vt || typeof vt.finalWindTargetRad !== "number") return null;
+    const useTrue = String(vt.windMode || "").toLowerCase().includes("true");
+    const cur = useTrue ? state.windAngleTrue : state.windAngle;
+    if (typeof cur !== "number") return null;
+    let e = (cur - vt.finalWindTargetRad) * RAD2DEG;
+    while (e > 180) e -= 360;
+    while (e < -180) e += 360;
+    if (Math.abs(e) < 30) return Math.round(Math.abs(e));
+    // Hull to starboard -> wind angle decreases (and vice versa).
+    const s = vt.direction === "starboard" ? 1 : -1;
+    let d = ((cur - vt.finalWindTargetRad) * RAD2DEG * s) % 360;
+    if (d < 0) d += 360;
+    return Math.round(d);
+  }
   function _tackCountdownDegRemaining() {
     const vt = _vtActiveSnapshot();
-    if (vt && typeof vt.remainingDeg === "number") return Math.max(0, Math.round(vt.remainingDeg));
+    if (vt) {
+      const w = _vtWindRemainingDeg(vt);
+      if (w != null) return w;
+      if (typeof vt.remainingDeg === "number") return Math.max(0, Math.round(vt.remainingDeg));
+    }
     const total = _tackAccumulatedRotationDeg > 0 ? _tackAccumulatedRotationDeg : null;
     if (total == null) return null;
     return Math.max(0, Math.round(total - _tackRotationDoneDeg));
@@ -7373,10 +7437,16 @@
       document.body.classList.add("adjusting");
       row.classList.add("active");
     });
-    rng.addEventListener("pointerup", () => {
+    // Rev515: Android turns a drag into a scroll (pointercancel, no
+    // pointerup) and the tab stayed dimmed; clear on every end event.
+    const endAdjust = () => {
       document.body.classList.remove("adjusting");
       row.classList.remove("active");
-    });
+    };
+    rng.addEventListener("pointerup", endAdjust);
+    rng.addEventListener("pointercancel", endAdjust);
+    rng.addEventListener("lostpointercapture", endAdjust);
+    rng.addEventListener("blur", endAdjust);
     rng.addEventListener("input", () => { val.innerHTML = `${Number(rng.value).toFixed(decimals)}${unitHtml}`; });
     rng.addEventListener("change", () => { try { opts.onChange(Number(rng.value)); } catch { /* silent */ } });
     row.querySelectorAll(".nudge-btn").forEach((btn) => {
@@ -7581,7 +7651,13 @@
       if (row.classList.contains("active")) return;
       const rng = row.querySelector("input[type=range]");
       const val = row.querySelector(".value");
-      if (rng && Number(rng.value) !== v) rng.value = String(v);
+      // Half a slider step: the range input snaps 0.7 to 0.6945.
+      const halfStep = rng ? (Number(rng.step) || 0) / 2 : 0;
+      if (rng && Math.abs(Number(rng.value) - v) > Math.max(halfStep, 1e-6 * Math.max(1, Math.abs(v)))) {
+        // Rev515: log every value the refresh changes on screen.
+        try { _mtLog("other", { stage: "visor", via: "tune-refresh-change", name, from: Number(rng.value), to: v }); } catch { /* silent */ }
+        rng.value = String(v);
+      }
       if (val) {
         const unitStr = _gainUnits(name);
         const unitHtml = unitStr
@@ -7831,10 +7907,24 @@
   // Now uses skFetch (adds JWT if we have one), retries with backoff, and
   // opens the login modal after 3 consecutive 401s.
   let _refreshValues401Streak = 0;
-  // Rev507: name -> ts of the sailor's last successful RangeSetting
-  // write (pluginRaw). See refreshPypilotValues.
-  const _pvLocalWriteTs = new Map();
-  const PV_LOCAL_WRITE_HOLD_MS = 5000;
+  // Rev507: name -> the sailor's last successful RangeSetting write
+  // (pluginRaw). Rev515 (Carlos 2026-10-19: "se siguen borrando los
+  // cambios"): a fixed 5 s hold painted the old value back whenever the
+  // backend had not received pypilot's echo yet. Now the written value
+  // stays until the backend reports it (confirmed) or a THIRD value
+  // (someone else changed it), at most PV_LOCAL_WRITE_MAX_MS.
+  const _pvLocalWriteTs = new Map();   // name -> { value, prev, ts }
+  const PV_LOCAL_WRITE_MAX_MS = 5 * 60_000;
+  const _pvSame = (a, b) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a));
+  // true = keep the sailor's value, false = take the fetched one.
+  function _pvKeepLocal(k, fetchedV, nowTs) {
+    const w = _pvLocalWriteTs.get(k);
+    if (!w) return false;
+    if (nowTs - w.ts > PV_LOCAL_WRITE_MAX_MS || _pvSame(fetchedV, w.value)) { _pvLocalWriteTs.delete(k); return false; }
+    if (w.prev === undefined || _pvSame(fetchedV, w.prev)) return true;   // stale echo
+    _pvLocalWriteTs.delete(k);                                             // changed elsewhere
+    return false;
+  }
   async function refreshPypilotValues(opts) {
     const replace = !!(opts && opts.replace);
     try {
@@ -7857,17 +7947,13 @@
       // {replace:true} for that case so the sliders reflect the new
       // profile instead of the previous one.
       const fetched = await r.json();
-      // Rev507: a value the sailor wrote < PV_LOCAL_WRITE_HOLD_MS ago
-      // wins over the snapshot (pypilot may not have echoed it yet).
+      // Rev507/515: the sailor's own write wins until confirmed.
       const nowTs = Date.now();
-      const freshLocal = (k) => {
-        const ts = _pvLocalWriteTs.get(k);
-        return ts != null && (nowTs - ts) < PV_LOCAL_WRITE_HOLD_MS;
-      };
+      const freshLocal = (k) => _pvKeepLocal(k, (fetched || {})[k], nowTs);
       if (replace) {
         const prev = state.pypilotValues || {};
         state.pypilotValues = fetched || {};
-        for (const k of _pvLocalWriteTs.keys()) {
+        for (const k of Array.from(_pvLocalWriteTs.keys())) {
           if (freshLocal(k) && prev[k] != null) state.pypilotValues[k] = prev[k];
         }
       } else {
@@ -8147,12 +8233,12 @@
     if (!btn) return;
     // Rev510 (Carlos sea trial 2026-10-18, 18:07-18:12: "la tablet decia
     // un modo y el telefono decia otro"): during a virtual tack pypilot is
-    // in compass on purpose. Every visor shows the manoeuvre and the mode
-    // it returns to, from the backend snapshot (same on every screen).
+    // in compass on purpose. Every visor shows the wind mode of the tack,
+    // from the backend snapshot (same on every screen). Rev515 (Carlos
+    // 2026-10-19): no "TACKING ->" prefix, it read as a new mode.
     const vt = state.virtualTack;
     if (vt && vt.active) {
-      const kind = vt.maneuverKind === "jibe" ? "jibe" : "tack";
-      const txt = `${t(`mode.vt.${kind}`)} ${_modeLabel(vt.windMode || state.mode || "wind")}`;
+      const txt = _modeLabel(vt.windMode || state.mode || "wind");
       if (btn.textContent !== txt) btn.textContent = txt;
       return;
     }
@@ -9266,72 +9352,6 @@
     _setPhase("active");
     const hud = _aproadoHud();
     if (hud) hud.classList.remove("transit");
-    _aproadoStartCompassHold(apr);
-  }
-
-  // Rev512 (Carlos sea trial 2026-10-18, 19:40-19:42): holding head-to-
-  // wind in WIND mode at AWA 0 swung +5..-33 deg for 2 min with the boat
-  // stopped; the compass phase after SALIR held within ~10 deg for 5 min.
-  // Once aproado is achieved, hold it in COMPASS on the heading that puts
-  // the bow into the wind (heading + AWA), and follow wind shifts slowly:
-  // re-aim only when the 15 s mean AWA is off by > 12 deg, at most 15 deg
-  // per correction, >= 15 s apart. A sailor's +-1/+-10 pauses the re-aim
-  // for 60 s and becomes the new base. If the visor goes away the pilot
-  // simply keeps the last compass heading (safe).
-  const APROADO_HOLD_REAIM_DEG = 12;
-  const APROADO_HOLD_WINDOW_MS = 15_000;
-  const APROADO_HOLD_MIN_GAP_MS = 15_000;
-  const APROADO_HOLD_MAX_STEP_DEG = 15;
-  const APROADO_HOLD_SAILOR_PAUSE_MS = 60_000;
-  async function _aproadoStartCompassHold(apr) {
-    if (typeof state.heading !== "number" || typeof state.windAngle !== "number") return;
-    const target = _wrapRad(state.heading + state.windAngle);
-    try {
-      await apSetModeAndWait("compass");
-      if (state.aproado !== apr || apr.phase !== "active") return;
-      await apSetTargetRad(target);
-      // echoUntil: our own write is not echoed yet; do not read the old
-      // state.target as a sailor's nudge.
-      apr._hold = { targetRad: target, lastReaimTs: Date.now(), awa: [], pausedUntil: 0, echoUntil: Date.now() + 3000 };
-      console.info(`aproado: holding head-to-wind in compass @ ${(((target * RAD2DEG) + 360) % 360).toFixed(0)} deg (Rev512)`);
-      if (typeof _mtLog === "function") _mtLog("other", { stage: "visor", via: "aproado-compass-hold", targetRad: target });
-    } catch (e) {
-      console.warn("aproado: compass hold failed, staying in wind mode", e);
-    }
-  }
-  function _wrapRad(r) {
-    let x = r;
-    while (x > Math.PI) x -= 2 * Math.PI;
-    while (x < -Math.PI) x += 2 * Math.PI;
-    return x;
-  }
-  function _aproadoHoldTick(apr) {
-    const h = apr && apr._hold;
-    if (!h || apr.phase !== "active") return;
-    const now = Date.now();
-    // The sailor nudged (target differs from ours): theirs is the new base.
-    if (now >= h.echoUntil && typeof state.target === "number"
-        && Math.abs(_wrapRad(state.target - h.targetRad)) > 1 * DEG2RAD) {
-      h.targetRad = state.target;
-      h.pausedUntil = now + APROADO_HOLD_SAILOR_PAUSE_MS;
-      h.awa = [];
-    }
-    if (typeof state.windAngle === "number") h.awa.push({ ts: now, a: state.windAngle });
-    while (h.awa.length && now - h.awa[0].ts > APROADO_HOLD_WINDOW_MS) h.awa.shift();
-    if (now < h.pausedUntil || now - h.lastReaimTs < APROADO_HOLD_MIN_GAP_MS) return;
-    if (h.awa.length < 20) return;  // ~10 s of samples at the 500 ms HUD tick
-    let sx = 0, sy = 0;
-    for (const p of h.awa) { sx += Math.cos(p.a); sy += Math.sin(p.a); }
-    const meanDeg = Math.atan2(sy, sx) * RAD2DEG;
-    if (Math.abs(meanDeg) <= APROADO_HOLD_REAIM_DEG) return;
-    const stepDeg = Math.max(-APROADO_HOLD_MAX_STEP_DEG, Math.min(APROADO_HOLD_MAX_STEP_DEG, meanDeg));
-    const next = _wrapRad(h.targetRad + stepDeg * DEG2RAD);
-    h.targetRad = next;
-    h.lastReaimTs = now;
-    h.echoUntil = now + 3000;
-    h.awa = [];
-    console.info(`aproado hold: wind shifted ${meanDeg.toFixed(0)} deg -> re-aim ${stepDeg.toFixed(0)} deg`);
-    apSetTargetRad(next).catch((e) => console.warn("aproado hold: re-aim failed", e));
   }
 
   // Cancel from choosing OR countdown phase. Nothing was sent to pypilot
@@ -9945,8 +9965,6 @@
     if (!apr || !hud) return;
     // Rev90: check for phase transition transit -> active.
     _aproadoCheckAchieved();
-    // Rev512: follow wind shifts while holding head-to-wind in compass.
-    try { _aproadoHoldTick(apr); } catch (e) { console.warn("aproado hold tick", e); }
     // Distance covers transit + active + summary. Elapsed clock only
     // ticks once startTs has been armed (aproado achieved OR summary).
     if ((apr.phase === "active" || apr.phase === "transit") &&
@@ -10025,8 +10043,11 @@
     if (res.ok && state.catalog?.[name]?.type === "RangeSetting"
         && typeof value === "number" && isFinite(value)) {
       if (!state.pypilotValues) state.pypilotValues = {};
+      const prevV = state.pypilotValues[name];
       state.pypilotValues[name] = value;
-      _pvLocalWriteTs.set(name, Date.now());
+      _pvLocalWriteTs.set(name, { value, prev: prevV, ts: Date.now() });
+      // Rev515: evidence for "se borran los cambios" next time.
+      try { _mtLog("other", { stage: "visor", via: "tune-write", name, value, prev: prevV }); } catch { /* silent */ }
     }
     if (!res.ok) {
       const bodyTxt = await res.text().catch(() => "");

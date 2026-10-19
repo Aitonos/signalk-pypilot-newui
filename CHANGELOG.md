@@ -1,43 +1,60 @@
 # Changelog
 
-## Unreleased (Rev509 → Rev514)
+## Unreleased (Rev509 → Rev515)
+
+Rev515 comes from the sail of 2026-10-19: it reverts two changes that
+made things worse (Rev510 compass-until-6°, Rev512 head-to-wind in
+compass) and fixes what the sail showed. Audit:
+`docs/_audit_sail_2026-10-19.md`.
 
 ### Changed
 - **Maneuver traces keep the newest 60 files** (pruned when a new trace
   opens). 201 files / 888 MB had piled up on the Tunatunes.
-- **Head to wind holds in compass**: once head-to-wind is reached, the
-  pilot holds the heading that puts the bow into the wind in compass
-  mode (wind mode at AWA 0° swung up to 33° with the boat stopped). Wind
-  shifts are followed slowly (mean AWA off by > 12° for 15 s, at most
-  15° per correction); a +-1/+-10 from the sailor wins.
-- **Virtual tack holds compass until the final heading**: the last step
-  handed back to wind mode 20° short; it now stays in compass until 6°
-  (or hands over after 5 s hovering inside 20°, so it never hangs).
+- **Stuck pilot recovery only on a real false end stop**: it now needs
+  pypilot's directional overcurrent fault. 0 A is not evidence (the
+  TinyPilot reads 0 A while driving, `DRIVER_TIMEOUT`), it never acts
+  during pypilot's own tack or for 20 s after, and a target change of
+  more than 10° restarts its clock. On 2026-10-19 it cycled the AP three
+  times by mistake, twice in the middle of a tack from the remote.
+- **Gybe confirmation only right after a cancel**: the long-way gybe
+  question (> 180°) now appears only within 20 s of cancelling a tack -
+  the 2026-10-18 accident - not on deliberate gybes. Yes / No buttons
+  are translated.
 
 ### Added
-- **Confirmation before a gybe the long way**: in wind modes, a tack
-  button that would turn more than 180° through the stern (only possible
-  from close-hauled or a beam reach, e.g. a second tap on the same button
-  after a cancelled tack) now asks first. On 2026-10-18 this started a
-  278° gybe from close-hauled in 25 kn.
+- **Confirmation before a gybe the long way** (see above).
 
 ### Fixed
-- **`ap.tack.direction` noise in standby**: pypilot flips it between
-  none and port/starboard ~40 times a minute while the AP is off. It is
-  now published as `none` once in standby (real value when engaged). On
-  2026-10-19 it was 99.9 % of the overnight maneuver trace.
-- **Tack countdown shows the degrees left**: the device that started the
-  tack counted apparent-wind rotation, which drifts with gusts and the
-  boat slowing down. It now shows the backend's distance from the real
-  heading to the final heading (+-10 included), "of Y°" on every screen.
-- **Two screens showing different modes after a tack**: a visor that got
-  the tack's own compass delta before the tack snapshot restored
-  "compass" at the end. The mode now comes from the backend. During the
-  manoeuvre every screen shows "TACKING → <mode>".
+- **Cancelling a virtual tack left a "ghost" target**: pypilot processes
+  the mode change in its own loop and overwrote our "stay here" target
+  with one recomputed from the compass error (2026-10-19: 56° -> 3.9°,
+  bow into the wind). The cancel now waits for the mode change, writes
+  the target, checks it and rewrites it if pypilot moved it.
+- **Remote tack HUD turning the wrong way**: pypilot overwrites
+  `ap.tack.direction` with the wind side ~0.5 s after the remote starts a
+  tack; the HUD now keeps the direction it had at the start. It also stays
+  open until the boat is within 10° of the new target (max 15 s), not only
+  until pypilot's 50 % threshold.
+- **Tack countdown**: shows the distance from the wind arrow to the target
+  diamond along the turn (what the rose shows), no "ajustando" text.
+- **Two screens showing different modes after a tack**: the mode now
+  comes from the backend (plain mode label, no "TACKING ->" prefix).
+- **Previous manoeuvre's summary popping up during the next one**.
+- **Settings tab**: dragging a slider no longer darkens the whole tab
+  (only the other rows), and the darkening clears if the touch is
+  interrupted. A value the sailor writes stays on screen until the
+  backend confirms it (or reports a different one).
+- **`ap.tack.direction` noise in standby**: published as `none` once
+  while the AP is off (pypilot flips it ~40 times a minute there).
 - **Gust ghost arrow almost never visible**: the fade started in the
-  same frame the ghost was created, so the browser skipped the 15 s
-  transition and hid it at once. It now fades as designed. The detector
-  itself was fine (today's wind would have drawn ~2.5 gusts per minute).
+  same frame the ghost was created, so the browser skipped it.
+
+### Reverted
+- Rev510 "virtual tack holds compass until 6° of the final heading": the
+  apparent wind at the final heading is not the mirror, so wind mode then
+  swung back 40-50° (S-turn); handover is at 20° again.
+- Rev512 "head to wind holds in compass": head to wind is always in
+  apparent wind, as before.
 
 ## 3.4.0 — 2026-10-18 — The sailor always wins, and the pilot gets unstuck
 

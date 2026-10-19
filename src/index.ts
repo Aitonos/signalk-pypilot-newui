@@ -68,7 +68,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev514";
+const PLUGIN_REVISION = "Rev515";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -4091,6 +4091,7 @@ module.exports = function (app: any) {
       servoCurrentA: s.servoCurrent,
       servoFlags: typeof pv["servo.flags"] === "string" ? pv["servo.flags"] as string : null,
       nativeTack: !!(_tackStatePrev && _tackStatePrev !== "none"),
+      cmdDeg: typeof pv["ap.heading_command"] === "number" ? pv["ap.heading_command"] as number : null,
       recoveryEnabled: !!props.steerRecoveryEnabled && !!props.allowWrites && !!apProvider,
     });
     if (action !== "cycle" || !apProvider || _steerRecoveryInFlight) return;

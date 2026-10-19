@@ -15,7 +15,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const wrapDeg = (d: number) => ((d % 360) + 360) % 360;
 const signedDeg = (d: number) => ((d + 540) % 360) - 180;
 
-function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: number; compassStallDeg?: number }) {
+function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: number; compassStallDeg?: number; modeChangeClobberDeg?: number }) {
   const values: Record<string, unknown> = {
     "ap.enabled": true, "ap.mode": "wind", "ap.heading_command": 0,
   };
@@ -27,7 +27,16 @@ function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: nu
     connected: true,
     set(name: string, value: unknown) {
       writes.push({ t: Date.now(), name, value, headingDeg });
+      const modeChanged = name === "ap.mode" && values["ap.mode"] !== value;
       values[name] = value;
+      // pypilot "keeps the heading" on a mode change, in its own loop,
+      // overwriting whatever heading_command just arrived (2026-10-19).
+      if (modeChanged && typeof opts.modeChangeClobberDeg === "number") {
+        setTimeout(() => {
+          values["ap.heading_command"] = opts.modeChangeClobberDeg;
+          provider?.receiveValue("ap.heading_command", opts.modeChangeClobberDeg);
+        }, 120);
+      }
       // pypilot echoes asynchronously
       setTimeout(() => provider?.receiveValue(name, value), 5);
       return true;
@@ -183,32 +192,21 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
-  it("Rev510: stays in compass until ~6 deg from the final heading", async () => {
-    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1 });
-    const p = new AutopilotProvider(sim.client as any, sim.app);
-    sim.attach(p);
-    try {
-      await p.startVirtualTack({ direction: "starboard" });
-      const g = p.getVirtualTackState()!.geometry!;
-      const finalDeg = wrapDeg(g.hTargetRad / D);
-      const backToWind = () => sim.writes.find((w) => w.name === "ap.mode" && w.value === "wind");
-      assert.ok(await waitFor(() => !!backToWind(), 15000), "hands back to wind mode");
-      const offAtHandover = Math.abs(signedDeg(wrapDeg(backToWind()!.headingDeg) - finalDeg));
-      assert.ok(offAtHandover <= 8, `handover at ${offAtHandover.toFixed(1)} deg from final (was up to 20)`);
-    } finally { sim.stop(); }
-  });
-
-  it("Rev510: hull hovering 12 deg short still hands over after ~5 s", async () => {
-    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 3, compassStallDeg: 12 });
+  it("Rev515: cancel keeps our target even if pypilot overwrites it on the mode change", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1, modeChangeClobberDeg: 4 });
     const p = new AutopilotProvider(sim.client as any, sim.app);
     sim.attach(p);
     try {
       await p.startVirtualTack({ direction: "starboard" });
       await waitFor(() => p.getVirtualTackState()?.phase === "turning", 2000);
-      const t0 = Date.now();
-      const ok = await waitFor(() => ["handover", "settling", "completed"].includes(String(p.getVirtualTackState()?.phase)), 12000);
-      assert.ok(ok, "must not hang in compass");
-      assert.ok(Date.now() - t0 >= 4500, "waited the approach window first");
+      await sleep(300);
+      p.cancelVirtualTack();
+      assert.ok(await waitFor(() => !p.isVirtualTackActive(), 6000));
+      await sleep(200);
+      const cmd = Number(sim.values["ap.heading_command"]);
+      assert.equal(sim.values["ap.mode"], "wind");
+      assert.ok(Math.abs(cmd - 4) > 5, `target must not stay at pypilot's 4 deg (got ${cmd})`);
+      assert.ok(Math.abs(signedDeg(cmd - sim.awa())) < 15, `target ~ current AWA (${cmd} vs ${sim.awa().toFixed(0)})`);
     } finally { sim.stop(); }
   });
 
@@ -223,18 +221,34 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
 });
 
 describe("long-way gybe needs confirmation (Rev511)", () => {
-  it("18:11:44 case: AWA +41, port button -> refused without confirm", async () => {
+  it("18:11:44 case: right after a cancel, AWA +41, port button -> refused without confirm", async () => {
     // Wind from 0 deg, heading 319 -> AWA +41 (wind on starboard bow).
     const sim = makeSim({ twdDeg: 0, headingDeg: 319 });
     const p = new AutopilotProvider(sim.client as any, sim.app);
     sim.attach(p);
     try {
+      await p.startVirtualTack({ direction: "starboard" });
+      p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 3000);
+      const writesBefore = sim.writes.length;
       await assert.rejects(p.startVirtualTack({ direction: "port" }), (e: any) => e.code === "confirm_long_jibe" && Math.abs(e.deltaDeg) > 180);
       assert.equal(p.isVirtualTackActive(), false);
-      assert.equal(sim.writes.length, 0, "nothing sent to pypilot");
+      assert.equal(sim.writes.length, writesBefore, "nothing sent to pypilot");
       await p.startVirtualTack({ direction: "port", confirmLongJibe: true });
       assert.equal(p.isVirtualTackActive(), true);
       await p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 3000);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev515: a deliberate long gybe (no recent cancel) does not ask", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 319 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "port" });
+      assert.equal(p.isVirtualTackActive(), true);
+      p.cancelVirtualTack();
       await waitFor(() => !p.isVirtualTackActive(), 3000);
     } finally { sim.stop(); }
   });

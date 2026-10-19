@@ -44,6 +44,7 @@ const TARGET_PENDING_MS = 2500;
 // value the user had just replaced. 0.1° covers float32 → double
 // rounding on the wire without accidentally consuming a stale echo.
 const TARGET_ECHO_TOL_RAD = 0.1 * DEG_TO_RAD;
+const LONG_JIBE_CONFIRM_AFTER_CANCEL_MS = 20_000;
 
 // Rev272 (audit R07): bounded-cost normalisation. The previous while
 // loop could spin forever on pathological inputs (e.g. |a-b| >= 1e15
@@ -820,8 +821,10 @@ export class AutopilotProvider {
       && Math.abs(opts.finalAngleRadOverride) <= Math.PI
         ? opts.finalAngleRadOverride : null;
     // Rev511: same geometry the FSM will compute; refuse a long-way gybe
-    // unless the sailor confirmed it.
-    if (!opts.confirmLongJibe) {
+    // unless the sailor confirmed it. Rev515 (Carlos 2026-10-19: 7 asks
+    // in a sail of deliberate gybes): only right after a cancel, which is
+    // the 2026-10-18 18:11:44 accident (second tap 3 s after cancelling).
+    if (!opts.confirmLongJibe && Date.now() - this._lastVtCancelTs < LONG_JIBE_CONFIRM_AFTER_CANCEL_MS) {
       const g = computeTackGeometry({
         angleStartRad: awaRad,
         hStartRad: headingRad,
@@ -1057,16 +1060,6 @@ export class AutopilotProvider {
     // sooner and cancel manually.
     const PYPILOT_STUCK_MS = 60_000;
     const STUCK_HEADING_TOL_DEG = 0.5;
-    // Rev510 (Carlos sea trial 2026-10-18: "la virada se para a mitad",
-    // "mantener compás hasta el rumbo final"): the LAST step used to hand
-    // over to wind mode 20 deg before the final heading. With the boat
-    // slowed by the tack and the apparent wind swinging, wind mode then
-    // finished those 20 deg slowly or not at all. Stay in compass until
-    // FINAL_STEP_TOL_DEG; if the hull hovers inside 20 deg for
-    // FINAL_APPROACH_MAX_MS without getting closer (weather helm), hand
-    // over anyway so the tack never hangs in compass.
-    const FINAL_STEP_TOL_DEG = 6;
-    const FINAL_APPROACH_MAX_MS = 5000;
 
     try {
       // ─── Phase turning: compass + fractionated rotation ───
@@ -1138,8 +1131,6 @@ export class AutopilotProvider {
         let lastHeadingRad: number | null = null;
         let lastHeadingChangeTs = Date.now();
         let retarget = false;
-        const isFinalStep = remainingIntermediates.length === 1;
-        let insideApproachSince: number | null = null;
         while (true) {
           const hNow = this._readHeadingRad();
           publishRemaining(hNow);
@@ -1150,24 +1141,14 @@ export class AutopilotProvider {
             break;
           }
           if (hNow !== null) {
-            const insideApproach = isAtTarget({
-              hNowRad: hNow,
-              hTargetRad: stepTargetRad,
-              toleranceDeg: DEFAULT_PHASE_TOLERANCE_DEG,
-            });
-            if (insideApproach && !isFinalStep) break;
-            if (isFinalStep) {
-              if (isAtTarget({ hNowRad: hNow, hTargetRad: stepTargetRad, toleranceDeg: FINAL_STEP_TOL_DEG })) break;
-              if (insideApproach) {
-                if (insideApproachSince === null) insideApproachSince = Date.now();
-                else if (Date.now() - insideApproachSince > FINAL_APPROACH_MAX_MS) {
-                  // eslint-disable-next-line no-console
-                  console.log(`[virtual-tack ${vtId}] final approach: hovering within ${DEFAULT_PHASE_TOLERANCE_DEG}deg for ${FINAL_APPROACH_MAX_MS / 1000}s, handing over`);
-                  break;
-                }
-              } else {
-                insideApproachSince = null;
-              }
+            if (
+              isAtTarget({
+                hNowRad: hNow,
+                hTargetRad: stepTargetRad,
+                toleranceDeg: DEFAULT_PHASE_TOLERANCE_DEG,
+              })
+            ) {
+              break;
             }
             if (lastHeadingRad === null) {
               lastHeadingRad = hNow;
@@ -1374,8 +1355,25 @@ export class AutopilotProvider {
           if (typeof v === "number" && Number.isFinite(v)) awaRad = v;
         } catch { /* noop */ }
         if (awaRad !== null) {
-          this._vtInternalWrite = true;
-          try { await this.setTarget(awaRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+          // Rev515 (sail 2026-10-19 19:08:24, 19:15:44, 19:17:10): pypilot
+          // processes the mode change in its own loop and "keeps the
+          // heading" by recomputing heading_command from the compass error
+          // - AFTER our target had landed, so it overwrote it (56 -> 3.9,
+          // -57 -> 4.8: bow into the wind, "target fantasma"). Wait for
+          // the mode echo plus a few pypilot loops, write, check, rewrite.
+          await this._waitValue("ap.mode", windMode, 1500);
+          await sleep(400);
+          for (let attempt = 0; attempt < 2; attempt++) {
+            this._vtInternalWrite = true;
+            try { await this.setTarget(awaRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+            await sleep(1200);
+            const cmdDeg = Number(((this.client as any).getValues?.() || {})["ap.heading_command"]);
+            if (!Number.isFinite(cmdDeg)) break;
+            const diff = Math.abs(((cmdDeg - awaRad * RAD_TO_DEG) % 360 + 540) % 360 - 180);
+            if (diff <= 2) break;
+            // eslint-disable-next-line no-console
+            console.log(`[virtual-tack ${vtId}] cancel: pypilot moved the target to ${cmdDeg.toFixed(1)}deg, rewriting ${(awaRad * RAD_TO_DEG).toFixed(1)}deg`);
+          }
         }
       } catch { /* swallow */ }
       if (sessionAlive()) {
@@ -1423,6 +1421,7 @@ export class AutopilotProvider {
     if (terminal.includes(this._virtualTack.phase)) return;
     // eslint-disable-next-line no-console
     console.log(`[virtual-tack] external cancel at phase=${this._virtualTack.phase} (${reason})`);
+    this._lastVtCancelTs = Date.now();
     this._virtualTack.phase = "cancelling";
     this._virtualTack.outcomeReason = reason;
     this.notifyChanged("all");
@@ -1444,6 +1443,18 @@ export class AutopilotProvider {
     return true;
   }
 
+  /** Rev515: wait until pypilot reports key === expected (no cancel check;
+   *  used by the cancel path itself). */
+  private async _waitValue(key: string, expected: unknown, timeoutMs: number): Promise<boolean> {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeoutMs) {
+      const v = (this.client as any).getValues?.() || {};
+      if (v[key] === expected) return true;
+      await new Promise<void>((r) => setTimeout(r, 50));
+    }
+    return false;
+  }
+
   /** Rev506: true while a virtual tack is running (not terminal). */
   isVirtualTackActive(): boolean {
     const vt = this._virtualTack;
@@ -1453,6 +1464,8 @@ export class AutopilotProvider {
   /** Rev506: recovery cycles (steer-recovery) toggle the AP off/on on
    *  purpose; that must NOT annul the tack the cycle is trying to save. */
   private _recoveryCycleUntil = 0;
+  /** Rev515: last cancel of a running virtual tack (any source). */
+  private _lastVtCancelTs = 0;
 
   /** Rev508 (steer recovery): AP off -> gapMs -> AP on, same mode and
    *  target (pypilot keeps both). Changing ap.enabled clears pypilot's

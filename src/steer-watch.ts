@@ -15,7 +15,13 @@ export const STUCK_SUSTAIN_MS = 4000;
 export const CONVERGE_WINDOW_MS = 4000;
 export const CONVERGE_MIN_DROP_DEG = 3;
 export const ENGAGE_GRACE_MS = 5000;
-export const IDLE_CURRENT_A = 0.3;
+// Rev515 (sail 2026-10-19): no current-based fallback. With the
+// TinyPilot the current reads 0 A while the motor IS driving (servo.flags
+// DRIVER_TIMEOUT), which fired three false cycles (18:53:32 and 18:54:14
+// mid remote tack, 19:23:45 after a big course change). Only pypilot's
+// directional overcurrent fault - the thing a cycle actually clears - counts.
+export const NATIVE_TACK_HOLDOFF_MS = 20_000;
+export const TARGET_CHANGE_RESET_DEG = 10;
 export const MAX_CYCLES = 3;
 export const CYCLE_WINDOW_MS = 60_000;
 export const CYCLE_MIN_GAP_MS = 10_000;
@@ -30,8 +36,12 @@ export interface SteerWatchInput {
   servoCurrentA: number | null;
   /** pypilot servo.flags string, e.g. "SYNC PORT_OVERCURRENT_FAULT". */
   servoFlags: string | null;
-  /** pypilot's own tack (ap.tack.state != none): no cycles then. */
+  /** pypilot's own tack (ap.tack.state != none): no detection then and
+   *  for NATIVE_TACK_HOLDOFF_MS after (pypilot keeps the old target during
+   *  the tack, so the "error" is the tack itself). */
   nativeTack: boolean;
+  /** heading_command in degrees (any mode); a jump > 10 deg restarts the clock. */
+  cmdDeg?: number | null;
   recoveryEnabled: boolean;
 }
 
@@ -62,6 +72,8 @@ export class SteerWatch {
   private gaveUp = false;
   private droppedAtMs: number | null = null;
   private dirFault = false;
+  private lastNativeTackMs: number | null = null;
+  private lastCmdDeg: number | null = null;
 
   tick(i: SteerWatchInput): SteerAction {
     const now = i.nowMs;
@@ -79,6 +91,26 @@ export class SteerWatch {
     if (this.engagedSinceMs == null) this.engagedSinceMs = now;
     this.droppedAtMs = null;
 
+    if (i.nativeTack) this.lastNativeTackMs = now;
+    const inTackHoldoff = this.lastNativeTackMs != null && now - this.lastNativeTackMs < NATIVE_TACK_HOLDOFF_MS;
+    if (typeof i.cmdDeg === "number" && isFinite(i.cmdDeg)) {
+      if (this.lastCmdDeg != null) {
+        const jump = Math.abs(((i.cmdDeg - this.lastCmdDeg) % 360 + 540) % 360 - 180);
+        if (jump > TARGET_CHANGE_RESET_DEG) {
+          // A new target is a new error baseline (sailor's course change).
+          this.errHist = [];
+          this.condSinceMs = null;
+        }
+      }
+      this.lastCmdDeg = i.cmdDeg;
+    }
+    if (inTackHoldoff) {
+      this.errHist = [];
+      this.condSinceMs = null;
+      this.stuck = false;
+      return null;
+    }
+
     if (typeof i.errDeg !== "number" || !isFinite(i.errDeg)) {
       this.errHist = [];
       this.condSinceMs = null;
@@ -93,8 +125,7 @@ export class SteerWatch {
 
     const graceOk = now - this.engagedSinceMs >= ENGAGE_GRACE_MS;
     const bigErr = absErr > STUCK_ERR_DEG;
-    const notPushing = this.dirFault
-      || (typeof i.servoCurrentA === "number" && i.servoCurrentA < IDLE_CURRENT_A);
+    const notPushing = this.dirFault;
     const notConverging = this.notConverging(now, absErr);
     const cond = graceOk && bigErr && notPushing && notConverging;
 

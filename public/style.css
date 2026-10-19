@@ -1773,8 +1773,10 @@ hr.tune-separator {
 
 /* Translucent effect while adjusting - see-through so user can watch heading
    converge to target in the Control tab underneath. */
-body.adjusting main #tab-tune { opacity: 0.32; transition: opacity 0.1s ease; }
-body.adjusting main #tab-tune .gain-row.active { opacity: 1; }
+/* Rev515 (Carlos 2026-10-19: "se pone negro, no puedo ver lo que hago"):
+   dim the OTHER rows only. Dimming the whole tab capped the active row
+   at 32 % too (a child cannot be more opaque than its parent). */
+body.adjusting main #tab-tune .gain-row:not(.active) { opacity: 0.32; transition: opacity 0.1s ease; }
 
 .section-title {
   color: var(--fg-dim);
