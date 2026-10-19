@@ -68,7 +68,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev512";
+const PLUGIN_REVISION = "Rev513";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -750,7 +750,10 @@ module.exports = function (app: any) {
       });
 
       client.on("value", (name: string, value: unknown) => {
-        publishValue(name, value);
+        // Rev513: ap.tack.direction is meaningless in standby and pypilot
+        // flips it none <-> port/starboard ~40 times a minute there.
+        if (name === "ap.tack.direction") _publishTackDirection(value);
+        else publishValue(name, value);
         if (apProvider) {
           // Rev352: receiveValue now returns the field that changed
           // (engaged | target | all | null) so we push field-scoped
@@ -760,6 +763,11 @@ module.exports = function (app: any) {
           // collapsed into a lost delta (trace analysis 2026-09-30).
           const changedField = apProvider.receiveValue(name, value);
           if (changedField) pushAutopilotUpdate(changedField);
+        }
+        if (name === "ap.enabled") {
+          // Rev513: re-sync the direction on engage / disengage (after the
+          // provider has taken the new engaged state).
+          try { _publishTackDirection((client as any)?.getValues?.()["ap.tack.direction"]); } catch { /* silent */ }
         }
         // Rev299 (I2): watch ap.tack.state for the tacking â†’ none
         // transition, which is the moment the sailor needs the
@@ -5139,6 +5147,23 @@ module.exports = function (app: any) {
     _startWatchSweep(c);
   }
 
+  // Rev513 (audit 2026-10-19): pypilot tacking.py sets ap.tack.direction
+  // to 'none' on every loop while the AP is off, and its wind log sets
+  // it back to port/starboard every 0.25 s when the wind holds on one
+  // side. 2026-10-18: 7551 of 7587 changes were in standby (~40/min);
+  // overnight at the berth 99.9 % of the maneuver-trace lines. In standby
+  // we publish 'none' once; engaged, the real value as before.
+  let _tackDirPublished: unknown = undefined;
+  function _publishTackDirection(raw: unknown): void {
+    const pv = (client && client.connected) ? client.getValues() : {};
+    const engaged = apProvider
+      ? !!apProvider.data.engaged
+      : (pv["ap.enabled"] === true || pv["ap.enabled"] === 1);
+    const v = engaged ? raw : "none";
+    if (v === undefined || v === _tackDirPublished) return;
+    _tackDirPublished = v;
+    publishValue("ap.tack.direction", v);
+  }
   function publishValue(name: string, value: unknown): void {
     if (RESERVED_PYPILOT_KEYS.has(name)) return;
     // Rev23 policy:

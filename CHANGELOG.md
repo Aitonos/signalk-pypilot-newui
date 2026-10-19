@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev509 → Rev512)
+## Unreleased (Rev509 → Rev513)
 
 ### Changed
 - **Head to wind holds in compass**: once head-to-wind is reached, the
@@ -20,6 +20,10 @@
   278° gybe from close-hauled in 25 kn.
 
 ### Fixed
+- **`ap.tack.direction` noise in standby**: pypilot flips it between
+  none and port/starboard ~40 times a minute while the AP is off. It is
+  now published as `none` once in standby (real value when engaged). On
+  2026-10-19 it was 99.9 % of the overnight maneuver trace.
 - **Tack countdown shows the degrees left**: the device that started the
   tack counted apparent-wind rotation, which drifts with gusts and the
   boat slowing down. It now shows the backend's distance from the real
