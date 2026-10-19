@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased (Rev509 → Rev513)
+## Unreleased (Rev509 → Rev514)
 
 ### Changed
+- **Maneuver traces keep the newest 60 files** (pruned when a new trace
+  opens). 201 files / 888 MB had piled up on the Tunatunes.
 - **Head to wind holds in compass**: once head-to-wind is reached, the
   pilot holds the heading that puts the bow into the wind in compass
   mode (wind mode at AWA 0° swung up to 33° with the boat stopped). Wind

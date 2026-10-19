@@ -27,9 +27,9 @@ reenvía el parpadeo; acoplado publica el valor real como siempre (y lo
 resincroniza al acoplar / desacoplar). El provider y el detector de fin
 de virada siguen recibiendo el valor crudo.
 
-## Pendiente de decisión
+## Decidido (Carlos 2026-10-19: "limita a 60") — Rev514
 
 `maneuver-trace/` ocupa **888 MB** (201 archivos desde 2026-09-28) y no
 tiene limpieza automática. Disco al 39 % de 234 GB: no es urgente.
-Propuesta: conservar las 60 trazas más recientes (como las sesiones,
-Rev505). No aplicado: borra histórico de sea trials.
+Aplicado en Rev514: se conservan las 60 trazas más recientes al abrir
+cada traza nueva (misma regla que las sesiones, Rev505).

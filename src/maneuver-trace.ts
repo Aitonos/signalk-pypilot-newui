@@ -123,6 +123,28 @@ export class ManeuverTraceLog {
     const pad = (n: number) => String(n).padStart(2, "0");
     const name = `trace-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.jsonl`;
     this.currentFile = path.join(this.dir, name);
+    try { this.pruneToCount(); } catch { /* silent */ }
+  }
+
+  /** Rev514 (Carlos 2026-10-19, "limita a 60"): keep only the newest
+   *  `maxCount` trace files (201 files / 888 MB had piled up since
+   *  2026-09-28). Oldest first by name (trace-YYYYMMDD-HHMMSS), never the
+   *  file in use. Same rule as SessionRecorder.pruneToCount (Rev505). */
+  pruneToCount(maxCount = 60): { deleted: number } {
+    let deleted = 0;
+    let names: string[] = [];
+    try {
+      names = fs.readdirSync(this.dir).filter((f) => f.startsWith("trace-") && f.endsWith(".jsonl"));
+    } catch { return { deleted }; }
+    names.sort();
+    const current = this.currentFile ? path.basename(this.currentFile) : null;
+    const closed = names.filter((n) => n !== current);
+    const keepClosed = Math.max(0, maxCount - (current ? 1 : 0));
+    for (const name of closed.slice(0, Math.max(0, closed.length - keepClosed))) {
+      try { fs.unlinkSync(path.join(this.dir, name)); deleted += 1; } catch { /* skip */ }
+    }
+    if (deleted > 0) this.log("info", `[maneuver-trace] pruned ${deleted} old traces (keeping the newest ${maxCount})`);
+    return { deleted };
   }
 
   record(
