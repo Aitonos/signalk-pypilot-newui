@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev522" />
+  <link rel="stylesheet" href="style.css?v=Rev523" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -915,6 +915,14 @@
                 </svg>
                 <div class="overlay-title" data-i18n="dash.overlay.tap.title">Tap sound</div>
                 <div class="overlay-needs" data-i18n="dash.overlay.tap.needs">A short click on every button you tap.</div>
+                <!-- Rev523: sound picker + test (choosing one plays it). -->
+                <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
+                  <select id="dash-tap-sound-type" onclick="event.stopPropagation();"></select>
+                  <button type="button" id="dash-tap-sound-test" class="ghost"
+                          style="padding:6px 10px;font-size:12px"
+                          data-i18n="dash.overlay.gust.test"
+                          onclick="event.preventDefault();event.stopPropagation();">Test now</button>
+                </div>
               </label>
               <!-- Rev434 (Carlos QA Rev433): AIS collision overlay toggle.
                    Same overlay-card layout as the gust ghost. Default
@@ -2689,6 +2697,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev522"></script>
+  <script src="app.js?v=Rev523"></script>
 </body>
 </html>

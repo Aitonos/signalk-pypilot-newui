@@ -1,13 +1,15 @@
 # Changelog
 
-## Unreleased (Rev521 → Rev522)
+## Unreleased (Rev521 → Rev523)
 
 ### Added
 - **Saved displays**: name the rose layout (corners, arrows, overlays,
   bottom bar) and keep it on this device or on the server for every
   device; apply it in one tap from the rose configuration window.
 - **Tap sound** (rose configuration, off by default): a short, bright
-  click on every button tap so you know it registered in wind and noise.
+  sound on every button tap so you know it registered in wind and noise.
+  Five lower sounds to choose from (wood, drop, soft thud, low bell, low
+  click) with a test button.
 
 ### Changed
 - Rose ring, ticks, degree labels, heading / SOG frames and card and

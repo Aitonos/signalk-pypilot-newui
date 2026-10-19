@@ -16,6 +16,8 @@ import * as path from "path";
 
 export type AisMode = "off" | "anchor" | "underway";
 export const AIS_MODES: readonly AisMode[] = ["off", "anchor", "underway"];
+/** Rev523: tap sounds the visor can synthesise. */
+export const TAP_SOUNDS: readonly string[] = ["wood", "drop", "thud", "bell", "click"];
 
 export interface VisorPrefsData {
   aisMode: AisMode;
@@ -24,6 +26,8 @@ export interface VisorPrefsData {
   gustGhost: boolean;
   /** Rev522: short click on every tap (off by default). */
   tapSound: boolean;
+  /** Rev523: which tap sound (see TAP_SOUNDS). */
+  tapSoundType: string;
   /** mmsi -> silenced-until epoch ms */
   aisAcks: Record<string, number>;
   /** false until the first visor uploads its legacy localStorage values */
@@ -42,6 +46,7 @@ export const DEFAULT_VISOR_PREFS: VisorPrefsData = {
   aisHarborAuto: true,
   gustGhost: true,
   tapSound: false,
+  tapSoundType: "wood",
   aisAcks: {},
   initialized: false,
   updatedAt: 0,
@@ -187,6 +192,7 @@ function sanitize(raw: unknown, base: VisorPrefsData): VisorPrefsData {
   if (typeof r.aisHarborAuto === "boolean") out.aisHarborAuto = r.aisHarborAuto;
   if (typeof r.gustGhost === "boolean") out.gustGhost = r.gustGhost;
   if (typeof r.tapSound === "boolean") out.tapSound = r.tapSound;
+  if (typeof r.tapSoundType === "string" && TAP_SOUNDS.includes(r.tapSoundType)) out.tapSoundType = r.tapSoundType;
   if (typeof r.initialized === "boolean") out.initialized = r.initialized;
   if (typeof r.updatedAt === "number" && isFinite(r.updatedAt)) out.updatedAt = r.updatedAt;
   if (r.aisAcks && typeof r.aisAcks === "object") {

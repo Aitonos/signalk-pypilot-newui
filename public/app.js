@@ -702,6 +702,11 @@
       "dash.overlay.gust.needs": "Leaves a ghost A arrow at the gust speed; fades in 10 s. Needs a wind sensor.",
       "dash.overlay.gust.test":  "Test now",
       "dash.overlay.tap.title":  "Tap sound",
+      "dash.overlay.tap.s.wood":  "Wood",
+      "dash.overlay.tap.s.drop":  "Drop",
+      "dash.overlay.tap.s.thud":  "Soft thud",
+      "dash.overlay.tap.s.bell":  "Low bell",
+      "dash.overlay.tap.s.click": "Low click",
       "dash.presets.title":      "SAVED DISPLAYS",
       "dash.presets.hint":       "Save this rose layout (corners, arrows, overlays, bottom bar) with a name, on this device or for every device, and switch between layouts in one tap.",
       "dash.presets.pick":       "Saved",
@@ -1668,6 +1673,11 @@
       "dash.overlay.gust.needs": "Deja una flecha A fantasma con la velocidad de la racha; se desvanece en 10 s. Necesita sensor de viento.",
       "dash.overlay.gust.test":  "Probar ahora",
       "dash.overlay.tap.title":  "Sonido al tocar",
+      "dash.overlay.tap.s.wood":  "Madera",
+      "dash.overlay.tap.s.drop":  "Gota",
+      "dash.overlay.tap.s.thud":  "Golpe suave",
+      "dash.overlay.tap.s.bell":  "Campana grave",
+      "dash.overlay.tap.s.click": "Clic grave",
       "dash.presets.title":      "PANTALLAS GUARDADAS",
       "dash.presets.hint":       "Guarda esta disposición de la rosa (esquinas, flechas, capas, barra inferior) con un nombre, en este dispositivo o para todos, y cambia entre ellas de un toque.",
       "dash.presets.pick":       "Guardadas",
@@ -4169,7 +4179,7 @@
   // refreshed with the alarms poll (5 s) and updated optimistically on
   // every local change. The old localStorage values are uploaded once,
   // by the first visor that finds the backend uninitialized.
-  const _vp = { aisMode: "underway", aisVoice: true, aisHarborAuto: true, gustGhost: true, tapSound: false, aisAcks: {}, loaded: false };
+  const _vp = { aisMode: "underway", aisVoice: true, aisHarborAuto: true, gustGhost: true, tapSound: false, tapSoundType: "wood", aisAcks: {}, loaded: false };
   function _vpLegacyLocal() {
     const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
     const out = {};
@@ -4187,6 +4197,8 @@
     _vp.aisMode = snap.aisMode; _vp.aisVoice = !!snap.aisVoice;
     _vp.aisHarborAuto = !!snap.aisHarborAuto; _vp.gustGhost = !!snap.gustGhost;
     _vp.tapSound = !!snap.tapSound;
+    if (typeof snap.tapSoundType === "string") _vp.tapSoundType = snap.tapSoundType;
+    { const sel = document.getElementById("dash-tap-sound-type"); if (sel && sel.value !== _vp.tapSoundType) sel.value = _vp.tapSoundType; }
     _vp.aisAcks = snap.aisAcks || {}; _vp.loaded = true;
     state._aisHarborActive = !!snap.harborActive;
     // Server clock -> local clock for the TTLs.
@@ -4338,7 +4350,7 @@
   // Synthesised (no file), throttled, never on sliders.
   let _tapAudio = null;
   let _tapLastTs = 0;
-  function _tapSoundPlay(force) {
+  function _tapSoundPlay(force, type) {
     if (!force && !_vp.tapSound) return;
     const now = performance.now();
     if (now - _tapLastTs < 40) return;
@@ -4348,23 +4360,64 @@
       if (!AC) return;
       if (!_tapAudio) _tapAudio = new AC();
       if (_tapAudio.state === "suspended") _tapAudio.resume();
-      const ctx = _tapAudio, t0 = ctx.currentTime;
-      const out = ctx.createGain();
-      out.gain.setValueAtTime(0.0001, t0);
-      out.gain.exponentialRampToValueAtTime(0.45, t0 + 0.003);
-      out.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.075);
-      out.connect(ctx.destination);
-      for (const [f, g] of [[1400, 1], [2800, 0.35]]) {
-        const o = ctx.createOscillator();
-        const og = ctx.createGain();
-        o.type = "sine";
-        o.frequency.setValueAtTime(f, t0);
-        o.frequency.exponentialRampToValueAtTime(f * 0.92, t0 + 0.07);
-        og.gain.value = g;
-        o.connect(og); og.connect(out);
-        o.start(t0); o.stop(t0 + 0.08);
-      }
+      _tapSynth(_tapAudio, type || _vp.tapSoundType || "wood");
     } catch { /* silent */ }
+  }
+  // Rev523 (Carlos: "es muy agudo, hazmelo más grave, dame sonidos"):
+  // five lower sounds to pick from in the rose config window.
+  //   wood  - wood block, 600 Hz + 1.2 kHz, dry
+  //   drop  - 700 -> 300 Hz sweep, round
+  //   thud  - 200 Hz + 400 Hz, soft drum
+  //   bell  - 440 Hz + 1.1 kHz, ~0.35 s tail
+  //   click - 25 ms noise burst, low-passed at 900 Hz
+  function _tapSynth(ctx, type) {
+    const t0 = ctx.currentTime;
+    const env = (peak, decay) => {
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(peak, t0 + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+      g.connect(ctx.destination);
+      return g;
+    };
+    const tone = (out, f, gain, dur, fEnd) => {
+      const o = ctx.createOscillator();
+      const og = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(f, t0);
+      if (fEnd) o.frequency.exponentialRampToValueAtTime(fEnd, t0 + dur);
+      og.gain.value = gain;
+      o.connect(og); og.connect(out);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    };
+    if (type === "drop") {
+      const out = env(0.6, 0.12);
+      tone(out, 700, 1, 0.11, 300);
+    } else if (type === "thud") {
+      const out = env(0.8, 0.13);
+      tone(out, 200, 1, 0.12, 150);
+      tone(out, 400, 0.3, 0.08);
+    } else if (type === "bell") {
+      const out = env(0.45, 0.35);
+      tone(out, 440, 1, 0.34);
+      tone(out, 1100, 0.25, 0.2);
+    } else if (type === "click") {
+      const len = Math.floor(ctx.sampleRate * 0.025);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = 900;
+      const out = env(0.9, 0.04);
+      src.connect(lp); lp.connect(out);
+      src.start(t0);
+    } else {   // wood
+      const out = env(0.55, 0.06);
+      tone(out, 600, 1, 0.05, 560);
+      tone(out, 1200, 0.3, 0.035);
+    }
   }
   document.addEventListener("pointerdown", (ev) => {
     if (!_vp.tapSound) return;
@@ -14232,6 +14285,26 @@
         if (ts.checked) _tapSoundPlay(true);
       });
     }
+    // Rev523: pick the sound; choosing one plays it.
+    const tsType = document.getElementById("dash-tap-sound-type");
+    if (tsType) {
+      for (const k of ["wood", "drop", "thud", "bell", "click"]) {
+        const o = document.createElement("option");
+        o.value = k; o.textContent = t(`dash.overlay.tap.s.${k}`);
+        tsType.appendChild(o);
+      }
+      tsType.value = _vp.tapSoundType || "wood";
+      tsType.addEventListener("click", (ev) => { ev.stopPropagation(); });
+      tsType.addEventListener("change", () => {
+        _vpSet({ tapSoundType: tsType.value });
+        _tapSoundPlay(true, tsType.value);
+      });
+    }
+    const tsTest = document.getElementById("dash-tap-sound-test");
+    if (tsTest) tsTest.addEventListener("click", (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      _tapSoundPlay(true, (tsType && tsType.value) || _vp.tapSoundType);
+    });
     // Rev175 (Carlos): "Probar" button inside the RÁFAGAS overlay-card.
     // Fires a ghost at the current AWA / AWS ignoring cooldown, so the
     // rendering can be validated at the dock or under low wind.
