@@ -14,6 +14,7 @@ import { decideReAnchor } from "./mode-reanchor";
 import {
   awaEmaStep,
   computeTackGeometry,
+  needsLongJibeConfirm,
   isAtTarget,
   normalizeSignedPi,
   normalizeTwoPi,
@@ -748,6 +749,8 @@ export class AutopilotProvider {
      *  Use case: trim closer-hauled or bear-away a few degrees in the
      *  new tack without having to nudge afterwards. */
     finalAngleRadOverride?: number | null;
+    /** Rev511: required for a gybe the long way (> 180 deg). */
+    confirmLongJibe?: boolean;
   }): Promise<{ id: string; alreadyRunning: boolean; windMode: WindMode }> {
     const current = this._virtualTack;
     if (current) {
@@ -816,6 +819,24 @@ export class AutopilotProvider {
       && Number.isFinite(opts.finalAngleRadOverride)
       && Math.abs(opts.finalAngleRadOverride) <= Math.PI
         ? opts.finalAngleRadOverride : null;
+    // Rev511: same geometry the FSM will compute; refuse a long-way gybe
+    // unless the sailor confirmed it.
+    if (!opts.confirmLongJibe) {
+      const g = computeTackGeometry({
+        angleStartRad: awaRad,
+        hStartRad: headingRad,
+        direction: opts.direction,
+        angleNewRadOverride: finalAngleOverride ?? undefined,
+      });
+      if (needsLongJibeConfirm(g)) {
+        const err: any = new Error(
+          `virtual-tack: gybe the long way (${(g.deltaHRad * RAD_TO_DEG).toFixed(0)} deg) needs confirmation`,
+        );
+        err.code = "confirm_long_jibe";
+        err.deltaDeg = g.deltaHRad * RAD_TO_DEG;
+        throw err;
+      }
+    }
     this._runVirtualTack(opts.direction, windMode, headingRad, awaRad, finalAngleOverride).catch((e: any) => {
       // eslint-disable-next-line no-console
       console.log(`[startVirtualTack] driver threw: ${e?.message || e}`);

@@ -221,3 +221,43 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 });
+
+describe("long-way gybe needs confirmation (Rev511)", () => {
+  it("18:11:44 case: AWA +41, port button -> refused without confirm", async () => {
+    // Wind from 0 deg, heading 319 -> AWA +41 (wind on starboard bow).
+    const sim = makeSim({ twdDeg: 0, headingDeg: 319 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await assert.rejects(p.startVirtualTack({ direction: "port" }), (e: any) => e.code === "confirm_long_jibe" && Math.abs(e.deltaDeg) > 180);
+      assert.equal(p.isVirtualTackActive(), false);
+      assert.equal(sim.writes.length, 0, "nothing sent to pypilot");
+      await p.startVirtualTack({ direction: "port", confirmLongJibe: true });
+      assert.equal(p.isVirtualTackActive(), true);
+      await p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 3000);
+    } finally { sim.stop(); }
+  });
+
+  it("a normal tack and a gybe from a broad reach never ask", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 319 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      assert.equal(p.isVirtualTackActive(), true);
+      await p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 3000);
+    } finally { sim.stop(); }
+    // Broad reach: wind from 0, heading 210 -> AWA +150; gybe = 60 deg.
+    const sim2 = makeSim({ twdDeg: 0, headingDeg: 210 });
+    const p2 = new AutopilotProvider(sim2.client as any, sim2.app);
+    sim2.attach(p2);
+    try {
+      await p2.startVirtualTack({ direction: "port" });
+      assert.equal(p2.isVirtualTackActive(), true);
+      await p2.cancelVirtualTack();
+      await waitFor(() => !p2.isVirtualTackActive(), 3000);
+    } finally { sim2.stop(); }
+  });
+});

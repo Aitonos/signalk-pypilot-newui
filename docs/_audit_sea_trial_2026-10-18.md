@@ -266,3 +266,19 @@ las pantallas, opt-in):
   queda rondando dentro de 20° durante 5 s, entrega igualmente.
   **Pendiente de decidir**: PID "caliente" durante la virada con viento
   fuerte (cambia ganancias; no aplicado).
+
+## 11. Rev511 — el delta -278° (F)
+
+18:11:28 virada a babor desde AWA 6° (casi aproado), cancelada a las
+18:11:41 con el barco ya en AWA +41° (viento por estribor). 18:11:44:
+otro toque al MISMO botón (babor). Con el viento por estribor, "proa a
+babor" es alejarse del viento y dar la vuelta por popa: trasluchada de
+278° desde ceñida con 25 kn. El código hacía lo que dice el botón
+(Rev383: el botón es el sentido de giro de la proa), pero nadie quiere
+eso por error.
+
+Arreglo: una trasluchada por la vía larga (|giro| > 180°, solo posible
+con |AWA| < 90°) necesita confirmación. Backend devuelve 428 con
+`code: confirm_long_jibe`; el visor pregunta "¿Trasluchar por popa?
+… Para virar, usa el otro botón." Trasluchadas normales desde un largo y
+viradas largas desde popa no preguntan.

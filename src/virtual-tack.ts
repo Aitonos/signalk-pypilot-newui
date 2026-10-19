@@ -340,6 +340,16 @@ export function makeInitialState(): VirtualTackState {
 /** Rev506: largest total nudge accepted during one manoeuvre. */
 export const MAX_TACK_ADJUST_RAD = 60 * DEG;
 
+/** Rev511 (Carlos sea trial 2026-10-18 18:11:44): a second tap on the
+ *  same button after a cancelled tack, with the wind now on the other
+ *  bow, asked for a 278 deg gybe from close-hauled in 25 kn. A gybe the
+ *  long way (rotation > 180 deg, only possible from |AWA| < 90) needs an
+ *  explicit confirmation. Normal gybes from a run/broad reach and long
+ *  tacks from downwind are unaffected. */
+export function needsLongJibeConfirm(g: Pick<TackGeometry, "maneuverKind" | "deltaHRad">): boolean {
+  return g.maneuverKind === "jibe" && Math.abs(g.deltaHRad) > Math.PI;
+}
+
 /** Rev506: final compass heading of the rotation phase after the
  *  sailor's nudges. Bow to starboard = heading increases. */
 export function adjustedFinalCompassRad(g: TackGeometry, adjustRad: number): number {

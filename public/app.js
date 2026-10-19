@@ -463,6 +463,8 @@
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "APPARENT WIND",
       "mode.vt.tack":         "TACKING →",
+      "vt.longJibe.title":    "Gybe the long way?",
+      "vt.longJibe.body":     "The wind is on the other bow: this button turns through the stern ({deg}°). To tack, use the other button.",
       "mode.vt.jibe":         "GYBING →",
       "mode.label.true-wind": "TRUE WIND",
       "mode.label.nav":       "WAYPOINT",
@@ -1398,6 +1400,8 @@
       "mode.label.gps":       "GPS",
       "mode.label.wind":      "APARENTE",
       "mode.vt.tack":         "VIRANDO →",
+      "vt.longJibe.title":    "¿Trasluchar por popa?",
+      "vt.longJibe.body":     "El viento está en la otra amura: este botón da la vuelta por popa ({deg}°). Para virar, usa el otro botón.",
       "mode.vt.jibe":         "TRASLUCHANDO →",
       "mode.label.true-wind": "REAL",
       "mode.label.nav":       "RUMBO A WAYPOINT",
@@ -10691,6 +10695,7 @@
           // (500ms each → ~2s total) swallowing 409s silently, then
           // only flash fail on persistent failure. Other HTTP errors
           // (400/500/network) still fail immediately.
+          let confirmLongJibe = false;
           const vtStart = async () => {
             // Rev400 (Carlos QA Rev399): subo retries 4→10 (~5s total).
             // Rev399 QA mostró casos donde el VT previo tardaba >2s en
@@ -10705,6 +10710,7 @@
               // Clamped to ±170° (deg) to prevent abuse; backend
               // additionally rejects anything outside (-π, π].
               const body = { direction: dir, requestId };
+              if (confirmLongJibe) body.confirmLongJibe = true;
               try {
                 const rawOv = localStorage.getItem("pypilotnewui.tackFinalAngleDeg");
                 const deg = rawOv == null ? NaN : Number(rawOv);
@@ -10722,7 +10728,20 @@
               await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
             }
           };
-          const r = await vtStart();
+          let r = await vtStart();
+          // Rev511 (Carlos sea trial 2026-10-18 18:11:44): the backend
+          // asks before a gybe the long way (> 180 deg from close-hauled).
+          if (r.status === 428) {
+            const j = await r.json().catch(() => ({}));
+            const deg = Math.round(Math.abs(Number(j.deltaDeg) || 0));
+            const ok = await _pmConfirm(
+              t("vt.longJibe.title") || "¿Trasluchar por popa?",
+              (t("vt.longJibe.body") || "El viento está en la otra amura: este botón da la vuelta por popa ({deg}°). Para virar, usa el otro botón.").replace("{deg}", String(deg)),
+            );
+            if (!ok) return;
+            confirmLongJibe = true;
+            r = await vtStart();
+          }
           if (!r.ok) {
             const err = await r.text().catch(() => String(r.status));
             console.warn(`[vt] start failed: ${err}`);

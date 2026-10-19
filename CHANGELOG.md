@@ -1,11 +1,18 @@
 # Changelog
 
-## Unreleased (Rev509 → Rev510)
+## Unreleased (Rev509 → Rev511)
 
 ### Changed
 - **Virtual tack holds compass until the final heading**: the last step
   handed back to wind mode 20° short; it now stays in compass until 6°
   (or hands over after 5 s hovering inside 20°, so it never hangs).
+
+### Added
+- **Confirmation before a gybe the long way**: in wind modes, a tack
+  button that would turn more than 180° through the stern (only possible
+  from close-hauled or a beam reach, e.g. a second tap on the same button
+  after a cancelled tack) now asks first. On 2026-10-18 this started a
+  278° gybe from close-hauled in 25 kn.
 
 ### Fixed
 - **Tack countdown shows the degrees left**: the device that started the
