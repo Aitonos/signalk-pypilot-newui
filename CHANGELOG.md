@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (Rev517)
+
+### Added
+- **Logbook button on the rose**: a helm icon on the left, mirroring the
+  tide button on the right, opens the Logbook full screen; its x goes
+  back to the rose.
+
 ## 3.5.0 — 2026-10-19 — Fixes from two sea trials, logbook while sailing
 
 Rolls up Rev509 → Rev516 on top of 3.4.0. Minor bump: live logbook,

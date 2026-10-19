@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev516" />
+  <link rel="stylesheet" href="style.css?v=Rev517" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -154,6 +154,17 @@
                  runs edge to edge (no box inside the box). -->
             <svg viewBox="0 0 32 32" preserveAspectRatio="none" aria-hidden="true">
               <path d="M0,22 C5,22 7,8 12,8 S19,24 24,24 S30,14 32,12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <!-- Rev517 (Carlos 2026-10-19): logbook button, mirror of the tide
+               button on the LEFT, just above the bottom-left corner tile.
+               Opens the Logbook card full screen without leaving the rose. -->
+          <button type="button" class="freeboard-embed-btn rose-corner-btn rose-corner-left" id="rose-log-btn"
+                  aria-label="Logbook" title="Logbook">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="9.5" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <circle cx="16" cy="16" r="2.6" fill="currentColor"/>
+              <path d="M16.0,11.8 L16.0,2.0 M19.0,13.0 L25.9,6.1 M20.2,16.0 L30.0,16.0 M19.0,19.0 L25.9,25.9 M16.0,20.2 L16.0,30.0 M13.0,19.0 L6.1,25.9 M11.8,16.0 L2.0,16.0 M13.0,13.0 L6.1,6.1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
             </svg>
           </button>
           <!-- Rev432 (Carlos QA Rev431): AIS collision infobox + ACK as
@@ -2651,6 +2662,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev516"></script>
+  <script src="app.js?v=Rev517"></script>
 </body>
 </html>

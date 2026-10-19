@@ -627,6 +627,7 @@
       "info.comp.collision": "AIS collision targets on the rose with name, distance and ACK.",
       "tide.title":   "Tide",
       "tide.btn":     "Tide",
+      "logbook.btn":  "Logbook",
       "tide.now":     "Now",
       "tide.rising":  "Rising",
       "tide.falling": "Falling",
@@ -1572,6 +1573,7 @@
       "info.comp.collision": "Barcos AIS con riesgo de colisión en la rosa, con nombre, distancia y ACK.",
       "tide.title":   "Marea",
       "tide.btn":     "Marea",
+      "logbook.btn":  "Bitácora",
       "tide.now":     "Ahora",
       "tide.rising":  "Subiendo",
       "tide.falling": "Bajando",
@@ -11385,6 +11387,31 @@
         placeTideBtn();
         if (brCell && typeof ResizeObserver === "function") {
           try { new ResizeObserver(placeTideBtn).observe(brCell); } catch { /* fallback bottom */ }
+        }
+      }
+      // Rev517 (Carlos 2026-10-19): logbook button on the left, same look
+      // and placement rule as the tide button (above the bottom-left tile).
+      // Opens the Logbook card full screen; its x returns to the rose.
+      const logBtn = document.getElementById("rose-log-btn");
+      if (logBtn) {
+        logBtn.setAttribute("aria-label", t("logbook.btn"));
+        logBtn.setAttribute("title", t("logbook.btn"));
+        logBtn.addEventListener("click", (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          const block = document.querySelector('.setup-block[data-block-key="trips"]');
+          if (!block) return;
+          _setupFullscreenOn(block);
+          try { _tripsRefresh(); } catch { /* silent */ }
+        });
+        logBtn.addEventListener("dblclick", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+        const blCell = document.querySelector(".dash-rose .dash-cell.corner-bl");
+        const placeLogBtn = () => {
+          if (!blCell) return;
+          logBtn.style.bottom = `${6 + blCell.offsetHeight + 14}px`;
+        };
+        placeLogBtn();
+        if (blCell && typeof ResizeObserver === "function") {
+          try { new ResizeObserver(placeLogBtn).observe(blCell); } catch { /* fallback bottom */ }
         }
       }
       // Rev479 (Carlos QA Rev478): "Mareas completo" = the anchor-watch

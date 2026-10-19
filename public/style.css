@@ -4377,6 +4377,16 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
   overflow: hidden;
 }
 #rose-tide-btn svg { width: 100%; height: 100%; display: block; }
+/* Rev517: logbook button = same look as the tide button, on the left. */
+.rose-corner-btn.rose-corner-left { right: auto; left: 6px; }
+#rose-log-btn {
+  background: #000;
+  border-color: var(--accent);
+  color: var(--accent);
+  padding: 2px;
+  overflow: hidden;
+}
+#rose-log-btn svg { width: 100%; height: 100%; display: block; }
 .rose-corner-btn[hidden] { display: none; }
 /* Rev486: tide popup content. Popup chrome comes from .popup-box; only
    the curve is styled here, with theme variables (UI_STYLE_GUIDE r.10). */
