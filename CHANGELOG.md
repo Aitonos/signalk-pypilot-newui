@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased (Rev517 → Rev519)
+## 3.6.0 — 2026-10-19 — AUTO WIND and a logbook button on the rose
+
+Rolls up Rev517 → Rev520 on top of 3.5.0. Minor bump: new AUTO WIND
+pseudo-mode. No breaking changes; AUTO WIND is off until chosen.
 
 ### Added
 - **AUTO WIND pseudo-mode**: apparent wind below 120° TWA, true wind
@@ -13,6 +16,7 @@
   Without GPS pypilot offers no true wind: the entry is shown greyed out
   ("needs GPS for true wind"), and pypilot's own drop to compass on a
   GPS loss does not turn AUTO WIND off.
+  Listed right below compass / GPS in the mode window.
 - **Logbook button**: while a trip is being recorded it opens that trip;
   in port it opens the logbook list.
 - **Logbook button on the rose**: a helm icon on the left, mirroring the

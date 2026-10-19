@@ -4,8 +4,13 @@
 
 ## Qué pasa en este repo ahora mismo
 
-- **Publicado en NPM**: `3.5.0` (Rev516), 2026-10-19, tag `v3.5.0`.
+- **Publicado en NPM**: `3.6.0` (Rev520), 2026-10-19, tag `v3.6.0`.
   Desplegado en el Pi5.
+- **3.6.0 trae** (Rev517 → Rev520): pseudo-modo AUTO VIENTO
+  (`src/autowind.ts`, backend; aparente < 120° TWA < real, histéresis
+  ±5°, 10 s, ≥ 30 s; un perfil por lado; necesita GPS, sin él sale en
+  gris) y botón timón de bitácora en la rosa (viaje en curso navegando,
+  lista en puerto). QA en agua pendiente: QA Rev518 en el chat.
 - **3.5.0 trae** (Rev509 → Rev516): auditoría de la salida 2026-10-19
   (`docs/_audit_sail_2026-10-19.md`): revertidos Rev510 (compás hasta 6°)
   y Rev512 (aproado en compás); steer-watch solo con fallo direccional de

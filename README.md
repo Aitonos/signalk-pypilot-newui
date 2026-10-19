@@ -131,7 +131,8 @@ up automatically.
 13. **Tide at a glance** (with `signalk-mareas-ihm`) — button on the
     rose opens a popup with an interactive tide curve, current height,
     trend, next HW/LW and coefficient, and can open the anchor-watch
-    visor inside the rose.
+    visor inside the rose. A helm button on the other side opens the
+    logbook (the trip in progress while sailing).
 
 ### Autopilot enhancements — 12 new added functions
 
@@ -142,7 +143,10 @@ up automatically.
     original stays one tap away.
 15. **Smart Pilot — auto profile by wind** — switches the pypilot
     profile between Light / Medium / Heavy according to the averaged
-    TWS.
+    TWS. **AUTO WIND pseudo-mode**: apparent wind below 120° TWA, true
+    wind above (with hysteresis), one pypilot profile for each side so
+    the true-wind side can be the more reactive one. Needs GPS (pypilot
+    only offers true wind with it).
 16. **Smart Pilot — gust strategy** — freeze target, boost D +20%
     for 20 s, temporarily switch to the Heavy profile for 30 s, or
     just warn.

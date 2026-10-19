@@ -8253,7 +8253,7 @@
       const modeList = Array.isArray(state.modeList) ? state.modeList : [];
       let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
       if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
-      if (_autowindAvailable() && !withPseudo.includes("autowind")) withPseudo = [...withPseudo, "autowind"];
+      if (_autowindAvailable() && !withPseudo.includes("autowind")) withPseudo = _withAutowindAfterCompass(withPseudo);
       el.textContent = "";
       // Hidden placeholder (Rev250 race-guard carryover).
       const ph = document.createElement("option");
@@ -8296,6 +8296,14 @@
       return;
     }
     btn.textContent = m ? _modeLabel(m) : "—";
+  }
+  // Rev520 (Carlos): AUTO WIND right below compass / GPS.
+  function _withAutowindAfterCompass(list) {
+    const out = list.slice();
+    let at = -1;
+    for (const m of ["compass", "gps"]) { const i = out.indexOf(m); if (i > at) at = i; }
+    out.splice(at + 1, 0, "autowind");
+    return out;
   }
   // Rev518: AUTOWIND needs both wind modes from pypilot.
   function _autowindAvailable() {
@@ -8515,7 +8523,7 @@
     // Rev519: AUTO WIND always listed when pypilot has wind; greyed out
     // with the reason when true wind is missing (no GPS).
     const awNoTrue = !_autowindAvailable() && (Array.isArray(state.modeList) && state.modeList.includes("wind"));
-    if ((_autowindAvailable() || awNoTrue) && !withPseudo.includes("autowind")) withPseudo = [...withPseudo, "autowind"];
+    if ((_autowindAvailable() || awNoTrue) && !withPseudo.includes("autowind")) withPseudo = _withAutowindAfterCompass(withPseudo);
     const awOn = !!(state.autowind && state.autowind.enabled);
     list.textContent = "";
     for (const v of withPseudo) {
