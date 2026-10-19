@@ -4,8 +4,21 @@
 
 ## Qué pasa en este repo ahora mismo
 
-- **Publicado en NPM**: `3.4.0` (Rev508), 2026-10-18, tag `v3.4.0`.
+- **Publicado en NPM**: `3.5.0` (Rev516), 2026-10-19, tag `v3.5.0`.
   Desplegado en el Pi5.
+- **3.5.0 trae** (Rev509 → Rev516): auditoría de la salida 2026-10-19
+  (`docs/_audit_sail_2026-10-19.md`): revertidos Rev510 (compás hasta 6°)
+  y Rev512 (aproado en compás); steer-watch solo con fallo direccional de
+  sobrecorriente (0 A con DRIVER_TIMEOUT no cuenta); cancelación de
+  virada espera a que pypilot procese el modo y verifica el objetivo;
+  HUD del mando con amura fijada en el begin; contador flecha→diamante;
+  confirmación de trasluchada solo < 20 s tras cancelar; bitácora en
+  curso consultable; resumen de virada en compás con rumbo; rachas
+  visibles; `ap.tack.direction` sin ruido en standby; trazas ≤ 60.
+- **QA en agua pendiente 3.5.0**: `docs/QA_navegacion_Rev514.md` +
+  QA Rev515/516 (cancelar virada, HUD del mando, aproado en aparente,
+  bitácora EN CURSO). Propuesta pendiente de revisar:
+  `docs/_design_wind_quadrants_2026-10-19.md`.
 - **3.4.0 trae** (Rev506 → Rev508, salida de viento fuerte 2026-10-18,
   `docs/_audit_sea_trial_2026-10-18.md` s.9): AP off anula la virada
   virtual; ±1/±10 durante la virada mueven el destino; recuperación del

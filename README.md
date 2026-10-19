@@ -149,10 +149,11 @@ up automatically.
 17. **Auto-disengage on lost authority** — RMS heading error > 30°
     with servo duty > 90% sustained 10 s. **Stuck pilot recovery**
     (opt-in): with no rudder sensor, pypilot treats an overcurrent as
-    the end of rudder travel and stops driving that way; when the error
-    keeps growing and the servo is not pushing, the plugin turns the AP
-    off and on (same mode and target) to clear it, at most 3 times per
-    minute.
+    the end of rudder travel and stops driving that way; when pypilot
+    reports that directional overcurrent fault and the error keeps
+    growing, the plugin turns the AP off and on (same mode and target)
+    to clear it, at most 3 times per minute. Never during pypilot's own
+    tack.
 18. **Pre-departure Autopilot Check** — a single READY / CAVEATS /
     DO-NOT-ENGAGE verdict aggregating every sensor, servo, voltage
     and link signal.
@@ -200,6 +201,8 @@ up automatically.
     split, min voltage, AP-engaged %), OpenSeaMap trace coloured by
     SOG with markers on peak gust, peak SOG, min voltage and every
     detected tack. Share as portrait PNG report card or as plain text.
+    The trip in progress can be opened while sailing (live statistics
+    and the track so far).
 27. **Chart tab** — 9 live Trip Stats cards, history with
     30 s / 2 min / 10 min windows and hover-freeze, plus a Servo
     Health card.

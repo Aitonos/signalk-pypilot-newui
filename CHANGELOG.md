@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased (Rev509 → Rev516)
+## 3.5.0 — 2026-10-19 — Fixes from two sea trials, logbook while sailing
+
+Rolls up Rev509 → Rev516 on top of 3.4.0. Minor bump: live logbook,
+heading in the compass tack summary, trace pruning. No breaking changes.
 
 Rev515 comes from the sail of 2026-10-19: it reverts two changes that
 made things worse (Rev510 compass-until-6°, Rev512 head-to-wind in
