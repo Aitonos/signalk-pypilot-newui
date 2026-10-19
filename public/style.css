@@ -5,15 +5,20 @@
   --bg:            #0b0f14;
   --bg-2:          #131a22;
   --bg-3:          #1c2632;
-  --fg:            #e6edf3;
-  --fg-dim:        #8b98a5;
+  /* Rev521 (Carlos 2026-10-20: "las líneas y textos en gris no se leen
+     bien con mucha luz"): higher contrast for sunlight - pure white
+     text, secondary text #8b98a5 -> #b8c4d0, borders #2b3542 -> #4a5a6e,
+     thin separators #4a5867 -> #6f8296 (also the literal copies in the
+     SVG / JS). */
+  --fg:            #ffffff;
+  --fg-dim:        #b8c4d0;
   --accent:        #37b6ff;
   --accent-dim:    #1c6a99;
   --ok:            #2ecc71;
   --warn:          #f5a623;
   --err:           #e74c3c;
   --engaged:       #ff3b30;
-  --border:        #2b3542;
+  --border:        #4a5a6e;
   --radius:        14px;
   --tap:           56px;
   /* Rev151 (Carlos): rose data-tag palette - the corner tiles, chip
@@ -232,7 +237,7 @@ body.nav-hidden nav#tabbar {
   padding: 0;
   background: rgba(10, 14, 20, 0.72);
   color: #cbd3dc;
-  border: 1px solid #4a5867;
+  border: 1px solid #6f8296;
   border-radius: 6px;
   font-size: 16px;
   line-height: 1;
@@ -473,7 +478,7 @@ main {
   min-width: 72px;
   padding: 3px 10px;
   background: rgba(0, 0, 0, 0.72);
-  border: 1px solid #4a5867;
+  border: 1px solid #6f8296;
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
@@ -662,7 +667,7 @@ main {
 .popup-box {
   position: relative;
   background: var(--bg-2, #0f1620);
-  border: 1px solid var(--border, #2b3542);
+  border: 1px solid var(--border, #4a5a6e);
   border-radius: 14px;
   padding: 26px 22px 22px;
   max-width: 640px;
@@ -695,7 +700,7 @@ main {
   font-size: 20px;
   font-weight: 800;
   background: var(--bg-3, #1c2632);
-  border-bottom: 1px solid var(--border, #2b3542);
+  border-bottom: 1px solid var(--border, #4a5a6e);
   letter-spacing: 0.3px;
 }
 /* Rev151: dedicated scrolling wrapper for popup body. Everything
@@ -755,14 +760,14 @@ main {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  color: var(--fg-dim, #8b98a5);
+  color: var(--fg-dim, #b8c4d0);
   font-weight: 600;
 }
 .dash-corner-cfg select {
   padding: 8px 10px;
   background: var(--bg-3, #1a2230);
   color: var(--fg, #fff);
-  border: 1px solid var(--border, #2b3542);
+  border: 1px solid var(--border, #4a5a6e);
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
@@ -792,7 +797,7 @@ main {
   gap: 4px;
   padding: 10px 8px 12px;
   background: var(--bg-3, #1a2230);
-  border: 1.5px solid var(--border, #2b3542);
+  border: 1.5px solid var(--border, #4a5a6e);
   border-radius: 8px;
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease;
@@ -830,7 +835,7 @@ main {
 }
 .overlay-card .overlay-needs {
   font-size: 11px;
-  color: var(--fg-dim, #8b98a5);
+  color: var(--fg-dim, #b8c4d0);
   text-align: center;
   line-height: 1.3;
 }
@@ -1165,6 +1170,11 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   gap: 6px;
 }
 .tack-btn .arrow { font-size: 30px; line-height: 1; }
+/* Rev521 (Carlos): in wind modes the button has no number under the arc;
+   move the arc + arrow head (drawn in the top half, y 5..44 of the
+   100x100 viewBox) down to the vertical centre. */
+.tack-btn.tack-no-label .tack-svg path,
+.tack-btn.tack-no-label .tack-svg polygon { transform: translateY(25px); }
 .tack-btn.tack-active { background: var(--warn); color: var(--bg); border-color: var(--warn); }
 
 /* AP: simple solid button, color-only change (no sliding knob).
@@ -2010,7 +2020,7 @@ footer#ftr a {
 .regata-buttons { display: flex; gap: 12px; width: 100%; max-width: 480px;
   justify-content: center; }
 .regata-btn { flex: 1; padding: 18px 8px; font-size: 20px; font-weight: 800;
-  border-radius: 12px; border: 2px solid var(--border, #2b3542);
+  border-radius: 12px; border: 2px solid var(--border, #4a5a6e);
   background: var(--bg-3, #1a2230); color: var(--fg, #fff); cursor: pointer;
   transition: transform 80ms ease, background 120ms linear; }
 .regata-btn:active { transform: scale(0.96); }
@@ -2024,9 +2034,9 @@ footer#ftr a {
   color: var(--fg-2, #9ad); }
 .regata-config input[type="number"] { width: 60px; padding: 6px 8px;
   background: var(--bg-3, #1a2230); color: var(--fg, #fff);
-  border: 1px solid var(--border, #2b3542); border-radius: 6px; font-size: 15px; }
+  border: 1px solid var(--border, #4a5a6e); border-radius: 6px; font-size: 15px; }
 .regata-check { cursor: pointer; }
-.regata-hint { font-size: 13px; color: var(--fg-2, #8b98a5); text-align: center;
+.regata-hint { font-size: 13px; color: var(--fg-2, #b8c4d0); text-align: center;
   max-width: 520px; line-height: 1.5; }
 .regata-hint b { color: var(--fg, #fff); }
 @media (max-width: 500px) {

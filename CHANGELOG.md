@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased (Rev521)
+
+### Changed
+- **More contrast for sunlight**: white text, brighter secondary text,
+  borders and separators.
+- **AUTO WIND** also switches with the AP disengaged (engaging lands in
+  the right mode), but only with at least 3 kn of true wind - in port
+  the true wind angle is noise.
+- English label of the downwind pseudo-mode: **DEAD DOWNWIND** (was
+  "head downwind").
+
+### Fixed
+- Tack buttons: the arrow is centred when there is no number under it
+  (wind modes).
+
 ## 3.6.0 — 2026-10-19 — AUTO WIND and a logbook button on the rose
 
 Rolls up Rev517 → Rev520 on top of 3.5.0. Minor bump: new AUTO WIND

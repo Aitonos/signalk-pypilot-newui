@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev520" />
+  <link rel="stylesheet" href="style.css?v=Rev521" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -223,7 +223,7 @@
           </div>
           <svg id="wind-rose" class="rose-svg" viewBox="-100 -110 200 220" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
-            <circle cx="0" cy="0" r="94" fill="none" stroke="#2b3542" stroke-width="2"/>
+            <circle cx="0" cy="0" r="94" fill="none" stroke="#4a5a6e" stroke-width="2"/>
             <!-- Rev58: sailing zones as PIE SLICES from origin (r=0) out
                  to the compass ring (r=90). The boat SVG renders AFTER the
                  wedges so its opaque hull hides the inner tips - visually
@@ -273,60 +273,60 @@
                    DESPUÉS y fila nueva de TIEMPO de ejecucion.
                    AWA sin barras de valor absoluto. -->
               <rect x="-82" y="-84" width="164" height="168" rx="10"
-                    fill="rgba(11,15,20,0.98)" stroke="#4a5867" stroke-width="1.5"/>
-              <text x="0" y="-68" text-anchor="middle" fill="#8b98a5"
+                    fill="rgba(11,15,20,0.98)" stroke="#6f8296" stroke-width="1.5"/>
+              <text x="0" y="-68" text-anchor="middle" fill="#b8c4d0"
                     font-size="13" font-weight="900" letter-spacing="1.6"
                     font-family="ui-monospace, monospace">VIRADA</text>
-              <line x1="-72" y1="-56" x2="72" y2="-56" stroke="#4a5867" stroke-width="0.6"/>
-              <text x="-28" y="-46" text-anchor="middle" fill="#8b98a5"
+              <line x1="-72" y1="-56" x2="72" y2="-56" stroke="#6f8296" stroke-width="0.6"/>
+              <text x="-28" y="-46" text-anchor="middle" fill="#b8c4d0"
                     font-size="8" font-weight="700" letter-spacing="0.6"
                     font-family="ui-monospace, monospace">ANTES</text>
-              <text x="36" y="-46" text-anchor="middle" fill="#8b98a5"
+              <text x="36" y="-46" text-anchor="middle" fill="#b8c4d0"
                     font-size="8" font-weight="700" letter-spacing="0.6"
                     font-family="ui-monospace, monospace">DESPUÉS</text>
-              <line x1="-72" y1="-38" x2="72" y2="-38" stroke="#4a5867" stroke-width="0.6"/>
-              <text x="-72" y="-24" fill="#8b98a5" font-size="10" font-weight="700"
+              <line x1="-72" y1="-38" x2="72" y2="-38" stroke="#6f8296" stroke-width="0.6"/>
+              <text x="-72" y="-24" fill="#b8c4d0" font-size="10" font-weight="700"
                     font-family="ui-monospace, monospace">TWS</text>
               <text x="-28" y="-24" id="tack-stats-tws-before" text-anchor="middle"
                     fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="6"   y="-24" text-anchor="middle" fill="#8b98a5"
+              <text x="6"   y="-24" text-anchor="middle" fill="#b8c4d0"
                     font-size="12" font-weight="700"
                     font-family="ui-monospace, monospace">→</text>
               <text x="36"  y="-24" id="tack-stats-tws-after" text-anchor="middle"
                     fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <line x1="-72" y1="-14" x2="72" y2="-14" stroke="#4a5867" stroke-width="0.6"/>
-              <text x="-72" y="0" id="tack-stats-awa-lbl" fill="#8b98a5" font-size="10" font-weight="700"
+              <line x1="-72" y1="-14" x2="72" y2="-14" stroke="#6f8296" stroke-width="0.6"/>
+              <text x="-72" y="0" id="tack-stats-awa-lbl" fill="#b8c4d0" font-size="10" font-weight="700"
                     font-family="ui-monospace, monospace">AWA</text>
               <text x="-28" y="0" id="tack-stats-awa-before" text-anchor="middle"
                     fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="6"   y="0" text-anchor="middle" fill="#8b98a5"
+              <text x="6"   y="0" text-anchor="middle" fill="#b8c4d0"
                     font-size="12" font-weight="700"
                     font-family="ui-monospace, monospace">→</text>
               <text x="36"  y="0" id="tack-stats-awa-after" text-anchor="middle"
                     fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <line x1="-72" y1="10" x2="72" y2="10" stroke="#4a5867" stroke-width="0.6"/>
-              <text x="-72" y="24" fill="#8b98a5" font-size="10" font-weight="700"
+              <line x1="-72" y1="10" x2="72" y2="10" stroke="#6f8296" stroke-width="0.6"/>
+              <text x="-72" y="24" fill="#b8c4d0" font-size="10" font-weight="700"
                     font-family="ui-monospace, monospace">SOG</text>
               <text x="-28" y="24" id="tack-stats-sog-before" text-anchor="middle"
                     fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <text x="6"   y="24" text-anchor="middle" fill="#8b98a5"
+              <text x="6"   y="24" text-anchor="middle" fill="#b8c4d0"
                     font-size="12" font-weight="700"
                     font-family="ui-monospace, monospace">→</text>
               <text x="36"  y="24" id="tack-stats-sog-after" text-anchor="middle"
                     fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <line x1="-72" y1="34" x2="72" y2="34" stroke="#4a5867" stroke-width="0.6"/>
-              <text x="-72" y="48" fill="#8b98a5" font-size="10" font-weight="700"
+              <line x1="-72" y1="34" x2="72" y2="34" stroke="#6f8296" stroke-width="0.6"/>
+              <text x="-72" y="48" fill="#b8c4d0" font-size="10" font-weight="700"
                     font-family="ui-monospace, monospace">TIEMPO</text>
               <text x="4"  y="48" id="tack-stats-time" text-anchor="middle"
                     fill="#ffffff" font-size="12" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
-              <line x1="-72" y1="58" x2="72" y2="58" stroke="#4a5867" stroke-width="0.6"/>
+              <line x1="-72" y1="58" x2="72" y2="58" stroke="#6f8296" stroke-width="0.6"/>
               <text x="0" y="72" text-anchor="middle" id="tack-stats-verdict"
                     fill="#ffffff" font-size="10" font-weight="800"
                     font-family="ui-monospace, monospace">--</text>
@@ -399,13 +399,13 @@
                     fill="#ffd54a" stroke="#cba822" stroke-width="0.75"
                     stroke-linejoin="round"/>
               <!-- Rev82: "A" moved from (0,-58) to (0,-60), a bit
-                   further from the tip. Color rose-gray #8b98a5
+                   further from the tip. Color rose-gray #b8c4d0
                    (same as compass numeric labels). Two-orientation
                    flip logic in JS. Font-size 9 + weight 900. -->
               <!-- Rev126: label "A" reposicionado a y=-38 para caer
                    dentro del nuevo path grande (punta -24 → V-hueco -48). -->
               <text id="rose-piece-awa-label" x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
-                    fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
+                    fill="#b8c4d0" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
             </g>
             <!-- Rev77: TWA vuelve a la estructura Rev74 (4-vértices
                  concave quad) pero con hombros a ±15° (24.33,-90.79)
@@ -426,7 +426,7 @@
               <!-- Rev82: "T" moved from (0,-36) to (0,-40), a bit
                    further from the tip toward the V-hueco vertex
                    (Carlos: "no tan pegadas a la punta"). Color
-                   changed from dark green to rose-gray #8b98a5
+                   changed from dark green to rose-gray #b8c4d0
                    (same tone as the compass numeric labels).
                    Two-orientation flip logic applied in JS: if the
                    piece is in the rear half (91°-270°), the label
@@ -435,7 +435,7 @@
               <!-- Rev126: label "T" reposicionado a y=-56 para caer
                    dentro del nuevo path pequeño (punta -48 → V-hueco -68). -->
               <text id="rose-piece-twa-label" x="0" y="-56" text-anchor="middle" dominant-baseline="middle"
-                    fill="#8b98a5" font-size="12" font-weight="900" font-family="ui-monospace, monospace">T</text>
+                    fill="#b8c4d0" font-size="12" font-weight="900" font-family="ui-monospace, monospace">T</text>
             </g>
             <!-- DIA (outermost, cyan target diamond): arco base r=94 +
                  lados rectos + punta afilada (0,-68). Rotado a
@@ -557,7 +557,7 @@
               <text x="0"  y="70"  text-anchor="middle" dominant-baseline="middle" fill="#6faaff" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="13" font-weight="800">S</text>
               <text x="-70" y="0"  text-anchor="middle" dominant-baseline="middle" fill="#e74c3c" stroke="#000000" stroke-width="0.5" paint-order="stroke fill" font-size="13" font-weight="800">W</text>
               <!-- 8 numeric labels at 30 deg increments (skip cardinals). -->
-              <g fill="#8b98a5" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
+              <g fill="#b8c4d0" font-size="7" font-weight="700" font-family="ui-monospace, monospace" text-anchor="middle" dominant-baseline="middle">
                 <text transform="rotate(30)  translate(0,-72)">030</text>
                 <text transform="rotate(60)  translate(0,-72)">060</text>
                 <text transform="rotate(120) translate(0,-72)">120</text>
@@ -579,10 +579,10 @@
                  of the ring. Bottom edge stays at y=-84 as before. -->
             <g id="rose-hdg-chip">
               <rect x="-22" y="-110" width="44" height="26" rx="4" ry="4"
-                    fill="rgba(0,0,0,0.78)" stroke="#4a5867" stroke-width="1"/>
+                    fill="rgba(0,0,0,0.78)" stroke="#6f8296" stroke-width="1"/>
               <text id="rose-hdg-value" x="0" y="-100" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
               <text id="rose-hdg-deg"   x="0" y="-100" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
-              <text id="rose-hdg-prec"  x="0" y="-89" text-anchor="middle" dominant-baseline="middle" fill="#8a98a8" font-size="9" font-weight="800" font-family="ui-monospace, monospace">--</text>
+              <text id="rose-hdg-prec"  x="0" y="-89" text-anchor="middle" dominant-baseline="middle" fill="#b8c4d0" font-size="9" font-weight="800" font-family="ui-monospace, monospace">--</text>
             </g>
             <!-- Rev216 (Carlos): rotation-sense indicator. A curved
                  arrow drawn just inside the compass ring, showing
@@ -821,7 +821,7 @@
                   <path d="M -20.85,-58.53 L 0,-16 L 20.85,-58.53 L 0,-40 Z"
                         fill="#ffd54a" stroke="#cba822" stroke-width="0.75" stroke-linejoin="round"/>
                   <text x="0" y="-28" text-anchor="middle" dominant-baseline="middle"
-                        fill="#8b98a5" font-size="14" font-weight="900" font-family="ui-monospace, monospace">A</text>
+                        fill="#b8c4d0" font-size="14" font-weight="900" font-family="ui-monospace, monospace">A</text>
                 </svg>
                 <div class="overlay-title" data-i18n="dash.overlay.awa.title">A · Apparent wind</div>
                 <div class="overlay-needs" data-i18n="dash.overlay.awa.needs">Amber arrow · needs a wind sensor.</div>
@@ -832,7 +832,7 @@
                   <path d="M -18.13,-58.53 L 0,-30 L 18.13,-58.53 L 0,-44 Z"
                         fill="#5ce8c0" stroke="#38b596" stroke-width="0.75" stroke-linejoin="round"/>
                   <text x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
-                        fill="#8b98a5" font-size="14" font-weight="900" font-family="ui-monospace, monospace">T</text>
+                        fill="#b8c4d0" font-size="14" font-weight="900" font-family="ui-monospace, monospace">T</text>
                 </svg>
                 <div class="overlay-title" data-i18n="dash.overlay.twa.title">T · True wind</div>
                 <div class="overlay-needs" data-i18n="dash.overlay.twa.needs">Teal arrow · needs a wind sensor + SOG.</div>
@@ -877,7 +877,7 @@
                     <path d="M -20.85,-58.53 L 0,-16 L 20.85,-58.53 L 0,-40 Z"
                           fill="#ff9500" stroke="#b56500" stroke-width="0.75" stroke-linejoin="round"/>
                     <text x="0" y="-28" text-anchor="middle" dominant-baseline="middle"
-                          fill="#8b98a5" font-size="14" font-weight="900" font-family="ui-monospace, monospace">A</text>
+                          fill="#b8c4d0" font-size="14" font-weight="900" font-family="ui-monospace, monospace">A</text>
                   </g>
                   <text x="0" y="-52" text-anchor="middle" fill="#ff9500"
                         font-size="8" font-weight="800" font-family="ui-monospace, monospace">12 kn</text>
@@ -2526,18 +2526,18 @@
              positions from trip-<id>.jsonl as a polyline coloured by
              SOG, with markers on peak wind / peak SOG / min voltage /
              each detected tack. -->
-        <div id="trip-detail-map" style="height:300px;border-radius:8px;overflow:hidden;background:#0a1220;border:1px solid var(--border,#2b3542);margin-bottom:14px"></div>
+        <div id="trip-detail-map" style="height:300px;border-radius:8px;overflow:hidden;background:#0a1220;border:1px solid var(--border,#4a5a6e);margin-bottom:14px"></div>
         <div id="trip-detail-map-legend" style="font-size:11px;opacity:0.7;margin:-8px 0 12px;display:flex;flex-wrap:wrap;gap:12px"></div>
         <!-- Rev328 (Carlos, 2026-09-28): SOG + AWS time chart from the
              trip's JSONL, painted right after the map. Same samples,
              no extra fetch. Legend embedded in-canvas. -->
         <div id="trip-detail-chart-wrap" style="margin-bottom:14px;position:relative">
           <div class="hint" data-i18n="trips.chart.title" style="margin-bottom:6px">Speed &amp; apparent wind</div>
-          <canvas id="trip-detail-chart" height="160" style="width:100%;height:160px;background:#0a1220;border-radius:8px;border:1px solid var(--border,#2b3542);display:block;cursor:crosshair;touch-action:none"></canvas>
+          <canvas id="trip-detail-chart" height="160" style="width:100%;height:160px;background:#0a1220;border-radius:8px;border:1px solid var(--border,#4a5a6e);display:block;cursor:crosshair;touch-action:none"></canvas>
           <!-- Rev329 (Carlos, 2026-09-28): tooltip absoluto pintado al
                hover / drag sobre el canvas. Sale SOG + AWS + AWA (AWA
                solo aquí, no como línea en el chart). -->
-          <div id="trip-detail-chart-tooltip" style="position:absolute;pointer-events:none;background:rgba(10,18,32,0.95);color:#e8ecf1;border:1px solid var(--border,#2b3542);border-radius:6px;padding:6px 8px;font-size:11px;font-family:ui-monospace,monospace;line-height:1.4;display:none;z-index:5;box-shadow:0 4px 12px rgba(0,0,0,0.4)"></div>
+          <div id="trip-detail-chart-tooltip" style="position:absolute;pointer-events:none;background:rgba(10,18,32,0.95);color:#e8ecf1;border:1px solid var(--border,#4a5a6e);border-radius:6px;padding:6px 8px;font-size:11px;font-family:ui-monospace,monospace;line-height:1.4;display:none;z-index:5;box-shadow:0 4px 12px rgba(0,0,0,0.4)"></div>
         </div>
         <div id="trip-detail-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div>
         <div id="trip-detail-highlights" style="margin-top:14px;display:flex;flex-direction:column;gap:6px"></div>
@@ -2662,6 +2662,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev520"></script>
+  <script src="app.js?v=Rev521"></script>
 </body>
 </html>

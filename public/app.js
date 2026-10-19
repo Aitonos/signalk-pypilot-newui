@@ -475,7 +475,7 @@
       "autowind.prof.true":   "True wind",
       "mode.label.nav":       "WAYPOINT",
       "mode.label.aproado":   "HEAD TO WIND",
-      "mode.label.empopado":    "HEAD DOWNWIND",
+      "mode.label.empopado":    "DEAD DOWNWIND",
       "tune.gain.helpBtn":  "More info",
       // Rev333 (Carlos, 2026-09-28): human-readable slider titles.
       "tune.gain.P.title":    "Reactivity (P)",
@@ -3462,7 +3462,7 @@
     }
     if (!state.engaged || currentRad == null || targetRad == null) {
       _setText(el, "--");
-      _setAttr(el, "fill", "#8a98a8");
+      _setAttr(el, "fill", "#b8c4d0");
       return;
     }
     // Sign convention Carlos: how much the pilot still has to correct.
@@ -5428,6 +5428,8 @@
       btn.dataset.state = "tack";
       const lbl = btn.querySelector(".tack-angle-lbl");
       if (lbl && lbl.textContent !== label) lbl.textContent = label;
+      // Rev521 (Carlos): no number (wind modes) -> centre the arrow.
+      btn.classList.toggle("tack-no-label", label === "");
       // Grow the ✕ so it reads as a cancel from a metre away.
       if (lbl) lbl.style.fontSize = inProgress ? "34px" : "";
       // Title = accessibility + hover tooltip. Explicit cancel wording
@@ -6992,7 +6994,7 @@
     aLetter.setAttribute("y", "-38");
     aLetter.setAttribute("text-anchor", "middle");
     aLetter.setAttribute("dominant-baseline", "middle");
-    aLetter.setAttribute("fill", "#8b98a5");
+    aLetter.setAttribute("fill", "#b8c4d0");
     aLetter.setAttribute("font-size", "12");
     aLetter.setAttribute("font-weight", "900");
     aLetter.setAttribute("font-family", "ui-monospace, monospace");
@@ -7066,7 +7068,7 @@
     };
     // Summary chips.
     const mkChip = (label, value, color) =>
-      `<div style="padding:8px 10px;border-radius:8px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#2b3542);min-width:140px">
+      `<div style="padding:8px 10px;border-radius:8px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#4a5a6e);min-width:140px">
         <div style="font-size:11px;opacity:0.65;letter-spacing:0.5px">${label}</div>
         <div style="font-size:14px;font-weight:700;color:${color}">${value}</div>
       </div>`;
@@ -7082,7 +7084,7 @@
       const retTxt = typeof e.retention === "number" ? `${e.retention.toFixed(0)}% SOG` : "--";
       const retColor = typeof e.retention === "number"
         ? (e.retention >= 95 ? "#4dd982" : e.retention >= 80 ? "#ffd54a" : "#ff5d5d")
-        : "#8b98a5";
+        : "#b8c4d0";
       const recTxt = typeof e.recoverySec === "number" ? `${e.recoverySec.toFixed(1)} s` : "n/a";
       const preAwa = e.pre?.awa != null ? `${Math.round(e.pre.awa)}°` : "--";
       const postAwa = e.post?.awa != null ? `${Math.round(e.post.awa)}°` : "--";
@@ -7093,7 +7095,7 @@
       if (isBestRet) badges.push(`<span style="background:#4dd98230;color:#4dd982;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">${t("tackLog.badgeRet")}</span>`);
       if (isBestRec) badges.push(`<span style="background:#5ce8c030;color:#5ce8c0;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">${t("tackLog.badgeRec")}</span>`);
       const row = document.createElement("div");
-      row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:10px;border-radius:8px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#2b3542);align-items:center";
+      row.style.cssText = "display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:10px;border-radius:8px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#4a5a6e);align-items:center";
       row.innerHTML =
         `<div style="font-size:12px;opacity:0.75;font-family:ui-monospace,monospace;min-width:78px">${fmtDate(e.ts)}</div>` +
         `<div style="display:flex;flex-direction:column;gap:2px">
@@ -13173,11 +13175,11 @@
     // Stat cards grid.
     const drawCard = (x, y, w, h, label, value, tint) => {
       ctx.fillStyle = "#0f1a2e";
-      ctx.strokeStyle = "#2b3542";
+      ctx.strokeStyle = "#4a5a6e";
       ctx.lineWidth = 1;
       _roundRect(ctx, x, y, w, h, 12);
       ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#8b98a5";
+      ctx.fillStyle = "#b8c4d0";
       ctx.font = "14px system-ui";
       ctx.fillText(label.toUpperCase(), x + 16, y + 14);
       ctx.fillStyle = tint || "#e8ecf1";
@@ -13208,10 +13210,10 @@
     const traceY = cardsY + Math.ceil(cards.length / 2) * (ch + 12) + 20;
     const traceH = 380;
     ctx.fillStyle = "#0f1a2e";
-    ctx.strokeStyle = "#2b3542";
+    ctx.strokeStyle = "#4a5a6e";
     _roundRect(ctx, 40, traceY, W - 80, traceH, 12);
     ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#8b98a5";
+    ctx.fillStyle = "#b8c4d0";
     ctx.font = "14px system-ui";
     ctx.fillText(t("trips.card.track"), 56, traceY + 14);
     if (samples.length >= 2) {
@@ -13241,7 +13243,7 @@
       };
       // Draw trace as coloured segments.
       const colFor = (kn) => {
-        if (kn == null) return "#8b98a5";
+        if (kn == null) return "#b8c4d0";
         if (kn < 2) return "#ff6dd0";
         if (kn < 4) return "#ffd54a";
         if (kn < 6) return "#ff9500";
@@ -13277,7 +13279,7 @@
       ctx.textBaseline = "top";
     }
     // Footer.
-    ctx.fillStyle = "#8b98a5";
+    ctx.fillStyle = "#b8c4d0";
     ctx.font = "14px system-ui";
     ctx.fillText("PyPilot New-UI — signalk-pypilot-newui", 40, H - 40);
     // Convert to PNG blob.
@@ -13411,7 +13413,7 @@
     const shareLbl = t("trips.shareTitle") || "Viaje";
     const primary = nameEsc || `${shareLbl} ${dateEsc}`;
     const sub = nameEsc ? `<span class="trip-title-date" style="font-size:12px;opacity:0.6;font-weight:400;margin-left:8px">${shareLbl} ${dateEsc}</span>` : `<span class="trip-title-date" style="display:none">${dateEsc}</span>`;
-    const editIcon = `<button type="button" class="trip-rename-btn" title="${t("trips.rename.tooltip") || "Rename"}" style="margin-left:8px;background:transparent;border:1px solid var(--border,#2b3542);color:var(--fg-dim,#8b98a5);border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">✎</button>`;
+    const editIcon = `<button type="button" class="trip-rename-btn" title="${t("trips.rename.tooltip") || "Rename"}" style="margin-left:8px;background:transparent;border:1px solid var(--border,#4a5a6e);color:var(--fg-dim,#b8c4d0);border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer">✎</button>`;
     title.innerHTML = `${primary}${sub}${editIcon}`;
     const btn = title.querySelector(".trip-rename-btn");
     if (btn) btn.addEventListener("click", (ev) => {
@@ -13614,7 +13616,7 @@
       canvas.height = 160 * (window.devicePixelRatio || 1);
       ctx0.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
       ctx0.fillStyle = "#0a1220"; ctx0.fillRect(0, 0, w, 160);
-      ctx0.fillStyle = "#8b98a5"; ctx0.font = "12px system-ui,sans-serif"; ctx0.textAlign = "center";
+      ctx0.fillStyle = "#b8c4d0"; ctx0.font = "12px system-ui,sans-serif"; ctx0.textAlign = "center";
       ctx0.fillText(t("trips.chart.noData") || "(no data)", w / 2, 80);
       return;
     }
@@ -13641,7 +13643,7 @@
     const plotW = w - padL - padR, plotH = h - padT - padB;
     ctx.strokeStyle = "#1f2733"; ctx.lineWidth = 1;
     const yTicks = 4;
-    ctx.fillStyle = "#8b98a5"; ctx.font = "10px ui-monospace,monospace"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#b8c4d0"; ctx.font = "10px ui-monospace,monospace"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
     for (let i = 0; i <= yTicks; i++) {
       const y = padT + (plotH * i / yTicks);
       ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
@@ -13722,7 +13724,7 @@
         `<div style="font-weight:600;color:#e8ecf1">${timeStr}</div>` +
         `<div><span style="color:#5ce8c0">SOG</span> ${fmtKn(p.sog)}</div>` +
         `<div><span style="color:#ffd54a">AWS</span> ${fmtKn(p.aws)}</div>` +
-        `<div><span style="color:#8b98a5">AWA</span> ${fmtAwa(p.awaDeg)}</div>`;
+        `<div><span style="color:#b8c4d0">AWA</span> ${fmtAwa(p.awaDeg)}</div>`;
       // Position: keep the tooltip inside the wrap; flip to the left
       // when we run out of room on the right.
       const wrap = canvas.parentElement;
@@ -13848,7 +13850,7 @@
     // conserva por si un día queremos volver a resaltar algo, pero por
     // defecto nadie lo pasa.
     const mkCard = (label, value, tint) =>
-      `<div style="padding:10px 12px;border-radius:8px;background:var(--bg-2,#0f1620);border:1px solid var(--border,#2b3542)">
+      `<div style="padding:10px 12px;border-radius:8px;background:var(--bg-2,#0f1620);border:1px solid var(--border,#4a5a6e)">
         <div style="font-size:10px;opacity:0.65;letter-spacing:0.6px">${label.toUpperCase()}</div>
         <div style="font-size:18px;font-weight:800;margin-top:2px;color:${tint || "var(--fg,#e8ecf1)"}">${value}</div>
       </div>`;
@@ -13897,7 +13899,7 @@
         items.push(`🔋 ${t("trips.hl.minVolt")}: ${s.minVoltV.toFixed(2)} V ${atTime} ${clk(dt)} — ${t("trips.hl.checkServo")}`);
       }
       highlightsBox.innerHTML = items.map(it =>
-        `<div style="padding:8px 10px;border-radius:6px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#2b3542);font-size:12px">${it}</div>`
+        `<div style="padding:8px 10px;border-radius:6px;background:var(--bg-3,#0a1220);border:1px solid var(--border,#4a5a6e);font-size:12px">${it}</div>`
       ).join("");
     }
   }
@@ -14755,7 +14757,7 @@
     const stTxt = { ok: "\u2713 " + t("info.comp.ok"), active: "\u2713 " + t("info.comp.active"),
       other: "\u2713 " + t("info.comp.otherProv"), missing: "\u2717 " + t("info.comp.missing"),
       unknown: "? " + t("info.comp.unknown") };
-    const stColor = { ok: "#2ecc71", active: "#2ecc71", other: "#2ecc71", missing: "#f3c812", unknown: "#8b98a5" };
+    const stColor = { ok: "#2ecc71", active: "#2ecc71", other: "#2ecc71", missing: "#f3c812", unknown: "#b8c4d0" };
     ul.textContent = "";
     for (const r of rows) {
       const li = document.createElement("li");
@@ -17836,9 +17838,9 @@
     const bandH = plotH / enabled.length;
 
     // X-axis time ticks at 0%, 50%, 100% of window.
-    ctx.strokeStyle = "#2b3542";
+    ctx.strokeStyle = "#4a5a6e";
     ctx.lineWidth = 1;
-    ctx.fillStyle = "#8b98a5";
+    ctx.fillStyle = "#b8c4d0";
     ctx.font = "10px ui-monospace, monospace";
     const timeLabels = [
       { frac: 0.0, txt: `-${_chart.window}` },
@@ -17899,7 +17901,7 @@
       // Rev129 (Carlos): Y-scale ticks (min / mid / max) inside the
       // right-side gutter so the user reads absolute values, not
       // just a shape.
-      ctx.fillStyle = "#8b98a5";
+      ctx.fillStyle = "#b8c4d0";
       ctx.textAlign = "left";
       ctx.font = "9px ui-monospace, monospace";
       const mid = (vmin + vmax) / 2;
@@ -17979,7 +17981,7 @@
     ctx.textBaseline = "top";
     let ly = boxY + 4;
     for (let i = 0; i < lines.length; i += 1) {
-      ctx.fillStyle = i === 0 ? "#8b98a5" : "#e6edf3";
+      ctx.fillStyle = i === 0 ? "#b8c4d0" : "#e6edf3";
       ctx.fillText(lines[i], boxX + 6, ly);
       ly += 14;
     }

@@ -231,7 +231,7 @@ claramente asentado:
 ### 20. Modo EMPOPADO (Rev313) — versión mínima
 
 Con velas fuera, viento de través o largo. Abre el dropdown de modes,
-selecciona `EMPOPADO` (o `HEAD DOWNWIND` en inglés).
+selecciona `EMPOPADO` (o `DEAD DOWNWIND` en inglés).
 - ✅ Bien: cambia a modo `wind`, target = 180° (viento por popa), y
   engancha el AP si estaba OFF. Cuando `|AWA| > 170°` durante 3 s
   sostenido, avisa por voz: "Empopado, listo para arriar".

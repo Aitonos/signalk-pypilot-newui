@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { AutowindDecider, desiredSubMode, AutowindInput } from "../autowind";
 
 const inp = (o: Partial<AutowindInput>): AutowindInput => ({
-  nowMs: 0, twaDeg: 90, mode: "wind", engaged: true, blocked: false, ...o,
+  nowMs: 0, twaDeg: 90, mode: "wind", engaged: true, blocked: false, twsKn: 10, ...o,
 });
 
 function feed(d: AutowindDecider, t0: number, secs: number, o: (s: number) => Partial<AutowindInput>) {
@@ -51,10 +51,20 @@ describe("autowind (Rev518)", () => {
     assert.deepEqual(switches, [10, 40]);
   });
 
-  it("never while blocked (tack, aproado) or disengaged", () => {
+  it("never while blocked (tack, aproado)", () => {
     const d = new AutowindDecider();
     assert.equal(feed(d, 0, 20, () => ({ twaDeg: 150, blocked: true })).length, 0);
-    assert.equal(feed(d, 20_000, 20, () => ({ twaDeg: 150, engaged: false })).length, 0);
+  });
+
+  it("Rev521: switches with the AP off too, so engaging lands in the right mode", () => {
+    const d = new AutowindDecider();
+    assert.deepEqual(feed(d, 0, 15, () => ({ twaDeg: 150, engaged: false })), [{ s: 10, m: "true wind" }]);
+  });
+
+  it("Rev521: never below 3 kn TWS or with TWS unknown (berth noise)", () => {
+    const d = new AutowindDecider();
+    assert.equal(feed(d, 0, 20, () => ({ twaDeg: 150, twsKn: 0.3 })).length, 0);
+    assert.equal(feed(d, 20_000, 20, () => ({ twaDeg: 150, twsKn: null })).length, 0);
   });
 
   it("already in the right mode: nothing to do", () => {

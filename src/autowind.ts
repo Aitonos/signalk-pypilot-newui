@@ -13,6 +13,11 @@ export const AUTOWIND_DEFAULT_THRESHOLD_DEG = 120;
 export const AUTOWIND_HYSTERESIS_DEG = 5;      // +-5 around the threshold
 export const AUTOWIND_SUSTAIN_MS = 10_000;     // condition held this long
 export const AUTOWIND_MIN_GAP_MS = 30_000;     // between two switches
+// Rev521 (Carlos 2026-10-20, in port with the AP off: "no cambió de
+// modo"): it now also switches with the AP disengaged, so engaging lands
+// in the right mode, but only with a meaningful wind - below 3 kn TWS the
+// true wind angle is noise (0.3 kn at the berth flips it side to side).
+export const AUTOWIND_MIN_TWS_KN = 3;
 
 export interface AutowindInput {
   nowMs: number;
@@ -20,7 +25,10 @@ export interface AutowindInput {
   twaDeg: number | null;
   /** pypilot's current mode. */
   mode: string | null;
+  /** Kept for callers; no longer gates the decision (Rev521). */
   engaged: boolean;
+  /** True wind speed in knots; null = unknown (no switch). */
+  twsKn?: number | null;
   /** Virtual tack, pypilot tack, aproado / empopado: never switch then. */
   blocked: boolean;
   thresholdDeg?: number;
@@ -43,7 +51,8 @@ export class AutowindDecider {
   tick(i: AutowindInput): WindSubMode | null {
     const cur = String(i.mode || "").toLowerCase();
     const curSub: WindSubMode | null = cur === "true wind" ? "true wind" : cur === "wind" ? "wind" : null;
-    if (!i.engaged || i.blocked || typeof i.twaDeg !== "number" || !isFinite(i.twaDeg)) {
+    const windOk = typeof i.twsKn === "number" && isFinite(i.twsKn) && i.twsKn >= AUTOWIND_MIN_TWS_KN;
+    if (i.blocked || !windOk || typeof i.twaDeg !== "number" || !isFinite(i.twaDeg)) {
       this.pending = null; this.pendingSince = null;
       return null;
     }
