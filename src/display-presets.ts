@@ -94,6 +94,12 @@ export class DisplayPresets {
 
   private persist(): void {
     if (!this.file) return;
-    try { fs.writeFileSync(this.file, JSON.stringify({ presets: this.presets }, null, 2)); } catch { /* best effort */ }
+    // Rev537 (Gemini review 4 #4): tmp + rename, so a power cut mid-write
+    // never leaves an empty presets file.
+    try {
+      const tmp = `${this.file}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify({ presets: this.presets }, null, 2));
+      fs.renameSync(tmp, this.file);
+    } catch { /* best effort */ }
   }
 }

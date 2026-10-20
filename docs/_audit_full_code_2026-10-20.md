@@ -230,3 +230,22 @@ Revisó una copia Rev530 (sin los arreglos de Rev534-535). 13 hallazgos:
 | 11 | Descartado | Alarmas de atasco desactivadas por defecto: regla de producto (opt-in); activadas en el Tunatunes. |
 | 12 | Descartado | El JSONL ya ignora líneas rotas (`try/catch` por línea). |
 | 13 | Descartado | `unable-to-steer` silenciada en maniobra aunque haya fallo de sobrecorriente: decisión de Rev508 (test que lo exige); el atasco en virada lo vigila steer-watch tras su espera de 20 s. |
+
+## Revisión externa Gemini — bloque 4 (grabación / almacenamiento)
+
+Llegó en dos partes (faltó el #1). 4 aceptados y arreglados en Rev537,
+el resto descartados.
+
+| # | Veredicto | Detalle |
+|---|---|---|
+| 2 | Descartado | `appendFileSync` cada 30 s (unos KB, a la caché de página, sin fsync): no bloquea cientos de ms. El gobierno lo hace pypilot en la TinyPilot, no este proceso. |
+| 3 | **Aceptado en parte** | Ids de viaje de la URL sin validar al construir rutas (`trip-${id}`). Arreglo: solo el formato que crea el grabador (`YYYYMMDD-HHMMSS-NNNNN`); los 28 viajes de la Pi lo cumplen. **Retención descartada**: la bitácora es dato del patrón y ocupa ~2 MB por salida (94 MB en total, disco con 136 GB libres). |
+| 4 | **Aceptado en parte** | `visor-prefs` ya escribía con tmp + rename. `display-presets` no: ahora sí. |
+| 5 | Descartado | `list()` de la caja negra: solo al cambiar algo; hoy 152 KB en total. |
+| 6 | **Aceptado** | Ah / millas / tiempo de los KPI integraban con dt fijo de 1 s: ahora tiempo real entre muestras (máx. 5 s). |
+| 7 | **Aceptado** | Contador de viradas / trasluchadas de los KPI contaba cada ola en popa redonda (AWA ±175). Ahora el lado solo cuenta en 15-70° y 110-165°, como la bitácora (Rev453). Test. |
+| 8 | Descartado | Los episodios ya están acotados (`historyCapacity`). |
+| 9 | Descartado | Sesión sin línea final tras un corte: la lista ya la maneja (`endTs` null). |
+| 10 | Descartado | El registro de cambios de perfil no lee un archivo completo al arrancar. |
+| 11 | Descartado | La traza serializa cada evento al registrarlo (`JSON.stringify`): no puede cambiar después. |
+| 12 | Descartado | Los presets ya pasan por `sanitizeData`. |

@@ -445,10 +445,14 @@ export class TripRecorder {
   // as a sidecar `trip-<id>.name.txt` so the JSONL / summary stay
   // untouched — a rename is a single tiny write and a delete just
   // unlinks the sidecar alongside the other trip files.
+  // Rev537 (Gemini review 4 #3): ids come from the URL; only the shape
+  // this recorder creates (YYYYMMDD-HHMMSS-NNNNN) may become a path.
+  private static validId(id: string): boolean { return /^[0-9]{8}-[0-9]{6}-[0-9]{5}$/.test(String(id)); }
   private _namePath(id: string): string {
     return path.join(this.dir, `trip-${id}.name.txt`);
   }
   getName(id: string): string | null {
+    if (!TripRecorder.validId(id)) return null;
     try {
       const raw = fs.readFileSync(this._namePath(id), "utf8").trim();
       return raw.length > 0 ? raw : null;
@@ -463,6 +467,7 @@ export class TripRecorder {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 60);
+    if (!TripRecorder.validId(id)) return { ok: false, name: null, error: "invalid trip id" };
     const namePath = this._namePath(id);
     try {
       if (clean.length === 0) {
@@ -479,12 +484,14 @@ export class TripRecorder {
 
   summary(id: string): TripSummary | null {
     if (this.currentId && id === this.currentId) return this.liveSummary();
+    if (!TripRecorder.validId(id)) return null;
     const sumPath = path.join(this.dir, `trip-${id}.summary.json`);
     try { return JSON.parse(fs.readFileSync(sumPath, "utf8")) as TripSummary; } catch { return null; }
   }
 
   jsonlPath(id: string): string {
-    return path.join(this.dir, `trip-${id}.jsonl`);
+    // An invalid id maps to a name that never exists (callers 404 on it).
+    return path.join(this.dir, TripRecorder.validId(id) ? `trip-${id}.jsonl` : "trip-invalid.jsonl");
   }
 
   deleteTrip(id: string): boolean {
@@ -496,6 +503,7 @@ export class TripRecorder {
     // Callers must first stop() the active trip if they really want
     // to remove it.
     if (this.currentId === id) return false;
+    if (!TripRecorder.validId(id)) return false;
     try { fs.unlinkSync(path.join(this.dir, `trip-${id}.jsonl`)); } catch { /* file may be missing */ }
     try { fs.unlinkSync(path.join(this.dir, `trip-${id}.summary.json`)); } catch { /* silent */ }
     // Rev327: also drop the sidecar name if the sailor named the trip.

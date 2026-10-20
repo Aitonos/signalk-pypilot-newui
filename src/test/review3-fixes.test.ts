@@ -71,3 +71,18 @@ describe("Rev536: muted alarm still clears", () => {
     assert.equal(eng.ruleState("y")!.active, false);
   });
 });
+
+describe("Rev537: KPI gybes at a dead run", () => {
+  it("AWA flipping +175 / -175 with the waves is not a gybe; a real gybe 150 -> -150 is", async () => {
+    const { KPIComputer } = await import("../kpis");
+    const { Historian } = await import("../historian");
+    const k = new KPIComputer(new Historian());
+    const D = Math.PI / 180;
+    let t = 0;
+    const feed = (deg: number, n: number) => { for (let i = 0; i < n; i++) { k.onSample({ ts: t, engaged: true, awa: deg * D } as any); t += 1000; } };
+    for (let r = 0; r < 10; r++) { feed(175, 5); feed(-175, 5); }
+    assert.equal(k.snapshot().session.gybes, 0);
+    feed(150, 10); feed(-150, 10);
+    assert.equal(k.snapshot().session.gybes, 1);
+  });
+});

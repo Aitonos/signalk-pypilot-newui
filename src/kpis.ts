@@ -78,6 +78,7 @@ export class KPIComputer {
   // the timestamp of the last flip candidate so a single crossing is
   // required to sit for tackDebounceMs before counting.
   private lastStableAwaSign: -1 | 0 | 1 = 0;
+  private lastSampleTs: number | null = null;
   private candidateAwaSign: -1 | 0 | 1 = 0;
   private candidateSinceMs = 0;
 
@@ -110,13 +111,19 @@ export class KPIComputer {
     this.lastStableAwaSign = 0;
     this.candidateAwaSign = 0;
     this.candidateSinceMs = 0;
+    this.lastSampleTs = null;
   }
 
   /** Called once per sampler tick by the plugin's samplerTick wrapper,
    *  BEFORE the sample lands in the historian buffer. All updates are
    *  O(1) so this is safe on Pi 4 at 1 Hz. */
   onSample(s: Sample): void {
-    const dtSec = this.tickMs / 1000;
+    // Rev537 (Gemini review 4 #6): real time since the previous sample
+    // (a late tick counts its full gap), capped at 5 s for real holes.
+    const dtSec = this.lastSampleTs != null && s.ts > this.lastSampleTs
+      ? Math.min(5, (s.ts - this.lastSampleTs) / 1000)
+      : this.tickMs / 1000;
+    this.lastSampleTs = s.ts;
     if (s.engaged) this.session.engagedSec += dtSec;
     if (s.engaged && typeof s.sog === "number" && s.sog > 0) {
       // sog is m/s. m/s * s = m. Convert to nm.
@@ -154,6 +161,12 @@ export class KPIComputer {
       return;
     }
     if (typeof s.awa !== "number") return;
+    // Rev537 (Gemini review 4 #7): same idea as the trip recorder
+    // (Rev453): the side only counts when it means something - close
+    // hauled / tight reach (15..70) or broad reach / run (110..165).
+    // Head to wind and a dead run flip sign on every wave.
+    const absDeg = Math.abs(s.awa) * 180 / Math.PI;
+    if (!((absDeg >= 15 && absDeg <= 70) || (absDeg >= 110 && absDeg <= 165))) return;
     const sign: -1 | 0 | 1 = s.awa > 0 ? 1 : s.awa < 0 ? -1 : 0;
     if (sign === 0) return;
     if (this.lastStableAwaSign === 0) {
