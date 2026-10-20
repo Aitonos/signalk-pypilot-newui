@@ -1,8 +1,16 @@
 # Changelog
 
-## Unreleased (Rev521 → Rev524)
+## Unreleased (Rev521 → Rev525)
 
 ### Added
+- **Black box** (Setup card): keeps the last minute of autopilot data
+  and saves one minute before and one after when something happens - AP
+  taken off from outside the app, stuck pilot or recovery cycle, servo
+  overcurrent fault, a tack slower than usual (40 s, gybe 75 s) or that
+  failed, an alarm with the AP engaged - or when you press Mark (also a
+  long-press on the helm button of the rose). Each incident shows heading
+  error, apparent wind and servo current with the fault marked, its
+  events, and can be downloaded. The newest 50 are kept.
 - **Saved displays**: name the rose layout (corners, arrows, overlays,
   bottom bar) and keep it on this device or on the server for every
   device; apply it in one tap from the rose configuration window.

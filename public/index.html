@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev524" />
+  <link rel="stylesheet" href="style.css?v=Rev525" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1700,6 +1700,16 @@
         <div id="trips-list"></div>
       </div>
 
+      <!-- Rev525 (Carlos 2026-10-20): autopilot black box. -->
+      <div class="setup-block" data-setup-order="28" data-block-key="blackbox">
+        <div class="section-title" data-i18n="bb.title">Black box</div>
+        <div class="hint" data-i18n="bb.hint">Keeps the last minute of autopilot data. When something happens (AP taken off from outside the app, stuck pilot, servo overcurrent fault, a tack that takes too long, an alarm) or you press Mark, it saves one minute before and one after. Long-press the helm button on the rose to mark from the control screen.</div>
+        <div class="row" style="align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
+          <button type="button" class="primary" id="bb-mark-btn" data-i18n="bb.mark">Mark now</button>
+          <span id="bb-status" class="hint" style="margin:0"></span>
+        </div>
+        <div id="bb-list" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
+      </div>
       <div class="setup-block" data-setup-order="30" data-block-key="quality">
         <div class="section-title" data-i18n="setup.quality.title">Sensor Quality</div>
         <div class="hint" data-i18n="setup.quality.hint">Freshness and update rate of the SK paths the autopilot depends on. Green = good, amber = degraded, red = lost.</div>
@@ -2653,6 +2663,21 @@
        markup (same as "Configure the rose corners"): .popup-overlay +
        .popup-box + h4 + red .popup-close on the left + .popup-body, and
        button.primary. Data from signalk-mareas-ihm. -->
+  <!-- Rev525: black-box incident detail. -->
+  <div class="popup-overlay" id="bb-pop" onclick="if(event.target.id==='bb-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()">
+      <h4 id="bb-pop-title">Incident</h4>
+      <button class="popup-close" onclick="document.getElementById('bb-pop').classList.remove('open')">✕</button>
+      <div class="popup-body">
+        <div id="bb-pop-body"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="ghost" id="bb-pop-download" data-i18n="bb.download">Download</button>
+          <button type="button" class="ghost" id="bb-pop-delete" data-i18n="bb.delete">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="popup-overlay" id="tide-pop" onclick="if(event.target.id==='tide-pop')this.classList.remove('open')">
     <div class="popup-box" onclick="event.stopPropagation()">
       <h4 data-i18n="tide.title">Tide</h4>
@@ -2697,6 +2722,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev524"></script>
+  <script src="app.js?v=Rev525"></script>
 </body>
 </html>

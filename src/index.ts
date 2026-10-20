@@ -14,6 +14,7 @@ import { KPIComputer, KPISnapshot } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
 import { DisplayPresets } from "./display-presets";
+import { BlackBox, BlackBoxSample } from "./black-box";
 import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
@@ -70,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev524";
+const PLUGIN_REVISION = "Rev525";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -462,6 +463,14 @@ module.exports = function (app: any) {
   // so it also covers motor legs and tender rides. Independent of the
   // session recorder.
   let tripRecorder: TripRecorder | null = null;
+  // Rev525: autopilot black box (1 min before + 1 min after an incident).
+  let blackBox: BlackBox | null = null;
+  let _bbPrevDirFault = false;
+  let _bbPrevStuck = false;
+  let _bbNativeTackSince: number | null = null;
+  let _bbNativeTackFlagged = false;
+  let _bbVtSlowFlaggedId: string | null = null;
+  let _bbVtEndHandledId: string | null = null;
   // Rev322 (Carlos, 2026-09-27): maneuver trace log. Off by default.
   let maneuverTrace: ManeuverTraceLog | null = null;
   // Rev323 (Carlos, 2026-09-27): pseudo-modo visor-side. El visor lo
@@ -854,6 +863,7 @@ module.exports = function (app: any) {
               } catch { return null; }
             })();
             steerWatch.noteExternalDisengage(Date.now(), sog);
+            _bbTrigger("dropped", `AP disengaged from outside the app (SOG ${sog == null ? "?" : (sog * 1.94384).toFixed(1)} kn)`);
             app.debug?.(`[steer-watch] AP disengaged from outside the app (sog=${sog})`);
           };
           app.registerAutopilotProvider(
@@ -1027,6 +1037,9 @@ module.exports = function (app: any) {
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
       });
+      // Rev525: black box, own subfolder.
+      blackBox = new BlackBox(app.getDataDirPath ? app.getDataDirPath() : ".",
+        (m: string) => { try { (app as any).debug?.(m); } catch { /* silent */ } });
       // Rev178 (Carlos): trip recorder. Same data dir, own subfolder.
       tripRecorder = new TripRecorder({
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
@@ -1102,6 +1115,8 @@ module.exports = function (app: any) {
         try { _supervisorTick(s); } catch (e: any) { app.debug?.(`[supervisor] tick: ${e?.message || e}`); }
         // Rev508: stuck-pilot watch (feeds the steer-* alarms below).
         try { _steerWatchTick(s); } catch (e: any) { app.debug?.(`[steer-watch] tick: ${e?.message || e}`); }
+        // Rev525: black box feed + automatic triggers.
+        try { _blackBoxTick(s); } catch (e: any) { app.debug?.(`[black-box] tick: ${e?.message || e}`); }
         // Rev518: AUTOWIND (apparent <-> true wind by TWA).
         try { _autowindTick(); } catch (e: any) { app.debug?.(`[autowind] tick: ${e?.message || e}`); }
         // Rev100: run the alarm engine last so it has every input up to
@@ -1203,6 +1218,8 @@ module.exports = function (app: any) {
         try { tripRecorder.stop(); } catch {}
         tripRecorder = null;
       }
+      // Rev525: write an incident still collecting its post window.
+      if (blackBox) { try { blackBox.flush(); } catch { /* silent */ } blackBox = null; }
       // Rev322 (Carlos, 2026-09-27): flush the trace file + kill any
       // pending post-capture timers on plugin stop.
       if (maneuverTrace) {
@@ -1541,6 +1558,29 @@ module.exports = function (app: any) {
       //   PUT  /visor-prefs            - partial update {aisMode, aisVoice, aisHarborAuto, gustGhost}
       //   POST /visor-prefs/ais-ack    - {mmsi, ttlMs?} silence one target on every device
       //   POST /visor-prefs/ais-unack  - {mmsi} or {mmsi:"all"}
+      // Rev525: black box.
+      //   GET    /black-box/list           - incidents (newest first)
+      //   GET    /black-box/incident/:id   - full incident
+      //   POST   /black-box/mark           - {note} sailor's "Mark" button
+      //   DELETE /black-box/incident/:id
+      router.get("/black-box/list", (_req: any, res: any) => {
+        res.json({ recording: !!blackBox?.isRecording(), incidents: blackBox ? blackBox.list() : [] });
+      });
+      router.get("/black-box/incident/:id", (req: any, res: any) => {
+        const inc = blackBox?.get(String(req.params?.id || ""));
+        if (!inc) { res.status(404).json({ error: "not found" }); return; }
+        res.json(inc);
+      });
+      router.post("/black-box/mark", (req: any, res: any) => {
+        if (!blackBox) { res.status(503).json({ error: "black box not running" }); return; }
+        const note = typeof req.body?.note === "string" ? req.body.note : "";
+        const id = blackBox.trigger("mark", note ? `marked: ${note}` : "marked by the sailor");
+        res.json({ ok: !!id, id });
+      });
+      router.delete("/black-box/incident/:id", (req: any, res: any) => {
+        if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
+        res.json({ ok: !!blackBox?.remove(String(req.params?.id || "")) });
+      });
       // Rev522: named rose display presets shared by every device.
       //   GET    /display-presets         - list
       //   PUT    /display-presets         - {name, data} create / overwrite
@@ -4186,6 +4226,7 @@ module.exports = function (app: any) {
     app.debug?.(`[steer-watch] pilot stuck (err=${errTxt}deg, servo=${s.servoCurrent}A, flags=${pv["servo.flags"]}) -> recovery cycle #${_steerRecoveryTotal}`);
     // eslint-disable-next-line no-console
     console.log(`[steer-watch] recovery cycle #${_steerRecoveryTotal}: err=${errTxt}deg servo=${s.servoCurrent}A flags=${pv["servo.flags"]}`);
+    _bbTrigger("recovery", `recovery cycle #${_steerRecoveryTotal}: err=${errTxt}deg servo=${s.servoCurrent}A flags=${pv["servo.flags"]}`);
     apProvider.recoveryCycle()
       .then((r) => {
         _steerRecoveryLastResult = r;
@@ -4194,6 +4235,73 @@ module.exports = function (app: any) {
       })
       .catch((e: any) => { _steerRecoveryLastResult = `error: ${e?.message || e}`; })
       .finally(() => { _steerRecoveryInFlight = false; });
+  }
+  // Rev525 (Carlos 2026-10-20): black box. See src/black-box.ts.
+  function _bbTrigger(kind: string, detail: string): void {
+    try { blackBox?.trigger(kind, detail); } catch { /* silent */ }
+  }
+  function _blackBoxTick(s: Sample): void {
+    if (!blackBox) return;
+    const pv = (client && client.connected) ? client.getValues() : {};
+    const D = 180 / Math.PI;
+    const n = (v: unknown, k = 1) => (typeof v === "number" && isFinite(v) ? v * k : null);
+    const errRad = _modeAwareErrRad(s, _readTwaRad());
+    const flags = typeof pv["servo.flags"] === "string" ? pv["servo.flags"] as string : null;
+    const vt = apProvider ? (apProvider as any).getVirtualTackState?.() : null;
+    const tackState = typeof pv["ap.tack.state"] === "string" ? pv["ap.tack.state"] as string : null;
+    const sample: BlackBoxSample = {
+      ts: s.ts,
+      mode: s.mode,
+      engaged: !!s.engaged,
+      hdgDeg: n(s.headingActual, D),
+      cmdDeg: n(s.headingCmd, D),
+      errDeg: n(errRad, D),
+      awaDeg: n(s.awa, D),
+      twaDeg: n(_readTwaRad(), D),
+      twsKn: n(s.tws, 1.94384),
+      sogKn: n(s.sog, 1.94384),
+      heelDeg: n(s.heel, D),
+      servoA: s.servoCurrent,
+      servoV: s.servoVoltage,
+      flags,
+      tackState,
+      vtPhase: vt && vt.phase ? String(vt.phase) : null,
+    };
+    blackBox.push(sample);
+    const now = s.ts;
+    // Directional overcurrent fault appearing with the AP engaged.
+    const dirFault = !!flags && /PORT_OVERCURRENT_FAULT|STARBOARD_OVERCURRENT_FAULT/.test(flags);
+    if (dirFault && !_bbPrevDirFault && s.engaged) _bbTrigger("overcurrent", `servo fault: ${flags}`);
+    _bbPrevDirFault = dirFault;
+    // Stuck pilot (steer-watch verdict).
+    const stuck = !!steerWatch.snapshot().stuck;
+    if (stuck && !_bbPrevStuck) _bbTrigger("stuck", `pilot stuck (err ${sample.errDeg == null ? "?" : sample.errDeg.toFixed(0)} deg, servo ${s.servoCurrent} A)`);
+    _bbPrevStuck = stuck;
+    // pypilot's own tack lasting more than 30 s.
+    if (tackState && tackState !== "none") {
+      if (_bbNativeTackSince == null) { _bbNativeTackSince = now; _bbNativeTackFlagged = false; }
+      else if (!_bbNativeTackFlagged && now - _bbNativeTackSince > 30_000) {
+        _bbNativeTackFlagged = true;
+        _bbTrigger("slow-tack", `pypilot tack still '${tackState}' after 30 s`);
+      }
+    } else { _bbNativeTackSince = null; }
+    // Virtual tack: longer than usual (tack 40 s, gybe 75 s: the 2026-10-19
+    // gybes took ~60 s with the boom pause), or ended failed / not converged.
+    if (vt && vt.id) {
+      const active = !["idle", "completed", "cancelled", "failed"].includes(String(vt.phase));
+      const limitMs = vt.geometry && vt.geometry.maneuverKind === "jibe" ? 75_000 : 40_000;
+      if (active && vt.startedAtMs && now - vt.startedAtMs > limitMs && _bbVtSlowFlaggedId !== vt.id) {
+        _bbVtSlowFlaggedId = vt.id;
+        _bbTrigger("slow-tack", `virtual ${vt.geometry?.maneuverKind || "tack"} still '${vt.phase}' after ${limitMs / 1000} s`);
+      }
+      if (!active && _bbVtEndHandledId !== vt.id) {
+        _bbVtEndHandledId = vt.id;
+        const reason = String(vt.outcomeReason || "");
+        if (vt.phase === "failed" || /not converge/i.test(reason)) {
+          _bbTrigger("tack-failed", `virtual tack ${vt.phase}: ${reason || "no reason"}`);
+        }
+      }
+    }
   }
   // Rev518 (Carlos 2026-10-19): AUTOWIND. See src/autowind.ts.
   function _autowindState(): Record<string, unknown> {
@@ -4800,6 +4908,14 @@ module.exports = function (app: any) {
       steer: steerWatch.snapshot(),
     };
     const changed = alarms.tick(ctx);
+    // Rev525: every alarm that becomes active opens a black-box incident.
+    // Only with the AP engaged: alarms in port would fill it.
+    if (sample.engaged) {
+      for (const id of changed) {
+        const st = alarms.ruleState(id);
+        if (st && st.active) _bbTrigger("alarm", `${id}: ${st.message || st.label}`);
+      }
+    }
     // Rev283: feed the servo error log AFTER the tick so its snapshot
     // reflects the just-evaluated state. Runs unconditionally (cheap)
     // - the log itself decides whether the transition is worth

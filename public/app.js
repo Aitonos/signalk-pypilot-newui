@@ -701,6 +701,26 @@
       "dash.overlay.gust.title": "Gust marker",
       "dash.overlay.gust.needs": "Leaves a ghost A arrow at the gust speed; fades in 10 s. Needs a wind sensor.",
       "dash.overlay.gust.test":  "Test now",
+      "bb.title":        "Black box",
+      "bb.hint":         "Keeps the last minute of autopilot data. When something happens (AP taken off from outside the app, stuck pilot, servo overcurrent fault, a tack that takes too long, an alarm) or you press Mark, it saves one minute before and one after. Long-press the helm button on the rose to mark from the control screen.",
+      "bb.mark":         "Mark now",
+      "bb.marked":       "Moment marked",
+      "bb.recording":    "recording the minute after…",
+      "bb.empty":        "No incidents yet.",
+      "bb.download":     "Download",
+      "bb.delete":       "Delete",
+      "bb.deleteQ":      "Delete this incident?",
+      "bb.events":       "Events",
+      "bb.chartErr":     "Heading error (red) and apparent wind (amber), degrees",
+      "bb.chartServo":   "Servo current (A), red bands = overcurrent fault",
+      "bb.k.mark":       "Marked",
+      "bb.k.dropped":    "AP taken off from outside",
+      "bb.k.stuck":      "Stuck pilot",
+      "bb.k.recovery":   "Recovery cycle",
+      "bb.k.overcurrent":"Servo overcurrent fault",
+      "bb.k.slow-tack":  "Slow tack",
+      "bb.k.tack-failed":"Tack failed",
+      "bb.k.alarm":      "Alarm",
       "dash.overlay.tap.title":  "Tap sound",
       "dash.overlay.tap.s.wood":  "Wood",
       "dash.overlay.tap.s.drop":  "Drop",
@@ -1672,6 +1692,26 @@
       "dash.overlay.gust.title": "Marca de ráfagas",
       "dash.overlay.gust.needs": "Deja una flecha A fantasma con la velocidad de la racha; se desvanece en 10 s. Necesita sensor de viento.",
       "dash.overlay.gust.test":  "Probar ahora",
+      "bb.title":        "Caja negra",
+      "bb.hint":         "Guarda el último minuto de datos del piloto. Cuando pasa algo (AP quitado desde fuera de la app, piloto pillado, fallo de sobrecorriente del servo, una virada que tarda demasiado, una alarma) o pulsas Marcar, guarda el minuto anterior y el siguiente. Mantén pulsado el botón del timón en la rosa para marcar desde la pantalla de control.",
+      "bb.mark":         "Marcar ahora",
+      "bb.marked":       "Momento marcado",
+      "bb.recording":    "grabando el minuto siguiente…",
+      "bb.empty":        "Ningún incidente todavía.",
+      "bb.download":     "Descargar",
+      "bb.delete":       "Borrar",
+      "bb.deleteQ":      "¿Borrar este incidente?",
+      "bb.events":       "Eventos",
+      "bb.chartErr":     "Error de rumbo (rojo) y viento aparente (ámbar), grados",
+      "bb.chartServo":   "Corriente del servo (A), bandas rojas = fallo de sobrecorriente",
+      "bb.k.mark":       "Marcado",
+      "bb.k.dropped":    "AP quitado desde fuera",
+      "bb.k.stuck":      "Piloto pillado",
+      "bb.k.recovery":   "Ciclo de recuperación",
+      "bb.k.overcurrent":"Fallo de sobrecorriente",
+      "bb.k.slow-tack":  "Virada lenta",
+      "bb.k.tack-failed":"Virada fallida",
+      "bb.k.alarm":      "Alarma",
       "dash.overlay.tap.title":  "Sonido al tocar",
       "dash.overlay.tap.s.wood":  "Madera",
       "dash.overlay.tap.s.drop":  "Gota",
@@ -4222,6 +4262,140 @@
     sync("dash-tap-sound", _vp.tapSound);
     if (curMode !== prevMode) { try { state.aisAlarms.clear(); } catch { /* silent */ } }
     try { renderAisAlarms(); } catch { /* silent */ }
+  }
+  // Rev525 (Carlos 2026-10-20): black box card + incident detail.
+  const _bbFmtTime = (ms) => {
+    const d = new Date(ms);
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  };
+  const _bbKind = (k) => { const key = `bb.k.${k}`; const v = t(key); return v === key ? k : v; };
+  async function _bbMark(note) {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/black-box/mark`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: note || "" }),
+      });
+      if (r.ok) {
+        try { _tapSoundPlay(true); } catch { /* silent */ }
+        let el = document.getElementById("pypilot-reconnect-toast");
+        if (!el) { el = document.createElement("div"); el.id = "pypilot-reconnect-toast"; el.className = "pypilot-reconnect-toast"; document.body.appendChild(el); }
+        el.classList.remove("warn");
+        el.textContent = t("bb.marked");
+        el.classList.add("show");
+        clearTimeout(el._hideTimer);
+        el._hideTimer = setTimeout(() => el.classList.remove("show"), 3000);
+        _bbRefresh();
+      }
+    } catch (e) { console.warn("[bb] mark", e); }
+  }
+  async function _bbRefresh() {
+    const list = document.getElementById("bb-list");
+    if (!list) return;
+    let data = null;
+    try { const r = await skFetch(`/plugins/${PLUGIN_ID}/black-box/list`); if (r.ok) data = await r.json(); } catch { /* silent */ }
+    const st = document.getElementById("bb-status");
+    if (st) st.textContent = data && data.recording ? t("bb.recording") : "";
+    const inc = (data && data.incidents) || [];
+    try { _updateSetupSummary("blackbox", inc.length ? `${inc.length} · ${_bbFmtTime(inc[0].ts)}` : "—", inc.length ? "warn" : ""); } catch { /* silent */ }
+    list.textContent = "";
+    if (!inc.length) {
+      const d = document.createElement("div"); d.className = "hint"; d.textContent = t("bb.empty"); list.appendChild(d);
+      return;
+    }
+    for (const it of inc) {
+      const row = document.createElement("div");
+      row.className = "trip-row";
+      row.style.cssText = "padding:12px 14px;border-radius:10px;background:var(--bg-3);border:1px solid var(--border);cursor:pointer";
+      const title = document.createElement("div");
+      title.style.cssText = "font-size:15px;font-weight:700;color:var(--fg)";
+      title.textContent = `${_bbFmtTime(it.ts)} · ${_bbKind(it.kind)}`;
+      const det = document.createElement("div");
+      det.style.cssText = "font-size:12px;color:var(--fg-dim);margin-top:3px";
+      det.textContent = `${it.detail}${it.events > 1 ? `  (+${it.events - 1})` : ""}`;
+      row.appendChild(title); row.appendChild(det);
+      row.addEventListener("click", () => _bbOpen(it.id));
+      list.appendChild(row);
+    }
+  }
+  function _bbSvgChart(samples, series, yLabel, eventTs, faultBands) {
+    const W = 340, H = 120, P = 4;
+    const t0 = samples[0].ts, t1 = samples[samples.length - 1].ts || t0 + 1;
+    let lo = Infinity, hi = -Infinity;
+    for (const s of series) for (const x of samples) { const v = s.get(x); if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+    if (!isFinite(lo)) { lo = 0; hi = 1; }
+    if (hi - lo < 1) { hi += 0.5; lo -= 0.5; }
+    const X = (ts) => P + (W - 2 * P) * (ts - t0) / Math.max(1, t1 - t0);
+    const Y = (v) => H - P - (H - 2 * P) * (v - lo) / (hi - lo);
+    let g = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:var(--bg-3);border-radius:8px">`;
+    for (const b of faultBands || []) g += `<rect x="${X(b[0]).toFixed(1)}" y="0" width="${Math.max(1.5, X(b[1]) - X(b[0])).toFixed(1)}" height="${H}" fill="rgba(231,76,60,0.25)"/>`;
+    if (lo < 0 && hi > 0) g += `<line x1="0" x2="${W}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`;
+    for (const ts of eventTs) g += `<line x1="${X(ts).toFixed(1)}" x2="${X(ts).toFixed(1)}" y1="0" y2="${H}" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    for (const s of series) {
+      let d = "";
+      for (const x of samples) { const v = s.get(x); if (typeof v === "number") d += `${d ? "L" : "M"}${X(x.ts).toFixed(1)},${Y(v).toFixed(1)} `; }
+      if (d) g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
+    }
+    g += `<text x="${W - 6}" y="12" text-anchor="end" font-size="10" fill="var(--fg-dim)">${hi.toFixed(0)}</text>`;
+    g += `<text x="${W - 6}" y="${H - 6}" text-anchor="end" font-size="10" fill="var(--fg-dim)">${lo.toFixed(0)}</text></svg>`;
+    return `<div class="hint" style="margin:10px 0 4px">${yLabel}</div>${g}`;
+  }
+  let _bbOpenId = null;
+  async function _bbOpen(id) {
+    const pop = document.getElementById("bb-pop");
+    const body = document.getElementById("bb-pop-body");
+    const title = document.getElementById("bb-pop-title");
+    if (!pop || !body) return;
+    _bbOpenId = id;
+    body.textContent = "…";
+    pop.classList.add("open");
+    let inc = null;
+    try { const r = await skFetch(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(id)}`); if (r.ok) inc = await r.json(); } catch { /* silent */ }
+    if (!inc || !Array.isArray(inc.samples) || !inc.samples.length) { body.textContent = "—"; return; }
+    if (title) title.textContent = `${_bbFmtTime(inc.ts)} · ${_bbKind(inc.kind)}`;
+    const sm = inc.samples;
+    const evTs = inc.events.map((e) => e.ts);
+    const bands = [];
+    let bStart = null;
+    for (const x of sm) {
+      const f = !!x.flags && /PORT_OVERCURRENT_FAULT|STARBOARD_OVERCURRENT_FAULT/.test(x.flags);
+      if (f && bStart == null) bStart = x.ts;
+      if (!f && bStart != null) { bands.push([bStart, x.ts]); bStart = null; }
+    }
+    if (bStart != null) bands.push([bStart, sm[sm.length - 1].ts]);
+    const esc = (v) => String(v).replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]);
+    let html = `<div style="font-size:13px;color:var(--fg)">${esc(inc.detail)}</div>`;
+    html += _bbSvgChart(sm, [
+      { get: (x) => x.errDeg, color: "#ff3b30" },
+      { get: (x) => x.awaDeg, color: "#ffd54a" },
+    ], t("bb.chartErr"), evTs, bands);
+    html += _bbSvgChart(sm, [{ get: (x) => x.servoA, color: "#f5a623" }], t("bb.chartServo"), evTs, bands);
+    html += `<div class="hint" style="margin:10px 0 4px">${t("bb.events")}</div>`;
+    html += inc.events.map((e) => `<div style="font-size:12px;color:var(--fg)">${_bbFmtTime(e.ts)} · ${esc(_bbKind(e.kind))} — ${esc(e.detail)}</div>`).join("");
+    const first = sm[0], last = sm[sm.length - 1];
+    html += `<div class="hint" style="margin-top:8px">${_bbFmtTime(first.ts)} → ${_bbFmtTime(last.ts)} · ${sm.length} s · ${esc(first.mode || "")}</div>`;
+    body.innerHTML = html;
+  }
+  function _bbWire() {
+    const mk = document.getElementById("bb-mark-btn");
+    if (mk) mk.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); _bbMark(""); });
+    const dl = document.getElementById("bb-pop-download");
+    if (dl) dl.addEventListener("click", () => {
+      if (_bbOpenId) window.open(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(_bbOpenId)}`, "_blank");
+    });
+    const del = document.getElementById("bb-pop-delete");
+    if (del) del.addEventListener("click", async () => {
+      if (!_bbOpenId || !(await _pmConfirm(t("bb.deleteQ"), ""))) return;
+      try { await skFetch(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(_bbOpenId)}`, { method: "DELETE" }); } catch { /* silent */ }
+      document.getElementById("bb-pop")?.classList.remove("open");
+      _bbRefresh();
+    });
+    // Refresh when the card opens full screen, and on Setup entry.
+    const block = document.querySelector('.setup-block[data-block-key="blackbox"]');
+    if (block && typeof MutationObserver === "function") {
+      new MutationObserver(() => { if (block.dataset.fullscreen === "1") _bbRefresh(); })
+        .observe(block, { attributes: true, attributeFilter: ["data-fullscreen"] });
+    }
+    _bbRefresh();
   }
   // Rev522 (Carlos: "guardar ajustes de display en la rosa en local o en
   // server y darle nombre"). A preset = the rose layout keys of this
@@ -11836,6 +12010,20 @@
           })();
         });
         logBtn.addEventListener("dblclick", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+        // Rev525: long-press (700 ms) = black-box Mark; the short tap
+        // that follows a long-press is swallowed.
+        let lpTimer = null, lpFired = false;
+        logBtn.addEventListener("pointerdown", () => {
+          lpFired = false;
+          clearTimeout(lpTimer);
+          lpTimer = setTimeout(() => { lpFired = true; _bbMark("helm button"); }, 700);
+        });
+        for (const evName of ["pointerup", "pointerleave", "pointercancel"]) {
+          logBtn.addEventListener(evName, () => clearTimeout(lpTimer));
+        }
+        logBtn.addEventListener("click", (ev) => {
+          if (lpFired) { ev.preventDefault(); ev.stopImmediatePropagation(); lpFired = false; }
+        }, true);
         const blCell = document.querySelector(".dash-rose .dash-cell.corner-bl");
         const placeLogBtn = () => {
           if (!blCell) return;
@@ -14276,6 +14464,8 @@
     }
     // Rev522 (Carlos): named rose display presets.
     try { _dashPresetsWire(); } catch (e) { console.warn("[presets] wire", e); }
+    // Rev525: black box card.
+    try { _bbWire(); } catch (e) { console.warn("[bb] wire", e); }
     // Rev522 (Carlos): tap sound toggle (shared visor pref).
     const ts = document.getElementById("dash-tap-sound");
     if (ts) {
