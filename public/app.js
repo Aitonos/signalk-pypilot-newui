@@ -4554,6 +4554,9 @@
         .observe(block, { attributes: true, attributeFilter: ["data-fullscreen"] });
     }
     _bbRefresh();
+    // Rev529 (Carlos: "tarda un poco el refresh y hay que entrar a la
+    // card"): keep the Setup tile current while the visor is on screen.
+    setInterval(() => { if (document.visibilityState === "visible") _bbRefresh(); }, 10000);
   }
   // Rev522 (Carlos: "guardar ajustes de display en la rosa en local o en
   // server y darle nombre"). A preset = the rose layout keys of this

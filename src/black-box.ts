@@ -54,6 +54,9 @@ export class BlackBox {
   private open: BlackBoxIncident | null = null;
   private lastKindTs = new Map<string, number>();
   private readonly dir: string | null;
+  // Rev529: the visor polls the list every 10 s; parse the files only
+  // when something changed.
+  private listCache: BlackBoxSummary[] | null = null;
 
   constructor(dataDir: string | null, private readonly log: (m: string) => void = () => {}) {
     this.dir = dataDir ? path.join(dataDir, "black-box") : null;
@@ -97,6 +100,7 @@ export class BlackBox {
 
   list(): BlackBoxSummary[] {
     if (!this.dir) return [];
+    if (this.listCache) return this.listCache.slice();
     let names: string[] = [];
     try { names = fs.readdirSync(this.dir).filter((f) => f.startsWith("bb-") && f.endsWith(".json")); } catch { return []; }
     const out: BlackBoxSummary[] = [];
@@ -106,7 +110,8 @@ export class BlackBox {
         out.push({ id: j.id, ts: j.ts, kind: j.kind, detail: j.detail, events: j.events.length, samples: j.samples.length, seen: !!j.seen });
       } catch { /* skip broken */ }
     }
-    return out;
+    this.listCache = out;
+    return out.slice();
   }
 
   get(id: string): BlackBoxIncident | null {
@@ -120,11 +125,13 @@ export class BlackBox {
     if (!inc || !this.dir) return false;
     if (inc.seen) return true;
     inc.seen = true;
+    this.listCache = null;
     try { fs.writeFileSync(path.join(this.dir, `bb-${inc.id}.json`), JSON.stringify(inc)); return true; } catch { return false; }
   }
 
   remove(id: string): boolean {
     if (!this.dir || !/^[0-9]{8}-[0-9]{6}-[a-z0-9-]+$/i.test(id)) return false;
+    this.listCache = null;
     try { fs.unlinkSync(path.join(this.dir, `bb-${id}.json`)); return true; } catch { return false; }
   }
 
@@ -132,6 +139,7 @@ export class BlackBox {
     const inc = this.open!;
     this.open = null;
     inc.closedTs = nowMs;
+    this.listCache = null;
     if (!this.dir) return;
     try {
       fs.writeFileSync(path.join(this.dir, `bb-${inc.id}.json`), JSON.stringify(inc));
