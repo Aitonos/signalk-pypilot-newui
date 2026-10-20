@@ -287,3 +287,25 @@ Los 11 hallazgos verificados y arreglados en Rev539.
 | 9 | Alto | Empopado: el cambio de perfil final no esperaba a la restauración de ganancias. | Ganancias primero, perfil después. |
 | 10 | Alto | Importar perfil: seguía aunque no se creara / activara el perfil nuevo y contaba escrituras fallidas como aplicadas. | Espera a que pypilot confirme el perfil nuevo; solo cuenta escrituras aceptadas. |
 | 11 | Alto | TWS alternativa (`speedOverGround`) se quedaba congelada en su primer valor. | Se actualiza mientras no llegue `speedTrue` (10 s). |
+
+## Autoauditoría de los cambios Rev531-539 (Rev540)
+
+Revisión línea a línea del diff `0669e6d~1..1ad6dd0+f578733`. 5 fallos
+introducidos por los propios arreglos, corregidos en Rev540:
+
+| Origen | Fallo | Arreglo Rev540 |
+|---|---|---|
+| Rev533 (normalizar objetivo por modo) | Usaba `data.mode`; si el eco del modo llega tarde en una virada virtual, sus pasos de compás se normalizaban como viento (-180..180). | Las escrituras internas de la virada no se normalizan (ya vienen en su rango). |
+| Rev534 (caducidad aproado) | 60 s: con la pantalla apagada Chrome renueva ~1/min y podía caducar a mitad de maniobra. | 180 s. |
+| Rev534 (restaurar D tras racha) | Tolerancia 1e-4: si pypilot redondea, D nunca volvería. | 1 % del valor. |
+| Rev535 (sensor con timestamp viejo) | Aplicado a cada muestra: una fuente con el reloj desfasado > 60 s quedaría "sin datos". | Solo a la primera lectura (el valor que Signal K guarda de antes de reiniciar). |
+| Rev539 (modo no confirmado) | Aproado / empopado se quedaban en "tránsito" sin hacer nada. | Se termina la maniobra y el selector vuelve al modo real. |
+| Rev539 (AIS fondeo) | Consultaba la velocidad en cada aviso repetido. | Una vez cada 30 s por barco. |
+
+Revisados sin fallos: reconciliación de `engaged`, eco viejo del objetivo,
+`_verifyReAnchor`, `tack()` por `startVirtualTack`, relevo de la virada,
+PUT asíncronos, `/config/import`, Doctor, `config-backup`, grabadores,
+episodios, KPI, modo puerto, caja negra, ids de viaje, banner de alarmas,
+acumulador de ±10, importación de perfil, TWS alternativa.
+
+QA de todo: `docs/QA_Rev526-540.md`.

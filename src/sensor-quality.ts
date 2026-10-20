@@ -196,7 +196,11 @@ export class SensorQualityMonitor {
     // Rev535 (GPT review 3 #6): a value whose own timestamp is more than a
     // minute old (SK keeps the last value after a restart) is not a fresh
     // arrival. 60 s leaves room for a source clock a little off.
-    if (nowMs - skTs > STALE_ON_ARRIVAL_MS) {
+    // Self-audit Rev540: only the FIRST observation (the value Signal K
+    // kept from before a restart). Later, a changed timestamp is a new
+    // sample whatever the source clock says (a skewed device clock must
+    // not turn a live sensor into "missing").
+    if (slot.lastSkTs == null && nowMs - skTs > STALE_ON_ARRIVAL_MS) {
       slot.lastSkTs = skTs;
       return;
     }

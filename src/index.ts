@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev539";
+const PLUGIN_REVISION = "Rev540";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -478,7 +478,9 @@ module.exports = function (app: any) {
   // Rev534 (GPT review 2 #1): the visor renews it every 20 s; a closed or
   // disconnected browser must not silence the heading alarms (and block
   // AUTO WIND) for ever.
-  const MANEUVER_PSEUDO_TTL_MS = 60_000;
+  // Self-audit Rev540: 180 s - with the screen off Chrome runs the 20 s
+  // renewal only about once a minute, and 60 s let it lapse mid-manoeuvre.
+  const MANEUVER_PSEUDO_TTL_MS = 180_000;
   let _maneuverPseudoUntil = 0;
   const _pseudoActive = (): boolean => _maneuverPseudoActive && Date.now() < _maneuverPseudoUntil;
   let lastNavState: string | null = null;
@@ -4653,7 +4655,8 @@ module.exports = function (app: any) {
       const vals = client ? client.getValues() : {};
       const nowD = r ? vals[`ap.pilot.${r.pilot}.${r.key}`] : null;
       const untouched = !!r && vals["ap.pilot"] === r.pilot
-        && typeof nowD === "number" && typeof r.boosted === "number" && Math.abs(nowD - r.boosted) < 1e-4;
+        && typeof nowD === "number" && typeof r.boosted === "number"
+        && Math.abs(nowD - r.boosted) <= Math.max(1e-4, Math.abs(r.boosted) * 0.01);   // self-audit Rev540: pypilot may round
       if (client && r && untouched) {
         try { client.set(`ap.pilot.${r.pilot}.${r.key}`, r.value); } catch { /* silent */ }
       }

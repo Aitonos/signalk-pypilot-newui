@@ -736,7 +736,10 @@ export class AutopilotProvider {
     // range - compass family 0..360, wind family -180..180. A compass
     // tack from 120 to starboard went out as -140, and a -10 at 005 as -5
     // (the SK autopilot API also hands us compass targets as -pi..pi).
-    rad = this._normTargetRad(rad);
+    // Self-audit Rev540: the virtual tack's own writes are already in the
+    // right space (compass steps 0..2pi, final wind angle -pi..pi) and
+    // data.mode can still be the old mode if pypilot's echo was late.
+    if (!this._vtInternalWrite) rad = this._normTargetRad(rad);
     const deg = rad * RAD_TO_DEG;
     // Rev199 (Carlos): trace the values so we can tell whether SK
     // Autopilot API normalises rad to [-pi, pi] BEFORE it reaches us

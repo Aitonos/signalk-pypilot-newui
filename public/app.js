@@ -5102,6 +5102,7 @@
     if (aisMode === "anchor") return !(sog != null && sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS);
     return sog != null && sog < AIS_IGNORE_SOG_MS;
   }
+  const _aisSogAskedTs = new Map();
   function _handleAisAlarmDelta(path, value, _retry) {
     // Rev434: respect the "AIS collision alarm" overlay toggle. Still
     // keep the state.aisAlarms Map in sync so the first ACK after a
@@ -5151,7 +5152,9 @@
     // silenced and its speed never fetched (the fetch sat in the other
     // branch): a fast new threat stayed invisible. Fetch, then re-decide.
     if (modeSilenced && !_retry && isActive && _aisMode() === "anchor"
-        && _aisEffectiveSog(state.aisTargetPos.get(mmsi)) == null) {
+        && _aisEffectiveSog(state.aisTargetPos.get(mmsi)) == null
+        && Date.now() - (_aisSogAskedTs.get(mmsi) || 0) > 30000) {   // self-audit Rev540: once per 30 s
+      _aisSogAskedTs.set(mmsi, Date.now());
       _aisRefreshTargetPos(mmsi)
         .then(() => { if (!_aisGateSilenced(mmsi)) _handleAisAlarmDelta(path, value, true); })
         .catch(() => {});
@@ -10045,6 +10048,10 @@
       if (!state.engaged) await apEngage();
     } catch (e) {
       console.warn("aproado: mode/target/engage failed", e);
+      // Self-audit Rev540: the mode did not change (refused / not
+      // confirmed): end the manoeuvre instead of a "transit" that does nothing.
+      if (state.aproado === apr) { aproadoTearDown(); setSelect("#mode-select", state.mode || ""); }
+      return;
     }
     updateAproadoHud();
     apr._hudTimer = setInterval(updateAproadoHud, APROADO_HUD_TICK_MS);
@@ -10455,6 +10462,9 @@
       console.info(`empopado: dir=${ap.direction} mode="true wind" target=${targetRad.toFixed(3)} engage sent`);
     } catch (e) {
       console.warn("empopado: mode/target/engage failed", e);
+      // Self-audit Rev540: same as aproado.
+      if (state.empopado === ap) { empopadoTearDown({}); setSelect("#mode-select", state.mode || ""); }
+      return;
     }
     updateEmpopadoHud();
     ap._hudTimer = setInterval(updateEmpopadoHud, APROADO_HUD_TICK_MS);
