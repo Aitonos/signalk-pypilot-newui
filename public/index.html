@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev526" />
+  <link rel="stylesheet" href="style.css?v=Rev527" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2677,6 +2677,7 @@
         <div class="chart-footer" data-i18n="bb.chartHint" style="margin-top:4px">Touch or move over the chart to read the values. Dashed lines = events, red bands = servo overcurrent fault, grey = AP off.</div>
         <div id="bb-pop-body"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="ghost" id="bb-pop-view" data-i18n="bb.view">View</button>
           <button type="button" class="ghost" id="bb-pop-download" data-i18n="bb.download">Download</button>
           <button type="button" class="ghost" id="bb-pop-delete" data-i18n="bb.delete">Delete</button>
         </div>
@@ -2728,6 +2729,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev526"></script>
+  <script src="app.js?v=Rev527"></script>
 </body>
 </html>

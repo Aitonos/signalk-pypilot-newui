@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev526";
+const PLUGIN_REVISION = "Rev527";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1569,6 +1569,8 @@ module.exports = function (app: any) {
       router.get("/black-box/incident/:id", (req: any, res: any) => {
         const inc = blackBox?.get(String(req.params?.id || ""));
         if (!inc) { res.status(404).json({ error: "not found" }); return; }
+        // Rev527: ?download=1 saves it as a file (review with an AI, send it).
+        if (req.query?.download) res.setHeader("Content-Disposition", `attachment; filename="black-box-${inc.id}.json"`);
         res.json(inc);
       });
       router.post("/black-box/mark", (req: any, res: any) => {

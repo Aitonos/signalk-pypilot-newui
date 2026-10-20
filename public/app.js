@@ -707,6 +707,7 @@
       "bb.marked":       "Moment marked",
       "bb.recording":    "recording the minute after…",
       "bb.empty":        "No incidents yet.",
+      "bb.view":         "View",
       "bb.download":     "Download",
       "bb.delete":       "Delete",
       "bb.deleteQ":      "Delete this incident?",
@@ -1697,6 +1698,7 @@
       "bb.marked":       "Momento marcado",
       "bb.recording":    "grabando el minuto siguiente…",
       "bb.empty":        "Ningún incidente todavía.",
+      "bb.view":         "Ver",
       "bb.download":     "Descargar",
       "bb.delete":       "Borrar",
       "bb.deleteQ":      "¿Borrar este incidente?",
@@ -4499,9 +4501,21 @@
   function _bbWire() {
     const mk = document.getElementById("bb-mark-btn");
     if (mk) mk.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); _bbMark(""); });
+    const vw = document.getElementById("bb-pop-view");
+    if (vw) vw.addEventListener("click", () => {
+      if (_bbOpenId) window.open(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(_bbOpenId)}`, "_blank");
+    });
+    // Rev527 (Carlos): save the incident as a .json file to review it
+    // with an AI or send it. The backend marks ?download=1 as attachment.
     const dl = document.getElementById("bb-pop-download");
     if (dl) dl.addEventListener("click", () => {
-      if (_bbOpenId) window.open(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(_bbOpenId)}`, "_blank");
+      if (!_bbOpenId) return;
+      const a = document.createElement("a");
+      a.href = `/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(_bbOpenId)}?download=1`;
+      a.download = `black-box-${_bbOpenId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     });
     const cv = document.getElementById("bb-canvas");
     if (cv) {
