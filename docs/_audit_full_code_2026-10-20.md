@@ -209,3 +209,24 @@ Los 10 hallazgos verificados en el código y arreglados en Rev535 (tests en
 Gemini — bloque 2: rechazado por el modelo ("políticas de seguridad").
 Variante del prompt sin el apartado HTTP en
 `docs/_prompt_llm_full_audit_2026-10-20.md`.
+
+## Revisión externa Gemini — bloque 3 (seguridad / alarmas / diagnóstico)
+
+Revisó una copia Rev530 (sin los arreglos de Rev534-535). 13 hallazgos:
+5 aceptados y arreglados en Rev536, 8 descartados.
+
+| # | Veredicto | Detalle |
+|---|---|---|
+| 1 | Ya arreglado | ACK no publicado: Rev534. |
+| 2 | **Aceptado** | Una alarma silenciada no se resolvía nunca durante el silencio (seguía roja con la condición ya desaparecida). Arreglo: silenciada = no vuelve a saltar, pero se resuelve si la condición desaparece. Test. |
+| 3 | **Aceptado** | "AP quitado desde fuera" exige velocidad conocida >= 1 kn (Rev522); sin GPS no avisaba nunca. Arreglo: si no hay SOG usa la corredera (STW). Sin ninguna de las dos sigue sin avisar (en puerto daba falsos). |
+| 4 | **Aceptado (bajo)** | `unable-to-steer` con RMS NaN: ahora exige número finito. |
+| 5 | Descartado | `minHz > 1` a 1 Hz: ningún umbral por defecto usa `minHz` (quitado a propósito en Rev98). |
+| 6 | **Aceptado** | Doctor no respetaba el rango de pypilot para la ganancia: ahora la limita al min/max del catálogo; si ya está en el límite, no aplica. (allowWrites y el resultado de la escritura ya se comprueban desde Rev535.) |
+| 7 | Descartado | Con I = 0 el Doctor no propone nada (condición `I > 0`), no propone 0 -> 0. |
+| 8 | Descartado | `appendFileSync` solo al registrar un fallo de servo (una línea, muy de vez en cuando). |
+| 9 | Descartado | `failsafe-bsp` ya convierte nudos a m/s. |
+| 10 | **Aceptado (bajo)** | Duración negativa en "pypilot desconectado" tras un salto atrás del reloj: `max(0, …)`. |
+| 11 | Descartado | Alarmas de atasco desactivadas por defecto: regla de producto (opt-in); activadas en el Tunatunes. |
+| 12 | Descartado | El JSONL ya ignora líneas rotas (`try/catch` por línea). |
+| 13 | Descartado | `unable-to-steer` silenciada en maniobra aunque haya fallo de sobrecorriente: decisión de Rev508 (test que lo exige); el atasco en virada lo vigila steer-watch tras su espera de 20 s. |

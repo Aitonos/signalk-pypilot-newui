@@ -629,6 +629,14 @@ export class DoctorEngine {
     if ((this.client.getValues() as any)["profile"] !== forked) {
       return { ok: false, message: `Active profile is no longer '${forked}'. Run a fresh session.` };
     }
+    // Rev536 (Gemini review 3 #6): keep the value inside pypilot's own
+    // range for that gain (an out-of-range write is ignored by pypilot).
+    const meta = (this.client.getCatalog() as any)[s.path];
+    if (meta && typeof meta.max === "number" && s.suggestedValue > meta.max) s.suggestedValue = meta.max;
+    if (meta && typeof meta.min === "number" && s.suggestedValue < meta.min) s.suggestedValue = meta.min;
+    if (s.suggestedValue === s.currentValue) {
+      return { ok: false, message: `${s.gainKey} is already at pypilot's limit (${s.currentValue}).` };
+    }
     try {
       if (!this.client.set(s.path, s.suggestedValue)) {
         return { ok: false, message: `pypilot did not accept ${s.gainKey} = ${s.suggestedValue}.` };

@@ -57,3 +57,17 @@ describe("Rev535: alarm mute and severity are published", () => {
     assert.deepEqual(eng.tick({ nowMs: 3000 } as any), ["x"]);
   });
 });
+
+describe("Rev536: muted alarm still clears", () => {
+  it("mute, condition gone -> resolved", () => {
+    let on = true;
+    const eng = new AlarmEngine([{ id: "y", label: "Y", severity: "warn", defaultEnabled: true, sustainSec: 0,
+      description: "", evaluate: () => on, message: () => "m" }] as any);
+    eng.tick({ nowMs: 1000 } as any);
+    eng.mute("y", 900_000, 1500);
+    eng.tick({ nowMs: 2000 } as any);
+    on = false;
+    assert.deepEqual(eng.tick({ nowMs: 3000 } as any), ["y"]);
+    assert.equal(eng.ruleState("y")!.active, false);
+  });
+});

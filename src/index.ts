@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev535";
+const PLUGIN_REVISION = "Rev536";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -857,11 +857,16 @@ module.exports = function (app: any) {
           apProvider.onExternalDisengage = () => {
             // Our own authority-lost cut writes straight to pypilot.
             if (_authorityLastAutoDisengageTs && Date.now() - _authorityLastAutoDisengageTs < 5000) return;
+            // Rev536 (Gemini review 3 #3): no GPS -> use the log (STW), so
+            // the "AP disengaged" alarm still works underway without SOG.
             const sog = (() => {
-              try {
-                const v = app.getSelfPath("navigation.speedOverGround.value");
-                return typeof v === "number" && isFinite(v) ? v : null;
-              } catch { return null; }
+              for (const p of ["navigation.speedOverGround.value", "navigation.speedThroughWater.value"]) {
+                try {
+                  const v = app.getSelfPath(p);
+                  if (typeof v === "number" && isFinite(v)) return v;
+                } catch { /* next */ }
+              }
+              return null;
             })();
             steerWatch.noteExternalDisengage(Date.now(), sog);
             _bbTrigger("dropped", `AP disengaged from outside the app (SOG ${sog == null ? "?" : (sog * 1.94384).toFixed(1)} kn)`);

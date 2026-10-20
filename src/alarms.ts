@@ -226,7 +226,7 @@ export const DEFAULT_RULES: RuleDef[] = [
       if (c.maneuverPseudoActive) return false; // Rev323: idem pseudo-modo
       const r = c.kpis.window1m.rmsErrorRad;
       const d = c.kpis.window1m.servoDutyPct;
-      if (typeof r !== "number" || r <= RULE_UNABLE_ERR_RAD) return false;
+      if (typeof r !== "number" || !Number.isFinite(r) || r <= RULE_UNABLE_ERR_RAD) return false;   // Rev536 #4
       // Rev508: servoDuty never arrives from Carlos's TinyPilot, so the
       // rule could not fire on 2026-10-18. A directional overcurrent
       // fault (false end stop) with the same error is the same verdict.
@@ -454,7 +454,7 @@ export const DEFAULT_RULES: RuleDef[] = [
       // Rev265/266 (Carlos): palabras completas ("segundos", "minutos",
       // "horas") - las abreviaturas "s" / "min" el TTS las lee mal ("dos
       // ese" en vez de "dos segundos"). Uso plural/singular correcto.
-      const totalSec = Math.floor((c.nowMs - c.disconnectedSinceMs) / 1000);
+      const totalSec = Math.max(0, Math.floor((c.nowMs - c.disconnectedSinceMs) / 1000));   // Rev536: clock step back
       const h = Math.floor(totalSec / 3600);
       const m = Math.floor((totalSec % 3600) / 60);
       const s = totalSec % 60;
@@ -572,7 +572,14 @@ export class AlarmEngine {
         continue;
       }
       if (s.mutedUntilMs != null && ctx.nowMs < s.mutedUntilMs) {
-        continue;   // muted - skip evaluation entirely
+        // Rev536 (Gemini review 3 #2): muted = no new fire, but an active
+        // alarm whose condition is gone must still clear.
+        if (s.active) {
+          let still = false;
+          try { still = rule.evaluate(ctx); } catch { /* silent */ }
+          if (!still) { this.resolve(s, ctx.nowMs); changed.push(id); }
+        }
+        continue;
       }
       let matched = false;
       try { matched = rule.evaluate(ctx); } catch { /* silent */ }
