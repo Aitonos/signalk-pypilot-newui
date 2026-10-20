@@ -711,7 +711,9 @@ export class DoctorEngine {
     if (r.ok) applied.push(first.id);
     else failed.push({ id: first.id, message: r.message });
     const remaining = pending.length - 1;
-    const mustRun = remaining > 0;
+    // Forensic Rev542: lock only when something WAS applied; a failed first
+    // apply (fork refused, gain at its limit) must be retryable.
+    const mustRun = r.ok && remaining > 0;
     if (mustRun) {
       // Lock so a second applyAll call cannot bypass the fresh-session
       // requirement.

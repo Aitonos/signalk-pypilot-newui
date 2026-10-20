@@ -138,6 +138,17 @@ export class AutopilotProvider {
   // Rev532 (Gemini audit #5): `prev` = the target before our write, so a
   // late echo of the OLD value is not mistaken for an external override.
   private pendingTarget: { value: number; until: number; prev?: number | null } | null = null;
+  // Forensic Rev542: every target we wrote in the last TARGET_PENDING_MS.
+  // Three quick +1 from KIP (40 -> 43) are three writes; pypilot's late
+  // echoes 40, 41, 42 are all ours, not external changes.
+  // The value each write replaced counts too (the 40 before the first +1).
+  private _recentTargetWrites: { rad: number; ts: number }[] = [];
+  private _noteTargetWrite(rad: number, prev: number | null): void {
+    const now = Date.now();
+    const add = [{ rad, ts: now }];
+    if (typeof prev === "number") add.push({ rad: prev, ts: now });
+    this._recentTargetWrites = this._recentTargetWrites.filter((w) => now - w.ts < TARGET_PENDING_MS).concat(add).slice(-20);
+  }
   // Rev70: same treatment for the engaged flag. Without it, a pypilot
   // ap.enabled=false echo can arrive between our POST /engage and the
   // real echo, flip data.engaged to false, push a SK delta, and the
@@ -240,7 +251,10 @@ export class AutopilotProvider {
             // value from BEFORE our write; keep waiting for the real echo
             // instead of reverting the target (bounce, lost second nudge).
             const prevT = this.pendingTarget.prev;
-            if (typeof prevT === "number" && Math.abs(shortestArcRad(rad, prevT)) <= TARGET_ECHO_TOL_RAD) {
+            const nowW = Date.now();
+            const ownEcho = this._recentTargetWrites.some((w) => nowW - w.ts < TARGET_PENDING_MS
+              && Math.abs(shortestArcRad(rad, w.rad)) <= TARGET_ECHO_TOL_RAD);
+            if (ownEcho || (typeof prevT === "number" && Math.abs(shortestArcRad(rad, prevT)) <= TARGET_ECHO_TOL_RAD)) {
               this.onStageEvent?.("provider", {
                 path: "ap.heading_command",
                 decision: "echo_dropped_stale",
@@ -770,6 +784,7 @@ export class AutopilotProvider {
     const prevTarget = typeof this.data.target === "number" ? this.data.target : null;
     this.data.target = rad;
     this.pendingTarget = { value: rad, until: Date.now() + TARGET_PENDING_MS, prev: prevTarget };
+    this._noteTargetWrite(rad, prevTarget);
     this.notifyChanged("target");
   }
 
@@ -827,6 +842,7 @@ export class AutopilotProvider {
         }
         this.data.target = newRad;
         this.pendingTarget = { value: newRad, until: Date.now() + TARGET_PENDING_MS, prev: base };
+        this._noteTargetWrite(newRad, base);
         // Rev84: publish ONLY the target delta.
         this.notifyChanged("target");
       } else if (this.allowDodge) {

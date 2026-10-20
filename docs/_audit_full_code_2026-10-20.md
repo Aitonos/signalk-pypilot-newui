@@ -322,3 +322,17 @@ salud del servo, calidad de sensores, KPI, modo puerto, caja negra,
 importar perfil (espera el eco real de `profile`), Doctor y `/config/import`
 (leen el `profile` real de pypilot), ciclo de recuperación con la
 reconciliación de `engaged`, PUT asíncronos.
+
+## Tercera pasada, forense (Rev542)
+
+Comprobación con reproducciones y datos reales, no solo lectura.
+
+| Hallazgo | Evidencia | Arreglo Rev542 |
+|---|---|---|
+| Ráfaga de ±1 desde KIP (una escritura por pulsación): los ecos atrasados de pypilot hacían retroceder el objetivo. Rev533 solo reconocía el valor inmediatamente anterior. | Reproducido: 40 → +1 +1 +1 = 43; ecos 40, 41, 42 → el objetivo volvía a 40 y una pulsación en ese momento contaba desde 40. | Se reconocen como propios todos los valores escritos (y los que sustituyeron) en los últimos 2.5 s. Un cambio externo real (60) se sigue aceptando. Test. |
+| Doctor "aplicar todo": si la primera sugerencia fallaba (perfil no creado, ganancia en su límite) igualmente bloqueaba con "haz otro diagnóstico". | Lectura del código de `applyAll`. | Solo bloquea si algo se aplicó. |
+
+Comprobado sin fallo:
+- `profile` está en el watch de pypilot a 1 Hz: Doctor e importar configuración sí ven el cambio de perfil (si no, fallarían siempre a los 3 s).
+- Las 4 escrituras `ap.tack.state=none` del visor son flujos de cancelación (desconexión, pypilot mudo, fin de tiempo solo con virada nativa, cancelar): que ahora cancelen también la virada virtual es lo correcto.
+- Arranque en la Pi tras el deploy: plugin respondiendo, conectado a pypilot, sin errores en el log.

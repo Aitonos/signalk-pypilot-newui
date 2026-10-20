@@ -348,6 +348,25 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev542: three quick +1 (KIP) and pypilot's late echoes 40, 41, 42 do not pull the target back", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const quiet = { ...sim.client, set(name: string, value: unknown) { sim.values[name] = value; return true; } };
+    const p = new AutopilotProvider(quiet as any, sim.app);
+    p.receiveValue("ap.modes", ["compass", "wind"]);
+    p.receiveValue("ap.enabled", true);
+    p.receiveValue("ap.mode", "wind");
+    p.receiveValue("ap.heading_command", 40);
+    try {
+      for (let i = 0; i < 3; i++) await (p.toProviderInterface() as any).adjustTarget(1 * D, "_default");
+      for (const e of [40, 41, 42]) {
+        p.receiveValue("ap.heading_command", e);
+        assert.ok(Math.abs((p.data.target as number) - 43 * D) < 1e-6, `stays 43 after echo ${e}`);
+      }
+      p.receiveValue("ap.heading_command", 60);   // a real external change is still taken
+      assert.ok(Math.abs((p.data.target as number) - 60 * D) < 1e-6);
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);
