@@ -711,8 +711,7 @@
       "bb.delete":       "Delete",
       "bb.deleteQ":      "Delete this incident?",
       "bb.events":       "Events",
-      "bb.chartErr":     "Heading error (red) and apparent wind (amber), degrees",
-      "bb.chartServo":   "Servo current (A), red bands = overcurrent fault",
+      "bb.chartHint":    "Touch or move over the chart to read the values. Dashed lines = events, red bands = servo overcurrent fault, grey = AP off.",
       "bb.k.mark":       "Marked",
       "bb.k.dropped":    "AP taken off from outside",
       "bb.k.stuck":      "Stuck pilot",
@@ -1702,8 +1701,7 @@
       "bb.delete":       "Borrar",
       "bb.deleteQ":      "¿Borrar este incidente?",
       "bb.events":       "Eventos",
-      "bb.chartErr":     "Error de rumbo (rojo) y viento aparente (ámbar), grados",
-      "bb.chartServo":   "Corriente del servo (A), bandas rojas = fallo de sobrecorriente",
+      "bb.chartHint":    "Toca o pasa por encima de la gráfica para leer los valores. Líneas discontinuas = eventos, bandas rojas = fallo de sobrecorriente, gris = AP apagado.",
       "bb.k.mark":       "Marcado",
       "bb.k.dropped":    "AP quitado desde fuera",
       "bb.k.stuck":      "Piloto pillado",
@@ -4317,59 +4315,182 @@
       list.appendChild(row);
     }
   }
-  function _bbSvgChart(samples, series, yLabel, eventTs, faultBands) {
-    const W = 340, H = 120, P = 4;
-    const t0 = samples[0].ts, t1 = samples[samples.length - 1].ts || t0 + 1;
-    let lo = Infinity, hi = -Infinity;
-    for (const s of series) for (const x of samples) { const v = s.get(x); if (typeof v === "number") { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
-    if (!isFinite(lo)) { lo = 0; hi = 1; }
-    if (hi - lo < 1) { hi += 0.5; lo -= 0.5; }
-    const X = (ts) => P + (W - 2 * P) * (ts - t0) / Math.max(1, t1 - t0);
-    const Y = (v) => H - P - (H - 2 * P) * (v - lo) / (hi - lo);
-    let g = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:var(--bg-3);border-radius:8px">`;
-    for (const b of faultBands || []) g += `<rect x="${X(b[0]).toFixed(1)}" y="0" width="${Math.max(1.5, X(b[1]) - X(b[0])).toFixed(1)}" height="${H}" fill="rgba(231,76,60,0.25)"/>`;
-    if (lo < 0 && hi > 0) g += `<line x1="0" x2="${W}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`;
-    for (const ts of eventTs) g += `<line x1="${X(ts).toFixed(1)}" x2="${X(ts).toFixed(1)}" y1="0" y2="${H}" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="4 3"/>`;
-    for (const s of series) {
-      let d = "";
-      for (const x of samples) { const v = s.get(x); if (typeof v === "number") d += `${d ? "L" : "M"}${X(x.ts).toFixed(1)},${Y(v).toFixed(1)} `; }
-      if (d) g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
+  // Rev526 (Carlos: "las graficas deben ser dinamicas, no hay leyenda y
+  // solo hay 3 datos"): every recorded field is a chip (the chip is the
+  // legend), each enabled field gets its own band like the Chart tab,
+  // and touching the chart shows every value at that second.
+  const BB_SERIES = [
+    { key: "cmdDeg",  label: "HDG cmd",  color: "#4dd4ff", unit: "°" },
+    { key: "hdgDeg",  label: "HDG",      color: "#2ecc71", unit: "°" },
+    { key: "errDeg",  label: "Error",    color: "#ff3b30", unit: "°" },
+    { key: "awaDeg",  label: "AWA",      color: "#e574d5", unit: "°" },
+    { key: "twaDeg",  label: "TWA",      color: "#ffd54a", unit: "°" },
+    { key: "twsKn",   label: "TWS",      color: "#5ce8c0", unit: " kn" },
+    { key: "sogKn",   label: "SOG",      color: "#ff8c1a", unit: " kn" },
+    { key: "heelDeg", label: "Heel",     color: "#b58cff", unit: "°" },
+    { key: "servoA",  label: "Servo A",  color: "#f5a623", unit: " A" },
+    { key: "servoV",  label: "Servo V",  color: "#9ab0c8", unit: " V" },
+  ];
+  const _bbChart = { inc: null, enabled: new Set(["cmdDeg", "hdgDeg", "errDeg", "awaDeg", "servoA"]), hoverTs: null, geom: null };
+  const _bbFmtV = (ser, v) => (typeof v === "number" && isFinite(v) ? `${v.toFixed(ser.unit === "°" ? 0 : 1)}${ser.unit}` : "--");
+  function _bbChips() {
+    const row = document.getElementById("bb-chips");
+    if (!row) return;
+    row.textContent = "";
+    const sm = (_bbChart.inc && _bbChart.inc.samples) || [];
+    for (const ser of BB_SERIES) {
+      if (!sm.some((x) => typeof x[ser.key] === "number")) continue;   // never recorded
+      const lab = document.createElement("label");
+      lab.className = "chart-path-chip";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = _bbChart.enabled.has(ser.key);
+      cb.addEventListener("change", () => {
+        if (cb.checked) _bbChart.enabled.add(ser.key); else _bbChart.enabled.delete(ser.key);
+        _bbDraw();
+      });
+      const dot = document.createElement("span");
+      dot.className = "bb-dot";
+      dot.style.background = ser.color;
+      const txt = document.createElement("span");
+      txt.textContent = ser.label;
+      lab.appendChild(cb); lab.appendChild(dot); lab.appendChild(txt);
+      row.appendChild(lab);
     }
-    g += `<text x="${W - 6}" y="12" text-anchor="end" font-size="10" fill="var(--fg-dim)">${hi.toFixed(0)}</text>`;
-    g += `<text x="${W - 6}" y="${H - 6}" text-anchor="end" font-size="10" fill="var(--fg-dim)">${lo.toFixed(0)}</text></svg>`;
-    return `<div class="hint" style="margin:10px 0 4px">${yLabel}</div>${g}`;
+  }
+  function _bbDraw() {
+    const canvas = document.getElementById("bb-canvas");
+    const inc = _bbChart.inc;
+    if (!canvas || !inc) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const cssW = canvas.clientWidth || 600, cssH = canvas.clientHeight || 420;
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== Math.floor(cssW * dpr) || canvas.height !== Math.floor(cssH * dpr)) {
+      canvas.width = Math.floor(cssW * dpr); canvas.height = Math.floor(cssH * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#0e141b";
+    ctx.fillRect(0, 0, cssW, cssH);
+    const sm = inc.samples;
+    const series = BB_SERIES.filter((x) => _bbChart.enabled.has(x.key) && sm.some((y) => typeof y[x.key] === "number"));
+    const mL = 6, mR = 62, mT = 4, mB = 20;
+    const pW = cssW - mL - mR, pH = cssH - mT - mB;
+    const t0 = sm[0].ts, t1 = Math.max(sm[sm.length - 1].ts, t0 + 1000);
+    const X = (ts) => mL + pW * (ts - t0) / (t1 - t0);
+    const tRef = inc.ts;
+    // AP off (grey) and overcurrent fault (red) background bands.
+    for (let i = 0; i < sm.length; i++) {
+      const xa = X(sm[i].ts), xb = i + 1 < sm.length ? X(sm[i + 1].ts) : xa + 2;
+      if (!sm[i].engaged) { ctx.fillStyle = "rgba(160,170,185,0.13)"; ctx.fillRect(xa, mT, xb - xa, pH); }
+      if (sm[i].flags && /PORT_OVERCURRENT_FAULT|STARBOARD_OVERCURRENT_FAULT/.test(sm[i].flags)) {
+        ctx.fillStyle = "rgba(231,76,60,0.30)"; ctx.fillRect(xa, mT, xb - xa, pH);
+      }
+    }
+    // Time axis relative to the first event (0 s).
+    ctx.font = "11px ui-monospace, monospace";
+    ctx.fillStyle = "#e6edf3";
+    ctx.strokeStyle = "#2a3644";
+    ctx.lineWidth = 1;
+    const span = (t1 - t0) / 1000;
+    const step = span > 150 ? 30 : 15;
+    for (let sec = Math.ceil((t0 - tRef) / 1000 / step) * step; sec <= (t1 - tRef) / 1000; sec += step) {
+      const x = X(tRef + sec * 1000);
+      ctx.beginPath(); ctx.moveTo(x, mT); ctx.lineTo(x, mT + pH); ctx.stroke();
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      ctx.fillText(sec === 0 ? "0" : `${sec > 0 ? "+" : ""}${sec}s`, Math.min(Math.max(x, mL + 14), mL + pW - 14), cssH - 5);
+    }
+    _bbChart.geom = { mL, mR, mT, pW, pH, t0, t1, cssW, cssH };
+    if (!series.length) return;
+    const bandH = pH / series.length;
+    series.forEach((ser, bi) => {
+      const top = mT + bi * bandH + 2, bot = mT + (bi + 1) * bandH - 2;
+      let lo = Infinity, hi = -Infinity;
+      for (const x of sm) { const v = x[ser.key]; if (typeof v === "number" && isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+      if (hi - lo < 1e-6) { lo -= 0.5; hi += 0.5; }
+      const Y = (v) => bot - (bot - top) * (v - lo) / (hi - lo);
+      if (bi > 0) { ctx.strokeStyle = "#4a5a6e"; ctx.beginPath(); ctx.moveTo(mL, top - 2); ctx.lineTo(mL + pW, top - 2); ctx.stroke(); }
+      if (lo < 0 && hi > 0) {
+        ctx.strokeStyle = "#2a3644"; ctx.setLineDash([2, 3]);
+        ctx.beginPath(); ctx.moveTo(mL, Y(0)); ctx.lineTo(mL + pW, Y(0)); ctx.stroke(); ctx.setLineDash([]);
+      }
+      ctx.strokeStyle = ser.color; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      let on = false;
+      for (const x of sm) {
+        const v = x[ser.key];
+        if (typeof v !== "number" || !isFinite(v)) { on = false; continue; }
+        if (!on) { ctx.moveTo(X(x.ts), Y(v)); on = true; } else ctx.lineTo(X(x.ts), Y(v));
+      }
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      // Right gutter: name (legend) + max / min.
+      ctx.textAlign = "left";
+      ctx.fillStyle = ser.color; ctx.font = "bold 11px ui-monospace, monospace"; ctx.textBaseline = "middle";
+      ctx.fillText(ser.label, mL + pW + 5, (top + bot) / 2);
+      ctx.fillStyle = "#e6edf3"; ctx.font = "10px ui-monospace, monospace";
+      ctx.textBaseline = "top"; ctx.fillText(_bbFmtV(ser, hi), mL + pW + 5, top);
+      ctx.textBaseline = "bottom"; ctx.fillText(_bbFmtV(ser, lo), mL + pW + 5, bot);
+    });
+    // Event markers.
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    for (const e of inc.events) { const x = X(e.ts); ctx.beginPath(); ctx.moveTo(x, mT); ctx.lineTo(x, mT + pH); ctx.stroke(); }
+    ctx.setLineDash([]); ctx.lineWidth = 1;
+    if (_bbChart.hoverTs == null) return;
+    // Cursor: nearest recorded second, every value at that moment.
+    let best = sm[0];
+    for (const x of sm) if (Math.abs(x.ts - _bbChart.hoverTs) < Math.abs(best.ts - _bbChart.hoverTs)) best = x;
+    const cx = X(best.ts);
+    ctx.strokeStyle = "#4dd4ff"; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(cx, mT); ctx.lineTo(cx, mT + pH); ctx.stroke(); ctx.setLineDash([]);
+    const rel = (best.ts - tRef) / 1000;
+    const lines = [{ txt: `${_bbFmtTime(best.ts)}  (${rel >= 0 ? "+" : ""}${rel.toFixed(0)} s)`, color: "#b8c4d0" }];
+    lines.push({ txt: `${best.mode || "?"} · ${best.engaged ? "AP ON" : "AP OFF"}`, color: "#e6edf3" });
+    for (const ser of BB_SERIES) {
+      if (typeof best[ser.key] !== "number") continue;
+      lines.push({ txt: `${ser.label}: ${_bbFmtV(ser, best[ser.key])}`, color: ser.color });
+    }
+    if (best.tackState && best.tackState !== "none") lines.push({ txt: `tack: ${best.tackState}`, color: "#e6edf3" });
+    if (best.vtPhase && best.vtPhase !== "idle") lines.push({ txt: `virtual tack: ${best.vtPhase}`, color: "#e6edf3" });
+    if (best.flags) lines.push({ txt: `flags: ${best.flags}`, color: /FAULT/.test(best.flags) ? "#ff6b5e" : "#b8c4d0" });
+    for (const e of inc.events) if (Math.abs(e.ts - best.ts) <= 1000) lines.push({ txt: `» ${_bbKind(e.kind)}`, color: "#ffffff" });
+    ctx.font = "12px ui-monospace, monospace";
+    let w = 0;
+    for (const ln of lines) w = Math.max(w, ctx.measureText(ln.txt).width);
+    const bw = Math.min(w + 14, cssW - 8), bh = lines.length * 15 + 8;
+    let bx = cx + 10;
+    if (bx + bw > cssW - 4) bx = Math.max(4, cx - bw - 10);
+    const by = mT + 4;
+    ctx.fillStyle = "rgba(11,15,20,0.94)"; ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = "#4dd4ff"; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    lines.forEach((ln, i) => { ctx.fillStyle = ln.color; ctx.fillText(ln.txt, bx + 7, by + 5 + i * 15); });
   }
   let _bbOpenId = null;
   async function _bbOpen(id) {
     const pop = document.getElementById("bb-pop");
     const body = document.getElementById("bb-pop-body");
     const title = document.getElementById("bb-pop-title");
+    const detail = document.getElementById("bb-pop-detail");
     if (!pop || !body) return;
     _bbOpenId = id;
-    body.textContent = "…";
+    _bbChart.inc = null;
+    _bbChart.hoverTs = null;
+    body.textContent = "";
+    if (detail) detail.textContent = "…";
+    _bbChips();
     pop.classList.add("open");
     let inc = null;
     try { const r = await skFetch(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(id)}`); if (r.ok) inc = await r.json(); } catch { /* silent */ }
-    if (!inc || !Array.isArray(inc.samples) || !inc.samples.length) { body.textContent = "—"; return; }
+    if (!inc || !Array.isArray(inc.samples) || !inc.samples.length) { if (detail) detail.textContent = "—"; return; }
     if (title) title.textContent = `${_bbFmtTime(inc.ts)} · ${_bbKind(inc.kind)}`;
+    if (detail) detail.textContent = inc.detail;
+    _bbChart.inc = inc;
+    _bbChips();
+    requestAnimationFrame(_bbDraw);
     const sm = inc.samples;
-    const evTs = inc.events.map((e) => e.ts);
-    const bands = [];
-    let bStart = null;
-    for (const x of sm) {
-      const f = !!x.flags && /PORT_OVERCURRENT_FAULT|STARBOARD_OVERCURRENT_FAULT/.test(x.flags);
-      if (f && bStart == null) bStart = x.ts;
-      if (!f && bStart != null) { bands.push([bStart, x.ts]); bStart = null; }
-    }
-    if (bStart != null) bands.push([bStart, sm[sm.length - 1].ts]);
     const esc = (v) => String(v).replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]);
-    let html = `<div style="font-size:13px;color:var(--fg)">${esc(inc.detail)}</div>`;
-    html += _bbSvgChart(sm, [
-      { get: (x) => x.errDeg, color: "#ff3b30" },
-      { get: (x) => x.awaDeg, color: "#ffd54a" },
-    ], t("bb.chartErr"), evTs, bands);
-    html += _bbSvgChart(sm, [{ get: (x) => x.servoA, color: "#f5a623" }], t("bb.chartServo"), evTs, bands);
-    html += `<div class="hint" style="margin:10px 0 4px">${t("bb.events")}</div>`;
+    let html = `<div class="hint" style="margin:10px 0 4px">${t("bb.events")}</div>`;
     html += inc.events.map((e) => `<div style="font-size:12px;color:var(--fg)">${_bbFmtTime(e.ts)} · ${esc(_bbKind(e.kind))} — ${esc(e.detail)}</div>`).join("");
     const first = sm[0], last = sm[sm.length - 1];
     html += `<div class="hint" style="margin-top:8px">${_bbFmtTime(first.ts)} → ${_bbFmtTime(last.ts)} · ${sm.length} s · ${esc(first.mode || "")}</div>`;
@@ -4382,6 +4503,22 @@
     if (dl) dl.addEventListener("click", () => {
       if (_bbOpenId) window.open(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(_bbOpenId)}`, "_blank");
     });
+    const cv = document.getElementById("bb-canvas");
+    if (cv) {
+      const hover = (clientX) => {
+        const g = _bbChart.geom;
+        if (!g || !_bbChart.inc) return;
+        const x = clientX - cv.getBoundingClientRect().left;
+        const f = Math.min(1, Math.max(0, (x - g.mL) / g.pW));
+        _bbChart.hoverTs = g.t0 + f * (g.t1 - g.t0);
+        _bbDraw();
+      };
+      cv.addEventListener("pointermove", (ev) => hover(ev.clientX));
+      cv.addEventListener("pointerdown", (ev) => hover(ev.clientX));
+      cv.addEventListener("touchmove", (ev) => { if (ev.touches[0]) hover(ev.touches[0].clientX); }, { passive: true });
+      cv.addEventListener("mouseleave", () => { _bbChart.hoverTs = null; _bbDraw(); });
+      window.addEventListener("resize", () => { if (document.getElementById("bb-pop")?.classList.contains("open")) _bbDraw(); });
+    }
     const del = document.getElementById("bb-pop-delete");
     if (del) del.addEventListener("click", async () => {
       if (!_bbOpenId || !(await _pmConfirm(t("bb.deleteQ"), ""))) return;

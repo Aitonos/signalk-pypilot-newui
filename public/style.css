@@ -4463,3 +4463,11 @@ body.pi-browser .swipe-hint .rudder-marker .rmk-num {
 body.pi-browser .regata-hud   { background: rgba(0, 20, 32, 0.92); }
 body.pi-browser .aproado-hud  { background: rgba(11, 15, 20, 0.92); }
 body.pi-browser .tide-cur-box { background: color-mix(in srgb, var(--bg) 88%, transparent); }
+
+/* Rev526: black box list (class, not inline, so the Setup tile hides it)
+   and the incident chart. */
+.bb-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.bb-canvas-wrap { min-height: 0; padding: 4px; touch-action: pan-y; }
+#bb-canvas { display: block; width: 100%; height: 420px; }
+.chart-path-chip .bb-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+#bb-pop .popup-box { max-width: 900px; }
