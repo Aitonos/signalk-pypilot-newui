@@ -141,8 +141,10 @@ export class SessionRecorder {
             }
           } catch { /* skip malformed line */ }
         }
-        const span = last - first;
-        if (samples < minSamples || (span > 0 && span < minMs)) {
+        // Rev538 (GPT review 4 #7): N samples at 1 Hz cover N seconds
+        // (0..N-1 is a span of N-1): same rule as stop(), which kept it.
+        const span = last - first + 1000;
+        if (samples < minSamples || (span > 1000 && span < minMs)) {
           fs.unlinkSync(full);
           deleted += 1;
         }
@@ -329,9 +331,11 @@ export class SessionRecorder {
 
   private flush(): void {
     if (!this.currentFile || this.buffer.length === 0) return;
-    const payload = this.buffer.join("\n") + "\n";
+    const lines = this.buffer;
     this.buffer = [];
-    try { fs.appendFileSync(this.currentFile, payload); } catch (e: any) {
+    try { fs.appendFileSync(this.currentFile, lines.join("\n") + "\n"); } catch (e: any) {
+      // Rev538 (GPT review 4 #5): keep them for the next flush (bounded).
+      this.buffer = lines.concat(this.buffer).slice(-5000);
       this.log("error", `session flush failed: ${e?.message || e}`);
     }
   }
@@ -387,6 +391,8 @@ export class SessionRecorder {
   }
 
   deleteSession(id: string): boolean {
+    // Rev538 (GPT review 4 #6): same rule as the trip recorder.
+    if (this.currentId && id === this.currentId) return false;
     const file = path.join(this.dir, `session-${id}.jsonl`);
     try { fs.unlinkSync(file); return true; } catch { return false; }
   }

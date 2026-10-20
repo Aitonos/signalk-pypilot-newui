@@ -58,6 +58,23 @@ const RUNTIME_BLOCKLIST_SUFFIXES = [
   ".flags",
 ];
 
+/** Rev538 (GPT review 4 #1): keys a restore must NEVER write - they are
+ *  orders, not settings (engage, target, mode, tack, servo commands). A
+ *  backup file must not be able to steer the boat. */
+const RESTORE_BLOCK_EXACT = new Set<string>([
+  "ap.enabled",
+  "ap.heading_command",
+  "ap.mode",
+  "ap.tack.state",
+  "ap.tack.direction",
+  "profiles",
+]);
+export function isRestoreBlocked(key: string): boolean {
+  if (RESTORE_BLOCK_EXACT.has(key)) return true;
+  if (/command$/i.test(key)) return true;           // servo.command, servo.raw_command, ...
+  return isRuntimeKey(key);
+}
+
 /** Returns true if the value of a pypilot key looks like a runtime
  *  telemetry number (which we should never include in a config backup)
  *  rather than a persistent setting. */
@@ -74,13 +91,17 @@ export function isRuntimeKey(key: string): boolean {
 export function captureBundle(args: {
   revision: string;
   props: Record<string, unknown>;
-  catalog: Record<string, { info?: { persistent?: boolean; type?: string } }>;
+  catalog: Record<string, { persistent?: boolean; profiled?: boolean; AutopilotGain?: boolean; info?: { persistent?: boolean; type?: string } }>;
   values: Record<string, unknown>;
   note?: string;
 }): ConfigBundle {
   const pypilotSettings: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(args.catalog)) {
-    const persistent = entry?.info?.persistent === true;
+    // Rev538 (GPT review 4 #3): pypilot's catalog carries the flags at the
+    // top level (PypilotVarMeta); older dumps nested them under `info`.
+    // Gains are "profiled" / "AutopilotGain" and must always travel.
+    const persistent = entry?.persistent === true || entry?.info?.persistent === true
+      || entry?.profiled === true || entry?.AutopilotGain === true;
     const extra = EXTRA_PERSISTENT_KEYS.includes(key);
     if (!persistent && !extra) continue;
     if (isRuntimeKey(key)) continue;
@@ -123,14 +144,17 @@ export function validateBundle(b: unknown): string | null {
 export function applyBundleToPypilot(
   bundle: ConfigBundle,
   catalog: Record<string, unknown>,
-  set: (key: string, value: unknown) => void,
+  set: (key: string, value: unknown) => boolean | void,
+  opts: { skipKeys?: string[] } = {},
 ): Array<{ key: string; status: "applied" | "skipped-unknown" | "skipped-runtime" | "error"; error?: string }> {
   const out: Array<{ key: string; status: "applied" | "skipped-unknown" | "skipped-runtime" | "error"; error?: string }> = [];
   for (const [key, value] of Object.entries(bundle.pypilotSettings)) {
-    if (isRuntimeKey(key)) { out.push({ key, status: "skipped-runtime" }); continue; }
+    if (opts.skipKeys && opts.skipKeys.includes(key)) continue;
+    if (isRestoreBlocked(key)) { out.push({ key, status: "skipped-runtime" }); continue; }
     if (!(key in catalog)) { out.push({ key, status: "skipped-unknown" }); continue; }
     try {
-      set(key, value);
+      // Rev538 (GPT review 4 #4): a refused write is an error, not "applied".
+      if (set(key, value) === false) { out.push({ key, status: "error", error: "write refused" }); continue; }
       out.push({ key, status: "applied" });
     } catch (e: any) {
       out.push({ key, status: "error", error: String(e?.message || e) });

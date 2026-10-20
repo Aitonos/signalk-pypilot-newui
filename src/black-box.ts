@@ -12,6 +12,10 @@ export const BB_PRE_MS = 60_000;
 export const BB_POST_MS = 60_000;
 export const BB_MAX_FILES = 50;
 export const BB_SAME_KIND_COOLDOWN_MS = 60_000;
+/** Rev538 (GPT review 4 #12): one incident is written after 15 min / 100
+ *  events at most; what keeps happening opens the next one. */
+export const BB_MAX_INCIDENT_SAMPLES = 900;
+export const BB_MAX_EVENTS = 100;
 
 export interface BlackBoxSample {
   ts: number;
@@ -70,7 +74,7 @@ export class BlackBox {
     if (this.open) {
       this.open.samples.push(s);
       const lastEvt = this.open.events[this.open.events.length - 1].ts;
-      if (s.ts - lastEvt >= BB_POST_MS) this.close(s.ts);
+      if (s.ts - lastEvt >= BB_POST_MS || this.open.samples.length >= BB_MAX_INCIDENT_SAMPLES) this.close(s.ts);
     }
   }
 
@@ -82,7 +86,8 @@ export class BlackBox {
     const evt = { ts: nowMs, kind, detail: String(detail || "").slice(0, 300) };
     if (this.open) {
       // Same incident: one more event, the post window restarts from it.
-      this.open.events.push(evt);
+      if (this.open.events.length < BB_MAX_EVENTS) this.open.events.push(evt);
+      else this.open.events[this.open.events.length - 1] = evt;
       return this.open.id;
     }
     const d = new Date(nowMs);

@@ -206,6 +206,8 @@ export class ManeuverTraceLog {
     try {
       fs.appendFileSync(this.currentFile, lines.join("\n") + "\n", "utf8");
     } catch (e) {
+      // Rev538 (GPT review 4 #5): keep them for the next flush (bounded).
+      this.buffer = lines.concat(this.buffer).slice(-5000);
       this.log("warn", `[maneuver-trace] flush failed: ${(e as Error).message}`);
     }
   }

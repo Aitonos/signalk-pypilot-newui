@@ -148,6 +148,16 @@ export class EpisodeDetector {
     const cmd = s.headingCmd;
     const mode = s.mode ?? null;
 
+    // Rev538 (GPT review 4 #8): a mode change moves the target to another
+    // space (compass 180 -> AWA 45 is not a -135 step). Close what was
+    // open and start the baseline again.
+    if (this.lastCmd != null && this.lastMode !== mode) {
+      if (this.open) this.closeOpen(s.ts, false);
+      this.lastCmd = cmd;
+      this.lastMode = mode;
+      return;
+    }
+
     // Detect a step: change in headingCmd larger than the threshold.
     if (this.lastCmd != null && Math.abs(wrapPi(cmd - this.lastCmd)) >= this.minStepRad) {
       // Close previous episode as superseded (if still open).
@@ -190,7 +200,13 @@ export class EpisodeDetector {
     }
 
     const err = errorRad(s);
-    if (err == null) return;
+    if (err == null) {
+      // Rev538 (GPT review 4 #9): a hole in the data breaks "continuously
+      // inside the band", and the time limit still applies.
+      ep.candidateSettleTs = null;
+      if ((s.ts - ep.startedTs) / 1000 >= this.maxDurationSec) this.closeOpen(s.ts, true);
+      return;
+    }
 
     const stepAbs = Math.abs(ep.stepRad);
     const riseBand = stepAbs * this.riseBandFrac;

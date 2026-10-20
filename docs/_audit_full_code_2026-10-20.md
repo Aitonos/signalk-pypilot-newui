@@ -249,3 +249,23 @@ el resto descartados.
 | 10 | Descartado | El registro de cambios de perfil no lee un archivo completo al arrancar. |
 | 11 | Descartado | La traza serializa cada evento al registrarlo (`JSON.stringify`): no puede cambiar después. |
 | 12 | Descartado | Los presets ya pasan por `sanitizeData`. |
+
+## Revisión externa GPT — bloque 4 (grabación / almacenamiento)
+
+Los 12 hallazgos verificados y arreglados en Rev538 (tests en
+`src/test/review4-fixes.test.ts`).
+
+| # | Gravedad | Fallo | Arreglo Rev538 |
+|---|---|---|---|
+| 1 | Crítico | Restaurar un backup podía enviar `ap.enabled`, `ap.heading_command`, `ap.tack.state`, `ap.mode` o mandos del servo. | Lista de claves que un restore nunca escribe (órdenes, no ajustes). Test. |
+| 2 | Alto | Las ganancias se escribían en el perfil activo si `profile` venía después en el JSON. | Se selecciona primero el perfil del backup y se espera la confirmación de pypilot; si no llega, no se restaura nada (409). |
+| 3 | Alto | La copia buscaba `info.persistent`; pypilot da `persistent` / `profiled` arriba: las ganancias no se copiaban. | Se leen los dos formatos y los flags de ganancia. Test. |
+| 4 | Alto | "Aplicado" aunque pypilot rechazara la escritura. | Escritura rechazada = error en el informe. Test. |
+| 5 | Alto | Sesiones, viajes y trazas vaciaban el búfer antes de escribir: un fallo (disco lleno) perdía esas muestras. | Si la escritura falla se conservan para el siguiente volcado (máx. 5000 líneas). |
+| 6 | Alto | Se podía borrar la sesión que se está grabando (luego se recreaba sin cabecera). | Rechazado, como en la bitácora. |
+| 7 | Alto | La limpieza borraba sesiones de 30 muestras que `stop()` había conservado (contaba 29 s). | Misma regla: N muestras = N segundos. |
+| 8 | Alto | Cambiar de modo creaba un "episodio" comparando compás con viento (-135°). | El cambio de modo reinicia la referencia. Test. |
+| 9 | Alto | Un hueco de datos no cortaba la estabilización ni el tiempo máximo del episodio. | Hueco = rompe la continuidad y se comprueba el tiempo máximo. |
+| 10 | Alto | En viento real sin TWA el error se calculaba con AWA (error inventado que alimentaba alarmas). | Sin TWA el error es desconocido. Test. |
+| 11 | Alto | Modo puerto: una lectura 0, diez minutos sin datos y otra 0 bastaban. | Sin lectura se reinicia la cuenta; los 2 min tienen que ser seguidos. Test. |
+| 12 | Medio | Un incidente de la caja negra podía crecer sin límite si los eventos no paraban. | Se escribe a los 15 min / 100 eventos; lo que siga abre otro. Test. |

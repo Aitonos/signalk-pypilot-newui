@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev537";
+const PLUGIN_REVISION = "Rev538";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1381,7 +1381,7 @@ module.exports = function (app: any) {
           const bundle = captureBundle({
             revision: PLUGIN_REVISION,
             props: props as unknown as Record<string, unknown>,
-            catalog: client.getCatalog() as unknown as Record<string, { info?: { persistent?: boolean } }>,
+            catalog: client.getCatalog() as unknown as Record<string, { persistent?: boolean; info?: { persistent?: boolean } }>,
             values: client.getValues(),
           });
           const stamp = new Date(bundle.capturedTs).toISOString().replace(/[:.]/g, "-");
@@ -1393,7 +1393,7 @@ module.exports = function (app: any) {
           res.status(500).json({ error: String(e?.message || e) });
         }
       });
-      router.post("/config/import", (req: any, res: any) => {
+      router.post("/config/import", async (req: any, res: any) => {
         // Rev534 (GPT review 2 #4): importing writes to pypilot and to the
         // plugin options; it needs writes enabled.
         if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
@@ -1402,10 +1402,23 @@ module.exports = function (app: any) {
         const err = validateBundle(bundle);
         if (err) { res.status(400).json({ error: err }); return; }
         try {
+          // Rev538 (GPT review 4 #2): the gains in a backup belong to its
+          // profile. Select it FIRST and wait for pypilot to confirm,
+          // whatever the key order in the JSON; otherwise the gains land
+          // on the profile that happened to be active.
+          const wantProfile = bundle.pypilotSettings?.["profile"];
+          if (typeof wantProfile === "string" && wantProfile && client.getValues()["profile"] !== wantProfile) {
+            try { profileChangeLog.markPlannedWrite(wantProfile, "user", "config import"); } catch { /* silent */ }
+            if (!client.set("profile", wantProfile)) { res.status(409).json({ error: `could not select profile '${wantProfile}' - nothing restored` }); return; }
+            const t0 = Date.now();
+            while (Date.now() - t0 < 3000 && client.getValues()["profile"] !== wantProfile) await new Promise((r) => setTimeout(r, 100));
+            if (client.getValues()["profile"] !== wantProfile) { res.status(409).json({ error: `pypilot did not switch to profile '${wantProfile}' - nothing restored` }); return; }
+          }
           const audit = applyBundleToPypilot(
             bundle,
             client.getCatalog() as unknown as Record<string, unknown>,
-            (k, v) => { client!.set(k, v); },
+            (k, v) => client!.set(k, v),
+            { skipKeys: ["profile"] },
           );
           // Persist plugin-side options too if available.
           let pluginOptionsSaved = false;

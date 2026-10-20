@@ -382,9 +382,11 @@ export class TripRecorder {
 
   private flush(): void {
     if (!this.currentFile || this.buffer.length === 0) return;
-    const payload = this.buffer.join("\n") + "\n";
+    const lines = this.buffer;
     this.buffer = [];
-    try { fs.appendFileSync(this.currentFile, payload); } catch (e: any) {
+    try { fs.appendFileSync(this.currentFile, lines.join("\n") + "\n"); } catch (e: any) {
+      // Rev538 (GPT review 4 #5): keep them for the next flush (bounded).
+      this.buffer = lines.concat(this.buffer).slice(-5000);
       this.log("error", `trip flush failed: ${e?.message || e}`);
     }
   }

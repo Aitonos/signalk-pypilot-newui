@@ -137,7 +137,14 @@ export class VisorPrefs {
 
   /** Feed own SOG (m/s). Returns true when the harbour state flipped. */
   tickHarbor(sog: number | null, now = Date.now()): boolean {
-    if (!this.data.aisHarborAuto || sog == null || !isFinite(sog)) return false;
+    if (!this.data.aisHarborAuto) return false;
+    if (sog == null || !isFinite(sog)) {
+      // Rev538 (GPT review 4 #11): no reading = no evidence; the 2 min
+      // must be continuous.
+      this.slowSince = null;
+      this.fastSince = null;
+      return false;
+    }
     const before = this.harborActive;
     if (!this.harborActive) {
       if (sog < HARBOR_ENTER_SOG_MS) {

@@ -264,7 +264,8 @@ export function errorRad(s: Sample): number | null {
   const mode = (s.mode || "").toLowerCase();
   let actual: number | null;
   if (mode.includes("true") && mode.includes("wind")) {
-    actual = s.twa != null ? s.twa : s.awa;
+    // Rev538 (GPT review 4 #10): AWA is not TWA; without TWA the error is unknown.
+    actual = s.twa;
   } else if (mode.includes("wind")) {
     actual = s.awa;
   } else {
