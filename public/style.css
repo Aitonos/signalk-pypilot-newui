@@ -478,7 +478,7 @@ main {
   min-width: 72px;
   padding: 3px 10px;
   background: rgba(0, 0, 0, 0.72);
-  border: 1px solid #ffffff;   /* Rev522: white frame (sunlight) */
+  border: 1px solid #8e9bab;   /* Rev530: grey frame, same as the rose ring */
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
