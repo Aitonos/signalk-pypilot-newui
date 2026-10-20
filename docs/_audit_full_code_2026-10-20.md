@@ -125,3 +125,23 @@ Arreglo: `textContent` o escapar.
 - Al reconectar el AP tras el ciclo de recuperación, ¿pypilot mantiene
   `ap.heading_command` o lo cambia por el rumbo actual? Si lo cambia, se
   pierde el objetivo de antes del atasco.
+
+---
+
+## Estado tras la revisión (Rev531-532)
+
+- **C1 arreglado en Rev531** (opción A): "Congelar objetivo" eliminado.
+  Una configuración guardada con `freeze-target` se lee como `warn`.
+
+## Revisión externa GPT — bloque 1 (núcleo del piloto)
+
+Los 5 hallazgos, verificados contra el código y arreglados en Rev532, con
+un test cada uno en `src/test/virtual-tack-sailor.test.ts`:
+
+| # | Gravedad | Fallo | Arreglo Rev532 |
+|---|---|---|---|
+| 1 | Crítico (ventana estrecha) | Reintento de `setTarget` / `adjustTarget` (hasta 1 s) solo miraba `targetGen`: un rumbo de compás 120 reintentado tras pasar a viento llegaba como AWA 120. | El reintento se anula también si cambió el modo (`modeGen`). |
+| 2 | Crítico | `adjustTarget` (±1/±10 de KIP, API SK, acciones PUT) escribía el objetivo directamente durante una virada virtual, peleando con la maniobra. | Durante la virada va a `adjustVirtualTack` (re-apunta el destino, como el visor). |
+| 3 | Crítico | Relevo de la virada a modo viento: escribía el objetivo final justo tras el eco del modo; pypilot podía machacarlo (misma carrera que la cancelación de Rev515). | Espera 0.4 s, escribe, comprueba a 1.2 s y reescribe. Test: sin el arreglo el objetivo se queda en el valor de pypilot (4), con el arreglo en -45. |
+| 4 | Crítico | `tack()` (KIP, API SK, acciones PUT, intercepción `/raw`) llamaba directo al motor: una segunda orden reiniciaba la virada a mitad de giro y se saltaba la confirmación de trasluchada larga. | `tack()` pasa por `startVirtualTack`: una virada a la vez y misma confirmación (sin diálogo => se rechaza). |
+| 5 | Alto | Un "off" real (mando) dentro de la ventana de eco del engage se descartaba como eco viejo; pypilot solo lo envía al cambiar, así que el visor podía quedarse en AP ON. | Se guarda el último valor real de pypilot y al cerrar la ventana se reconcilia. |

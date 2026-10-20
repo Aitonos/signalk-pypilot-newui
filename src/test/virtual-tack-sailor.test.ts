@@ -222,6 +222,92 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev532: the handover to wind keeps the final target even if pypilot overwrites it", async () => {
+    const o: { twdDeg: number; headingDeg: number; turnDegPerTick: number; modeChangeClobberDeg?: number } = { twdDeg: 0, headingDeg: 315, turnDegPerTick: 6 };
+    const sim = makeSim(o);
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      assert.ok(await waitFor(() => p.getVirtualTackState()?.phase === "turning", 3000));
+      o.modeChangeClobberDeg = 4;   // pypilot overwrites on the way back to wind
+      assert.ok(await waitFor(() => p.getVirtualTackState()?.phase === "settling", 15000), "reaches settling");
+      await sleep(200);
+      const cmd = Number(sim.values["ap.heading_command"]);
+      assert.equal(sim.values["ap.mode"], "wind");
+      assert.ok(Math.abs(cmd - (-45)) < 3, `final target -45 on the new tack, not pypilot's 4 (got ${cmd})`);
+      p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 6000);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev532: +-10 from KIP / the SK API during a tack re-aims it, no direct target write", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      await waitFor(() => p.getVirtualTackState()?.phase === "turning", 2000);
+      await (p.toProviderInterface() as any).adjustTarget(10 * D, "_default");
+      assert.ok(Math.abs((p.getVirtualTackState() as any).adjustRad - 10 * D) < 1e-9, "goes to the tack's adjust");
+      p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 6000);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev532: a second tack order from the API does not restart a running tack", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await (p.toProviderInterface() as any).tack("starboard", "_default");
+      const id = p.getVirtualTackState()?.id;
+      assert.ok(id);
+      await assert.rejects((p.toProviderInterface() as any).tack("starboard", "_default"));
+      assert.equal(p.getVirtualTackState()?.id, id, "same manoeuvre");
+      p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 6000);
+    } finally { sim.stop(); }
+  });
+
+  it("Rev532: an 'off' from the remote inside the engage echo window is not lost", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    // pypilot that does not echo our engage (it is switched off from the remote first)
+    const quiet = { ...sim.client, set(name: string, value: unknown) { sim.values[name] = value; return true; } };
+    const p = new AutopilotProvider(quiet as any, sim.app);
+    p.receiveValue("ap.modes", ["compass", "wind"]);
+    p.receiveValue("ap.enabled", false);
+    p.receiveValue("ap.mode", "compass");
+    try {
+      await (p.toProviderInterface() as any).engage("_default");
+      assert.equal(p.data.engaged, true, "optimistic engage");
+      p.receiveValue("ap.enabled", true);    // pypilot applies it
+      p.receiveValue("ap.enabled", false);   // ...and the remote takes it off at once
+      await sleep(3000);
+      assert.equal(p.data.engaged, false, "reconciled to pypilot's last value");
+    } finally { sim.stop(); }
+  });
+
+  it("Rev532: a target retry is dropped when the mode changes in between", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    let fail = true;
+    const flaky = { ...sim.client, set(name: string, value: unknown) {
+      if (name === "ap.heading_command" && fail) { fail = false; return false; }
+      return sim.client.set(name, value);
+    } };
+    const p = new AutopilotProvider(flaky as any, sim.app);
+    sim.attach(p);
+    try {
+      p.receiveValue("ap.mode", "compass");
+      const t = (p.toProviderInterface() as any).setTarget(120 * D, "_default").catch(() => "aborted");
+      await sleep(50);
+      await (p.toProviderInterface() as any).setMode("wind", "_default");
+      assert.equal(await t, "aborted");
+      const late = sim.writes.filter((w) => w.name === "ap.heading_command" && Number(w.value) === 120);
+      assert.equal(late.length, 0, "the compass 120 never reaches pypilot as AWA 120");
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);

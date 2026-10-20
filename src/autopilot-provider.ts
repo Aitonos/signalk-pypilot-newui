@@ -141,6 +141,12 @@ export class AutopilotProvider {
   // real echo, flip data.engaged to false, push a SK delta, and the
   // JS button turns off; user re-taps and the AP ends up bouncing.
   private pendingEngaged: { value: boolean; until: number } | null = null;
+  // Rev532 (GPT audit #5): last ap.enabled pypilot actually reported,
+  // even while echoes are being dropped, so the engaged state can be
+  // reconciled when the pending window ends (pypilot sends it only on
+  // change: a real "off" swallowed as a stale echo would never come back).
+  private _lastRawEngaged: boolean | null = null;
+  private _engagedReconcileTimer: ReturnType<typeof setTimeout> | null = null;
   // Rev84: onDataChanged accepts an optional "fields" mask so the
   // consumer (pushAutopilotUpdate in index.ts) only publishes the SK
   // paths that actually changed. Without this, setState + setTarget
@@ -326,6 +332,7 @@ export class AutopilotProvider {
         break;
       case "ap.enabled": {
         const eng = !!value;
+        this._lastRawEngaged = eng;
         // Rev70: echo cancellation on the engaged flag. See notes on
         // pendingEngaged. Without this, when the JS button POSTs an
         // engage, pypilot's 2 Hz watch tick may push ap.enabled=false
@@ -515,7 +522,27 @@ export class AutopilotProvider {
     // Rev351: pypilot ACK-eó el set. Reduce la ventana pending al
     // valor normal (2.5 s) porque el eco real llegará en < 1 s típico.
     this.pendingEngaged = { value: eng, until: Date.now() + TARGET_PENDING_MS };
+    this._scheduleEngagedReconcile();
     return eng;
+  }
+
+  /** Rev532 (GPT audit #5): when the echo window closes, take what pypilot
+   *  last said. A remote / pypilot "off" that landed inside the window was
+   *  dropped as stale and would otherwise leave the visor showing AP ON. */
+  private _scheduleEngagedReconcile(): void {
+    if (this._engagedReconcileTimer) clearTimeout(this._engagedReconcileTimer);
+    this._engagedReconcileTimer = setTimeout(() => {
+      this._engagedReconcileTimer = null;
+      if (this.pendingEngaged && Date.now() < this.pendingEngaged.until) return;
+      this.pendingEngaged = null;
+      const raw = this._lastRawEngaged;
+      if (raw === null || raw === this.data.engaged) return;
+      // eslint-disable-next-line no-console
+      console.log(`[apProvider] engaged reconciled to pypilot's last value: ${raw}`);
+      const f = this.receiveValue("ap.enabled", raw);
+      if (f) this.notifyChanged(f);
+    }, TARGET_PENDING_MS + 150);
+    try { (this._engagedReconcileTimer as any).unref?.(); } catch { /* silent */ }
   }
 
   private async setMode(mode: string): Promise<void> {
@@ -669,15 +696,19 @@ export class AutopilotProvider {
     // guard, target=1 rad → 2 rad → retry(1 rad) ended up leaving
     // 1 rad on pypilot.
     const gen = ++this.targetGen;
+    // Rev532 (GPT audit #1): a mode change also makes the retry stale -
+    // a compass 120 retried after the switch to wind would be AWA 120.
+    const mg = this.modeGen;
+    const stale = () => this.targetGen !== gen || this.modeGen !== mg;
     // Rev254 (Carlos audit): reject BEFORE mutating optimistic target.
     // Rev255: retry with backoff.
-    if (!(await this._setWithRetry("ap.heading_command", deg, () => this.targetGen !== gen))) {
-      if (this.targetGen !== gen) {
+    if (!(await this._setWithRetry("ap.heading_command", deg, stale))) {
+      if (stale()) {
         throw new Error("target superseded by newer order");
       }
       throw new Error("pypilot offline: target not delivered");
     }
-    if (this.targetGen !== gen) {
+    if (stale()) {
       throw new Error("target superseded after write");
     }
     this.data.target = rad;
@@ -704,6 +735,13 @@ export class AutopilotProvider {
     // rejects (errors are surfaced through the returned promise), so
     // one caller's throw does not poison the next caller's turn.
     const run = async (): Promise<void> => {
+      // Rev532 (GPT audit #2): +-1 / +-10 from KIP, the SK autopilot API or
+      // a PUT action during a virtual tack move its destination (same as
+      // the visor), instead of writing a target that fights the FSM.
+      if (this.isVirtualTackActive() && !this._vtInternalWrite) {
+        if (this.adjustVirtualTack(rad)) return;
+        throw new Error("target adjust refused: virtual tack is driving the pilot");
+      }
       if (this.data.engaged) {
         const base = typeof this.data.target === "number" ? this.data.target : 0;
         const newRad = base + rad;
@@ -711,15 +749,17 @@ export class AutopilotProvider {
         // so an in-flight absolute setTarget cannot silently overwrite
         // the adjusted value from a retry (and vice versa).
         const gen = ++this.targetGen;
+        const mg = this.modeGen;   // Rev532 (GPT audit #1)
+        const stale = () => this.targetGen !== gen || this.modeGen !== mg;
         // Rev254 (Carlos audit): same reject-before-optimistic guard.
         // Rev255: retry with backoff.
-        if (!(await this._setWithRetry("ap.heading_command", newRad * RAD_TO_DEG, () => this.targetGen !== gen))) {
-          if (this.targetGen !== gen) {
+        if (!(await this._setWithRetry("ap.heading_command", newRad * RAD_TO_DEG, stale))) {
+          if (stale()) {
             throw new Error("target adjust superseded by newer order");
           }
           throw new Error("pypilot offline: target adjust not delivered");
         }
-        if (this.targetGen !== gen) {
+        if (stale()) {
           throw new Error("target adjust superseded after write");
         }
         this.data.target = newRad;
@@ -898,27 +938,12 @@ export class AutopilotProvider {
     const modeStr = String(this.data.mode || "").toLowerCase();
     const isWind = modeStr === "wind" || modeStr === "true wind";
     if (isWind) {
-      // Rev407+Rev409: _runVirtualTack takes heading + originalAWA
-      // (sensor direct, not data.target — see startVirtualTack for the
-      // reason). If either source is missing, abort silently.
-      const headingRad = this._readHeadingRad();
-      if (headingRad === null) return;
-      const windMode = modeStr as WindMode;
-      const awaPath = windMode === "wind"
-        ? "environment.wind.angleApparent"
-        : "environment.wind.angleTrueWater";
-      let awaRad: number | null = null;
-      try {
-        const p = this.app?.getSelfPath?.(awaPath);
-        const v = p?.value;
-        if (typeof v === "number" && Number.isFinite(v)) awaRad = v;
-      } catch { /* noop */ }
-      if (awaRad === null) {
-        // Fallback same as startVirtualTack.
-        if (this.data.target == null || !Number.isFinite(this.data.target)) return;
-        awaRad = this.data.target;
-      }
-      await this._runVirtualTack(direction, windMode, headingRad, awaRad);
+      // Rev532 (GPT audit #4): KIP / SK autopilot API / PUT actions / the
+      // /raw intercept go through the same entry as the visor, so they get
+      // the same checks: one tack at a time (a second press no longer
+      // restarts the manoeuvre mid-turn) and the long-gybe confirmation
+      // right after a cancel (refused here: there is no dialog to confirm).
+      await this.startVirtualTack({ direction });
       return;
     }
     const values = (this.client as any).getValues?.() || {};
@@ -1221,9 +1246,25 @@ export class AutopilotProvider {
         console.log(`[virtual-tack ${vtId}] WARN: ap.mode=${windMode} echo not seen in 1.5s, continuing`);
       }
       checkCancelled();
-      this._vtInternalWrite = true;
-      try { await this.setTarget(finalWind()); } finally { this._vtInternalWrite = false; }
+      // Rev532 (GPT audit #3): same race as the cancel (Rev515) - pypilot
+      // "keeps the heading" on the mode change in its own loop and can
+      // overwrite a target written right after the echo. Wait a few
+      // pypilot loops, write, check, rewrite once.
+      await sleep(400);
       checkCancelled();
+      for (let attempt = 0; attempt < 2; attempt++) {
+        this._vtInternalWrite = true;
+        try { await this.setTarget(finalWind()); } finally { this._vtInternalWrite = false; }
+        checkCancelled();
+        await sleep(1200);
+        checkCancelled();
+        const cmdDeg = Number(((this.client as any).getValues?.() || {})["ap.heading_command"]);
+        if (!Number.isFinite(cmdDeg)) break;
+        const diff = Math.abs(((cmdDeg - finalWind() * RAD_TO_DEG) % 360 + 540) % 360 - 180);
+        if (diff <= 2) break;
+        // eslint-disable-next-line no-console
+        console.log(`[virtual-tack ${vtId}] handover: pypilot moved the target to ${cmdDeg.toFixed(1)}deg, rewriting ${(finalWind() * RAD_TO_DEG).toFixed(1)}deg`);
+      }
       seenAdjustVersion = curAdjustVersion();
 
       // Rev387: settling phase. Watches the wind angle error until
