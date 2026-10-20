@@ -17,6 +17,13 @@ function feed(d: AutowindDecider, t0: number, secs: number, o: (s: number) => Pa
   return out;
 }
 
+describe("Rev532: TWA from a 0..360 source", () => {
+  it("330 (30 to port) is close-hauled, 200 (160 to port) is downwind", () => {
+    assert.equal(desiredSubMode(330), "wind");
+    assert.equal(desiredSubMode(200), "true wind");
+  });
+});
+
 describe("autowind (Rev518)", () => {
   it("120 deg threshold with +-5 hysteresis, signed TWA", () => {
     assert.equal(desiredSubMode(130), "true wind");

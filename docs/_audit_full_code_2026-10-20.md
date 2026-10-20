@@ -145,3 +145,25 @@ un test cada uno en `src/test/virtual-tack-sailor.test.ts`:
 | 3 | Crítico | Relevo de la virada a modo viento: escribía el objetivo final justo tras el eco del modo; pypilot podía machacarlo (misma carrera que la cancelación de Rev515). | Espera 0.4 s, escribe, comprueba a 1.2 s y reescribe. Test: sin el arreglo el objetivo se queda en el valor de pypilot (4), con el arreglo en -45. |
 | 4 | Crítico | `tack()` (KIP, API SK, acciones PUT, intercepción `/raw`) llamaba directo al motor: una segunda orden reiniciaba la virada a mitad de giro y se saltaba la confirmación de trasluchada larga. | `tack()` pasa por `startVirtualTack`: una virada a la vez y misma confirmación (sin diálogo => se rechaza). |
 | 5 | Alto | Un "off" real (mando) dentro de la ventana de eco del engage se descartaba como eco viejo; pypilot solo lo envía al cambiar, así que el visor podía quedarse en AP ON. | Se guarda el último valor real de pypilot y al cerrar la ventana se reconcilia. |
+
+## Revisión externa Gemini — bloque 1 (núcleo del piloto)
+
+13 hallazgos verificados contra el código (los números de línea de Gemini
+no coinciden con el archivo; se localizaron por función). 7 aceptados y
+arreglados en Rev533, 6 descartados con motivo.
+
+| # | Veredicto | Detalle |
+|---|---|---|
+| 1 | **Aceptado** | Virada en compás normalizaba a ±180: de 120 a estribor salía -140. Que pypilot lo trunque a 0 NO está demostrado (las trazas muestran objetivos negativos en viento), pero el valor correcto en compás es 0..360. Arreglo: `setTarget` envía compás en 0..360 y viento en -180..180. Test: 220. |
+| 2 | **Aceptado** | Cambio de modo con AP conectado: el re-anclaje se escribía justo tras el modo y pypilot podía machacarlo (misma carrera de Rev515). Arreglo: espera eco + 0.4 s, comprueba, reescribe una vez si pypilot lo movió > 5°; cualquier orden nueva lo anula. |
+| 3 | Ya arreglado | Igual que GPT #3 (Rev532). |
+| 4 | **Aceptado** | Un sobrepaso leve del rumbo final (o un -10 del patrón que deja el final detrás de la proa) forzaba un giro de 360. Arreglo: en el último tramo, hasta 30° de sobrepaso = llegado. Antes del último tramo se mantiene la vuelta larga pedida (trasluchada de 340°, test existente). |
+| 5 | **Aceptado** | Un eco tardío del objetivo ANTERIOR dentro de la ventana se tomaba como orden externa: el objetivo rebotaba y un segundo +1 contaba desde el valor viejo. Arreglo: se guarda el valor previo y ese eco se descarta. Test: +1 +1 = 42 aunque llegue el eco viejo 40. |
+| 6 | **Aceptado** | `adjustTarget` sin normalizar: -10 en 005 salía -5. Mismo arreglo que #1. Test: 355. |
+| 7 | **Aceptado** | La virada virtual leía primero `navigation.headingTrue` y escribía esos rumbos a pypilot en su marco magnético. En Vigo la diferencia es 0.9°, con 15° de declinación serían 15°. Arreglo: primero `ap.heading` de pypilot. |
+| 8 | Descartado | `tack-catchup`: `direction` es el sentido del giro, no la amura final; el signo es correcto. Además solo publica un dato y está a 0 en el barco. |
+| 9 | Descartado | `setNavMode`: si el engage diferido falla, `setState` ya revierte el estado y el visor muestra OFF; no hay "falso enganchado". |
+| 10 | Descartado | Confirmar trasluchada larga solo tras cancelar: decisión de Carlos en Rev515 (7 confirmaciones en una tarde de trasluchadas deliberadas). |
+| 11 | **Aceptado (bajo)** | AUTO WIND con TWA 0..360: 330 se leía como popa. Signal K lo da firmado, pero normalizar no cuesta. Test. |
+| 12 | Descartado | Latencia del ping: solo es un dato mostrado; la vida del enlace usa la hora del último pong. |
+| 13 | Descartado | Tipos de `TackDirection`: compila y el uso es coherente. |

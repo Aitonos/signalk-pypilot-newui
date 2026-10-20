@@ -397,6 +397,23 @@ describe("virtual-tack / recomputeRemainingIntermediates (Rev407 audit H)", () =
     assert.ok(Math.abs(out[1] - deg(340)) < EPS);
   });
 
+  it("Rev532: a small overshoot past the final is 'arrived', not a 360", () => {
+    const out = recomputeRemainingIntermediates({
+      hNowRad: deg(181),
+      finalCompassTargetRad: deg(180),
+      originalDeltaSign: 1,
+      lastLeg: true,
+    });
+    assert.deepEqual(out, []);
+    const back = recomputeRemainingIntermediates({   // sailor's -10 put the final 12 behind
+      hNowRad: deg(100),
+      finalCompassTargetRad: deg(88),
+      originalDeltaSign: 1,
+      lastLeg: true,
+    });
+    assert.deepEqual(back, []);
+  });
+
   it("respects originalDeltaSign — forces long arc when short arc would go the WRONG way", () => {
     // Starting at 10°, wanting to reach 350° via the LONG arc (CCW,
     // negative). Short arc would be +340° (CW), which has sign +1 ≠

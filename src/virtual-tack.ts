@@ -404,11 +404,17 @@ export function awaEmaStep(prevEmaRad: number | null, sampleRad: number, alpha: 
   return normalizeSignedPi(prevEmaRad + alpha * delta);
 }
 
+/** Rev532: past the final by up to this much = arrived (no 360). */
+export const OVERSHOOT_ARRIVED_DEG = 30;
+
 export function recomputeRemainingIntermediates(opts: {
   hNowRad: number;
   finalCompassTargetRad: number;
   originalDeltaSign: number;
   maxStepRad?: number;
+  /** Rev532: only the final step is left. A wrong-sign arc is then an
+   *  overshoot; earlier in the plan it is a requested long way round. */
+  lastLeg?: boolean;
 }): number[] {
   const { hNowRad, finalCompassTargetRad, originalDeltaSign } = opts;
   const maxStepRad = opts.maxStepRad ?? DEFAULT_MAX_STEP_DEG * DEG;
@@ -416,7 +422,11 @@ export function recomputeRemainingIntermediates(opts: {
   let signedArc = normalizeSignedPi(finalCompassTargetRad - hNowRad);
   // If the short arc has the wrong sign (barco se pasó o va al revés),
   // force the LONG way round in the originally requested direction.
+  // Rev532 (Gemini audit #4): except for a small overshoot (the hull
+  // swung a little past the final, or the sailor's -10 moved the final
+  // behind the bow): that is "arrived", not a full extra circle.
   if (originalDeltaSign !== 0 && Math.sign(signedArc) !== originalDeltaSign && signedArc !== 0) {
+    if (opts.lastLeg && Math.abs(signedArc) <= OVERSHOOT_ARRIVED_DEG * DEG) return [];
     signedArc = signedArc > 0 ? signedArc - TWO_PI : signedArc + TWO_PI;
   }
   if (Math.abs(signedArc) < 1e-6) return [];

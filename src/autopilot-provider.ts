@@ -135,7 +135,9 @@ export class AutopilotProvider {
   private _adjustChain: Promise<unknown> = Promise.resolve();
   // Rev68: echo cancellation for local target writes. See setTarget /
   // adjustTarget / receiveValue.
-  private pendingTarget: { value: number; until: number } | null = null;
+  // Rev532 (Gemini audit #5): `prev` = the target before our write, so a
+  // late echo of the OLD value is not mistaken for an external override.
+  private pendingTarget: { value: number; until: number; prev?: number | null } | null = null;
   // Rev70: same treatment for the engaged flag. Without it, a pypilot
   // ap.enabled=false echo can arrive between our POST /engage and the
   // real echo, flip data.engaged to false, push a SK delta, and the
@@ -232,6 +234,21 @@ export class AutopilotProvider {
                 diffRad: diff,
               });
               this.pendingTarget = null;
+              break;
+            }
+            // Rev532 (Gemini audit #5): pypilot's watch can still send the
+            // value from BEFORE our write; keep waiting for the real echo
+            // instead of reverting the target (bounce, lost second nudge).
+            const prevT = this.pendingTarget.prev;
+            if (typeof prevT === "number" && Math.abs(shortestArcRad(rad, prevT)) <= TARGET_ECHO_TOL_RAD) {
+              this.onStageEvent?.("provider", {
+                path: "ap.heading_command",
+                decision: "echo_dropped_stale",
+                reason: "old_value_in_pending_window",
+                rawValue: value,
+                normalizedValue: rad,
+                pendingValue: this.pendingTarget.value,
+              });
               break;
             }
             // Rev350 (Carlos, 2026-09-29, cross-check LLM audit): diff
@@ -604,7 +621,9 @@ export class AutopilotProvider {
     // wind-family crossings trigger the re-anchor).
     if (this.data.engaged) {
       try {
-        this._reAnchorTargetAfterModeChange(oldMode, newMode);
+        if (this._reAnchorTargetAfterModeChange(oldMode, newMode)) {
+          void this._verifyReAnchor(mode, oldMode, newMode);
+        }
       } catch (e: any) {
         // Never fail the mode change on the re-anchor path — worst
         // case we leave the stale target and the sailor corrects with
@@ -621,7 +640,34 @@ export class AutopilotProvider {
    *  something else in the previous mode. Rev295: decision extracted
    *  to src/mode-reanchor.ts (pure, unit-tested). This method only
    *  glues that decision to the pypilot socket. */
-  private _reAnchorTargetAfterModeChange(oldMode: string, newMode: string): void {
+  /** Rev532 (Gemini audit #2): pypilot handles the mode change in its own
+   *  loop and can overwrite the anchor written right after it (same race
+   *  as the tack cancel, Rev515). Wait for the echo + a few loops, anchor
+   *  again on the current measurement, check, rewrite once. Any newer
+   *  order (target, mode, disengage, virtual tack) ends it. */
+  private async _verifyReAnchor(mode: string, oldMode: string, newMode: string): Promise<void> {
+    const tg = this.targetGen, mg = this.modeGen;
+    const stale = () => this.targetGen !== tg || this.modeGen !== mg || !this.data.engaged || this.isVirtualTackActive();
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    try {
+      await this._waitValue("ap.mode", mode, 1500);
+      await sleep(400);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (stale()) return;
+        const d = decideReAnchor(oldMode, newMode, (this.client as any).getValues?.() || {});
+        if (!d.shouldReAnchor || d.valueDeg == null) return;
+        const cmd = Number(((this.client as any).getValues?.() || {})["ap.heading_command"]);
+        const off = Number.isFinite(cmd) ? Math.abs(((cmd - d.valueDeg) % 360 + 540) % 360 - 180) : 999;
+        if (off <= 5) return;
+        // eslint-disable-next-line no-console
+        console.log(`[apProvider.setMode] pypilot moved the anchor to ${Number.isFinite(cmd) ? cmd.toFixed(1) : "?"}deg, rewriting ${d.valueDeg.toFixed(1)}deg`);
+        this.client.set("ap.heading_command", d.valueDeg);
+        await sleep(1200);
+      }
+    } catch { /* best-effort */ }
+  }
+
+  private _reAnchorTargetAfterModeChange(oldMode: string, newMode: string): boolean {
     // Rev407 (Carlos sea trial 2026-10-03, audit O): respect the virtual
     // tack's internal-write flag. If the FSM is driving the pilot, the
     // re-anchor would write ap.heading_command = currentHeading right
@@ -633,13 +679,13 @@ export class AutopilotProvider {
     if (this._vtInternalWrite) {
       // eslint-disable-next-line no-console
       console.log(`[apProvider.setMode] skip re-anchor: FSM driving`);
-      return;
+      return false;
     }
     const values = (this.client as any).getValues?.() || {};
     const d = decideReAnchor(oldMode, newMode, values);
     // eslint-disable-next-line no-console
     console.log(`[apProvider.setMode] re-anchor: ${d.reason}`);
-    if (!d.shouldReAnchor || d.valueDeg == null) return;
+    if (!d.shouldReAnchor || d.valueDeg == null) return false;
     // Push directly to pypilot without going through setTarget() —
     // setTarget bumps targetGen and could race with the modeGen we
     // just claimed. Also bypass echo cancellation: the anchor value is
@@ -648,7 +694,9 @@ export class AutopilotProvider {
     catch (e: any) {
       // eslint-disable-next-line no-console
       console.log(`[apProvider.setMode] re-anchor write failed: ${e?.message || e}`);
+      return false;
     }
+    return true;
   }
 
   /** Rev390: internal flag set by _runVirtualTack around its own
@@ -684,6 +732,11 @@ export class AutopilotProvider {
     if (!Number.isFinite(rad) || Math.abs(rad) > 100) {
       throw new Error(`Invalid target rad: ${rad}`);
     }
+    // Rev532 (Gemini audit #1/#6): send the target in the mode's own
+    // range - compass family 0..360, wind family -180..180. A compass
+    // tack from 120 to starboard went out as -140, and a -10 at 005 as -5
+    // (the SK autopilot API also hands us compass targets as -pi..pi).
+    rad = this._normTargetRad(rad);
     const deg = rad * RAD_TO_DEG;
     // Rev199 (Carlos): trace the values so we can tell whether SK
     // Autopilot API normalises rad to [-pi, pi] BEFORE it reaches us
@@ -711,9 +764,16 @@ export class AutopilotProvider {
     if (stale()) {
       throw new Error("target superseded after write");
     }
+    const prevTarget = typeof this.data.target === "number" ? this.data.target : null;
     this.data.target = rad;
-    this.pendingTarget = { value: rad, until: Date.now() + TARGET_PENDING_MS };
+    this.pendingTarget = { value: rad, until: Date.now() + TARGET_PENDING_MS, prev: prevTarget };
     this.notifyChanged("target");
+  }
+
+  /** Rev532: compass / gps / nav targets in [0, 2pi), wind / true wind in (-pi, pi]. */
+  private _normTargetRad(rad: number): number {
+    const m = String(this.data.mode || "").toLowerCase();
+    return m.includes("wind") ? normalizeSignedPi(rad) : normalizeTwoPi(rad);
   }
 
   private async adjustTarget(rad: number): Promise<void> {
@@ -744,7 +804,7 @@ export class AutopilotProvider {
       }
       if (this.data.engaged) {
         const base = typeof this.data.target === "number" ? this.data.target : 0;
-        const newRad = base + rad;
+        const newRad = this._normTargetRad(base + rad);   // Rev532 (Gemini #6)
         // Rev279 (audit follow-up B): adjustTarget also bumps targetGen
         // so an in-flight absolute setTarget cannot silently overwrite
         // the adjusted value from a retry (and vice versa).
@@ -763,7 +823,7 @@ export class AutopilotProvider {
           throw new Error("target adjust superseded after write");
         }
         this.data.target = newRad;
-        this.pendingTarget = { value: newRad, until: Date.now() + TARGET_PENDING_MS };
+        this.pendingTarget = { value: newRad, until: Date.now() + TARGET_PENDING_MS, prev: base };
         // Rev84: publish ONLY the target delta.
         this.notifyChanged("target");
       } else if (this.allowDodge) {
@@ -903,21 +963,26 @@ export class AutopilotProvider {
    *  precondition) and the _runVirtualTack loop (so the loop sees the same
    *  heading source the planner saw). */
   private _readHeadingRad(): number | null {
-    try {
-      const skH = this.app?.getSelfPath?.("navigation.headingTrue");
-      const v = skH?.value;
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-    } catch { /* noop */ }
+    // Rev532 (Gemini audit #7): the virtual tack writes these headings
+    // back to pypilot as compass targets, so read them in pypilot's own
+    // frame first. navigation.headingTrue adds the variation (and may be
+    // another compass): with 15 deg of variation the first step was
+    // 15 deg off.
+    const values = (this.client as any).getValues?.() || {};
+    const apH = values["ap.heading"];
+    if (typeof apH === "number" && Number.isFinite(apH)) return apH * DEG_TO_RAD;
     try {
       const skH = this.app?.getSelfPath?.("navigation.headingMagnetic");
       const v = skH?.value;
       if (typeof v === "number" && Number.isFinite(v)) return v;
     } catch { /* noop */ }
-    const values = (this.client as any).getValues?.() || {};
-    const apH = values["ap.heading"];
-    if (typeof apH === "number" && Number.isFinite(apH)) return apH * DEG_TO_RAD;
     const imuH = values["imu.heading"];
     if (typeof imuH === "number" && Number.isFinite(imuH)) return imuH * DEG_TO_RAD;
+    try {
+      const skH = this.app?.getSelfPath?.("navigation.headingTrue");
+      const v = skH?.value;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+    } catch { /* noop */ }
     return null;
   }
 
@@ -952,9 +1017,8 @@ export class AutopilotProvider {
       ? rawAngle
       : 100;
     const sign = direction === "port" ? -1 : 1;
-    let newRad = this.data.target + sign * tackAngleDeg * DEG_TO_RAD;
-    while (newRad > Math.PI)  newRad -= 2 * Math.PI;
-    while (newRad < -Math.PI) newRad += 2 * Math.PI;
+    // Rev532 (Gemini audit #1): setTarget puts it in 0..360 for compass.
+    const newRad = this.data.target + sign * tackAngleDeg * DEG_TO_RAD;
     // eslint-disable-next-line no-console
     console.log(`[apProvider.tack] dir=${direction} mode=${modeStr} angle=${tackAngleDeg} tgt ${this.data.target.toFixed(3)} -> ${newRad.toFixed(3)} rad`);
     await this.setTarget(newRad);
@@ -1207,6 +1271,7 @@ export class AutopilotProvider {
               hNowRad: hNow,
               finalCompassTargetRad: finalCompass(),
               originalDeltaSign: Math.sign(geometry.deltaHRad),
+              lastLeg: remainingIntermediates.length <= 1,   // Rev532
             });
           } else {
             // No heading: keep the plan but aim the last step at the new final.
@@ -1229,6 +1294,7 @@ export class AutopilotProvider {
               hNowRad: hNow,
               finalCompassTargetRad: finalCompass(),
               originalDeltaSign: Math.sign(geometry.deltaHRad),
+              lastLeg: remainingIntermediates.length <= 1,   // Rev532
             });
           }
         }

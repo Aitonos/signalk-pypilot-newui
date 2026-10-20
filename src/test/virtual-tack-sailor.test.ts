@@ -308,6 +308,46 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev532: compass targets go out in 0..360 (tack from 120 to starboard = 220, -10 at 005 = 355)", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 120 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      p.receiveValue("ap.mode", "compass");
+      p.receiveValue("ap.heading_command", 120);
+      await (p.toProviderInterface() as any).tack("starboard", "_default");
+      const last = () => Number(sim.writes.filter((w) => w.name === "ap.heading_command").at(-1)?.value);
+      assert.ok(Math.abs(last() - 220) < 0.01, `got ${last()}`);
+    } finally { sim.stop(); }
+    const sim2 = makeSim({ twdDeg: 0, headingDeg: 5 });
+    const p2 = new AutopilotProvider(sim2.client as any, sim2.app);
+    sim2.attach(p2);
+    try {
+      p2.receiveValue("ap.mode", "compass");
+      p2.receiveValue("ap.heading_command", 5);
+      await (p2.toProviderInterface() as any).adjustTarget(-10 * D, "_default");
+      const last2 = Number(sim2.writes.filter((w) => w.name === "ap.heading_command").at(-1)?.value);
+      assert.ok(Math.abs(last2 - 355) < 0.01, `got ${last2}`);
+    } finally { sim2.stop(); }
+  });
+
+  it("Rev532: a late echo of the old target does not revert a nudge", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const quiet = { ...sim.client, set(name: string, value: unknown) { sim.values[name] = value; return true; } };
+    const p = new AutopilotProvider(quiet as any, sim.app);
+    p.receiveValue("ap.modes", ["compass", "wind"]);
+    p.receiveValue("ap.enabled", true);
+    p.receiveValue("ap.mode", "wind");
+    p.receiveValue("ap.heading_command", 40);
+    try {
+      await (p.toProviderInterface() as any).adjustTarget(1 * D, "_default");
+      p.receiveValue("ap.heading_command", 40);     // stale watch tick
+      assert.ok(Math.abs((p.data.target as number) - 41 * D) < 1e-6, "still 41");
+      await (p.toProviderInterface() as any).adjustTarget(1 * D, "_default");
+      assert.ok(Math.abs((p.data.target as number) - 42 * D) < 1e-6, "second +1 counts from 41");
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);

@@ -36,7 +36,9 @@ export interface AutowindInput {
 
 /** Side of the threshold the wind is on, with hysteresis; null in the band. */
 export function desiredSubMode(twaDeg: number, thresholdDeg = AUTOWIND_DEFAULT_THRESHOLD_DEG): WindSubMode | null {
-  const a = Math.abs(twaDeg);
+  // Rev532 (Gemini audit #11): a 0..360 source (330 = 30 to port) must
+  // not read as downwind.
+  const a = Math.abs((((twaDeg % 360) + 540) % 360) - 180);
   if (a >= thresholdDeg + AUTOWIND_HYSTERESIS_DEG) return "true wind";
   if (a <= thresholdDeg - AUTOWIND_HYSTERESIS_DEG) return "wind";
   return null;
@@ -76,7 +78,8 @@ export class AutowindDecider {
   initial(twaDeg: number | null, thresholdDeg?: number): WindSubMode {
     this.pending = null; this.pendingSince = null;
     if (typeof twaDeg !== "number" || !isFinite(twaDeg)) return "wind";
-    return Math.abs(twaDeg) >= (thresholdDeg ?? AUTOWIND_DEFAULT_THRESHOLD_DEG) ? "true wind" : "wind";
+    const a = Math.abs((((twaDeg % 360) + 540) % 360) - 180);
+    return a >= (thresholdDeg ?? AUTOWIND_DEFAULT_THRESHOLD_DEG) ? "true wind" : "wind";
   }
 
   noteSwitch(nowMs: number): void { this.lastSwitchMs = nowMs; }
