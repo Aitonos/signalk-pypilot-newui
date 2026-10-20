@@ -336,3 +336,13 @@ Comprobado sin fallo:
 - `profile` está en el watch de pypilot a 1 Hz: Doctor e importar configuración sí ven el cambio de perfil (si no, fallarían siempre a los 3 s).
 - Las 4 escrituras `ap.tack.state=none` del visor son flujos de cancelación (desconexión, pypilot mudo, fin de tiempo solo con virada nativa, cancelar): que ahora cancelen también la virada virtual es lo correcto.
 - Arranque en la Pi tras el deploy: plugin respondiendo, conectado a pypilot, sin errores en el log.
+
+## Cuarta pasada (Rev543)
+
+| Hallazgo | Evidencia | Arreglo Rev543 |
+|---|---|---|
+| El arreglo de Rev542 podía dejar el objetivo del visor distinto del de pypilot para siempre: pypilot agrupa los ecos del watch por periodo y puede mandar solo el último; si ese último era el valor que nosotros habíamos sustituido (un mando que deshace tu +10), se tomaba por eco propio y no llegaba otro. | Reproducido: +10 (40 → 50), eco 50 agrupado y perdido, llega solo el 40 del mando → el visor seguía en 50 con pypilot gobernando a 40. | Al cerrar la ventana de eco (2.65 s) se toma el último `heading_command` real de pypilot (igual que la reconciliación de `engaged`). Reproducción: 40 tras la ventana. Test. La ráfaga de Rev542 sigue en 43. |
+
+Comprobado: la reconciliación no interfiere con una virada virtual (la
+rama de `heading_command` no tiene lógica de virada y el visor ignora los
+deltas de objetivo durante la virada). Arranque en la Pi sin errores.

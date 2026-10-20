@@ -143,6 +143,29 @@ export class AutopilotProvider {
   // echoes 40, 41, 42 are all ours, not external changes.
   // The value each write replaced counts too (the 40 before the first +1).
   private _recentTargetWrites: { rad: number; ts: number }[] = [];
+  // Forensic Rev543: pypilot's last reported heading_command, and a timer
+  // that takes it when the echo window closes. pypilot's watch can merge
+  // echoes and send only the last one: if that one looks like ours (a
+  // remote putting back the value we replaced) it was dropped, and with
+  // no further echo the visor showed 50 while pypilot steered 40.
+  private _lastRawTargetDeg: number | null = null;
+  private _targetReconcileTimer: ReturnType<typeof setTimeout> | null = null;
+  private _scheduleTargetReconcile(): void {
+    if (this._targetReconcileTimer) clearTimeout(this._targetReconcileTimer);
+    this._targetReconcileTimer = setTimeout(() => {
+      this._targetReconcileTimer = null;
+      if (this.pendingTarget && Date.now() < this.pendingTarget.until) { this._scheduleTargetReconcile(); return; }
+      this.pendingTarget = null;
+      const raw = this._lastRawTargetDeg;
+      if (raw === null || typeof this.data.target !== "number") return;
+      if (Math.abs(shortestArcRad(raw * DEG_TO_RAD, this.data.target)) <= TARGET_ECHO_TOL_RAD) return;
+      // eslint-disable-next-line no-console
+      console.log(`[apProvider] target reconciled to pypilot's last value: ${raw}`);
+      const f = this.receiveValue("ap.heading_command", raw);
+      if (f) this.notifyChanged(f);
+    }, TARGET_PENDING_MS + 150);
+    try { (this._targetReconcileTimer as any).unref?.(); } catch { /* silent */ }
+  }
   private _noteTargetWrite(rad: number, prev: number | null): void {
     const now = Date.now();
     const add = [{ rad, ts: now }];
@@ -218,6 +241,7 @@ export class AutopilotProvider {
     switch (name) {
       case "ap.heading_command":
         if (typeof value === "number") {
+          this._lastRawTargetDeg = value;
           const rad = value * DEG_TO_RAD;
           // Rev68: echo cancellation. When JS pushes a nudge or engage the
           // provider assigns data.target OPTIMISTICALLY and marks pending.
@@ -785,6 +809,7 @@ export class AutopilotProvider {
     this.data.target = rad;
     this.pendingTarget = { value: rad, until: Date.now() + TARGET_PENDING_MS, prev: prevTarget };
     this._noteTargetWrite(rad, prevTarget);
+    this._scheduleTargetReconcile();
     this.notifyChanged("target");
   }
 
@@ -843,6 +868,7 @@ export class AutopilotProvider {
         this.data.target = newRad;
         this.pendingTarget = { value: newRad, until: Date.now() + TARGET_PENDING_MS, prev: base };
         this._noteTargetWrite(newRad, base);
+        this._scheduleTargetReconcile();
         // Rev84: publish ONLY the target delta.
         this.notifyChanged("target");
       } else if (this.allowDodge) {
