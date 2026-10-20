@@ -27,8 +27,27 @@ retiró solo del cron al terminar y se ha borrado; el log se conserva.
   AnchorWatch Pro, ni Home Assistant (`signalk_ha` usa WebSocket y
   descubrimiento cada 24 h), ni AvNav (`receiveNotifications="false"`).
 - Conexiones persistentes a :3000: 7 desde el portátil `carlos-tt`
-  (Tailscale), 5 locales, TinyPilot, tablet. El origen probable es una
-  pestaña / app abierta en el portátil. **Pendiente: identificarla.**
+  (Tailscale), 5 locales, TinyPilot, tablet.
+- Primera sospecha descartada: con Firefox del portátil cerrado (incl.
+  Freeboard) la tasa seguía igual. Tampoco es `signalk-collision-alerts`
+  (crea las alarmas con la API interna, sin HTTP).
+- **Causa real**: 1 988 conexiones TIME-WAIT desde `::1` (una por
+  consulta). Eran **73 ventanas emergentes de OpenPlotter Notifications**
+  (`/usr/bin/openplotter-notifications-visual`), abiertas desde el
+  18-oct 02:06: 70 alarmas de colisión de barcos amarrados al lado (CPA
+  0.01-0.03 NM, estado `alarm`) y 2 de nuestras `steer-*`. Cada ventana
+  hace un GET REST de su alarma cada 2 s (`visual.py`, `wx.Timer(2000)`)
+  y solo se cierra sola si su nivel tiene autoclose; en
+  `~/.openplotter/openplotter.conf`: `visualalarm = [..., False]`,
+  `visualemergency = [..., False]`. **Sumaban 3.3 GB de RAM.**
+- Cerradas a mano (kill por PID) el 2026-10-20 16:3x: GET de
+  notificaciones 35/s → 0, log de SK ~1 000 → 13 líneas / 30 s,
+  memoria disponible 1.6 → 4.2 GB.
+- **Para que no vuelva** (decisión de Carlos, configuración de
+  OpenPlotter → Notifications): marcar auto-cierre en el nivel
+  "alarm" (y "emergency"), y/o ignorar
+  `notifications.navigation.closestApproach` en los avisos visuales (el
+  visor de pypilot-newui ya muestra las alarmas AIS en la rosa).
 
 ## Memoria del sistema (fuera de SK)
 
@@ -38,4 +57,5 @@ retiró solo del cron al terminar y se ha borrado; el log se conserva.
   - `lxpanel` (panel LXDE): **362 MB** (normal ~40 MB): fuga.
   - Home Assistant 330 MB, AvNav 143 MB: normales.
 - El cron reinicia SK pero no dbus ni lxpanel. Un reinicio de la Pi los
-  limpia; si vuelve, buscar quién llena dbus.
+  limpia. Muy probablemente crecieron por las 73 ventanas emergentes
+  (cada una es una ventana wx del escritorio LXDE).
