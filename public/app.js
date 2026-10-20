@@ -9657,7 +9657,15 @@
   // the sea trial 2026-09-27 alarms disparaban por doquier durante
   // esas maniobras porque `ap.tack.state` seguía en "none" y el gate
   // Rev311 no las cazaba.
+  // Rev534: the backend forgets the flag after 60 s unless renewed, so a
+  // closed browser cannot leave the alarms silenced. Renew every 20 s.
+  let _maneuverPseudoTimer = null;
   function _setManeuverPseudo(active) {
+    try { if (_maneuverPseudoTimer) { clearInterval(_maneuverPseudoTimer); _maneuverPseudoTimer = null; } } catch { /* silent */ }
+    if (active) _maneuverPseudoTimer = setInterval(() => _postManeuverPseudo(true), 20000);
+    _postManeuverPseudo(active);
+  }
+  function _postManeuverPseudo(active) {
     try {
       skFetch(`/plugins/${PLUGIN_ID}/maneuver-state`, {
         method: "POST",

@@ -70,3 +70,18 @@ describe("steer alarms (Rev508)", () => {
     assert.equal(r.evaluate(ctx({ kpis: kpis(40, null), steer: steer({ dirFault: true }), maneuverInProgress: true })), false);
   });
 });
+
+describe("Rev534: ack is published on the next tick", () => {
+  it("an acked alarm with a steady message still comes back in tick()", async () => {
+    const { AlarmEngine } = await import("../alarms");
+    const rule = { id: "x", label: "X", severity: "alarm" as const, defaultEnabled: true, sustainSec: 0,
+      description: "", evaluate: () => true, message: () => "same" };
+    const eng = new AlarmEngine([rule as any]);
+    const ctx = { nowMs: 1000 } as any;
+    assert.deepEqual(eng.tick(ctx), ["x"], "fires");
+    assert.deepEqual(eng.tick({ nowMs: 2000 } as any), [], "steady");
+    assert.ok(eng.ack("x", 2500));
+    assert.deepEqual(eng.tick({ nowMs: 3000 } as any), ["x"], "ack republished (sound dropped)");
+    assert.deepEqual(eng.tick({ nowMs: 4000 } as any), []);
+  });
+});

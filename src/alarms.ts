@@ -530,6 +530,10 @@ export class AlarmEngine {
   private readonly state = new Map<string, RuleRuntimeState>();
   private readonly history: (ActiveAlarm & { clearedAtMs: number })[] = [];
   private readonly historySize: number;
+  // Rev534 (GPT review 2 #7): ack changes the published notification
+  // (drops "sound"); the next tick must publish it even if nothing else
+  // changed.
+  private readonly pendingPublish = new Set<string>();
 
   constructor(rules: RuleDef[] = DEFAULT_RULES, opts: AlarmEngineOptions = {}) {
     this.historySize = Math.max(10, opts.historySize ?? 50);
@@ -556,7 +560,8 @@ export class AlarmEngine {
    *  this tick (fired, cleared, or message updated) so the caller can
    *  publish only the deltas as SK notifications. */
   tick(ctx: EvalContext): string[] {
-    const changed: string[] = [];
+    const changed: string[] = [...this.pendingPublish];
+    this.pendingPublish.clear();
     for (const [id, rule] of this.rules) {
       const s = this.state.get(id)!;
       if (!s.enabled) {
@@ -595,7 +600,7 @@ export class AlarmEngine {
         }
       }
     }
-    return changed;
+    return [...new Set(changed)];
   }
 
   /** Rev342 (Carlos, 2026-09-28): override the severity of one rule
@@ -659,6 +664,7 @@ export class AlarmEngine {
     const s = this.state.get(ruleId);
     if (!s || !s.active) return false;
     s.ackedAtMs = nowMs;
+    this.pendingPublish.add(ruleId);
     return true;
   }
 

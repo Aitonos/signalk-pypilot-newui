@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev533";
+const PLUGIN_REVISION = "Rev534";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -360,7 +360,7 @@ module.exports = function (app: any) {
   let _gustLastSuppressReason: string | null = null;
   // "boost-D" bookkeeping: original D per pilot so we can restore.
   let _gustBoostUntilMs: number | null = null;
-  let _gustBoostRestoreGain: { pilot: string; key: "D"; value: number } | null = null;
+  let _gustBoostRestoreGain: { pilot: string; key: "D"; value: number; boosted?: number } | null = null;
   // "temp-heavy" bookkeeping: original profile so we can restore.
   let _gustHeavyUntilMs: number | null = null;
   let _gustHeavyRestoreProfile: string | null = null;
@@ -475,6 +475,12 @@ module.exports = function (app: any) {
   // en modo wind pypilot NO obedece y ap.tack.state se queda en "none"
   // aunque el visor estÃ© pilotando la maniobra por otras vÃ­as.
   let _maneuverPseudoActive = false;
+  // Rev534 (GPT review 2 #1): the visor renews it every 20 s; a closed or
+  // disconnected browser must not silence the heading alarms (and block
+  // AUTO WIND) for ever.
+  const MANEUVER_PSEUDO_TTL_MS = 60_000;
+  let _maneuverPseudoUntil = 0;
+  const _pseudoActive = (): boolean => _maneuverPseudoActive && Date.now() < _maneuverPseudoUntil;
   let lastNavState: string | null = null;
   let sessionSampleTimer: NodeJS.Timeout | null = null;
   let lastEngagedState = false;
@@ -1383,6 +1389,9 @@ module.exports = function (app: any) {
         }
       });
       router.post("/config/import", (req: any, res: any) => {
+        // Rev534 (GPT review 2 #4): importing writes to pypilot and to the
+        // plugin options; it needs writes enabled.
+        if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
         if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
         const bundle = req.body as ConfigBundle;
         const err = validateBundle(bundle);
@@ -1398,7 +1407,8 @@ module.exports = function (app: any) {
           const anyApp = app as any;
           if (bundle.pluginOptions && typeof anyApp.savePluginOptions === "function") {
             try {
-              const merged = { ...props, ...bundle.pluginOptions };
+              // Rev534: a backup never changes the write permission itself.
+              const merged = { ...props, ...bundle.pluginOptions, allowWrites: props.allowWrites };
               anyApp.savePluginOptions(merged, (_e: any) => { /* silent */ });
               pluginOptionsSaved = true;
             } catch { /* silent */ }
@@ -1881,6 +1891,10 @@ module.exports = function (app: any) {
             setAt: Date.now(),
           };
         }
+        // Rev534: a raw "none" (cancel) also ends a running virtual tack.
+        if (name === "ap.tack.state" && value === "none" && apProvider && apProvider.isVirtualTackActive()) {
+          apProvider.cancelVirtualTack("raw tack cancel");
+        }
         if (
           name === "ap.tack.state" &&
           value === "begin" &&
@@ -2049,7 +2063,8 @@ module.exports = function (app: any) {
           if (typeof v === "number") hNowDeg = v * RAD2DEG;
         } catch { /* noop */ }
         res.json({
-          active: vt.phase !== "idle" && vt.phase !== "done" && vt.phase !== "abort",
+          // Rev534 (GPT review 2 #8): the real terminal phases.
+          active: !["idle", "completed", "cancelled", "failed", "done", "abort"].includes(String(vt.phase)),
           phase: vt.phase,
           direction: vt.direction,
           windMode: vt.windMode,
@@ -3125,14 +3140,15 @@ module.exports = function (app: any) {
       // POSTs {active:true} on aproadoExecute / empopadoExecute and
       // {active:false} on their teardowns. Independent of trace log.
       router.get("/maneuver-state", (_req: any, res: any) => {
-        res.json({ pseudoActive: _maneuverPseudoActive });
+        res.json({ pseudoActive: _pseudoActive() });
       });
       router.post("/maneuver-state", (req: any, res: any) => {
         const body = req.body || {};
         if (typeof body.active === "boolean") {
           _maneuverPseudoActive = body.active;
+          _maneuverPseudoUntil = body.active ? Date.now() + MANEUVER_PSEUDO_TTL_MS : 0;
         }
-        res.json({ ok: true, pseudoActive: _maneuverPseudoActive });
+        res.json({ ok: true, pseudoActive: _pseudoActive() });
       });
       const validKinds: ManeuverEventKind[] = [
         "aproado_start", "aproado_pick", "aproado_teardown",
@@ -4184,8 +4200,12 @@ module.exports = function (app: any) {
   }
   function _readTwaRad(): number | null {
     try {
-      const v = app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null;
-      return typeof v === "number" && isFinite(v) ? v : null;
+      // Rev534: angleTrueGround as the sampler does when Water is missing.
+      for (const p of ["environment.wind.angleTrueWater.value", "environment.wind.angleTrueGround.value"]) {
+        const v = app.getSelfPath ? app.getSelfPath(p) : null;
+        if (typeof v === "number" && isFinite(v)) return v;
+      }
+      return null;
     } catch { return null; }
   }
   // Rev176 (Carlos): hdgErr depends on the AP mode. In compass/gps/nav
@@ -4236,6 +4256,12 @@ module.exports = function (app: any) {
       })
       .catch((e: any) => { _steerRecoveryLastResult = `error: ${e?.message || e}`; })
       .finally(() => { _steerRecoveryInFlight = false; });
+  }
+  // Rev534 (GPT review 2 #2): "cancel tack" from KIP / a switch / /raw
+  // stops our virtual tack too, not only pypilot's native one.
+  function _cancelAnyTack(why: string): void {
+    try { if (apProvider && apProvider.isVirtualTackActive()) apProvider.cancelVirtualTack(why); } catch { /* silent */ }
+    try { client?.set("ap.tack.state", "none"); } catch { /* silent */ }
   }
   // Rev525 (Carlos 2026-10-20): black box. See src/black-box.ts.
   function _bbTrigger(kind: string, detail: string): void {
@@ -4371,8 +4397,12 @@ module.exports = function (app: any) {
   }
   function _autowindTwsKn(): number | null {
     try {
-      const v = app.getSelfPath ? app.getSelfPath("environment.wind.speedTrue.value") : null;
-      return typeof v === "number" && isFinite(v) ? v * 1.94384 : null;
+      // Rev534 (GPT review 2 #6): same sources as the sampler.
+      for (const p of ["environment.wind.speedTrue.value", "environment.wind.speedOverGround.value"]) {
+        const v = app.getSelfPath ? app.getSelfPath(p) : null;
+        if (typeof v === "number" && isFinite(v)) return v * 1.94384;
+      }
+      return null;
     } catch { return null; }
   }
   function _autowindTick(): void {
@@ -4380,7 +4410,7 @@ module.exports = function (app: any) {
     const mode = String(apProvider.data.mode || "").toLowerCase();
     const blocked = apProvider.isVirtualTackActive()
       || !!(_tackStatePrev && _tackStatePrev !== "none")
-      || _maneuverPseudoActive;
+      || _pseudoActive();
     // Sailor (remote, TinyPilot, KIP) moved to compass/gps: AUTOWIND
     // ends, like picking another mode in the visor. 5 s so a transient
     // write race never switches it off.
@@ -4564,7 +4594,7 @@ module.exports = function (app: any) {
       if (typeof currentD !== "number" || currentD <= 0) return;
       const boostedD = currentD * 1.20;
       _gustBoostUntilMs = now + GUST_BOOST_SEC * 1000;
-      _gustBoostRestoreGain = { pilot, key: "D", value: currentD };
+      _gustBoostRestoreGain = { pilot, key: "D", value: currentD, boosted: boostedD };
       try { client.set(key, boostedD); } catch { /* silent */ }
       _emitAdvisoryNotification("gust-boost-d",
         `Gust ${summary}: D boosted ${currentD.toFixed(4)} -> ${boostedD.toFixed(4)} for ${GUST_BOOST_SEC} s`);
@@ -4600,12 +4630,18 @@ module.exports = function (app: any) {
   function _releaseGustStrategiesIfExpired(now: number): void {
     if (_gustBoostUntilMs != null && now >= _gustBoostUntilMs) {
       const r = _gustBoostRestoreGain;
-      if (client && r) {
+      // Rev534 (GPT review 2 #5): restore only if D is still our boosted
+      // value on the same pilot; a manual change in the window wins.
+      const vals = client ? client.getValues() : {};
+      const nowD = r ? vals[`ap.pilot.${r.pilot}.${r.key}`] : null;
+      const untouched = !!r && vals["ap.pilot"] === r.pilot
+        && typeof nowD === "number" && typeof r.boosted === "number" && Math.abs(nowD - r.boosted) < 1e-4;
+      if (client && r && untouched) {
         try { client.set(`ap.pilot.${r.pilot}.${r.key}`, r.value); } catch { /* silent */ }
       }
       _gustBoostUntilMs = null;
       _gustBoostRestoreGain = null;
-      _emitAdvisoryNotification("gust-boost-d", "D restored to pre-gust value");
+      _emitAdvisoryNotification("gust-boost-d", untouched ? "D restored to pre-gust value" : "D changed during the gust window - not restoring");
     }
     if (_gustHeavyUntilMs != null && now >= _gustHeavyUntilMs) {
       if (client && _gustHeavyRestoreProfile != null) {
@@ -4871,7 +4907,7 @@ module.exports = function (app: any) {
       // refleja el Ãºltimo valor conocido de pypilot.
       maneuverInProgress: !!(_tackStatePrev && _tackStatePrev !== "none"),
       // Rev323 (Carlos, 2026-09-27): flag pseudo-modo del visor.
-      maneuverPseudoActive: _maneuverPseudoActive,
+      maneuverPseudoActive: _pseudoActive(),
       // Rev508: stuck pilot / recovery / external disengage.
       steer: steerWatch.snapshot(),
     };
@@ -5623,17 +5659,33 @@ module.exports = function (app: any) {
       return null;
     };
 
+    // Rev534 (GPT review 2 #3): engage / disengage from a PUT. Signal K
+    // async PUT: PENDING now, the real result through the callback.
+    const _engagePut = (b: boolean, path: string, cb?: (r: any) => void, after?: () => void) => {
+      const iface = apProvider!.toProviderInterface() as any;
+      const p: Promise<unknown> = b ? iface.engage(apProvider!.deviceId) : iface.disengage(apProvider!.deviceId);
+      app.error(`[pypilot-newui ACTION] PUT ${path} value=${JSON.stringify(b)}`);
+      p.then(
+        () => { try { after?.(); } catch { /* silent */ } cb?.({ state: "COMPLETED", statusCode: 200 }); },
+        (e: any) => {
+          try { after?.(); } catch { /* silent */ }
+          app.error(`[pypilot-newui ACTION] ${path} ${b ? "engage" : "disengage"} failed: ${e?.message || e}`);
+          cb?.({ state: "COMPLETED", statusCode: 502, message: `${b ? "engage" : "disengage"} failed: ${e?.message || e}` });
+        },
+      );
+      return cb ? { state: "PENDING" } : { state: "COMPLETED", statusCode: 200 };
+    };
+
     // ENGAGE - bool. true=engage, false=disengage.
     try {
-      app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.engage`, (_c: string, _p: string, value: unknown) => {
+      app.registerPutHandler("vessels.self", `${ACTIONS_PREFIX}.engage`, (_c: string, _p: string, value: unknown, cb?: (r: any) => void) => {
         if (!props.allowWrites) return writesOff();
         const b = coerceBool(value);
         if (b === null) return bad("value must be boolean-like (true/false/1/0/on/off)");
         if (!client?.connected) return noConn();
         if (apProvider) {
-          const iface = apProvider.toProviderInterface() as any;
-          if (b) iface.engage(apProvider.deviceId).catch(() => {});
-          else iface.disengage(apProvider.deviceId).catch(() => {});
+          // Rev534 (GPT review 2 #3): answer with what really happened.
+          return _engagePut(b, `${ACTIONS_PREFIX}.engage`, cb);
         } else {
           client.set("ap.enabled", b);
         }
@@ -5671,7 +5723,7 @@ module.exports = function (app: any) {
         if (typeof value !== "string") return bad("value must be a string");
         if (!client?.connected) return noConn();
         if (value === "cancel") {
-          client.set("ap.tack.state", "none");
+          _cancelAnyTack("KIP tack cancel");
           return okLog(`${ACTIONS_PREFIX}.tack`, "cancel");
         }
         if (value !== "port" && value !== "starboard") return bad("value must be port, starboard or cancel");
@@ -5754,7 +5806,7 @@ module.exports = function (app: any) {
         if (n === null) return bad("value must be 1 (port) / 2 (starboard) / 0 (cancel)");
         if (!client?.connected) return noConn();
         if (n === 0) {
-          client.set("ap.tack.state", "none");
+          _cancelAnyTack("KIP tackInt cancel");
           return okLog(`${ACTIONS_PREFIX}.tackInt`, "cancel");
         }
         const dir = n === 1 ? "port" : n === 2 ? "starboard" : null;
@@ -5800,15 +5852,23 @@ module.exports = function (app: any) {
     // .actions.engage. Kip lists this instantly under any switch selector.
     const SW_ENGAGE = "electrical.switches.pypilot.ap.state";
     try {
-      app.registerPutHandler("vessels.self", SW_ENGAGE, (_c: string, _p: string, value: unknown) => {
+      app.registerPutHandler("vessels.self", SW_ENGAGE, (_c: string, _p: string, value: unknown, cb?: (r: any) => void) => {
         if (!props.allowWrites) return writesOff();
         const b = coerceBool(value);
         if (b === null) return bad("value must be boolean-like");
         if (!client?.connected) return noConn();
         if (apProvider) {
-          const iface = apProvider.toProviderInterface() as any;
-          if (b) iface.engage(apProvider.deviceId).catch(() => {});
-          else iface.disengage(apProvider.deviceId).catch(() => {});
+          // Rev534 (GPT review 2 #3): the switch mirrors the CONFIRMED
+          // state, not the requested one.
+          return _engagePut(b, SW_ENGAGE, cb, () => {
+            try {
+              app.handleMessage(PLUGIN_ID, {
+                context: "vessels." + app.selfId,
+                updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(),
+                  values: [{ path: SW_ENGAGE, value: apProvider?.data.engaged ? 1 : 0 }] }],
+              });
+            } catch { /* silent */ }
+          });
         } else {
           client.set("ap.enabled", b);
         }
@@ -5929,7 +5989,7 @@ module.exports = function (app: any) {
     };
     const doTackCancel = () => {
       if (!client) return;
-      client.set("ap.tack.state", "none");
+      _cancelAnyTack("switch tack cancel");
     };
     registerMomentaryBool(`${SW_TACK_PREFIX}.port`,      "Tack Port",      () => doTack("port"));
     registerMomentaryBool(`${SW_TACK_PREFIX}.starboard`, "Tack Starboard", () => doTack("starboard"));

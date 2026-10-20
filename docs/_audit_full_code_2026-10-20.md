@@ -167,3 +167,23 @@ arreglados en Rev533, 6 descartados con motivo.
 | 11 | **Aceptado (bajo)** | AUTO WIND con TWA 0..360: 330 se leía como popa. Signal K lo da firmado, pero normalizar no cuesta. Test. |
 | 12 | Descartado | Latencia del ping: solo es un dato mostrado; la vida del enlace usa la hora del último pong. |
 | 13 | Descartado | Tipos de `TackDirection`: compila y el uso es coherente. |
+
+## Revisión externa GPT — bloque 2 (`src/index.ts`)
+
+Los 8 hallazgos verificados en el código y arreglados en Rev534.
+
+| # | Gravedad | Fallo | Arreglo Rev534 |
+|---|---|---|---|
+| 1 | Crítico | `/maneuver-state` (aproado / empopado del visor) era un booleano sin caducidad: un navegador cerrado a mitad dejaba silenciadas las alarmas de desvío / deriva / sin gobierno y bloqueado AUTO WIND para siempre. | Caduca a los 60 s; el visor lo renueva cada 20 s mientras dura la maniobra. |
+| 2 | Crítico | "Cancelar virada" desde KIP (`actions.tack=cancel`, `tackInt=0`, interruptor) solo escribía `ap.tack.state=none`: la virada virtual seguía. | `_cancelAnyTack` cancela también la virada virtual. Lo mismo un `none` por `/raw`. |
+| 3 | Crítico | Engage / disengage por PUT (KIP, interruptor) respondía 200 antes de saber el resultado; el interruptor publicaba el estado PEDIDO. | PUT asíncrono de Signal K: `PENDING` y el resultado real por callback (502 si falla). El interruptor refleja el estado confirmado. |
+| 4 | Alto | `/config/import` sin `allowWrites`, y podía reactivarlo. (Era mi B1.) | Exige `allowWrites`; el backup nunca cambia `allowWrites`. |
+| 5 | Alto | Racha "D +20 %": al acabar restauraba el D viejo aunque el patrón lo hubiera cambiado. | Solo restaura si D sigue siendo el valor subido y el mismo piloto. |
+| 6 | Alto | AUTO WIND solo leía `speedTrue` / `angleTrueWater`. | Mismo orden de fuentes que el muestreador (`speedOverGround`, `angleTrueGround`). |
+| 7 | Alto | ACK de alarma no se publicaba si el mensaje no cambiaba: el resto de apps (OpenPlotter, KIP) seguían con "sound". | El ACK fuerza la publicación en el siguiente tick. Test. |
+| 8 | Medio | `/virtual-tack/status` daba `active:true` en `completed/cancelled/failed`. | Fases terminales reales. |
+
+Pendiente menor (no tocado): otras acciones PUT (nudge, tack) también
+responden 200 sin esperar el resultado, y `/ap/tack/:direction` sin
+proveedor responde ok aunque las escrituras fallen (en el barco el
+proveedor siempre está activo).
