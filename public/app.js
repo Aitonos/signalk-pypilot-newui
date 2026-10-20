@@ -3078,6 +3078,14 @@
           break;
         }
         state.target = numericOrNull(value);
+        // Rev539 (GPT review 5 #6): a target we did not send (remote, KIP,
+        // another visor) restarts the +-1/+-10 burst from it.
+        if (state.localTargetRad != null && typeof state.target === "number") {
+          const near = (a, b) => Math.abs((((a - b) * RAD2DEG) % 360 + 540) % 360 - 180) < 0.6;
+          const nowT = Date.now();
+          const mine = _recentSentTargets.some((x) => nowT - x.ts < 3000 && near(state.target, x.rad));
+          if (!mine && !near(state.target, state.localTargetRad)) state.localTargetRad = null;
+        }
         renderTargetArrow();
         break;
       case "steering.autopilot.autowind": {
@@ -3431,12 +3439,16 @@
       case "environment.wind.angleTrueGround":
         state.windAngleTrue = numericOrNull(value); break;
       case "environment.wind.speedTrue":
-        state.windSpeedTrue = numericOrNull(value); break;
+        state.windSpeedTrue = numericOrNull(value);
+        state._twsPrimaryTs = Date.now();
+        break;
       case "environment.wind.speedOverGround":
         // Rev146: use as TWS fallback only when the canonical
         // speedTrue path is missing (some SK setups do publish
         // speedTrue via NMEA MWD - respect that value first).
-        if (state.windSpeedTrue == null) state.windSpeedTrue = numericOrNull(value);
+        // Rev539 (GPT review 5 #11): "missing" = no speedTrue in the last
+        // 10 s; before, the first fallback value froze for good.
+        if (!state._twsPrimaryTs || Date.now() - state._twsPrimaryTs > 10000) state.windSpeedTrue = numericOrNull(value);
         break;
       case "navigation.speedOverGround":
         state.sog = numericOrNull(value); renderCogAndCurrent(); renderRoseBottomChip();
@@ -5090,7 +5102,7 @@
     if (aisMode === "anchor") return !(sog != null && sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS);
     return sog != null && sog < AIS_IGNORE_SOG_MS;
   }
-  function _handleAisAlarmDelta(path, value) {
+  function _handleAisAlarmDelta(path, value, _retry) {
     // Rev434: respect the "AIS collision alarm" overlay toggle. Still
     // keep the state.aisAlarms Map in sync so the first ACK after a
     // re-enable finds the real id — but skip voice + render.
@@ -5135,6 +5147,15 @@
     //                                long-standing stationary filter
     //                                (SOG < 0.08 m/s) drops entries.
     const modeSilenced = _aisGateSilenced(mmsi);
+    // Rev539 (GPT review 5 #7): at anchor a target with UNKNOWN speed was
+    // silenced and its speed never fetched (the fetch sat in the other
+    // branch): a fast new threat stayed invisible. Fetch, then re-decide.
+    if (modeSilenced && !_retry && isActive && _aisMode() === "anchor"
+        && _aisEffectiveSog(state.aisTargetPos.get(mmsi)) == null) {
+      _aisRefreshTargetPos(mmsi)
+        .then(() => { if (!_aisGateSilenced(mmsi)) _handleAisAlarmDelta(path, value, true); })
+        .catch(() => {});
+    }
     if (modeSilenced) {
       state.aisAlarms.delete(mmsi);
     } else if (!value || !isActive) {
@@ -9740,6 +9761,10 @@
   // updated by handleDelta's case "steering.autopilot.mode".
   async function apSetModeAndWait(mode, timeoutMs = 2500) {
     const r = await apSetMode(mode);
+    // Rev539 (GPT review 5 #3): a refused or unconfirmed mode change must
+    // stop the caller - the target that follows means something else in
+    // the old mode (AWA 0 in compass = steer north).
+    if (!r || r.ok === false) throw new Error(`mode ${mode} refused (${r && r.status ? r.status : "no response"})`);
     const start = Date.now();
     const target = String(mode).toLowerCase();
     while (Date.now() - start < timeoutMs) {
@@ -9749,13 +9774,17 @@
       }
       await new Promise((res) => setTimeout(res, 50));
     }
-    console.warn(`[apSetModeAndWait] timeout ${timeoutMs} ms waiting for state.mode="${mode}" (current: "${state.mode}") — continuing anyway`);
+    console.warn(`[apSetModeAndWait] timeout ${timeoutMs} ms waiting for state.mode="${mode}" (current: "${state.mode}") — aborting`);
     _mtLog("other", { via: "apSetModeAndWait", name: "timeout", requested: mode, current: state.mode });
-    return r;
+    throw new Error(`mode ${mode} not confirmed in ${timeoutMs} ms`);
   }
+  // Rev539 (GPT review 5 #6): targets this visor sent in the last seconds,
+  // to tell our own echoes from a change made elsewhere.
+  let _recentSentTargets = [];
   async function apSetTargetRad(rad) {
     if (_pypilotWriteBlocked("apSetTargetRad")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
+    try { _recentSentTargets.push({ rad, ts: Date.now() }); _recentSentTargets = _recentSentTargets.slice(-10); } catch { /* silent */ }
     // Rev415 (Carlos sea trial 2026-10-04, obs #1 "nudges silenciosos"):
     // enrich the target_put trace so a stale UI vs real-write mismatch
     // is diagnosable without correlating by timestamp. Includes the
@@ -9989,6 +10018,8 @@
       // otherwise pypilot interprets target=0 as compass heading 0
       // instead of AWA=0 (bug #1 Sprint K sea trial 2026-09-28).
       await apSetModeAndWait("wind");
+      // Rev539 (GPT review 5 #2): cancelled while waiting -> write nothing.
+      if (state.aproado !== apr || apr.phase !== "transit") return;
       if (apr.direction === "bow" || state.windAngle == null) {
         // PROA: shortest path (pypilot's default) is bow-through when
         // starting from close-hauled or reaching. Also fallback for POPA
@@ -10010,6 +10041,7 @@
         apr._targetIsFinal = false;
         aproadoForceStern(state.windAngle);   // fire-and-forget async
       }
+      if (state.aproado !== apr || apr.phase !== "transit") return;
       if (!state.engaged) await apEngage();
     } catch (e) {
       console.warn("aproado: mode/target/engage failed", e);
@@ -10411,11 +10443,14 @@
       // src/index.ts). Rev359 apSetModeAndWait espera el eco antes
       // del target write.
       await apSetModeAndWait("true wind");
+      // Rev539 (GPT review 5 #2): cancelled while waiting -> write nothing.
+      if (state.empopado !== ap || ap.phase !== "transit") return;
       // Target TWA = π - 0.001 (viento por popa). Usamos ligeramente
       // menos de π para evitar que pypilot normalice al opuesto.
       const targetRad = Math.PI - 0.001;
       await apSetTargetRad(targetRad);
       ap._targetIsFinal = true;
+      if (state.empopado !== ap || ap.phase !== "transit") return;
       if (!state.engaged) await apEngage();
       console.info(`empopado: dir=${ap.direction} mode="true wind" target=${targetRad.toFixed(3)} engage sent`);
     } catch (e) {
@@ -10639,11 +10674,14 @@
     const snap = ap.snapshot || {};
     // Rev320: restaurar hot gains ANTES del profile (mismo orden que
     // empopadoFinish; ver comentario allí para el racional).
-    _empopadoRestoreHotGains(ap).catch(() => {});
-    if (ap._profileSwapped && snap.profile && snap.profile !== ap._profileSwapped) {
-      try { pluginRaw("profile", snap.profile).catch(() => {}); }
-      catch { /* silent */ }
-    }
+    // Rev539 (GPT review 5 #9): wait for the gain restore before switching
+    // profile, or the last gains land on the original profile.
+    const swapped = ap._profileSwapped;
+    _empopadoRestoreHotGains(ap).catch(() => {}).then(() => {
+      if (swapped && snap.profile && snap.profile !== swapped) {
+        try { pluginRaw("profile", snap.profile).catch(() => {}); } catch { /* silent */ }
+      }
+    });
     if (restoreAll) {
       if (snap.mode) { try { apSetMode(snap.mode).catch(() => {}); } catch {} }
       if (typeof snap.targetRad === "number") { try { apSetTargetRad(snap.targetRad).catch(() => {}); } catch {} }
@@ -10673,6 +10711,9 @@
     // summary shows a meaningful "0:00" instead of NaN.
     if (apr.startTs == null) apr.startTs = apr.endTs;
     apr.phase = "summary";
+    // Rev539 (GPT review 5 #1): the manoeuvre is over - stop renewing the
+    // "manoeuvre active" flag that silences the heading alarms.
+    _setManeuverPseudo(false);
     const hud = _aproadoHud();
     if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
     _setPhase("summary");
@@ -11009,6 +11050,7 @@
           state.localTargetRad = _countdownPlannedTargetRad ?? state.target ?? state.heading;
         }
         state.lastNudgeTs = now;
+        const nudgeMode = String(state.mode || "");   // Rev539 (GPT review 5 #5)
         // Rev226/230 (Carlos): botones = "swing the bow to the
         // labelled side". kindToDelta ya carga el signo del lado
         // (port -, stbd +).
@@ -11066,6 +11108,8 @@
         _nudgeSendTimer = setTimeout(() => {
           _nudgeSendTimer = null;
           if (gen !== _nudgeGeneration) return; // stale fire
+          // Rev539 (GPT review 5 #5): computed in another mode -> meaningless now.
+          if (String(state.mode || "") !== nudgeMode) { state.localTargetRad = null; return; }
           const finalTarget = state.localTargetRad ?? newTargetRad;
           const overlayOpen = document.getElementById("tack-countdown-overlay")?.style.display !== "none";
           if (overlayOpen && _tackCountdownPhase === "arming") {
@@ -11355,10 +11399,12 @@
         }
         renderTargetArrow();
         if (newTargetRad != null) {
-          Promise.all([
-            apSetMode(chosen),
-            apSetTargetRad(newTargetRad),
-          ]).catch(() => { /* silent */ });
+          // Rev539 (GPT review 5 #4): in sequence - a wind angle that lands
+          // before the mode is a compass heading for pypilot.
+          (async () => {
+            try { await apSetModeAndWait(chosen); await apSetTargetRad(newTargetRad); }
+            catch (e) { console.warn("[mode-select]", e && e.message); }
+          })();
         } else {
           apSetMode(chosen);
         }
@@ -16100,8 +16146,13 @@
         await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
         return;
       }
-      await pluginRaw("profile", newName);
-      await new Promise((r) => setTimeout(r, 500));
+      // Rev539 (GPT review 5 #10): the gains go into the NEW profile only
+      // once pypilot confirms it is active; otherwise nothing is written.
+      const pr = await pluginRaw("profile", newName);
+      if (!pr || pr.ok === false) throw new Error(`profile '${newName}' not created`);
+      const tP = Date.now();
+      while (Date.now() - tP < 3000 && state.profile !== newName) await new Promise((r) => setTimeout(r, 100));
+      if (state.profile !== newName) throw new Error(`pypilot did not switch to '${newName}' - nothing imported`);
       const prefix = `ap.pilot.${state.pilot || obj.pilot}.`;
       const cat = state.catalog || {};
       let applied = 0, skipped = 0;
@@ -16112,7 +16163,7 @@
         const meta = cat[key];
         if (meta && typeof meta.min === "number" && val < meta.min) val = meta.min;
         if (meta && typeof meta.max === "number" && val > meta.max) val = meta.max;
-        try { await pluginRaw(key, val); applied++; } catch { skipped++; }
+        try { const wr = await pluginRaw(key, val); if (wr && wr.ok !== false) applied++; else skipped++; } catch { skipped++; }
       }
       await _pmAlert((t("profile.import.done") || "Perfil '{name}' importado. {applied} ganancias aplicadas, {skipped} saltadas.")
         .replace("{name}", newName)
@@ -17752,17 +17803,20 @@
     if (/\{[a-z]+\}/.test(msg)) return { label, message: a.message };
     return { label, message: msg };
   }
+  const _alKey = (a) => `${a.ruleId}@${a.activeSinceMs || 0}`;
   function _alRenderBanner() {
     const el = document.getElementById("alarm-banner");
     if (!el) return;
     const activeAll = _al.state.active || [];
     // Rev121: prune dismissedIds whose rule is no longer firing so a
     // future trigger shows again in the banner.
-    const stillActiveIds = new Set(activeAll.map((a) => a.ruleId));
+    // Rev539 (GPT review 5 #8): one dismiss = one activation (rule + start
+    // time); the same rule firing again is a new alarm and shows.
+    const stillActiveIds = new Set(activeAll.map((a) => _alKey(a)));
     for (const id of Array.from(_al.dismissedIds)) {
       if (!stillActiveIds.has(id)) _al.dismissedIds.delete(id);
     }
-    const active = activeAll.filter((a) => !_al.dismissedIds.has(a.ruleId));
+    const active = activeAll.filter((a) => !_al.dismissedIds.has(_alKey(a)));
     if (active.length === 0) {
       el.hidden = true;
       el.textContent = "";
@@ -17796,7 +17850,7 @@
       ackBtn.addEventListener("click", () => {
         // Rev522 (Carlos: "ACK no cierra el mensaje"): ACK silences AND
         // closes the banner row (until the alarm fires again).
-        _al.dismissedIds.add(a.ruleId);
+        _al.dismissedIds.add(_alKey(a));
         _alRenderBanner();
         skFetch(`/plugins/${PLUGIN_ID}/alarms/ack/${a.ruleId}`, { method: "POST" })
           .then(() => _alFetch())
@@ -17811,7 +17865,7 @@
       closeBtn.setAttribute("aria-label", "Close");
       closeBtn.textContent = "×";
       closeBtn.addEventListener("click", () => {
-        _al.dismissedIds.add(a.ruleId);
+        _al.dismissedIds.add(_alKey(a));
         if (!a.ackedAtMs) {
           fetch(`/plugins/${PLUGIN_ID}/alarms/ack/${a.ruleId}`, { method: "POST" })
             .then(() => _alFetch())

@@ -269,3 +269,21 @@ Los 12 hallazgos verificados y arreglados en Rev538 (tests en
 | 10 | Alto | En viento real sin TWA el error se calculaba con AWA (error inventado que alimentaba alarmas). | Sin TWA el error es desconocido. Test. |
 | 11 | Alto | Modo puerto: una lectura 0, diez minutos sin datos y otra 0 bastaban. | Sin lectura se reinicia la cuenta; los 2 min tienen que ser seguidos. Test. |
 | 12 | Medio | Un incidente de la caja negra podía crecer sin límite si los eventos no paraban. | Se escribe a los 15 min / 100 eventos; lo que siga abre otro. Test. |
+
+## Revisión externa GPT — bloque 5 (visor: `app.js`)
+
+Los 11 hallazgos verificados y arreglados en Rev539.
+
+| # | Gravedad | Fallo | Arreglo Rev539 |
+|---|---|---|---|
+| 1 | Crítico | Al terminar aproado no se paraba la renovación de "maniobra activa" (Rev534): alarmas de desvío silenciadas mientras la página siguiera abierta. | `aproadoFinish` lo apaga. |
+| 2 | Crítico | Cancelar aproado / empopado mientras esperaba el cambio de modo no impedía enviar luego objetivo y conectar el AP. | Tras cada espera se comprueba que sigue siendo la misma maniobra en tránsito. |
+| 3 | Crítico | `apSetModeAndWait` seguía si el modo no se confirmaba: aproado podía enviar 0 en compás (= rumbo norte). | Rechazo o sin confirmar = error; no se envía el objetivo. |
+| 4 | Crítico | Selector de modo: modo y objetivo en paralelo (`Promise.all`); el ángulo de viento podía llegar antes y valer como rumbo de compás. | Primero el modo confirmado, luego su objetivo. |
+| 5 | Crítico | Un ±1/±10 pendiente (debounce) calculado en compás se enviaba aunque el modo hubiera cambiado. | Se descarta si cambió el modo. |
+| 6 | Crítico | Tras un cambio de objetivo desde fuera (mando, KIP) la ráfaga de ±10 seguía desde el valor local viejo (100 + 10 = 110 en vez de 120 + 10). | Un objetivo que no envió este visor reinicia el acumulador. |
+| 7 | Crítico | Fondeo: un AIS con velocidad desconocida quedaba silenciado y nunca se consultaba su velocidad. | Se consulta y se vuelve a decidir. |
+| 8 | Crítico | El descarte del banner era por regla: una alarma que se apaga y vuelve a saltar entre dos consultas quedaba oculta. | Descarte por activación (regla + hora de inicio). |
+| 9 | Alto | Empopado: el cambio de perfil final no esperaba a la restauración de ganancias. | Ganancias primero, perfil después. |
+| 10 | Alto | Importar perfil: seguía aunque no se creara / activara el perfil nuevo y contaba escrituras fallidas como aplicadas. | Espera a que pypilot confirme el perfil nuevo; solo cuenta escrituras aceptadas. |
+| 11 | Alto | TWS alternativa (`speedOverGround`) se quedaba congelada en su primer valor. | Se actualiza mientras no llegue `speedTrue` (10 s). |
