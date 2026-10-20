@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev540";
+const PLUGIN_REVISION = "Rev541";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -4938,7 +4938,11 @@ module.exports = function (app: any) {
     if (sample.engaged) {
       for (const id of changed) {
         const st = alarms.ruleState(id);
-        if (st && st.active) _bbTrigger("alarm", `${id}: ${st.message || st.label}`);
+        // Self-audit Rev541: only the moment it FIRES. `changed` also carries
+        // message refreshes (every second for "pypilot disconnected since
+        // N s", which kept one incident open for ever) and ack / mute /
+        // severity republishes.
+        if (st && st.active && st.activeSinceMs === ctx.nowMs) _bbTrigger("alarm", `${id}: ${st.message || st.label}`);
       }
     }
     // Rev283: feed the servo error log AFTER the tick so its snapshot

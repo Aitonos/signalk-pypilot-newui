@@ -3056,6 +3056,9 @@
           }
         } catch { /* silent */ }
         state.mode = value;
+        // Self-audit Rev541: the mode pypilot really reported (state.mode
+        // can be set optimistically by the selector before the echo).
+        state._confirmedMode = value;
         // Rev425: keep the visible mode-button in sync on external
         // mode deltas.
         try { _renderModeSelectBtn(); } catch { /* silent */ }
@@ -3161,6 +3164,7 @@
               : state._modeBeforeVt;
             if (typeof modeAfter === "string") {
               state.mode = modeAfter;
+              state._confirmedMode = modeAfter;   // self-audit Rev541
               try { setSelect("#mode-select", modeAfter); } catch {}
             }
             try { _renderModeSelectBtn(); } catch {}
@@ -9770,8 +9774,12 @@
     if (!r || r.ok === false) throw new Error(`mode ${mode} refused (${r && r.status ? r.status : "no response"})`);
     const start = Date.now();
     const target = String(mode).toLowerCase();
+    // Self-audit Rev541: wait for pypilot's echo, not state.mode - the mode
+    // selector sets state.mode = chosen BEFORE calling us, so the old check
+    // returned at once and the target still raced the mode change.
+    const confirmed = () => String(state._confirmedMode ?? state.mode ?? "").toLowerCase();
     while (Date.now() - start < timeoutMs) {
-      if (String(state.mode || "").toLowerCase() === target) {
+      if (confirmed() === target) {
         console.info(`[apSetModeAndWait] mode="${mode}" confirmed in ${Date.now() - start} ms`);
         return r;
       }
@@ -11413,7 +11421,15 @@
           // before the mode is a compass heading for pypilot.
           (async () => {
             try { await apSetModeAndWait(chosen); await apSetTargetRad(newTargetRad); }
-            catch (e) { console.warn("[mode-select]", e && e.message); }
+            catch (e) {
+              console.warn("[mode-select]", e && e.message);
+              // Self-audit Rev541: pypilot did not take the mode - show the
+              // real one again instead of the optimistic choice.
+              if (state._confirmedMode && state.mode !== state._confirmedMode) {
+                state.mode = state._confirmedMode;
+                try { setSelect("#mode-select", state.mode); _renderModeSelectBtn(); renderTargetArrow(); } catch { /* silent */ }
+              }
+            }
           })();
         } else {
           apSetMode(chosen);

@@ -309,3 +309,16 @@ episodios, KPI, modo puerto, caja negra, ids de viaje, banner de alarmas,
 acumulador de ±10, importación de perfil, TWS alternativa.
 
 QA de todo: `docs/QA_Rev526-540.md`.
+
+## Segunda autoauditoría (Rev541)
+
+| Origen | Fallo | Arreglo Rev541 |
+|---|---|---|
+| Rev539 (selector de modo en secuencia) | **No arreglaba nada**: el selector pone `state.mode = elegido` antes de llamar a `apSetModeAndWait`, que esperaba a que `state.mode` coincidiera → volvía al instante y el objetivo seguía saliendo antes del eco de pypilot. | `state._confirmedMode`, que solo cambia con el delta de modo de pypilot; `apSetModeAndWait` espera a ese. Si pypilot no lo acepta, el selector vuelve al modo real. |
+| Rev534-535 (ACK / silenciar / gravedad se republican) + Rev525 | La caja negra abría un incidente "alarm" por cada alarma activa en `changed`: un ACK creaba un incidente, y una alarma con mensaje que cambia cada segundo ("pypilot desconectado desde hace N s") mantenía un incidente abierto sin fin. | Solo en el segundo en que la alarma salta (`activeSinceMs === nowMs`). |
+
+Revisados otra vez sin fallos: motor de alarmas (silenciar + resolver),
+salud del servo, calidad de sensores, KPI, modo puerto, caja negra,
+importar perfil (espera el eco real de `profile`), Doctor y `/config/import`
+(leen el `profile` real de pypilot), ciclo de recuperación con la
+reconciliación de `engaged`, PUT asíncronos.
