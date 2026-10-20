@@ -613,6 +613,7 @@ export class AlarmEngine {
     if (!rule || !s) return false;
     if (severity !== "info" && severity !== "warn" && severity !== "alarm") return false;
     s.severity = severity;
+    if (s.active) this.pendingPublish.add(ruleId);   // Rev535 (GPT review 3 #9)
     return true;
   }
 
@@ -672,6 +673,12 @@ export class AlarmEngine {
     const s = this.state.get(ruleId);
     if (!s) return false;
     s.mutedUntilMs = nowMs + Math.max(1000, durationMs);
+    // Rev535 (GPT review 3 #8): muting an alarm that is sounding silences
+    // it now (same as an ack: banner stays, "sound" goes).
+    if (s.active) {
+      if (s.ackedAtMs == null) s.ackedAtMs = nowMs;
+      this.pendingPublish.add(ruleId);
+    }
     return true;
   }
 

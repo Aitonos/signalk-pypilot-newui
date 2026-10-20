@@ -25,6 +25,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { AlarmSnapshot } from "./alarms";
 import type { Sample } from "./historian";
+import { errorRad } from "./kpis";
 
 /** IDs of AlarmEngine rules we treat as "servo faults" for logging. */
 export const SERVO_FAULT_RULE_IDS = new Set<string>([
@@ -138,8 +139,11 @@ export class ServoErrorLog {
       if (typeof s.servoTemp === "number"   && (maxCtl == null || s.servoTemp > maxCtl)) maxCtl = s.servoTemp;
       if (typeof s.servoMotorTemp === "number" && (maxMotor == null || s.servoMotorTemp > maxMotor)) maxMotor = s.servoMotorTemp;
       if (typeof s.servoVoltage === "number" && (minV == null || s.servoVoltage < minV)) minV = s.servoVoltage;
-      if (typeof s.headingCmd === "number" && typeof s.headingActual === "number") {
-        const e = Math.abs(wrapPi(s.headingCmd - s.headingActual));
+      // Rev535 (GPT review 3 #10): in wind modes the target is a wind
+      // angle; compare it with AWA / TWA, not with the compass heading.
+      const er = errorRad(s);
+      if (er != null) {
+        const e = Math.abs(er);
         if (maxErr == null || e > maxErr) maxErr = e;
       }
     }
@@ -195,9 +199,3 @@ export class ServoErrorLog {
   }
 }
 
-function wrapPi(a: number): number {
-  let x = a;
-  while (x > Math.PI) x -= 2 * Math.PI;
-  while (x < -Math.PI) x += 2 * Math.PI;
-  return x;
-}

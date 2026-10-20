@@ -94,3 +94,36 @@ alarm. Treat it accordingly.
   and mark it "NEEDS CHECK" instead of guessing.
 - If a block has no real bug, say "no bugs found" — that is a valid answer.
 - Rank the list most severe first. Maximum 20 items per block.
+
+
+---
+
+## Variante para Gemini (bloques 2 a 5)
+
+Gemini rechazó el bloque 2 con el prompt de arriba ("las políticas de
+seguridad me impiden realizar análisis de vulnerabilidades"): lo dispara el
+apartado 4 (*HTTP API*: path traversal, rutas sin permiso). Para Gemini,
+usar el mismo prompt cambiando la sección "What to look for" por esta, que
+pide solo fallos de funcionamiento:
+
+```
+### What to look for (in this order)
+
+1. Steering correctness: any path that sends ap.enabled, ap.mode,
+   ap.heading_command or tack commands at the wrong time, twice, with a
+   stale value, in degrees vs radians, with the wrong sign (port vs
+   starboard), or with 0/360 / -180/180 wrap errors. Timing between a
+   user command, a timer, a state-machine step and pypilot's own echo.
+2. Logic that fails quietly: caught exceptions that hide a real fault,
+   promises without .catch, timers that keep running after stop(),
+   listeners added twice, reconnect loops, alarms that stay latched or
+   never fire, state flags that are set and never cleared.
+3. Long-running stability on a 24/7 Raspberry Pi: arrays, maps, logs or
+   files that grow without bound, intervals not cleared, per-request
+   work that re-reads many files.
+4. Data shown to the sailor: stale values shown as current, wrong unit
+   conversions (rad <-> deg, m/s <-> kn), state reported as done before
+   it is confirmed, EN/ES text keys missing in one language.
+5. Units and maths: angle averaging across 0/360, hysteresis
+   inversions, thresholds compared in the wrong unit.
+```

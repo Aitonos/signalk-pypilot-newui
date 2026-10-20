@@ -574,37 +574,65 @@ export class DoctorEngine {
     this.profileWriteHook = cb;
   }
 
-  private ensureForkedProfile(): string | null {
-    if (!this.result) return null;
-    if (this.result.newProfileName) return this.result.newProfileName;
-    if (!this.client) return null;
+  /** Rev535 (GPT review 3 #2/#5): fork into a uniquely named profile and
+   *  WAIT until pypilot reports it active - writing the gain before that
+   *  changed the original profile while saying "in new profile". */
+  private async ensureForkedProfile(): Promise<{ name: string | null; error?: string }> {
+    if (!this.result) return { name: null, error: "No result available." };
+    if (this.result.newProfileName) return { name: this.result.newProfileName };
+    if (!this.client) return { name: null, error: "pypilot client not initialised." };
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
-    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
-    const name = `doctor-${stamp}`;
-    try {
-      // pypilot: writing to `profile` with a name that does NOT exist
-      // creates it as a copy of the currently-active profile.
-      try { this.profileWriteHook?.(name, `Doctor forked from ${this.result.originalProfile ?? "?"}`); }
-      catch { /* silent */ }
-      this.client.set("profile", name);
-      this.result.newProfileName = name;
-      return name;
-    } catch {
-      return null;
+    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    const profiles = (this.client.getValues() as any)["profiles"];
+    let name = `doctor-${stamp}`;
+    if (Array.isArray(profiles) && profiles.includes(name)) name = `${name}-${Math.random().toString(36).slice(2, 5)}`;
+    // pypilot: writing to `profile` with a name that does NOT exist
+    // creates it as a copy of the currently-active profile.
+    try { this.profileWriteHook?.(name, `Doctor forked from ${this.result.originalProfile ?? "?"}`); }
+    catch { /* silent */ }
+    if (!this.client.set("profile", name)) return { name: null, error: "Could not create the new profile (pypilot did not accept the write)." };
+    const t0 = Date.now();
+    while (Date.now() - t0 < 3000) {
+      if ((this.client.getValues() as any)["profile"] === name) {
+        this.result.newProfileName = name;
+        return { name };
+      }
+      await new Promise((r) => setTimeout(r, 100));
     }
+    return { name: null, error: `pypilot did not switch to the new profile '${name}' - nothing applied.` };
   }
 
-  applySuggestion(id: string): { ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null } {
+  async applySuggestion(id: string): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
     if (!this.result) return { ok: false, message: "No result available. Run a diagnostic session first." };
     if (!this.client) return { ok: false, message: "pypilot client not initialised." };
     const s = this.result.suggestions.find((x) => x.id === id);
     if (!s) return { ok: false, message: `Suggestion '${id}' not found.` };
     if (s.applied) return { ok: false, message: "Suggestion already applied." };
+    // Rev535 (GPT review 3 #4): one change per diagnostic, whichever
+    // button applied the first one (Rev162, Sean's "one at a time").
+    if ((this.result as any).awaitingFreshSession || this.result.suggestions.some((x) => x.applied)) {
+      (this.result as any).awaitingFreshSession = true;
+      return { ok: false, message: "Run a fresh Doctor session before applying the next suggestion.", mustRunFreshSession: true };
+    }
+    // Rev535 (GPT review 3 #3): the suggestion was measured on one pilot;
+    // refuse it if the sailor switched pilot since.
+    const vals = this.client.getValues() as any;
+    const m = /^ap\.pilot\.([^.]+)\./.exec(String(s.path));
+    if (m && typeof vals["ap.pilot"] === "string" && vals["ap.pilot"] !== m[1]) {
+      return { ok: false, message: `Pilot changed to '${vals["ap.pilot"]}' since the diagnostic (it measured '${m[1]}'). Run a fresh session.` };
+    }
     // Fork the profile before the first write so the original stays intact.
-    const forked = this.ensureForkedProfile();
+    const fork = await this.ensureForkedProfile();
+    if (!fork.name) return { ok: false, message: fork.error || "Profile fork failed - nothing applied." };
+    const forked = fork.name;
+    if ((this.client.getValues() as any)["profile"] !== forked) {
+      return { ok: false, message: `Active profile is no longer '${forked}'. Run a fresh session.` };
+    }
     try {
-      this.client.set(s.path, s.suggestedValue);
+      if (!this.client.set(s.path, s.suggestedValue)) {
+        return { ok: false, message: `pypilot did not accept ${s.gainKey} = ${s.suggestedValue}.` };
+      }
       s.applied = true;
       s.appliedTs = Date.now();
       const msg = forked
@@ -637,13 +665,13 @@ export class DoctorEngine {
   // applies it, and marks the rest as "waiting for a fresh Doctor
   // session before the next change". The visor uses `mustRunFreshSession`
   // in the response to render the banner.
-  applyAll(): {
+  async applyAll(): Promise<{
     ok: boolean;
     applied: string[];
     failed: { id: string; message: string }[];
     mustRunFreshSession?: boolean;
     remaining?: number;
-  } {
+  }> {
     const applied: string[] = [];
     const failed: { id: string; message: string }[] = [];
     if (!this.result) return { ok: false, applied, failed };
@@ -671,7 +699,7 @@ export class DoctorEngine {
       return { ok: true, applied, failed, mustRunFreshSession: false, remaining: 0 };
     }
     const first = pending[0];
-    const r = this.applySuggestion(first.id);
+    const r = await this.applySuggestion(first.id);
     if (r.ok) applied.push(first.id);
     else failed.push({ id: first.id, message: r.message });
     const remaining = pending.length - 1;

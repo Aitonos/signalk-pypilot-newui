@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev534";
+const PLUGIN_REVISION = "Rev535";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1721,14 +1721,14 @@ module.exports = function (app: any) {
         if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
         res.json(doctor.status());
       });
-      router.post("/doctor/apply/:id", (req: any, res: any) => {
+      router.post("/doctor/apply/:id", async (req: any, res: any) => {
         if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
-        const r = doctor.applySuggestion(String(req.params?.id || ""));
+        const r = await doctor.applySuggestion(String(req.params?.id || ""));
         res.json({ ...r, status: doctor.status() });
       });
-      router.post("/doctor/apply-all", (_req: any, res: any) => {
+      router.post("/doctor/apply-all", async (_req: any, res: any) => {
         if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
-        const r = doctor.applyAll();
+        const r = await doctor.applyAll();
         res.json({ ...r, status: doctor.status() });
       });
       // Rev121: dismiss one suggestion (user explicitly ignores it).

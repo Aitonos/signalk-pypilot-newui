@@ -72,6 +72,9 @@ interface RecentEntry {
   a: number;
 }
 
+/** Rev535: samples above baseline x this never move the baseline. */
+export const SERVO_DRIFT_MAX_RATIO = 1.3;
+
 export class ServoHealthMonitor {
   private readonly servoOnA: number;
   private readonly targetSamples: number;
@@ -146,6 +149,10 @@ export class ServoHealthMonitor {
     // Post-learn: gentle EWMA drift so seasonal changes migrate the
     // baseline. The alpha is tiny (0.02) so a single incident cannot
     // push the baseline up and mask the very anomaly it should catch.
+    // Rev535 (GPT review 3 #1): alpha 0.02 per 1 Hz sample is a ~50 s time
+    // constant, so a sustained overload became the "normal" in ~26 s and
+    // the 60 s alarm never fired. Only drift on samples near the baseline.
+    if (s.servoCurrent > this.baselineA * SERVO_DRIFT_MAX_RATIO) return;
     this.baselineA = this.baselineA * (1 - this.driftAlpha) + s.servoCurrent * this.driftAlpha;
   }
 

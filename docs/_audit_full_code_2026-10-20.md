@@ -187,3 +187,25 @@ Pendiente menor (no tocado): otras acciones PUT (nudge, tack) también
 responden 200 sin esperar el resultado, y `/ap/tack/:direction` sin
 proveedor responde ok aunque las escrituras fallen (en el barco el
 proveedor siempre está activo).
+
+## Revisión externa GPT — bloque 3 (seguridad / alarmas / diagnóstico)
+
+Los 10 hallazgos verificados en el código y arreglados en Rev535 (tests en
+`src/test/review3-fixes.test.ts`).
+
+| # | Fallo | Arreglo Rev535 |
+|---|---|---|
+| 1 | Salud del servo: la referencia se adaptaba con alfa 0.02 por muestra a 1 Hz (~50 s): una sobrecarga sostenida pasaba a "normal" en ~26 s y la alarma de 60 s nunca saltaba. | Las muestras > 1.3 x referencia no mueven la referencia. Test: 1 A aprendido, 3 A tres minutos = "high". |
+| 2 | Doctor: no comprobaba si pypilot aceptó crear el perfil nuevo, y escribía la ganancia sin esperar el cambio de perfil: podía tocar el perfil ORIGINAL diciendo "en perfil nuevo". | Espera (hasta 3 s) a que pypilot confirme el perfil nuevo; si no, no aplica nada. Comprueba el resultado de cada escritura. |
+| 3 | Doctor: una segunda sugerencia se aplicaba aunque el patrón hubiera cambiado de perfil / piloto. | Rechaza si el perfil activo ya no es el del Doctor o si cambió el piloto medido. |
+| 4 | Doctor: "un cambio por diagnóstico" solo se imponía en "aplicar todo". | También en "aplicar una". |
+| 5 | Doctor: nombre de perfil al minuto (`doctor-AAAAMMDD-HHMM`), dos diagnósticos en el mismo minuto compartían perfil. | Segundos + sufijo si ya existe. |
+| 6 | Calidad de sensores: un valor con timestamp de hace una hora contaba como recién llegado ("good"). | Timestamp de origen > 60 s = no es llegada nueva. Test. |
+| 7 | Calidad de sensores: `value: null` contaba como lectura. | null = sin dato. Test. |
+| 8 | Silenciar una alarma que suena no retiraba el "sound" publicado. | Silenciar = ACK + publicación inmediata. Test. |
+| 9 | Cambiar la gravedad de una alarma activa no se publicaba. | Se publica en el siguiente tick. Test. |
+| 10 | Registro de fallos del servo: error en modo viento = objetivo de viento - rumbo de compás (135° en vez de 0°). | Usa el error según el modo (mismo que los KPI). |
+
+Gemini — bloque 2: rechazado por el modelo ("políticas de seguridad").
+Variante del prompt sin el apartado HTTP en
+`docs/_prompt_llm_full_audit_2026-10-20.md`.

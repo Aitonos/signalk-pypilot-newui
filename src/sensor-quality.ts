@@ -122,6 +122,9 @@ interface Slot {
   lastSource: string | null;
 }
 
+/** Rev535: an SK timestamp older than this is not counted as an arrival. */
+export const STALE_ON_ARRIVAL_MS = 60_000;
+
 export class SensorQualityMonitor {
   private readonly windowMs: number;
   private readonly bufferPerPath: number;
@@ -173,7 +176,8 @@ export class SensorQualityMonitor {
     if (!entry || typeof entry !== "object") return;
     // Skip if value is undefined - the path exists in the store but has
     // never received a real update (a shell entry from another plugin).
-    if (entry.value === undefined) return;
+    // Rev535 (GPT review 3 #7): null = "no data" in Signal K, not a reading.
+    if (entry.value === undefined || entry.value === null) return;
     // Timestamp may arrive as ISO string, epoch ms, or Date. Normalise.
     const skTs = normaliseTs(entry.timestamp ?? entry.$source);
     slot.lastValue = entry.value;
@@ -187,6 +191,13 @@ export class SensorQualityMonitor {
     }
     if (slot.lastSkTs != null && skTs === slot.lastSkTs) {
       // Same sample as last tick - source did not publish new data.
+      return;
+    }
+    // Rev535 (GPT review 3 #6): a value whose own timestamp is more than a
+    // minute old (SK keeps the last value after a restart) is not a fresh
+    // arrival. 60 s leaves room for a source clock a little off.
+    if (nowMs - skTs > STALE_ON_ARRIVAL_MS) {
+      slot.lastSkTs = skTs;
       return;
     }
     this.pushArrival(slot, nowMs);
