@@ -16,6 +16,7 @@ export const BB_SAME_KIND_COOLDOWN_MS = 60_000;
  *  events at most; what keeps happening opens the next one. */
 export const BB_MAX_INCIDENT_SAMPLES = 900;
 export const BB_MAX_EVENTS = 100;
+export const BB_NOTE_MAX = 1000;
 
 export interface BlackBoxSample {
   ts: number;
@@ -47,10 +48,12 @@ export interface BlackBoxIncident {
   samples: BlackBoxSample[];
   closedTs: number | null;
   seen?: boolean;        // Rev528: opened in the visor at least once
+  note?: string;         // Rev544: the sailor's words (dictated with the phone keyboard)
 }
 
 export interface BlackBoxSummary {
   id: string; ts: number; kind: string; detail: string; events: number; samples: number; seen: boolean;
+  note: string;
 }
 
 export class BlackBox {
@@ -112,7 +115,7 @@ export class BlackBox {
     for (const n of names.sort().reverse()) {
       try {
         const j = JSON.parse(fs.readFileSync(path.join(this.dir, n), "utf8")) as BlackBoxIncident;
-        out.push({ id: j.id, ts: j.ts, kind: j.kind, detail: j.detail, events: j.events.length, samples: j.samples.length, seen: !!j.seen });
+        out.push({ id: j.id, ts: j.ts, kind: j.kind, detail: j.detail, events: j.events.length, samples: j.samples.length, seen: !!j.seen, note: typeof j.note === "string" ? j.note : "" });
       } catch { /* skip broken */ }
     }
     this.listCache = out;
@@ -133,6 +136,26 @@ export class BlackBox {
     this.listCache = null;
     try { fs.writeFileSync(path.join(this.dir, `bb-${inc.id}.json`), JSON.stringify(inc)); return true; } catch { return false; }
   }
+
+  /** Rev544: attach / replace the sailor's note. Works on the incident
+   *  still recording (written when it closes) and on saved ones. */
+  setNote(id: string, raw: string): boolean {
+    const note = String(raw || "").replace(/[\x00-\x1F\x7F]/g, " ").trim().slice(0, BB_NOTE_MAX);
+    if (this.open && this.open.id === id) { this.open.note = note; return true; }
+    const inc = this.get(id);
+    if (!inc || !this.dir) return false;
+    inc.note = note;
+    this.listCache = null;
+    try {
+      const file = path.join(this.dir, `bb-${inc.id}.json`);
+      fs.writeFileSync(`${file}.tmp`, JSON.stringify(inc));
+      fs.renameSync(`${file}.tmp`, file);
+      return true;
+    } catch { return false; }
+  }
+
+  /** Rev544: the incident being recorded right now (for the "Mark" note). */
+  openId(): string | null { return this.open ? this.open.id : null; }
 
   remove(id: string): boolean {
     if (!this.dir || !/^[0-9]{8}-[0-9]{6}-[a-z0-9-]+$/i.test(id)) return false;

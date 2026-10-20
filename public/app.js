@@ -707,6 +707,8 @@
       "bb.recording":    "recording the minute after…",
       "bb.empty":        "No incidents yet.",
       "bb.view":         "View",
+      "bb.note":         "Note",
+      "bb.noteHint":     "What happened? Tap the microphone on the keyboard to dictate.",
       "bb.download":     "Download",
       "bb.delete":       "Delete",
       "bb.deleteQ":      "Delete this incident?",
@@ -1697,6 +1699,8 @@
       "bb.recording":    "grabando el minuto siguiente…",
       "bb.empty":        "Ningún incidente todavía.",
       "bb.view":         "Ver",
+      "bb.note":         "Nota",
+      "bb.noteHint":     "¿Qué ha pasado? Toca el micrófono del teclado para dictar.",
       "bb.download":     "Descargar",
       "bb.delete":       "Borrar",
       "bb.deleteQ":      "¿Borrar este incidente?",
@@ -4284,12 +4288,19 @@
     return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   };
   const _bbKind = (k) => { const key = `bb.k.${k}`; const v = t(key); return v === key ? k : v; };
-  async function _bbMark(note) {
+  async function _bbMark(note, askNote) {
     try {
       const r = await skFetch(`/plugins/${PLUGIN_ID}/black-box/mark`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: note || "" }),
       });
       if (r.ok) {
+        // Rev544: from the Setup card, the moment is marked FIRST (instant),
+        // then the sailor says what happened (keyboard microphone).
+        if (askNote) {
+          let j = null;
+          try { j = await r.clone().json(); } catch { /* silent */ }
+          if (j && j.id) setTimeout(() => _bbEditNote(j.id, ""), 50);
+        }
         try { _tapSoundPlay(true); } catch { /* silent */ }
         let el = document.getElementById("pypilot-reconnect-toast");
         if (!el) { el = document.createElement("div"); el.id = "pypilot-reconnect-toast"; el.className = "pypilot-reconnect-toast"; document.body.appendChild(el); }
@@ -4330,6 +4341,12 @@
       det.style.cssText = "font-size:12px;color:var(--fg-dim);margin-top:3px";
       det.textContent = `${it.detail}${it.events > 1 ? `  (+${it.events - 1})` : ""}`;
       row.appendChild(title); row.appendChild(det);
+      if (it.note) {
+        const nt = document.createElement("div");
+        nt.style.cssText = "font-size:13px;color:var(--fg);margin-top:4px;font-style:italic";
+        nt.textContent = `“${it.note}”`;
+        row.appendChild(nt);
+      }
       row.addEventListener("click", () => _bbOpen(it.id));
       list.appendChild(row);
     }
@@ -4412,7 +4429,7 @@
     ctx.strokeStyle = "#2a3644";
     ctx.lineWidth = 1;
     const span = (t1 - t0) / 1000;
-    const step = span > 150 ? 30 : 15;
+    const step = (span > 150 || pW < 420) ? 30 : 15;   // Rev544: phone width
     for (let sec = Math.ceil((t0 - tRef) / 1000 / step) * step; sec <= (t1 - tRef) / 1000; sec += step) {
       const x = X(tRef + sec * 1000);
       ctx.beginPath(); ctx.moveTo(x, mT); ctx.lineTo(x, mT + pH); ctx.stroke();
@@ -4485,6 +4502,23 @@
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     lines.forEach((ln, i) => { ctx.fillStyle = ln.color; ctx.fillText(ln.txt, bx + 7, by + 5 + i * 15); });
   }
+  // Rev544: note on an incident. The input is a normal text field, so the
+  // phone keyboard's microphone dictates into it (no https, no Pi software).
+  async function _bbEditNote(id, current) {
+    const v = await _pmPrompt(t("bb.note"), current || "", t("bb.noteHint"));
+    if (v == null) return;
+    try {
+      await skFetch(`/plugins/${PLUGIN_ID}/black-box/note/${encodeURIComponent(id)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: v }),
+      });
+    } catch { /* silent */ }
+    if (_bbChart.inc && _bbChart.inc.id === id) {
+      _bbChart.inc.note = v.trim();
+      const nd = document.getElementById("bb-pop-note-text");
+      if (nd) { nd.textContent = _bbChart.inc.note; nd.hidden = !_bbChart.inc.note; }
+    }
+    _bbRefresh();
+  }
   let _bbOpenId = null;
   async function _bbOpen(id) {
     const pop = document.getElementById("bb-pop");
@@ -4504,6 +4538,8 @@
     if (!inc || !Array.isArray(inc.samples) || !inc.samples.length) { if (detail) detail.textContent = "—"; return; }
     if (title) title.textContent = `${_bbFmtTime(inc.ts)} · ${_bbKind(inc.kind)}`;
     if (detail) detail.textContent = inc.detail;
+    const nd = document.getElementById("bb-pop-note-text");
+    if (nd) { nd.textContent = inc.note || ""; nd.hidden = !inc.note; }
     _bbChart.inc = inc;
     _bbChips();
     if (!inc.seen) {
@@ -4521,7 +4557,11 @@
   }
   function _bbWire() {
     const mk = document.getElementById("bb-mark-btn");
-    if (mk) mk.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); _bbMark(""); });
+    if (mk) mk.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); _bbMark("", true); });
+    const nb = document.getElementById("bb-pop-note");
+    if (nb) nb.addEventListener("click", () => {
+      if (_bbOpenId) _bbEditNote(_bbOpenId, (_bbChart.inc && _bbChart.inc.note) || "");
+    });
     const vw = document.getElementById("bb-pop-view");
     if (vw) vw.addEventListener("click", () => {
       if (_bbOpenId) window.open(`/plugins/${PLUGIN_ID}/black-box/incident/${encodeURIComponent(_bbOpenId)}`, "_blank");

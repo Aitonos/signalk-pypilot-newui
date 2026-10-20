@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev543" />
+  <link rel="stylesheet" href="style.css?v=Rev544" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2670,6 +2670,7 @@
       <button class="popup-close" onclick="document.getElementById('bb-pop').classList.remove('open')">✕</button>
       <div class="popup-body">
         <div id="bb-pop-detail" style="font-size:13px;color:var(--fg)"></div>
+        <div id="bb-pop-note-text" hidden style="font-size:14px;color:var(--fg);font-style:italic;margin-top:6px"></div>
         <div class="chart-paths-row" id="bb-chips" style="margin:10px 0 8px"></div>
         <div class="chart-canvas-wrap bb-canvas-wrap">
           <canvas id="bb-canvas"></canvas>
@@ -2677,6 +2678,7 @@
         <div class="chart-footer" data-i18n="bb.chartHint" style="margin-top:4px">Touch or move over the chart to read the values. Dashed lines = events, red bands = servo overcurrent fault, grey = AP off.</div>
         <div id="bb-pop-body"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="ghost" id="bb-pop-note" data-i18n="bb.note">Note</button>
           <button type="button" class="ghost" id="bb-pop-view" data-i18n="bb.view">View</button>
           <button type="button" class="ghost" id="bb-pop-download" data-i18n="bb.download">Download</button>
           <button type="button" class="ghost" id="bb-pop-delete" data-i18n="bb.delete">Delete</button>
@@ -2729,6 +2731,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev543"></script>
+  <script src="app.js?v=Rev544"></script>
 </body>
 </html>

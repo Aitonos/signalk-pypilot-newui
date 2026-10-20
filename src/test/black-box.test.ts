@@ -61,4 +61,18 @@ describe("black box (Rev525)", () => {
     assert.equal(bb.get("../../etc/passwd"), null);
     assert.equal(bb.remove("../x"), false);
   });
+
+  it("Rev544: a note on the incident being recorded and on a saved one", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bb-"));
+    const bb = new BlackBox(dir);
+    const t0 = Date.UTC(2026, 9, 21, 9, 0, 0);
+    bb.push(S(t0));
+    const id = bb.trigger("mark", "sailor", t0)!;
+    assert.ok(bb.setNote(id, "pulsé +10 y no giró"));
+    bb.flush(t0 + 1000);
+    assert.equal(bb.get(id)!.note, "pulsé +10 y no giró");
+    assert.ok(bb.setNote(id, "corregido"));
+    assert.equal(bb.list()[0].note, "corregido");
+    assert.equal(bb.setNote("../x", "n"), false);
+  });
 });

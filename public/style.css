@@ -4088,7 +4088,9 @@ body.pypilot-offline #pypilot-offline-banner { display: block; }
 /* Rev407: z-index 2000 para quedar por ENCIMA del Profile Manager
    modal (que usa 1000). El diálogo se abre desde dentro del PM, así
    que debe pintarse por delante o Carlos ve que no aparece. */
-#pm-dialog { z-index: 2000; }
+/* Rev544: above .popup-overlay (3000) - the black-box "Delete?" confirm
+   and the note prompt open from inside a popup. */
+#pm-dialog { z-index: 3100; }
 .pm-dialog-card { max-width: 380px; }
 .pm-dialog-body {
   padding: 10px 2px 12px;
