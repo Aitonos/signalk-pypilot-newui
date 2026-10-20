@@ -42,10 +42,11 @@ export interface BlackBoxIncident {
   events: BlackBoxEvent[];
   samples: BlackBoxSample[];
   closedTs: number | null;
+  seen?: boolean;        // Rev528: opened in the visor at least once
 }
 
 export interface BlackBoxSummary {
-  id: string; ts: number; kind: string; detail: string; events: number; samples: number;
+  id: string; ts: number; kind: string; detail: string; events: number; samples: number; seen: boolean;
 }
 
 export class BlackBox {
@@ -102,7 +103,7 @@ export class BlackBox {
     for (const n of names.sort().reverse()) {
       try {
         const j = JSON.parse(fs.readFileSync(path.join(this.dir, n), "utf8")) as BlackBoxIncident;
-        out.push({ id: j.id, ts: j.ts, kind: j.kind, detail: j.detail, events: j.events.length, samples: j.samples.length });
+        out.push({ id: j.id, ts: j.ts, kind: j.kind, detail: j.detail, events: j.events.length, samples: j.samples.length, seen: !!j.seen });
       } catch { /* skip broken */ }
     }
     return out;
@@ -111,6 +112,15 @@ export class BlackBox {
   get(id: string): BlackBoxIncident | null {
     if (!this.dir || !/^[0-9]{8}-[0-9]{6}-[a-z0-9-]+$/i.test(id)) return null;
     try { return JSON.parse(fs.readFileSync(path.join(this.dir, `bb-${id}.json`), "utf8")); } catch { return null; }
+  }
+
+  /** Rev528: the sailor opened it; the Setup tile goes back to green. */
+  markSeen(id: string): boolean {
+    const inc = this.get(id);
+    if (!inc || !this.dir) return false;
+    if (inc.seen) return true;
+    inc.seen = true;
+    try { fs.writeFileSync(path.join(this.dir, `bb-${inc.id}.json`), JSON.stringify(inc)); return true; } catch { return false; }
   }
 
   remove(id: string): boolean {

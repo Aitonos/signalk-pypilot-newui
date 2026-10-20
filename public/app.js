@@ -4296,7 +4296,9 @@
     const st = document.getElementById("bb-status");
     if (st) st.textContent = data && data.recording ? t("bb.recording") : "";
     const inc = (data && data.incidents) || [];
-    try { _updateSetupSummary("blackbox", inc.length ? `${inc.length} · ${_bbFmtTime(inc[0].ts)}` : "—", inc.length ? "warn" : ""); } catch { /* silent */ }
+    // Rev528 (Carlos): amber only while some incident has not been opened yet.
+    const unseen = inc.filter((x) => !x.seen).length;
+    try { _updateSetupSummary("blackbox", inc.length ? `${inc.length} · ${_bbFmtTime(inc[0].ts)}` : "—", unseen ? "warn" : "good"); } catch { /* silent */ }
     list.textContent = "";
     if (!inc.length) {
       const d = document.createElement("div"); d.className = "hint"; d.textContent = t("bb.empty"); list.appendChild(d);
@@ -4308,7 +4310,8 @@
       row.style.cssText = "padding:12px 14px;border-radius:10px;background:var(--bg-3);border:1px solid var(--border);cursor:pointer";
       const title = document.createElement("div");
       title.style.cssText = "font-size:15px;font-weight:700;color:var(--fg)";
-      title.textContent = `${_bbFmtTime(it.ts)} · ${_bbKind(it.kind)}`;
+      title.textContent = `${it.seen ? "" : "● "}${_bbFmtTime(it.ts)} · ${_bbKind(it.kind)}`;
+      if (!it.seen) title.style.color = "var(--warn)";
       const det = document.createElement("div");
       det.style.cssText = "font-size:12px;color:var(--fg-dim);margin-top:3px";
       det.textContent = `${it.detail}${it.events > 1 ? `  (+${it.events - 1})` : ""}`;
@@ -4489,6 +4492,10 @@
     if (detail) detail.textContent = inc.detail;
     _bbChart.inc = inc;
     _bbChips();
+    if (!inc.seen) {
+      skFetch(`/plugins/${PLUGIN_ID}/black-box/seen/${encodeURIComponent(id)}`, { method: "POST" })
+        .then(() => _bbRefresh()).catch(() => { /* silent */ });
+    }
     requestAnimationFrame(_bbDraw);
     const sm = inc.samples;
     const esc = (v) => String(v).replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]);

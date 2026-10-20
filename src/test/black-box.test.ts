@@ -30,6 +30,9 @@ describe("black box (Rev525)", () => {
     const inc = bb.get(list[0].id)!;
     assert.ok(inc.samples[0].ts <= t0 + 30_000 + 1000, "pre window starts ~60 s before");
     assert.ok(inc.samples[inc.samples.length - 1].ts >= t0 + 180_000, "post window 60 s after the last event");
+    assert.equal(list[0].seen, false);
+    assert.ok(bb.markSeen(list[0].id));
+    assert.equal(bb.list()[0].seen, true, "seen survives on disk");
   });
 
   it("rate-limits the same kind when idle, never the Mark button", () => {

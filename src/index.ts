@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev527";
+const PLUGIN_REVISION = "Rev528";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1578,6 +1578,10 @@ module.exports = function (app: any) {
         const note = typeof req.body?.note === "string" ? req.body.note : "";
         const id = blackBox.trigger("mark", note ? `marked: ${note}` : "marked by the sailor");
         res.json({ ok: !!id, id });
+      });
+      // Rev528: opened in the visor -> no longer "new" (shared by every device).
+      router.post("/black-box/seen/:id", (req: any, res: any) => {
+        res.json({ ok: !!blackBox?.markSeen(String(req.params?.id || "")) });
       });
       router.delete("/black-box/incident/:id", (req: any, res: any) => {
         if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
