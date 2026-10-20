@@ -71,7 +71,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev530";
+const PLUGIN_REVISION = "Rev531";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -252,14 +252,15 @@ interface PluginProps {
   // lands:
   //   "off"          - do nothing
   //   "warn"         - fire an advisory notification (Rev165 behaviour)
-  //   "freeze-target"- pin the current target for GUST_FREEZE_SEC so
-  //                    the AP does not chase the shifted apparent wind.
-  //                    Wind-mode only.
+  //   ("freeze-target" removed in Rev531: in wind modes pypilot never
+  //    moves the target by itself, so re-writing it every second only
+  //    undid the sailor's own changes, tacks and mode changes - see
+  //    docs/_audit_full_code_2026-10-20.md C1. Old configs read as "warn".)
   //   "boost-D"      - temporarily raise D by +20% for GUST_BOOST_SEC
   //                    to damp the rudder response.
   //   "temp-heavy"   - swap to the "heavy" profile of autoProfile*
   //                    for GUST_HEAVY_SEC, then restore.
-  gustStrategy?: "off" | "warn" | "freeze-target" | "boost-D" | "temp-heavy";
+  gustStrategy?: "off" | "warn" | "boost-D" | "temp-heavy";
   // Rev166: auto-disengage safety. When RMS > 30 deg sustained 10 s AND
   // duty > 0.90, cut the AP. Opt-in - defaults OFF until validated at sea.
   autoDisengageOnLostAuthority?: boolean;
@@ -350,7 +351,6 @@ module.exports = function (app: any) {
   // fails open (legacy Rev167 behaviour).
   const GUST_HEEL_CONFIRM_DEG = 2;
   const GUST_COOLDOWN_MS  = 60_000;   // do not re-alert / re-strategy for 60 s
-  const GUST_FREEZE_SEC   = 12;       // pin target for 12 s after detection
   const GUST_BOOST_SEC    = 20;       // damp D for 20 s after detection
   const GUST_HEAVY_SEC    = 30;       // temp heavy profile for 30 s
   const _gustAwsBuffer: Array<{ ts: number; ktts: number; heelRad: number | null }> = [];
@@ -358,11 +358,6 @@ module.exports = function (app: any) {
   // Rev283: last suppressed-by-heel event for observability.
   let _gustLastSuppressedTs: number | null = null;
   let _gustLastSuppressReason: string | null = null;
-  // Runtime state for the "freeze-target" strategy so the visor +
-  // /supervisor/status can show why the target has stopped following
-  // the wind for a few seconds.
-  let _gustFreezeUntilMs: number | null = null;
-  let _gustFreezeTargetRad: number | null = null;
   // "boost-D" bookkeeping: original D per pilot so we can restore.
   let _gustBoostUntilMs: number | null = null;
   let _gustBoostRestoreGain: { pilot: string; key: "D"; value: number } | null = null;
@@ -2536,8 +2531,6 @@ module.exports = function (app: any) {
             lastSuppressedTs: _gustLastSuppressedTs,
             lastSuppressReason: _gustLastSuppressReason,
             heelConfirmDeg: GUST_HEEL_CONFIRM_DEG,
-            freezeActive: _gustFreezeUntilMs != null,
-            freezeRemainingSec: _gustFreezeUntilMs ? Math.max(0, Math.floor((_gustFreezeUntilMs - Date.now()) / 1000)) : null,
             boostActive: _gustBoostUntilMs != null,
             boostRemainingSec: _gustBoostUntilMs ? Math.max(0, Math.floor((_gustBoostUntilMs - Date.now()) / 1000)) : null,
             heavyActive: _gustHeavyUntilMs != null,
@@ -2624,7 +2617,8 @@ module.exports = function (app: any) {
         if (typeof b.autoProfileLight  === "string") patch.autoProfileLight  = b.autoProfileLight.trim();
         if (typeof b.autoProfileMedium === "string") patch.autoProfileMedium = b.autoProfileMedium.trim();
         if (typeof b.autoProfileHeavy  === "string") patch.autoProfileHeavy  = b.autoProfileHeavy.trim();
-        if (["off","warn","freeze-target","boost-D","temp-heavy"].includes(b.gustStrategy)) {
+        if (b.gustStrategy === "freeze-target") patch.gustStrategy = "warn";   // Rev531
+        else if (["off","warn","boost-D","temp-heavy"].includes(b.gustStrategy)) {
           patch.gustStrategy = b.gustStrategy;
         }
         if (typeof b.autoDisengageOnLostAuthority === "boolean") {
@@ -3754,8 +3748,9 @@ module.exports = function (app: any) {
       // watchdog + restore path, the safe default is disabled. The
       // opt-in strategy stays wired for the user to choose from
       // Smart Pilot card.
-      gustStrategy: (["off","warn","freeze-target","boost-D","temp-heavy"] as const)
-        .includes(options.gustStrategy as any) ? options.gustStrategy : "off",
+      // Rev531: "freeze-target" removed; a saved one becomes "warn".
+      gustStrategy: (options.gustStrategy as string) === "freeze-target" ? "warn"
+        : (["off","warn","boost-D","temp-heavy"] as const).includes(options.gustStrategy as any) ? options.gustStrategy : "off",
       autoDisengageOnLostAuthority: options.autoDisengageOnLostAuthority === true,
       steerRecoveryEnabled: options.steerRecoveryEnabled === true,
       autowindEnabled: options.autowindEnabled === true,
@@ -4561,28 +4556,6 @@ module.exports = function (app: any) {
       _emitAdvisoryNotification("gust-detected", `Gust (AP off): ${summary}`);
       return;
     }
-    if (strat === "freeze-target") {
-      const mode = String(apProvider.data.mode || "").toLowerCase();
-      // Only meaningful in wind / true wind modes - in compass/nav the
-      // target is already fixed to a heading, so a "freeze" is a
-      // no-op. Fall back to warn in that case.
-      if (!mode.includes("wind")) {
-        _emitAdvisoryNotification("gust-detected", `Gust in ${mode || "?"} mode (freeze not applicable): ${summary}`);
-        return;
-      }
-      const currentTarget = typeof apProvider.data.target === "number" ? apProvider.data.target : null;
-      if (currentTarget == null) return;
-      _gustFreezeUntilMs = now + GUST_FREEZE_SEC * 1000;
-      _gustFreezeTargetRad = currentTarget;
-      // Re-PUT the target every second while frozen (inside the
-      // _releaseGustStrategiesIfExpired check on the next tick). The
-      // *first* PUT here nails it so pypilot cannot drift on this
-      // sample already.
-      try { client.set("ap.heading_command", currentTarget * 180 / Math.PI); } catch { /* silent */ }
-      _emitAdvisoryNotification("gust-target-frozen",
-        `Gust ${summary}: target pinned at ${(currentTarget * 180 / Math.PI).toFixed(0)}deg for ${GUST_FREEZE_SEC} s`);
-      return;
-    }
     if (strat === "boost-D") {
       const pilot = typeof client.getValues()["ap.pilot"] === "string" ? client.getValues()["ap.pilot"] as string : null;
       if (!pilot) return;
@@ -4625,17 +4598,6 @@ module.exports = function (app: any) {
   // its normal behaviour without needing a wind lull. Called at the
   // top of _supervisorTick before evaluating a new gust.
   function _releaseGustStrategiesIfExpired(now: number): void {
-    if (_gustFreezeUntilMs != null) {
-      if (now >= _gustFreezeUntilMs) {
-        _gustFreezeUntilMs = null;
-        _gustFreezeTargetRad = null;
-        _emitAdvisoryNotification("gust-target-frozen", "Gust freeze released");
-      } else if (client && _gustFreezeTargetRad != null) {
-        // While frozen we keep the target pinned - pypilot may drift
-        // otherwise if the skipper had a wind-mode target.
-        try { client.set("ap.heading_command", _gustFreezeTargetRad * 180 / Math.PI); } catch { /* silent */ }
-      }
-    }
     if (_gustBoostUntilMs != null && now >= _gustBoostUntilMs) {
       const r = _gustBoostRestoreGain;
       if (client && r) {

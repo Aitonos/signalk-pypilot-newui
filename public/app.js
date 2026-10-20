@@ -370,7 +370,6 @@
       "smart.gust.strategy":       "Strategy on gust",
       "smart.gust.opt.off":        "OFF — do nothing",
       "smart.gust.opt.warn":       "Warn only (advisory)",
-      "smart.gust.opt.freeze":     "Freeze target (wind modes)",
       "smart.gust.opt.boostD":     "Boost D +20% for 20 s",
       "smart.gust.opt.heavy":      "Switch to Heavy profile 30 s",
       "smart.autoDis.title":       "Emergency: auto-disengage on lost authority",
@@ -1355,7 +1354,6 @@
       "smart.gust.strategy":       "Accion en racha",
       "smart.gust.opt.off":        "OFF — no hacer nada",
       "smart.gust.opt.warn":       "Solo avisar",
-      "smart.gust.opt.freeze":     "Congelar objetivo (modos viento)",
       "smart.gust.opt.boostD":     "Subir D +20% durante 20 s",
       "smart.gust.opt.heavy":      "Cambiar a perfil Pesado 30 s",
       "smart.autoDis.title":       "Emergencia: desenganchar si pierde autoridad",
@@ -13217,7 +13215,6 @@
       if (el2) {
         const bits = [];
         bits.push(`${t("smart.st.strategy") || "strategy"}: ${ge.strategy}`);
-        if (ge.freezeActive)  bits.push(`freeze ${ge.freezeRemainingSec}s left`);
         if (ge.boostActive)   bits.push(`D boost ${ge.boostRemainingSec}s left`);
         if (ge.heavyActive)   bits.push(`heavy profile ${ge.heavyRemainingSec}s left`);
         if (ge.lastAlertTs)   bits.push(`last gust: ${new Date(ge.lastAlertTs).toLocaleTimeString()}`);

@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev530" />
+  <link rel="stylesheet" href="style.css?v=Rev531" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1609,7 +1609,6 @@
             <select id="smart-gust-strategy">
               <option value="off"           data-i18n="smart.gust.opt.off">OFF - do nothing</option>
               <option value="warn"          data-i18n="smart.gust.opt.warn">Warn only (advisory)</option>
-              <option value="freeze-target" data-i18n="smart.gust.opt.freeze">Freeze target (wind modes)</option>
               <option value="boost-D"       data-i18n="smart.gust.opt.boostD">Boost D +20% for 20 s</option>
               <option value="temp-heavy"    data-i18n="smart.gust.opt.heavy">Switch to Heavy profile 30 s</option>
             </select>
@@ -2730,6 +2729,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev530"></script>
+  <script src="app.js?v=Rev531"></script>
 </body>
 </html>
