@@ -469,6 +469,19 @@
       "mode.label.autowind":  "AUTO WIND",
       "mode.label.autowind.long": "AUTO WIND (apparent / true at 120°)",
       "autowind.short":       "AUTO",
+      "route.navShort": "NAV",
+      "route.next": "Next waypoint",
+      "route.decimal": ".",
+      "route.say.wp": "Waypoint {wp} reached.",
+      "route.say.next": "Next, {wp}.",
+      "route.say.course": "New course {deg} degrees.",
+      "route.say.dist": "{nm} miles.",
+      "route.say.dest": "Destination {wp} reached.",
+      "route.say.compass": "Autopilot in compass on the current heading.",
+      "route.say.lostRoute": "Route lost.",
+      "route.say.lostPos": "No GPS position.",
+      "route.bigTurnQ": "NAV will turn {deg} degrees. Continue?",
+      "route.bigTurnBody": "The route leg points far from the current heading.",
       "autowind.needsGps":    "needs GPS for true wind",
       "autowind.prof.apparent": "Apparent wind",
       "autowind.prof.true":   "True wind",
@@ -1455,6 +1468,19 @@
       "mode.label.autowind":  "AUTO VIENTO",
       "mode.label.autowind.long": "AUTO VIENTO (aparente / real a 120°)",
       "autowind.short":       "AUTO",
+      "route.navShort": "NAV",
+      "route.next": "Siguiente waypoint",
+      "route.decimal": " coma ",
+      "route.say.wp": "Waypoint {wp} alcanzado.",
+      "route.say.next": "Siguiente, {wp}.",
+      "route.say.course": "Nuevo rumbo {deg} grados.",
+      "route.say.dist": "{nm} millas.",
+      "route.say.dest": "Destino {wp} alcanzado.",
+      "route.say.compass": "Piloto en compás con el rumbo actual.",
+      "route.say.lostRoute": "Ruta perdida.",
+      "route.say.lostPos": "Sin posición GPS.",
+      "route.bigTurnQ": "NAV va a girar {deg} grados. ¿Continuar?",
+      "route.bigTurnBody": "El tramo de la ruta apunta lejos del rumbo actual.",
       "autowind.needsGps":    "necesita GPS para el viento real",
       "autowind.prof.apparent": "Viento aparente",
       "autowind.prof.true":   "Viento real",
@@ -2871,6 +2897,7 @@
       "steering.autopilot.virtualTack",
       // Rev518: AUTOWIND state (enabled, sub-mode, profile pair).
       "steering.autopilot.autowind",
+      "steering.autopilot.route",   // Rev545
       "steering.autopilot.pypilot.ap.tack.state",
       "steering.autopilot.pypilot.ap.tack.direction",
       "steering.autopilot.pypilot.ap.mode",
@@ -3095,6 +3122,12 @@
         }
         renderTargetArrow();
         break;
+      case "steering.autopilot.route": {
+        // Rev545: route follower status + spoken events.
+        state.route = (value && typeof value === "object") ? value : null;
+        try { _routeOnUpdate(); } catch { /* silent */ }
+        break;
+      }
       case "steering.autopilot.autowind": {
         state.autowind = (value && typeof value === "object") ? value : null;
         try { _renderModeSelectBtn(); } catch { /* silent */ }
@@ -8988,7 +9021,52 @@
       btn.textContent = `${t("autowind.short")} · ${_modeLabel(m)}`;
       return;
     }
+    // Rev545: NAV -> "NAV · <waypoint> · 2.3 nm".
+    if (m === "nav" && state.route && state.route.active) {
+      const nm = typeof state.route.distanceM === "number" ? (state.route.distanceM / 1852).toFixed(1) : "?";
+      btn.textContent = `${t("route.navShort")} · ${state.route.name || "WP"} · ${nm} nm`;
+      return;
+    }
     btn.textContent = m ? _modeLabel(m) : "—";
+  }
+  // Rev545 (Carlos 2026-10-23): route following. Voice announcement of each
+  // event (auto-advance, destination, NAV lost), once per event id.
+  let _routeLastEventId = null;
+  function _routeOnUpdate() {
+    try { _renderModeSelectBtn(); } catch { /* silent */ }
+    const ev = state.route && state.route.event;
+    if (!ev || ev.id == null) return;
+    if (_routeLastEventId == null) { _routeLastEventId = ev.id; return; }   // do not replay on page load
+    if (ev.id === _routeLastEventId) return;
+    _routeLastEventId = ev.id;
+    let msg = "";
+    if (ev.kind === "wp-reached") {
+      msg = t("route.say.wp").replace("{wp}", ev.reached || "");
+      if (ev.next) msg += " " + t("route.say.next").replace("{wp}", ev.next);
+      if (typeof ev.bearingDeg === "number") msg += " " + t("route.say.course").replace("{deg}", String(Math.round(ev.bearingDeg)));
+      if (typeof ev.distanceNm === "number") msg += " " + t("route.say.dist").replace("{nm}", String(ev.distanceNm).replace(".", t("route.decimal")));
+    } else if (ev.kind === "destination") {
+      msg = t("route.say.dest").replace("{wp}", ev.reached || "") + (ev.compass ? " " + t("route.say.compass") : "");
+    } else if (ev.kind === "nav-lost") {
+      msg = t(ev.reason === "no-route" ? "route.say.lostRoute" : "route.say.lostPos") + " " + t("route.say.compass");
+    }
+    if (!msg) return;
+    try { _alSpeak(msg); } catch { /* silent */ }
+    try {
+      let el = document.getElementById("pypilot-reconnect-toast");
+      if (!el) { el = document.createElement("div"); el.id = "pypilot-reconnect-toast"; el.className = "pypilot-reconnect-toast"; document.body.appendChild(el); }
+      el.classList.toggle("warn", ev.kind === "nav-lost");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(() => el.classList.remove("show"), 8000);
+    } catch { /* silent */ }
+  }
+  async function _routeNext() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/route/next`, { method: "POST" });
+      if (!r.ok) throw new Error(String(r.status));
+    } catch (e) { console.warn("[route] next", e); }
   }
   // Rev520 (Carlos): AUTO WIND right below compass / GPS.
   function _withAutowindAfterCompass(list) {
@@ -9126,6 +9204,7 @@
         const chosen = li.dataset.mode;
         if (!chosen) return;   // Rev519: greyed-out entry (AUTO WIND without GPS)
         _modeSelectPopupClose();
+        if (chosen === "nav-next") { _routeNext(); return; }   // Rev545
         const nativeSel = document.getElementById("mode-select");
         if (nativeSel) {
           nativeSel.value = chosen;
@@ -9236,6 +9315,15 @@
         li.style.cursor = "default";
         li.textContent = `${_modeLabel(v)} (${t("autowind.needsGps")})`;
       }
+      list.appendChild(li);
+    }
+    // Rev545: next waypoint of the active route.
+    if (state.route && state.route.active && state.route.canAdvance) {
+      const li = document.createElement("li");
+      li.className = "mode-popup-item";
+      li.setAttribute("role", "option");
+      li.dataset.mode = "nav-next";
+      li.textContent = t("route.next");
       list.appendChild(li);
     }
     // Refresh the profile sub-select so its header shows the active one.
@@ -11107,6 +11195,15 @@
           // intermediate step.
           state.localTargetRad = _countdownPlannedTargetRad ?? state.target ?? state.heading;
         }
+        // Rev545 (Carlos #5): in NAV a nudge = take over in compass, current
+        // heading + nudge (the backend does the mode change safely).
+        if (String(state.mode || "") === "nav") {
+          state.localTargetRad = null;
+          skFetch("/signalk/v1/api/vessels/self/steering/autopilot/pypilot/actions/nudge", {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: nudge }) }).catch(() => {});
+          return;
+        }
         state.lastNudgeTs = now;
         const nudgeMode = String(state.mode || "");   // Rev539 (GPT review 5 #5)
         // Rev226/230 (Carlos): botones = "swing the bow to the
@@ -11374,6 +11471,18 @@
       }
       if (state.autowind && state.autowind.enabled) {
         _autowindPost({ enabled: false });
+      }
+      // Rev545 (Carlos #4): NAV that would turn more than 60 deg asks first.
+      if (chosen === "nav" && state.engaged && state.route && typeof state.route.legBearingDeg === "number" && typeof state.heading === "number") {
+        const turn = Math.abs((((state.route.legBearingDeg - state.heading * RAD2DEG) % 360) + 540) % 360 - 180);
+        if (turn > 60) {
+          (async () => {
+            const ok = await _pmConfirm(t("route.bigTurnQ").replace("{deg}", String(Math.round(turn))), t("route.bigTurnBody"));
+            if (ok) apSetMode("nav");
+            else setSelect("#mode-select", state.mode || "");
+          })();
+          return;
+        }
       }
       // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
       // choice modal (bow / stern) and starts the maneuver on confirmation.

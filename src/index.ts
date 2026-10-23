@@ -15,6 +15,7 @@ import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
 import { DisplayPresets } from "./display-presets";
 import { BlackBox, BlackBoxSample } from "./black-box";
+import { legState, buildApb, wpLabel, isLatLon, M_PER_NM, LatLon } from "./route-nav";
 import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
@@ -71,7 +72,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev544";
+const PLUGIN_REVISION = "Rev545";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -856,6 +857,11 @@ module.exports = function (app: any) {
           // SK PUT) clears it; an AP off from outside the app (TinyPilot
           // keys, remote, native UI) while underway raises it.
           apProvider.onAppEngageOrder = () => { steerWatch.noteAppOrder(); };
+          // Rev545: SK autopilot API "courseNextPoint" -> route follower.
+          apProvider.onCourseNextPoint = async () => {
+            const ok = await _routeAdvance(await app.getCourse(), "manual");
+            if (!ok) throw new Error("no next waypoint");
+          };
           apProvider.onExternalDisengage = () => {
             // Our own authority-lost cut writes straight to pypilot.
             if (_authorityLastAutoDisengageTs && Date.now() - _authorityLastAutoDisengageTs < 5000) return;
@@ -1127,6 +1133,8 @@ module.exports = function (app: any) {
         try { _blackBoxTick(s); } catch (e: any) { app.debug?.(`[black-box] tick: ${e?.message || e}`); }
         // Rev518: AUTOWIND (apparent <-> true wind by TWA).
         try { _autowindTick(); } catch (e: any) { app.debug?.(`[autowind] tick: ${e?.message || e}`); }
+        // Rev545: route follower (APB for pypilot's NAV mode).
+        try { void _routeTick(); } catch (e: any) { app.debug?.(`[route] tick: ${e?.message || e}`); }
         // Rev100: run the alarm engine last so it has every input up to
         // date. Changed rules trigger SK notification deltas.
         try { evaluateAndPublishAlarms(s); } catch { /* silent */ }
@@ -1603,6 +1611,14 @@ module.exports = function (app: any) {
         const note = typeof req.body?.note === "string" ? req.body.note : "";
         const id = blackBox.trigger("mark", note ? `marked: ${note}` : "marked by the sailor");
         res.json({ ok: !!id, id });
+      });
+      // Rev545: next waypoint of the active route (visor button).
+      router.post("/route/next", async (_req: any, res: any) => {
+        if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
+        try {
+          const ok = await _routeAdvance(await app.getCourse(), "manual");
+          res.json({ ok });
+        } catch (e: any) { res.status(500).json({ error: String(e?.message || e) }); }
       });
       // Rev544: the sailor's note (dictated with the phone keyboard).
       router.post("/black-box/note/:id", (req: any, res: any) => {
@@ -4287,6 +4303,154 @@ module.exports = function (app: any) {
   function _cancelAnyTack(why: string): void {
     try { if (apProvider && apProvider.isVirtualTackActive()) apProvider.cancelVirtualTack(why); } catch { /* silent */ }
     try { client?.set("ap.tack.state", "none"); } catch { /* silent */ }
+  }
+  // ───────────── Rev545 (Carlos 2026-10-23): route follower ─────────────
+  // Freeboard sets the route in the Signal K Course API; we compute the leg
+  // and send an APB every second on Signal K's NMEA 0183 output, which the
+  // TinyPilot already reads (nmea.client = <pi>:10110). pypilot then offers
+  // NAV and steers it itself. Design: docs/_design_route_following_2026-10-23.md.
+  // Carlos' decisions: auto-advance with a clear voice message; end of route
+  // and data loss -> compass on the current heading; >60 deg confirm in the
+  // visor; +-1/+-10 in NAV -> compass (autopilot-provider).
+  const ROUTE_POS_STALE_MS = 5000;
+  const ROUTE_LOST_EXIT_MS = 5000;
+  let _routeInFlight = false;
+  let _routeAdvancedFor: string | null = null;
+  let _routeFinishedFor: string | null = null;
+  let _routeLostSince: number | null = null;
+  let _routeEventSeq = 0;
+  let _routeEvent: Record<string, unknown> | null = null;
+  let _routeLastPub = "";
+  function _routePublish(status: Record<string, unknown>): void {
+    const value = { ...status, event: _routeEvent };
+    const key = JSON.stringify(value);
+    if (key === _routeLastPub) return;
+    _routeLastPub = key;
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(),
+          values: [{ path: "steering.autopilot.route", value }] }],
+      });
+    } catch { /* silent */ }
+  }
+  function _routeAnnounce(kind: string, extra: Record<string, unknown>): void {
+    _routeEvent = { id: ++_routeEventSeq, ts: Date.now(), kind, ...extra };
+    // eslint-disable-next-line no-console
+    console.log(`[route] ${kind} ${JSON.stringify(extra)}`);
+  }
+  function _routeInNav(): boolean {
+    return !!apProvider && !!apProvider.data.engaged && String(apProvider.data.mode || "").toLowerCase() === "nav";
+  }
+  /** Leave NAV for compass on the CURRENT heading (pypilot's own ap.heading). */
+  async function _routeSafeExit(): Promise<boolean> {
+    if (!apProvider || !client || !_routeInNav()) return false;
+    const iface = apProvider.toProviderInterface() as any;
+    try {
+      await iface.setMode("compass", apProvider.deviceId);
+      const h = Number(client.getValues()["ap.heading"]);
+      if (Number.isFinite(h)) await iface.setTarget(h * Math.PI / 180, apProvider.deviceId);
+      return true;
+    } catch (e: any) { app.debug?.(`[route] safe exit: ${e?.message || e}`); return false; }
+  }
+  function _routePos(): LatLon | null {
+    try {
+      const p = app.getSelfPath ? app.getSelfPath("navigation.position") : null;
+      const v = p?.value;
+      const ts = typeof p?.timestamp === "string" ? Date.parse(p.timestamp) : NaN;
+      if (!isLatLon(v)) return null;
+      if (Number.isFinite(ts) && Date.now() - ts > ROUTE_POS_STALE_MS) return null;
+      return { latitude: v.latitude, longitude: v.longitude };
+    } catch { return null; }
+  }
+  /** Next waypoint of the active route (manual "next WP" or arrival). */
+  async function _routeAdvance(course: any, why: "arrival" | "manual"): Promise<boolean> {
+    const ar = course?.activeRoute;
+    if (!ar || typeof ar.href !== "string") return false;
+    const idx = Number(ar.pointIndex), total = Number(ar.pointTotal);
+    if (!Number.isFinite(idx) || !Number.isFinite(total) || idx >= total - 1) return false;
+    const reached = wpLabel(course?.nextPoint?.name, idx);
+    await (app as any).activateRoute({ href: ar.href, pointIndex: idx + 1, reverse: !!ar.reverse });
+    // Announce with the NEW leg (bearing + distance) once Signal K has it.
+    let nb: number | null = null, nd: number | null = null, nn: string | null = null;
+    try {
+      const c2 = await app.getCourse();
+      const pos = _routePos();
+      const nxt = c2?.nextPoint?.position;
+      if (pos && isLatLon(nxt)) {
+        const prv = isLatLon(c2?.previousPoint?.position) ? c2.previousPoint.position : null;
+        const lg = legState(prv, nxt, pos, Number(c2?.arrivalCircle) || 0);
+        nb = Math.round(lg.legBearingRad * 180 / Math.PI) % 360;
+        nd = Math.round(lg.distanceM / M_PER_NM * 10) / 10;
+      }
+      nn = wpLabel(c2?.nextPoint?.name, idx + 1);
+    } catch { /* announce without the new leg */ }
+    _routeAnnounce("wp-reached", { why, reached, next: nn, bearingDeg: nb, distanceNm: nd, index: idx + 1, total });
+    return true;
+  }
+  async function _routeTick(): Promise<void> {
+    if (_routeInFlight || !app.getCourse) return;
+    _routeInFlight = true;
+    try {
+      let course: any = null;
+      try { course = await app.getCourse(); } catch { course = null; }
+      const next = course?.nextPoint?.position;
+      const pos = _routePos();
+      const ar = course?.activeRoute || null;
+      const idx = ar && Number.isFinite(Number(ar.pointIndex)) ? Number(ar.pointIndex) : null;
+      const key = ar ? `${ar.href}#${idx}` : (isLatLon(next) ? `pt:${next.latitude.toFixed(5)},${next.longitude.toFixed(5)}` : "");
+      if (!isLatLon(next)) { _routeFinishedFor = null; _routeAdvancedFor = null; }   // route cleared: a re-activation starts fresh
+      if (!isLatLon(next) || !pos) {
+        // No route / no position. In NAV: compass on the current heading.
+        if (_routeInNav()) {
+          if (_routeLostSince == null) _routeLostSince = Date.now();
+          else if (Date.now() - _routeLostSince > ROUTE_LOST_EXIT_MS) {
+            _routeLostSince = null;
+            if (await _routeSafeExit()) _routeAnnounce("nav-lost", { reason: !isLatLon(next) ? "no-route" : "no-position" });
+          }
+        } else _routeLostSince = null;
+        _routePublish({ active: false });
+        return;
+      }
+      _routeLostSince = null;
+      const prev = isLatLon(course?.previousPoint?.position) ? course.previousPoint.position : null;
+      const leg = legState(prev, next, pos, Number(course?.arrivalCircle) || 0);
+      const name = wpLabel(course?.nextPoint?.name, idx);
+      const finished = _routeFinishedFor === key;
+      // APB 1 Hz (pypilot takes <= 2/s); none once this destination is done.
+      if (!finished) {
+        try { app.emit("nmea0183out", buildApb(leg, idx != null ? `WP${idx + 1}` : "WP")); } catch { /* silent */ }
+      }
+      // Arrival: inside the circle or past the perpendicular.
+      if ((leg.arrived || leg.perpendicularPassed) && !finished) {
+        const more = ar && idx != null && idx < Number(ar.pointTotal) - 1;
+        if (more) {
+          if (_routeAdvancedFor !== key) {
+            _routeAdvancedFor = key;
+            try { await _routeAdvance(course, "arrival"); } catch (e: any) { app.debug?.(`[route] advance: ${e?.message || e}`); _routeAdvancedFor = null; }
+          }
+        } else {
+          _routeFinishedFor = key;
+          const exited = await _routeSafeExit();
+          _routeAnnounce("destination", { reached: name, compass: exited });
+        }
+      }
+      _routePublish({
+        active: !finished,
+        name,
+        index: idx,
+        total: ar ? Number(ar.pointTotal) : null,
+        routeName: ar ? (ar.name || null) : null,
+        distanceM: Math.round(leg.distanceM),
+        xteM: Math.round(leg.xteM),
+        legBearingDeg: Math.round(leg.legBearingRad * 1800 / Math.PI) / 10,
+        bearingToWpDeg: Math.round(leg.bearingToWpRad * 1800 / Math.PI) / 10,
+        canAdvance: !!(ar && idx != null && idx < Number(ar.pointTotal) - 1),
+        finished,
+      });
+    } finally {
+      _routeInFlight = false;
+    }
   }
   // Rev525 (Carlos 2026-10-20): black box. See src/black-box.ts.
   function _bbTrigger(kind: string, detail: string): void {

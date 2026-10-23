@@ -1,7 +1,6 @@
 # Diseño — seguir rutas de Freeboard con pypilot (modo NAV), sin plugins extra
 
-Estado: **propuesta, sin código**. Para revisar con Carlos (y con GPT/Gemini
-antes de programar la lógica de waypoint).
+Estado: **implementado en Rev545** (2026-10-23) con las decisiones de Carlos; pendiente de prueba con una ruta real (puerto, luego agua).
 
 ## 1. Lo que hay hoy (comprobado en el barco, 2026-10-23)
 
@@ -106,3 +105,25 @@ solo le da el rumbo. Si la Pi o Signal K caen, pypilot pierde el APB a los
 - pypilot workbook, *Signal K connections*.
 - Signal K 2.34 `@signalk/server-api` `course.d.ts` (`getCourse`, `activateRoute`).
 - Foro OpenMarine: hilos sobre APB/RMC al puerto 20220 y giro adelantado en waypoints.
+
+
+## 7. Decisiones de Carlos (2026-10-23) e implementación Rev545
+
+| # | Decisión | Implementación |
+|---|---|---|
+| 1 | Avance automático, con aviso de voz claro | Al entrar en el círculo de llegada o pasar la perpendicular: `activateRoute(pointIndex + 1)`; el visor dice "Waypoint X alcanzado. Siguiente, Y. Nuevo rumbo N grados. D millas." |
+| 2 | Fin de ruta: compás con el rumbo actual + aviso | Si el AP está en NAV: compás con `ap.heading` de pypilot y "Destino X alcanzado. Piloto en compás con el rumbo actual." Deja de enviarse APB. |
+| 3 | Giro en waypoint: estándar | pypilot gira solo con el nuevo tramo. |
+| 4 | Confirmar NAV con giro > 60° | En el selector de modo, con el AP conectado. |
+| 5 | ±1/±10 en NAV → compás con el nuevo rumbo | `adjustTarget` en NAV: compás, rumbo actual ± el ajuste (esperando el eco del modo, como la cancelación de Rev515). Virar en NAV se rechaza. |
+
+Además: pérdida de ruta o de posición > 5 s con el AP en NAV → compás con
+el rumbo actual + "Ruta perdida" / "Sin posición GPS". "Siguiente waypoint"
+en la lista de modos y por el API de Signal K (`courseNextPoint`). Estado
+publicado en `steering.autopilot.route`. Comprobado en la Pi: Signal K
+reenvía `nmea0183out` por el puerto 10110 (`interfaces/nmea-tcp.js`), el
+mismo que lee la TinyPilot.
+
+Archivos: `src/route-nav.ts` (cálculo puro, 9 tests),
+`src/index.ts` (`_routeTick`), `src/autopilot-provider.ts` (NAV),
+`public/app.js` (voz, botón, confirmación).

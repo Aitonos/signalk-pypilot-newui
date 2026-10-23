@@ -384,6 +384,27 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev545: +10 in NAV -> compass on the current heading + 10; tack refused; next-WP goes to the route follower", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 200 });
+    sim.values["ap.heading"] = 200;
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      p.receiveValue("ap.modes", ["compass", "gps", "nav", "wind"]);
+      p.receiveValue("ap.mode", "nav");
+      p.receiveValue("ap.heading_command", 190);
+      await (p.toProviderInterface() as any).adjustTarget(10 * D, "_default");
+      assert.equal(sim.values["ap.mode"], "compass");
+      assert.ok(Math.abs(Number(sim.values["ap.heading_command"]) - 210) < 0.01, `got ${sim.values["ap.heading_command"]}`);
+      p.receiveValue("ap.mode", "nav");
+      await assert.rejects((p.toProviderInterface() as any).tack("port", "_default"), /NAV/);
+      let called = 0;
+      p.onCourseNextPoint = async () => { called++; };
+      await (p.toProviderInterface() as any).courseNextPoint("_default");
+      assert.equal(called, 1);
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);

@@ -199,6 +199,9 @@ export class AutopilotProvider {
   /** Rev508: ap.enabled went false with no order of ours (TinyPilot keys,
    *  physical remote, native UI). Not called for our recovery cycles. */
   onExternalDisengage?: () => void;
+  /** Rev545: "next waypoint" (SK autopilot API courseNextPoint), wired by
+   *  index.ts to the route follower. */
+  onCourseNextPoint?: () => Promise<void>;
   /** Rev508: any engage / disengage order through this provider. */
   onAppEngageOrder?: () => void;
 
@@ -845,6 +848,26 @@ export class AutopilotProvider {
         if (this.adjustVirtualTack(rad)) return;
         throw new Error("target adjust refused: virtual tack is driving the pilot");
       }
+      // Rev545 (Carlos 2026-10-23, decision #5): in NAV pypilot steers from
+      // the route (APB) and would overwrite any target. A +-1/+-10 means
+      // "I take over": compass, current heading + the nudge.
+      if (this.data.engaged && String(this.data.mode || "").toLowerCase() === "nav") {
+        const apH = Number(((this.client as any).getValues?.() || {})["ap.heading"]);
+        await this.setMode("compass");
+        if (!Number.isFinite(apH)) return;
+        const want = apH * DEG_TO_RAD + rad;
+        // Same race as the tack cancel (Rev515): pypilot recomputes the
+        // command on the mode change in its own loop - wait, write, verify.
+        await this._waitValue("ap.mode", "compass", 1500);
+        await new Promise<void>((r) => setTimeout(r, 400));
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await this.setTarget(want);
+          await new Promise<void>((r) => setTimeout(r, 1200));
+          const cmd = Number(((this.client as any).getValues?.() || {})["ap.heading_command"]);
+          if (!Number.isFinite(cmd) || Math.abs(((cmd - want * RAD_TO_DEG) % 360 + 540) % 360 - 180) <= 2) break;
+        }
+        return;
+      }
       if (this.data.engaged) {
         const base = typeof this.data.target === "number" ? this.data.target : 0;
         const newRad = this._normTargetRad(base + rad);   // Rev532 (Gemini #6)
@@ -1046,6 +1069,9 @@ export class AutopilotProvider {
     // matches the requested direction when the rotation is < 180°.
     if (!this.data.engaged || this.data.target == null) return;
     const modeStr = String(this.data.mode || "").toLowerCase();
+    // Rev545: in NAV the route decides the heading; a tack there would be
+    // overwritten by the next APB. Leave NAV first.
+    if (modeStr === "nav") throw new Error("tack not available in NAV mode - switch to compass first");
     const isWind = modeStr === "wind" || modeStr === "true wind";
     if (isWind) {
       // Rev532 (GPT audit #4): KIP / SK autopilot API / PUT actions / the
@@ -1775,7 +1801,8 @@ export class AutopilotProvider {
       disengage: async (_id: string) => self.disengage(),
       courseCurrentPoint: async (_id: string) => self.setNavMode(),
       courseNextPoint: async (_id: string) => {
-        throw new Error("Not implemented");
+        if (!self.onCourseNextPoint) throw new Error("No route follower");
+        await self.onCourseNextPoint();
       },
       tack: async (direction: "port" | "starboard", _id: string) =>
         self.tack(direction),
