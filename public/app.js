@@ -9041,8 +9041,8 @@
     _routeLastEventId = ev.id;
     let msg = "";
     if (ev.kind === "wp-reached") {
-      msg = t("route.say.wp").replace("{wp}", ev.reached || "");
-      if (ev.next) msg += " " + t("route.say.next").replace("{wp}", ev.next);
+      msg = ev.silentReach ? "" : t("route.say.wp").replace("{wp}", ev.reached || "");
+      if (ev.next) msg += (msg ? " " : "") + t("route.say.next").replace("{wp}", ev.next);
       if (typeof ev.bearingDeg === "number") msg += " " + t("route.say.course").replace("{deg}", String(Math.round(ev.bearingDeg)));
       if (typeof ev.distanceNm === "number") msg += " " + t("route.say.dist").replace("{nm}", String(ev.distanceNm).replace(".", t("route.decimal")));
     } else if (ev.kind === "destination") {

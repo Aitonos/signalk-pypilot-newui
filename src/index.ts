@@ -72,7 +72,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev545";
+const PLUGIN_REVISION = "Rev546";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -4321,6 +4321,16 @@ module.exports = function (app: any) {
   let _routeEventSeq = 0;
   let _routeEvent: Record<string, unknown> | null = null;
   let _routeLastPub = "";
+  // Rev546 (bug seen 2026-10-23 13:21): Signal K updates activeRoute.pointIndex
+  // a moment BEFORE nextPoint.position. Right after an advance we saw "point 2
+  // of 2" with point 1's position (distance 0) -> false "destination" -> APB
+  // stopped and NAV vanished. Now: after an advance, no arrival check until
+  // nextPoint really moves; the announcement waits for the new leg; and a
+  // destination counts only if the boat was once outside its arrival circle.
+  let _routeReachedPos: LatLon | null = null;
+  let _routeReachedTs = 0;
+  let _routePendingAnnounce: Record<string, unknown> | null = null;
+  let _routeArmedFor: string | null = null;
   function _routePublish(status: Record<string, unknown>): void {
     const value = { ...status, event: _routeEvent };
     const key = JSON.stringify(value);
@@ -4370,22 +4380,15 @@ module.exports = function (app: any) {
     const idx = Number(ar.pointIndex), total = Number(ar.pointTotal);
     if (!Number.isFinite(idx) || !Number.isFinite(total) || idx >= total - 1) return false;
     const reached = wpLabel(course?.nextPoint?.name, idx);
+    const reachedPos = isLatLon(course?.nextPoint?.position) ? course.nextPoint.position : null;
     await (app as any).activateRoute({ href: ar.href, pointIndex: idx + 1, reverse: !!ar.reverse });
-    // Announce with the NEW leg (bearing + distance) once Signal K has it.
-    let nb: number | null = null, nd: number | null = null, nn: string | null = null;
-    try {
-      const c2 = await app.getCourse();
-      const pos = _routePos();
-      const nxt = c2?.nextPoint?.position;
-      if (pos && isLatLon(nxt)) {
-        const prv = isLatLon(c2?.previousPoint?.position) ? c2.previousPoint.position : null;
-        const lg = legState(prv, nxt, pos, Number(c2?.arrivalCircle) || 0);
-        nb = Math.round(lg.legBearingRad * 180 / Math.PI) % 360;
-        nd = Math.round(lg.distanceM / M_PER_NM * 10) / 10;
-      }
-      nn = wpLabel(c2?.nextPoint?.name, idx + 1);
-    } catch { /* announce without the new leg */ }
-    _routeAnnounce("wp-reached", { why, reached, next: nn, bearingDeg: nb, distanceNm: nd, index: idx + 1, total });
+    _routeReachedPos = reachedPos;
+    _routeReachedTs = Date.now();
+    // Announced by _routeTick once nextPoint has really moved (new leg).
+    // Never outside that point (e.g. Freeboard's temporary route starts AT the
+    // boat): do not say "waypoint reached", only the new leg.
+    const silentReach = why === "arrival" && _routeArmedFor !== `${ar.href}#${idx}`;
+    _routePendingAnnounce = { why, reached, index: idx + 1, total, silentReach };
     return true;
   }
   async function _routeTick(): Promise<void> {
@@ -4399,7 +4402,7 @@ module.exports = function (app: any) {
       const ar = course?.activeRoute || null;
       const idx = ar && Number.isFinite(Number(ar.pointIndex)) ? Number(ar.pointIndex) : null;
       const key = ar ? `${ar.href}#${idx}` : (isLatLon(next) ? `pt:${next.latitude.toFixed(5)},${next.longitude.toFixed(5)}` : "");
-      if (!isLatLon(next)) { _routeFinishedFor = null; _routeAdvancedFor = null; }   // route cleared: a re-activation starts fresh
+      if (!isLatLon(next)) { _routeFinishedFor = null; _routeAdvancedFor = null; _routeArmedFor = null; _routeReachedPos = null; _routePendingAnnounce = null; }   // route cleared: a re-activation starts fresh
       if (!isLatLon(next) || !pos) {
         // No route / no position. In NAV: compass on the current heading.
         if (_routeInNav()) {
@@ -4413,8 +4416,27 @@ module.exports = function (app: any) {
         return;
       }
       _routeLostSince = null;
+      // Course not caught up after an advance yet (same position as the point
+      // just reached): wait, at most 10 s.
+      if (_routeReachedPos && Date.now() - _routeReachedTs < 10_000
+          && Math.abs(_routeReachedPos.latitude - next.latitude) < 1e-7
+          && Math.abs(_routeReachedPos.longitude - next.longitude) < 1e-7) {
+        return;
+      }
+      _routeReachedPos = null;
       const prev = isLatLon(course?.previousPoint?.position) ? course.previousPoint.position : null;
       const leg = legState(prev, next, pos, Number(course?.arrivalCircle) || 0);
+      if (_routePendingAnnounce) {
+        _routeAnnounce("wp-reached", {
+          ..._routePendingAnnounce,
+          next: wpLabel(course?.nextPoint?.name, idx),
+          bearingDeg: Math.round(leg.legBearingRad * 180 / Math.PI) % 360,
+          distanceNm: Math.round(leg.distanceM / M_PER_NM * 10) / 10,
+        });
+        _routePendingAnnounce = null;
+      }
+      // Armed once the boat has been outside this destination's circle.
+      if (!leg.arrived && !leg.perpendicularPassed) _routeArmedFor = key;
       const name = wpLabel(course?.nextPoint?.name, idx);
       const finished = _routeFinishedFor === key;
       // APB 1 Hz (pypilot takes <= 2/s); none once this destination is done.
@@ -4429,7 +4451,8 @@ module.exports = function (app: any) {
             _routeAdvancedFor = key;
             try { await _routeAdvance(course, "arrival"); } catch (e: any) { app.debug?.(`[route] advance: ${e?.message || e}`); _routeAdvancedFor = null; }
           }
-        } else {
+        } else if (_routeArmedFor === key) {
+          // A real arrival (the boat was outside the circle before).
           _routeFinishedFor = key;
           const exited = await _routeSafeExit();
           _routeAnnounce("destination", { reached: name, compass: exited });
