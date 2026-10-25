@@ -419,6 +419,21 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev548: with a route NAV is available while disengaged; engageCurrentMode keeps the mode", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 200 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    p.receiveValue("ap.modes", ["compass", "gps", "nav", "wind"]);
+    p.receiveValue("ap.enabled", false);
+    p.receiveValue("ap.mode", "compass");
+    try {
+      const nav = p.data.options.actions.find((a: any) => a.id === "courseCurrentPoint");
+      assert.equal(nav?.available, true, "one press from Freeboard");
+      await p.engageCurrentMode();
+      assert.equal(sim.values["ap.enabled"], true);
+      assert.notEqual(sim.values["ap.mode"], "nav", "visor engage does not switch to NAV");
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);

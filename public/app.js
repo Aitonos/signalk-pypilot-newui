@@ -485,7 +485,7 @@
       "autowind.needsGps":    "needs GPS for true wind",
       "autowind.prof.apparent": "Apparent wind",
       "autowind.prof.true":   "True wind",
-      "mode.label.nav":       "WAYPOINT",
+      "mode.label.nav":       "NAV (ROUTE)",
       "mode.label.aproado":   "HEAD TO WIND",
       "mode.label.empopado":    "DEAD DOWNWIND",
       "tune.gain.helpBtn":  "More info",
@@ -1484,7 +1484,7 @@
       "autowind.needsGps":    "necesita GPS para el viento real",
       "autowind.prof.apparent": "Viento aparente",
       "autowind.prof.true":   "Viento real",
-      "mode.label.nav":       "RUMBO A WAYPOINT",
+      "mode.label.nav":       "NAV (RUTA)",
       "mode.label.aproado":   "APROADO",
       "mode.label.empopado":    "EMPOPADO",
       // Rev172 (Carlos): short labels for the collapsed button, long
@@ -2133,7 +2133,7 @@
       "dlg.yes":              "Ja",
       "dlg.no":               "Nein",
       "mode.label.true-wind": "WAHRER WIND",
-      "mode.label.nav":       "WEGPUNKT",
+      "mode.label.nav":       "NAV (ROUTE)",
       "mode.label.aproado":   "AUFSCHIESSEN",
       "tune.gain.helpBtn":  "Mehr Info",
       "tune.gain.P.title":    "Reaktivitaet (P)",
@@ -2334,7 +2334,7 @@
       "dlg.yes":              "Oui",
       "dlg.no":               "Non",
       "mode.label.true-wind": "VENT REEL",
-      "mode.label.nav":       "WAYPOINT",
+      "mode.label.nav":       "NAV (ROUTE)",
       "mode.label.aproado":   "FACE AU VENT",
       "tune.gain.helpBtn":  "Plus d'infos",
       "tune.gain.P.title":    "Reactivite (P)",
@@ -9855,8 +9855,11 @@
     if (_pypilotWriteBlocked("apEngage")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
     _mtLog("engage", { via: "apEngage" });
-    const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`;
-    return handleAuth(await skFetch(url, { method: "POST" }));
+    // Rev548 (Carlos 2026-10-25): the visor engages in the CURRENT mode. The
+    // Signal K API engage (Freeboard, KIP) switches to NAV when a route is
+    // active; here NAV is chosen in the mode list. Also keeps aproado /
+    // empopado (which engage at the end) in their wind mode with a route on.
+    return handleAuth(await skFetch(`/plugins/${PLUGIN_ID}/ap/engage?current=1`, { method: "POST" }));
   }
   async function apDisengage() {
     if (_pypilotWriteBlocked("apDisengage")) return { ok: false, blocked: true };

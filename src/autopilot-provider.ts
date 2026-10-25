@@ -1712,6 +1712,14 @@ export class AutopilotProvider {
     }
   }
 
+  /** Rev548 (Carlos 2026-10-25): the visor's AP button engages in the CURRENT
+   *  mode. engage() (Signal K API: Freeboard, KIP) goes to NAV when a route
+   *  is active; from the visor NAV is picked in the mode list, with the
+   *  >60 deg confirmation. */
+  async engageCurrentMode(): Promise<void> {
+    await this.setState("enabled");
+  }
+
   private async disengage(): Promise<void> {
     await this.setState("disabled");
   }
@@ -1778,7 +1786,11 @@ export class AutopilotProvider {
       if (a.id === "tack") {
         a.available = this.data.engaged;
       } else if (a.id === "courseCurrentPoint") {
-        a.available = this.data.engaged && this.pypilotModes.includes("nav");
+        // Rev548: available whenever pypilot offers NAV (an active route).
+        // It used to require the AP already engaged, so Freeboard's engage
+        // with a route needed two presses (1st: engage in the old mode,
+        // 2nd: switch to NAV).
+        a.available = this.pypilotModes.includes("nav");
       }
     }
   }

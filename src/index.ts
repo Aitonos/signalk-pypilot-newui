@@ -72,7 +72,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev547";
+const PLUGIN_REVISION = "Rev548";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1999,7 +1999,10 @@ module.exports = function (app: any) {
       router.post("/ap/engage", async (_req: any, res: any) => {
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites is disabled" });
         try {
-          if (apProvider) {
+          if (apProvider && String(_req.query?.current || "") === "1") {
+            // Rev548: visor AP button - engage in the current mode.
+            await apProvider.engageCurrentMode();
+          } else if (apProvider) {
             await (apProvider.toProviderInterface() as any).engage(apProvider.deviceId);
           } else if (client?.connected) {
             if (!client.set("ap.enabled", true)) {
