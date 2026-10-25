@@ -604,6 +604,13 @@ export class AutopilotProvider {
   }
 
   private async setMode(mode: string): Promise<void> {
+    // Rev547 (2026-10-25 22:14-22:16): pypilot accepts ap.mode="nav" even
+    // without a route (no APB); the route follower then found NAV with no
+    // route, went to compass and said "route lost" - twice. NAV only when
+    // pypilot offers it (= an active route is feeding APB).
+    if (String(mode).toLowerCase() === "nav" && !this.pypilotModes.includes("nav")) {
+      throw new Error("NAV needs an active route (activate one in Freeboard first)");
+    }
     // Rev390: same guard as setTarget — reject external mode changes
     // while the FSM is driving. If the sailor really wants to abort
     // the maneuver, they tap TACK a second time or call /virtual-tack/

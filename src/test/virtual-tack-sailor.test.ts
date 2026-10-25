@@ -405,6 +405,20 @@ describe("virtual tack - the sailor always wins (Rev506)", () => {
     } finally { sim.stop(); }
   });
 
+  it("Rev547: NAV is refused while pypilot does not offer it (no route)", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 200 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      p.receiveValue("ap.modes", ["compass", "gps", "wind"]);
+      await assert.rejects((p.toProviderInterface() as any).setMode("nav", "_default"), /active route/);
+      assert.notEqual(sim.values["ap.mode"], "nav");
+      p.receiveValue("ap.modes", ["compass", "gps", "nav", "wind"]);
+      await (p.toProviderInterface() as any).setMode("nav", "_default");
+      assert.equal(sim.values["ap.mode"], "nav");
+    } finally { sim.stop(); }
+  });
+
   it("adjust is refused when no tack is running (visor falls back to a normal nudge)", () => {
     const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
     const p = new AutopilotProvider(sim.client as any, sim.app);
