@@ -4332,7 +4332,7 @@
         if (askNote) {
           let j = null;
           try { j = await r.clone().json(); } catch { /* silent */ }
-          if (j && j.id) setTimeout(() => _bbEditNote(j.id, ""), 50);
+          if (j && j.id) setTimeout(() => _bbEditNote(j.id, "", true), 50);
         }
         try { _tapSoundPlay(true); } catch { /* silent */ }
         let el = document.getElementById("pypilot-reconnect-toast");
@@ -4537,12 +4537,12 @@
   }
   // Rev544: note on an incident. The input is a normal text field, so the
   // phone keyboard's microphone dictates into it (no https, no Pi software).
-  async function _bbEditNote(id, current) {
+  async function _bbEditNote(id, current, append) {
     const v = await _pmPrompt(t("bb.note"), current || "", t("bb.noteHint"));
     if (v == null) return;
     try {
       await skFetch(`/plugins/${PLUGIN_ID}/black-box/note/${encodeURIComponent(id)}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: v }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note: v, append: !!append }),
       });
     } catch { /* silent */ }
     if (_bbChart.inc && _bbChart.inc.id === id) {

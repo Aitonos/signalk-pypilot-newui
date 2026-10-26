@@ -72,7 +72,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev550";
+const PLUGIN_REVISION = "Rev551";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1623,7 +1623,7 @@ module.exports = function (app: any) {
       // Rev544: the sailor's note (dictated with the phone keyboard).
       router.post("/black-box/note/:id", (req: any, res: any) => {
         const note = typeof req.body?.note === "string" ? req.body.note : "";
-        res.json({ ok: !!blackBox?.setNote(String(req.params?.id || ""), note) });
+        res.json({ ok: !!blackBox?.setNote(String(req.params?.id || ""), note, req.body?.append === true) });
       });
       // Rev528: opened in the visor -> no longer "new" (shared by every device).
       router.post("/black-box/seen/:id", (req: any, res: any) => {

@@ -74,5 +74,8 @@ describe("black box (Rev525)", () => {
     assert.ok(bb.setNote(id, "corregido"));
     assert.equal(bb.list()[0].note, "corregido");
     assert.equal(bb.setNote("../x", "n"), false);
+    // Rev551: a second Mark in the same incident appends; the popup replaces
+    assert.ok(bb.setNote(id, "otra marca", true));
+    assert.equal(bb.get(id)!.note, "corregido | otra marca");
   });
 });

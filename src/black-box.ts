@@ -134,18 +134,28 @@ export class BlackBox {
     if (inc.seen) return true;
     inc.seen = true;
     this.listCache = null;
-    try { fs.writeFileSync(path.join(this.dir, `bb-${inc.id}.json`), JSON.stringify(inc)); return true; } catch { return false; }
+    return this.writeAtomic(inc);
   }
 
   /** Rev544: attach / replace the sailor's note. Works on the incident
-   *  still recording (written when it closes) and on saved ones. */
-  setNote(id: string, raw: string): boolean {
-    const note = String(raw || "").replace(/[\x00-\x1F\x7F]/g, " ").trim().slice(0, BB_NOTE_MAX);
-    if (this.open && this.open.id === id) { this.open.note = note; return true; }
+   *  still recording (written when it closes) and on saved ones.
+   *  Rev551 (audit): `append` - a second Mark inside the same incident adds
+   *  its note instead of replacing the first; the popup's Note replaces. */
+  setNote(id: string, raw: string, append = false): boolean {
+    const clean = String(raw || "").replace(/[\x00-\x1F\x7F]/g, " ").trim();
+    const join = (old: string | undefined): string =>
+      (append && old ? (clean ? `${old} | ${clean}` : old) : clean).slice(0, BB_NOTE_MAX);
+    if (this.open && this.open.id === id) { this.open.note = join(this.open.note); return true; }
     const inc = this.get(id);
     if (!inc || !this.dir) return false;
-    inc.note = note;
+    inc.note = join(inc.note);
     this.listCache = null;
+    return this.writeAtomic(inc);
+  }
+
+  /** Rev551: tmp + rename, so a power cut never leaves a half-written incident. */
+  private writeAtomic(inc: BlackBoxIncident): boolean {
+    if (!this.dir) return false;
     try {
       const file = path.join(this.dir, `bb-${inc.id}.json`);
       fs.writeFileSync(`${file}.tmp`, JSON.stringify(inc));
