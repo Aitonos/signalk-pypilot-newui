@@ -3,7 +3,8 @@
 // A "trip" is the interval during which `navigation.state` (published by
 // signalk-autostate or any compatible plugin) is anything except
 // "moored". Transition FROM moored -> underway/sailing opens a trip,
-// transition BACK TO moored closes it and emits a summary.
+// transition BACK TO moored closes it and emits a summary. Rev553:
+// "anchored" alone does not open one, and a trip under 0.1 nm is dropped.
 //
 // Output layout under <dataDir>/trips/
 //   - trip-<yyyymmdd>-<hhmmss>-<epochSuffix>.jsonl   raw per-second samples
@@ -18,6 +19,10 @@
 
 import * as fs from "fs";
 import * as path from "path";
+
+/** Rev553: a "trip" that moved less than this is a dock test (anchor
+ *  watch dropped in the marina, autostate noise), not an outing. */
+export const TRIP_MIN_DISTANCE_NM = 0.1;
 
 export interface TripSample {
   ts: number;
@@ -289,14 +294,15 @@ export class TripRecorder {
     const durMs = endTs - this.startTs;
     // Guard: too short (< 60 s) or too few samples (< 60) - discard.
     // A short outing that autostate flagged for a moment is not a trip.
-    if (this.sampleCount < 60 || durMs < 60_000) {
+    // Rev553: same for one that never left the dock (< 0.1 nm).
+    if (this.sampleCount < 60 || durMs < 60_000 || this.distanceMeters / 1852 < TRIP_MIN_DISTANCE_NM) {
       if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
       const file = this.currentFile;
       const sumFile = this.currentSummaryFile;
       this.buffer = [];
       try { fs.unlinkSync(file); } catch { /* silent */ }
       try { if (sumFile) fs.unlinkSync(sumFile); } catch { /* silent */ }
-      this.log("info", `[trip] discarded ${this.currentId} (${this.sampleCount} samples in ${(durMs / 1000).toFixed(1)}s)`);
+      this.log("info", `[trip] discarded ${this.currentId} (${this.sampleCount} samples in ${(durMs / 1000).toFixed(1)}s, ${(this.distanceMeters / 1852).toFixed(2)} nm)`);
       this._resetActive();
       return null;
     }

@@ -72,7 +72,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev552";
+const PLUGIN_REVISION = "Rev553";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -4088,7 +4088,11 @@ module.exports = function (app: any) {
     // Signal K mid-outing missed the entire session and stored zero
     // trips. Treat lastNavState==null (boot) the same as coming from
     // "moored" for the purpose of opening a new trip.
-    if (navState !== "moored" && (lastNavState === "moored" || lastNavState === null) && !tripRecorder.isRecording()) {
+    // Rev553 (Carlos 2026-10-26): "anchored" does not open a trip - the
+    // anchor watch dropped in the marina recorded 21 h at the dock on
+    // 23/10. A trip opens when the boat actually gets under way (also
+    // anchored -> sailing); anchoring during an open trip stays in it.
+    if (navState !== "moored" && navState !== "anchored" && !tripRecorder.isRecording()) {
       // Opening. Snapshot the current pypilot gains so the trip header
       // records how the pilot was tuned when the boat left the dock.
       const pv = (client && client.connected) ? client.getValues() : {};
