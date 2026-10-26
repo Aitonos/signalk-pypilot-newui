@@ -72,7 +72,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev549";
+const PLUGIN_REVISION = "Rev550";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -4468,6 +4468,11 @@ module.exports = function (app: any) {
           // A real arrival (the boat was outside the circle before).
           _routeFinishedFor = key;
           const exited = await _routeSafeExit();
+          // Rev550 (audit): AP off but mode NAV -> compass too; the APB stops
+          // here and pypilot would pick GPS by itself 8 s later (as Rev549).
+          if (!exited && _routeModeIsNav()) {
+            try { await (apProvider!.toProviderInterface() as any).setMode("compass", apProvider!.deviceId); } catch { /* silent */ }
+          }
           _routeAnnounce("destination", { reached: name, compass: exited });
         }
       }

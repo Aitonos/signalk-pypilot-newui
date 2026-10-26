@@ -9031,14 +9031,18 @@
   }
   // Rev545 (Carlos 2026-10-23): route following. Voice announcement of each
   // event (auto-advance, destination, NAV lost), once per event id.
-  let _routeLastEventId = null;
+  // Rev550 (audit): the first update after page load is the snapshot (not
+  // replayed, even when it has no event); identity = id + ts, because the
+  // ids restart at 1 after a Signal K restart.
+  let _routeLastEventKey = null;
+  let _routeSeenFirst = false;
   function _routeOnUpdate() {
     try { _renderModeSelectBtn(); } catch { /* silent */ }
     const ev = state.route && state.route.event;
-    if (!ev || ev.id == null) return;
-    if (_routeLastEventId == null) { _routeLastEventId = ev.id; return; }   // do not replay on page load
-    if (ev.id === _routeLastEventId) return;
-    _routeLastEventId = ev.id;
+    const evKey = ev && ev.id != null ? `${ev.id}@${ev.ts}` : "";
+    if (!_routeSeenFirst) { _routeSeenFirst = true; _routeLastEventKey = evKey; return; }
+    if (!evKey || evKey === _routeLastEventKey) return;
+    _routeLastEventKey = evKey;
     let msg = "";
     if (ev.kind === "wp-reached") {
       msg = ev.silentReach ? "" : t("route.say.wp").replace("{wp}", ev.reached || "");
@@ -9854,6 +9858,14 @@
   async function apEngage() {
     if (_pypilotWriteBlocked("apEngage")) return { ok: false, blocked: true };
     if (!await ensureAutopilotId()) return;
+    // Rev550 (audit): NAV already selected with the AP off -> engaging turns
+    // to the leg; same >60 deg confirmation as picking NAV with the AP on.
+    if (String(state.mode || "") === "nav" && state.route && typeof state.route.legBearingDeg === "number" && typeof state.heading === "number") {
+      const turn = Math.abs((((state.route.legBearingDeg - state.heading * RAD2DEG) % 360) + 540) % 360 - 180);
+      if (turn > 60 && !(await _pmConfirm(t("route.bigTurnQ").replace("{deg}", String(Math.round(turn))), t("route.bigTurnBody")))) {
+        return { ok: false, cancelled: true };
+      }
+    }
     _mtLog("engage", { via: "apEngage" });
     // Rev548 (Carlos 2026-10-25): the visor engages in the CURRENT mode. The
     // Signal K API engage (Freeboard, KIP) switches to NAV when a route is

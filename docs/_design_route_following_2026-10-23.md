@@ -127,3 +127,17 @@ mismo que lee la TinyPilot.
 Archivos: `src/route-nav.ts` (cálculo puro, 9 tests),
 `src/index.ts` (`_routeTick`), `src/autopilot-provider.ts` (NAV),
 `public/app.js` (voz, botón, confirmación).
+
+## 8. Auditoría tras las pruebas en puerto (Rev546-550)
+
+| Rev | Fallo | Arreglo |
+|---|---|---|
+| 546 | Signal K cambia `pointIndex` antes que `nextPoint`: falso "destino alcanzado" 1 s después de avanzar, se dejaba de enviar APB y NAV desaparecía. | Tras avanzar se espera al punto nuevo; destino solo si antes se estuvo fuera del círculo; aviso con el tramo real. |
+| 547 | pypilot acepta `ap.mode=nav` sin ruta: el plugin pasaba a compás con "ruta perdida", en bucle. | NAV rechazado mientras pypilot no lo ofrece. |
+| 548 | Engage de Freeboard con ruta: 2 pulsaciones (la acción NAV exigía el AP ya conectado). | NAV a la primera desde Freeboard/KIP; el botón AP del visor conecta en el modo actual (decisión de Carlos). |
+| 549 | Ruta borrada con el AP desconectado en NAV: pypilot pasaba solo a GPS a los 8 s. | El plugin pasa a compás a los 5 s también con el AP desconectado. |
+| 550 | Mismo caso al llegar al destino con el AP desconectado. Aviso de voz: el primero tras abrir el visor se perdía, y tras reiniciar Signal K los ids se repetían. NAV elegido con el AP apagado + botón AP: giraba > 60° sin confirmar. | Compás también ahí; aviso identificado por id + hora y la primera actualización es la foto inicial; confirmación de > 60° también al conectar en NAV. |
+
+Observación (sin cambio): el 25-26/10 el AP quedó conectado en NAV ~18 h
+con el barco amarrado. Propuesta pendiente de decisión: alarma opcional
+"AP conectado con el barco parado más de N minutos".
