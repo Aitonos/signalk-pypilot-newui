@@ -72,7 +72,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev548";
+const PLUGIN_REVISION = "Rev549";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -4355,6 +4355,9 @@ module.exports = function (app: any) {
   function _routeInNav(): boolean {
     return !!apProvider && !!apProvider.data.engaged && String(apProvider.data.mode || "").toLowerCase() === "nav";
   }
+  function _routeModeIsNav(): boolean {
+    return !!apProvider && String(apProvider.data.mode || "").toLowerCase() === "nav";
+  }
   /** Leave NAV for compass on the CURRENT heading (pypilot's own ap.heading). */
   async function _routeSafeExit(): Promise<boolean> {
     if (!apProvider || !client || !_routeInNav()) return false;
@@ -4408,11 +4411,18 @@ module.exports = function (app: any) {
       if (!isLatLon(next)) { _routeFinishedFor = null; _routeAdvancedFor = null; _routeArmedFor = null; _routeReachedPos = null; _routePendingAnnounce = null; }   // route cleared: a re-activation starts fresh
       if (!isLatLon(next) || !pos) {
         // No route / no position. In NAV: compass on the current heading.
-        if (_routeInNav()) {
+        // Rev549 (2026-10-26 17:12): also with the AP OFF - otherwise pypilot
+        // drops NAV 8 s after the last APB and picks GPS by itself. We act
+        // at 5 s, before it.
+        if (_routeModeIsNav()) {
           if (_routeLostSince == null) _routeLostSince = Date.now();
           else if (Date.now() - _routeLostSince > ROUTE_LOST_EXIT_MS) {
             _routeLostSince = null;
-            if (await _routeSafeExit()) _routeAnnounce("nav-lost", { reason: !isLatLon(next) ? "no-route" : "no-position" });
+            if (_routeInNav()) {
+              if (await _routeSafeExit()) _routeAnnounce("nav-lost", { reason: !isLatLon(next) ? "no-route" : "no-position" });
+            } else {
+              try { await (apProvider!.toProviderInterface() as any).setMode("compass", apProvider!.deviceId); } catch { /* silent */ }
+            }
           }
         } else _routeLostSince = null;
         _routePublish({ active: false });
