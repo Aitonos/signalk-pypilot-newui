@@ -1,8 +1,36 @@
 # Changelog
 
-## Unreleased (Rev521 → Rev525)
+## 3.7.0 — 2026-10-26 — Route following (NAV), black box, external review fixes
+
+Rolls up Rev521 → Rev551 on top of 3.6.0. Minor bump: new NAV route
+following and black box. No breaking changes. The steering fixes come
+from a full code review by two external LLMs plus four self-audits; not
+yet tested at sea (see `docs/QA_Rev526-540.md`, rollback tag
+`pre-audit-rev530`).
 
 ### Added
+- **Follow Freeboard routes with pypilot's NAV mode, no extra plugins**:
+  the plugin reads the active route from Signal K's Course API, computes
+  leg bearing, cross-track error and arrival itself and sends an APB
+  sentence every second on Signal K's NMEA output, which pypilot already
+  reads - NAV then appears in pypilot. Cross-track error capped both
+  ways (pypilot caps it only on one side). Waypoints advance on their
+  own (arrival circle or perpendicular passed) with a spoken message:
+  "Waypoint X reached. Next, Y. New course N degrees. D miles." At the
+  destination, or if the route or the GPS position is lost for 5 s, the
+  pilot goes to compass on the current heading and says so (also with
+  the AP disengaged, where pypilot would otherwise pick GPS). Engage
+  from Freeboard / KIP with a route goes straight to NAV; in the visor
+  NAV is chosen in the mode list ("NAV (ROUTE)"), with a confirmation
+  when it would turn more than 60°. ±1 / ±10 in NAV take over in
+  compass with the new heading; tacking in NAV is refused. "Next
+  waypoint" in the mode list and through the Autopilot API. Mode button
+  shows "NAV · waypoint · nm". Status on `steering.autopilot.route`.
+- **Black box** - chart with every recorded field (one band each, touch
+  cursor with all values), View / Download of each incident, Setup tile
+  amber until the incident has been opened, and a **note** per incident
+  dictated with the phone keyboard (Mark asks for it right away; a
+  second Mark in the same incident adds to it).
 - **Black box** (Setup card): keeps the last minute of autopilot data
   and saves one minute before and one after when something happens - AP
   taken off from outside the app, stuck pilot or recovery cycle, servo
@@ -20,8 +48,13 @@
   click) with a test button; soft thud by default.
 
 ### Changed
-- Rose ring, ticks, degree labels, heading / SOG frames and card and
-  corner titles in white.
+- Rose ring, ticks and the heading / wind box frames in grey (#8e9bab);
+  degree labels and card / corner titles in white.
+- Gust strategy **"freeze target" removed**: it rewrote the target every
+  second for 12 s, undoing the sailor's nudges, tacks and mode changes.
+  Saved configs with it behave as "warn".
+- App Store: recommended companion plugins, PNG app icon, reorganised
+  README and screenshots.
 - An ACK on an alarm banner also closes it.
 - **More contrast for sunlight**: white text, brighter secondary text,
   borders and separators.
@@ -32,6 +65,27 @@
   "head downwind").
 
 ### Fixed
+- **Pilot core** (external review): targets kept in the mode's own
+  range; a target retry is dropped on a mode change; mode change then
+  target in sequence, waiting for pypilot's echo (reverts if refused);
+  late echoes of a burst of nudges no longer pull the target back, and
+  the target is reconciled to pypilot's last command; handover to a wind
+  mode waits and verifies; API tacks go through the virtual tack, API
+  nudges re-aim a running tack, KIP cancel stops it; a small overshoot is
+  arrival, not a 360.
+- **Alarms**: a muted alarm still clears; ACK, mute and severity are
+  republished; "AP dropped" uses STW without GPS; unable-to-steer
+  ignores missing RMS; the black box opens an alarm incident only when
+  the alarm fires.
+- **Doctor**: clamps to pypilot's gain range, waits for its forked
+  profile, one change per session, apply-all locks only after success.
+- **Recording / storage**: trip ids validated before building paths;
+  atomic writes (display presets, black-box incidents); recorders keep
+  lines on a failed write; the active session cannot be deleted; KPI
+  integration on real time steps; restore never sends orders.
+- Head-to-wind / downwind: the manoeuvre flag expires (180 s), a failed
+  mode change ends it, cancelled manoeuvres write nothing.
+- App dialogs above popups (the black-box Delete confirm was hidden).
 - Tack buttons: the arrow is centred when there is no number under it
   (wind modes).
 - **Screen kept on over plain http** (tablet at http://<ip>:3000): the
