@@ -1,0 +1,24 @@
+# Signal K plugin CI (the shared reusable workflow from signalk-server):
+# builds once, tests on Linux / macOS / Windows with Node 22 + 24.
+#
+# Also read by the Signal K plugin registry: a declared test-command gets
+# a 240 s budget instead of 60 s. The virtual-tack sailor tests wait on
+# the pilot's real echo / confirm windows and take ~80 s, so without this
+# file the registry timed them out and scored them "failing" (3.4.0+).
+
+name: SignalK Plugin CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  plugin-ci:
+    uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
+    with:
+      build-command: npm run build
+      test-command: npm test
+      node-versions: '["22", "24"]'
