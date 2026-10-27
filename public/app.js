@@ -2975,10 +2975,14 @@
         // Rev11: ease off from 500 ms/200 ms. The dashboard tiles do not
         // need to update faster than 1 Hz, and when several devices are
         // subscribed this halves the total delta traffic.
+        // Rev555: minPeriod 500 -> 1000. With 500, 2 Hz sources (wind,
+        // depth, attitude) still came through at 2 Hz while the tiles
+        // redraw at 1 Hz - double traffic on the 4G link for nothing.
+        // Pilot-critical paths keep their own instant subscription above.
         period: 1000,
         format: "delta",
         policy: "instant",
-        minPeriod: 500,
+        minPeriod: 1000,
       })),
     };
     ws.send(JSON.stringify(sub));
