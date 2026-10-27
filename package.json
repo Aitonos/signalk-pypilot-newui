@@ -65,38 +65,14 @@
       "signalk-polar-management"
     ],
     "screenshots": [
-      {
-        "src": "./public/screenshots/01-control-rose.jpg",
-        "title": "Control - compass rose with heading, AWA/TWA wind arrows, hull-fixed sailing wedges, configurable corner tiles and an AIS collision target on the compass ring"
-      },
-      {
-        "src": "./public/screenshots/05-modes-autowind.jpg",
-        "title": "Mode picker - compass, GPS, AUTO WIND (apparent / true at 120° with one profile per side), apparent and true wind, Head to wind and Dead downwind"
-      },
-      {
-        "src": "./public/screenshots/02-chartplotter-embedded.jpg",
-        "title": "Chartplotter integrated - double-tap the rose to open Freeboard-SK inside it, with AIS targets and the anchor circle; the autopilot buttons stay reachable. Needs a Signal K chart provider"
-      },
-      {
-        "src": "./public/screenshots/07-logbook-trip-detail.jpg",
-        "title": "Logbook - auto-recorded trip with speed-coloured track, gust / peak SOG / low voltage / tack markers and a SOG vs AWS chart"
-      },
-      {
-        "src": "./public/screenshots/03-anchorwatch-in-rose.jpg",
-        "title": "AnchorWatch Pro (signalk-mareas-ihm) anchor-watch visor opened inside the rose: swing circles, track, wind gusts, depth and tide"
-      },
-      {
-        "src": "./public/screenshots/06-tune-sliders.jpg",
-        "title": "Tune - PID gains per pilot / profile with plain-language help, locked by default, fine-step buttons and reset to baseline"
-      },
-      {
-        "src": "./public/screenshots/04-tide-popup.jpg",
-        "title": "Tide at a glance - tide curve of the nearest station with current height, trend, next high / low water and coefficient (with AnchorWatch Pro)"
-      },
-      {
-        "src": "./public/screenshots/08-tack-history.jpg",
-        "title": "Tack history - every tack with speed retention and recovery time, best retention and fastest recovery highlighted"
-      }
+      "./public/screenshots/01-control-rose.jpg",
+      "./public/screenshots/05-modes-autowind.jpg",
+      "./public/screenshots/02-chartplotter-embedded.jpg",
+      "./public/screenshots/07-logbook-trip-detail.jpg",
+      "./public/screenshots/03-anchorwatch-in-rose.jpg",
+      "./public/screenshots/06-tune-sliders.jpg",
+      "./public/screenshots/04-tide-popup.jpg",
+      "./public/screenshots/08-tack-history.jpg"
     ]
   },
   "repository": {
