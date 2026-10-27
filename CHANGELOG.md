@@ -1,5 +1,41 @@
 # Changelog
 
+## 3.7.1 — 2026-10-28 — Less data to the visor, logbook fixes, registry score
+
+Rolls up Rev553 → Rev557 on top of 3.7.0. Patch: no new features, no
+breaking changes.
+
+### Changed
+- **About two thirds less data from the Pi to each open visor** (measured
+  moored: 693 → 237 KB/min, ~41 → ~14 MB/h per tab; see
+  `docs/_audit_data_flow_2026-10-27.md`). Matters on a 4G link.
+  - The plugin's diagnostic paths (session stats, servo health, roll FF,
+    tack catch-up, leeway) are published only when they change, plus a
+    30 s heartbeat. Before, 34 paths went out every second unchanged, to
+    every Signal K client.
+  - The visor's dashboard subscription now runs at 1 Hz (wind, depth and
+    attitude were arriving at 2 Hz). Pilot commands and state keep
+    their instant subscription.
+  - A visor tab hidden for 2 minutes closes its stream and reopens it on
+    return - never while the pilot is engaged, so voice alarms keep
+    working while steering. Also frees one of Signal K's 30 WebSockets
+    per client IP: above that limit Signal K refuses new ones (HTTP 429)
+    and the visor showed "Intermittent network" while Freeboard would
+    not load.
+- **Logbook**: "anchored" alone no longer opens a trip - an anchor watch
+  set in the marina recorded a 21 h "trip" at the dock. A trip opens
+  when the boat gets under way and closes back in port; trips under
+  0.1 nm are discarded.
+
+### Fixed
+- App Store screenshots: listed as plain paths; the Signal K App Store
+  and plugin registry ignored the previous `{src, title}` entries, so
+  none of the 8 showed.
+- Plugin registry "test suite failing": the suite passes, but it takes
+  ~80 s and the registry stopped it at 60 s. The repo now declares the
+  Signal K `plugin-ci` workflow, which also tests the plugin on Linux,
+  macOS and Windows with Node 22 and 24.
+
 ## 3.7.0 — 2026-10-26 — Route following (NAV), black box, external review fixes
 
 Rolls up Rev521 → Rev551 on top of 3.6.0. Minor bump: new NAV route

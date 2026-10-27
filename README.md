@@ -127,7 +127,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 ### Logbook & performance data (6)
 
-28. **Trip Recorder** — auto-records every outing via `navigation.state`. 17 KPIs (distance, duration, SOG / TWS / AWS averages and peaks, heel, tacks, points-of-sail split, min voltage, AP-engaged %), OpenSeaMap track coloured by SOG with markers on peak gust, peak SOG, min voltage and every tack. Share as a portrait PNG report card or plain text. The trip in progress can be opened live while sailing.
+28. **Trip Recorder** — auto-records every outing via `navigation.state` (opens when under way, closes back in port; dock tests under 0.1 nm are discarded). 17 KPIs (distance, duration, SOG / TWS / AWS averages and peaks, heel, tacks, points-of-sail split, min voltage, AP-engaged %), OpenSeaMap track coloured by SOG with markers on peak gust, peak SOG, min voltage and every tack. Share as a portrait PNG report card or plain text. The trip in progress can be opened live while sailing.
 29. **Chart tab** — 9 live Trip Stats cards, history with 30 s / 2 min / 10 min windows and hover-freeze, plus a Servo Health card.
 30. **Persistent tack history** — pre / post TWS, AWA, SOG and recovery time to 95% of pre-tack speed, filterable by day range.
 31. **Post-tack HUD stats** — before / after values and SOG-loss verdict.
