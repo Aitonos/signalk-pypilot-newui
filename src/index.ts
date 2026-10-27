@@ -31,6 +31,7 @@ import {
 } from "./config-backup";
 import { RollFeedForward } from "./roll-ff";
 import { LeewayEstimator } from "./leeway";
+import { ChangeFilter, PathValue } from "./change-filter";
 import { FailsafeBspResolver, BspSource } from "./failsafe-bsp";
 import { TackCatchup, TackDirection } from "./tack-catchup";
 import { ServoErrorLog } from "./servo-error-log";
@@ -72,7 +73,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev553";
+const PLUGIN_REVISION = "Rev554";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -295,6 +296,9 @@ module.exports = function (app: any) {
   let kpis: KPIComputer | null = null;
   let kpiPublishTimer: NodeJS.Timeout | null = null;
   let kpiMetaSent = false;
+  // Rev554: diagnostic paths (KPIs, servo health, roll FF, tack
+  // catch-up, leeway) go out only when changed, plus a 30 s heartbeat.
+  const diagFilter = new ChangeFilter();
   // Rev97: Sensor Quality monitor. Reads freshness / Hz / jitter per
   // watched SK path from the same sampler tick as the historian.
   let sensorQuality: SensorQualityMonitor | null = null;
@@ -1174,6 +1178,7 @@ module.exports = function (app: any) {
       }
       kpis = null;
       kpiMetaSent = false;
+      diagFilter.reset();
       rollFfMetaSent = false;
       leewayMetaSent = false;
       tackCatchupMetaSent = false;
@@ -5232,10 +5237,7 @@ module.exports = function (app: any) {
         });
         servoHealthMetaSent = true;
       }
-      app.handleMessage(PLUGIN_ID, {
-        context: "vessels." + app.selfId,
-        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
-      });
+      publishDiagValues(values, nowIso);
     } catch (e: any) {
       app.debug(`[servo-health] publish failed: ${e?.message || e}`);
     }
@@ -5332,13 +5334,21 @@ module.exports = function (app: any) {
         });
         kpiMetaSent = true;
       }
-      app.handleMessage(PLUGIN_ID, {
-        context: "vessels." + app.selfId,
-        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
-      });
+      publishDiagValues(values, nowIso);
     } catch (e: any) {
       app.debug(`[kpis] publish failed: ${e?.message || e}`);
     }
+  }
+
+  // Rev554: send through diagFilter - only changed values (or due
+  // heartbeats) reach the SK bus; nothing at all when none changed.
+  function publishDiagValues(values: PathValue[], nowIso: string): void {
+    const changed = diagFilter.filter(values, Date.now());
+    if (changed.length === 0) return;
+    app.handleMessage(PLUGIN_ID, {
+      context: "vessels." + app.selfId,
+      updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values: changed }],
+    });
   }
 
   // Rev286 (B2): drive the profile advisor from the sampler tick.
@@ -5445,10 +5455,7 @@ module.exports = function (app: any) {
         });
         rollFfMetaSent = true;
       }
-      app.handleMessage(PLUGIN_ID, {
-        context: "vessels." + app.selfId,
-        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
-      });
+      publishDiagValues(values, nowIso);
     } catch (e: any) {
       app.debug(`[roll-ff] publish failed: ${e?.message || e}`);
     }
@@ -5480,14 +5487,7 @@ module.exports = function (app: any) {
         });
         leewayMetaSent = true;
       }
-      app.handleMessage(PLUGIN_ID, {
-        context: "vessels." + app.selfId,
-        updates: [{
-          $source: SOURCE_LABEL,
-          timestamp: nowIso,
-          values: [{ path: LEEWAY_PATH, value: leewayRad }],
-        }],
-      });
+      publishDiagValues([{ path: LEEWAY_PATH, value: leewayRad }], nowIso);
     } catch (e: any) {
       app.debug?.(`[leeway] publish failed: ${e?.message || e}`);
     }
@@ -5523,10 +5523,7 @@ module.exports = function (app: any) {
         });
         tackCatchupMetaSent = true;
       }
-      app.handleMessage(PLUGIN_ID, {
-        context: "vessels." + app.selfId,
-        updates: [{ $source: SOURCE_LABEL, timestamp: nowIso, values }],
-      });
+      publishDiagValues(values, nowIso);
     } catch (e: any) {
       app.debug?.(`[tack-catchup] publish failed: ${e?.message || e}`);
     }
