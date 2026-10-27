@@ -62,6 +62,21 @@ keeps streaming 41 MB/h and holds one of the 30 per-IP slots.
 
 With 1 + 2: ~693 -> ~180 KB/min moored (about -75 %), ~11 MB/h per tab.
 
+## Result (deployed Rev554-556, same method, moored)
+
+| Group | Before KB/min | After KB/min |
+|---|---:|---:|
+| `steering.autopilot.pypilot.*` | 397 | 27 |
+| wind | 125 | 67 |
+| nav/other | 91 | 67 |
+| performance.* | 51 | 50 |
+| depth | 46 | 31 |
+| **Total** | **693 (41 MB/h)** | **237 (14 MB/h)** |
+
+-66 % per visible tab; a tab hidden for 2 min (pilot not engaged)
+now costs 0. Remaining largest item: `performance.*` from the polar
+plugin (~13 paths at its own rate) - left as is.
+
 ## Not proposed
 
 - Dropping the `steering.autopilot.pypilot.*` wildcard for an explicit
