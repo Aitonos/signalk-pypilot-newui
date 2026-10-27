@@ -2650,7 +2650,9 @@
     if (!banner) return;
     const now = Date.now();
     const gapMs = now - _lastDeltaTs;
-    const wsBad = !ws || ws.readyState !== 1; // 1 = OPEN
+    // 1 = OPEN. Rev556: a socket still CONNECTING within 5 s of the last
+    // delta (tab just unparked) is not a network problem yet.
+    const wsBad = !ws || (ws.readyState !== 1 && !(ws.readyState === 0 && gapMs < 5000));
     const pingRecentErr = _lastPingErrTs && (now - _lastPingErrTs) < 4000;
     const rttBad = _lastPingRttMs != null && _lastPingRttMs > 1500;
     const badNow = wsBad || gapMs > 3000 || pingRecentErr;
@@ -2850,6 +2852,9 @@
       try { handleDelta(JSON.parse(evt.data)); } catch { /* ignore */ }
     });
     ws.addEventListener("close", () => {
+      // Rev556: parked on purpose (tab hidden) - no offline mark, no
+      // reconnect; the visibilitychange handler reopens it.
+      if (_wsParked) return;
       // Rev466 (Carlos safety 2026-10-12 trip): mark pypilot offline
       // immediately when the WS drops, without waiting for the next
       // /status poll (which may be seconds away). This activates the
@@ -2867,6 +2872,41 @@
     });
     ws.addEventListener("error", () => { try { ws.close(); } catch {} });
   }
+
+  // Rev556 (Carlos 2026-10-27, docs/_audit_data_flow_2026-10-27.md): a
+  // visor tab left in the background kept streaming ~40 MB/h over the
+  // boat's 4G and held one of Signal K's 30 WebSockets per client IP
+  // (the 429 that blocked Freeboard). After 2 min hidden the stream is
+  // parked; it reopens on return and the subscribe snapshot resyncs.
+  // Never while the pilot is engaged, so voice alarms in a background
+  // tab keep working while steering.
+  const WS_PARK_AFTER_HIDDEN_MS = 2 * 60 * 1000;
+  let _wsParked = false;
+  let _wsParkTimer = null;
+  function _wsParkCheck() {
+    _wsParkTimer = null;
+    if (document.visibilityState !== "hidden" || _wsParked) return;
+    if (state.engaged) {  // retry later; parks once disengaged
+      _wsParkTimer = setTimeout(_wsParkCheck, WS_PARK_AFTER_HIDDEN_MS);
+      return;
+    }
+    _wsParked = true;
+    console.info("[pypilot-newui] tab hidden 2 min, SK stream parked");
+    try { if (ws) ws.close(); } catch { /* silent */ }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      if (!_wsParkTimer && !_wsParked) _wsParkTimer = setTimeout(_wsParkCheck, WS_PARK_AFTER_HIDDEN_MS);
+      return;
+    }
+    if (_wsParkTimer) { clearTimeout(_wsParkTimer); _wsParkTimer = null; }
+    if (_wsParked) {
+      _wsParked = false;
+      _lastDeltaTs = Date.now();  // no "silent Ns" banner while reopening
+      console.info("[pypilot-newui] tab visible, SK stream reopened");
+      connectSK();
+    }
+  });
 
   // Throttle renderControl. Even without user input, the pypilot_web can burst
   // ~30 deltas at reconnect and each render triggers SVG reflow. 50 ms window
