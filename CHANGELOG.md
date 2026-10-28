@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.7.2 — 2026-10-28 — Faithful wind arrows, reconnect after sleep
+
+Rolls up Rev558 → Rev560 on top of 3.7.1. Patch: fixes only.
+
+### Fixed
+- **Wind arrows on the rose**: the apparent-wind (A) arrow lagged the
+  true-wind (T) arrow by seconds - it went through a render smoothing
+  filter while T was drawn raw, and 3.7.1 also dropped wind to 1 Hz so
+  A moved in jerks. Both arrows are now drawn with the raw sensor value,
+  and apparent wind, true wind and heading arrive at 2 Hz, so with the
+  boat stopped A and T move together.
+- **Hidden-tab stream (3.7.1)**: a frozen background tab could deliver
+  the old socket's close after returning, marking pypilot offline and
+  opening a second stream. Only the current socket counts now.
+- **Reconnect after the laptop sleeps**: the browser could keep a dead
+  connection "open" for minutes, or hang while connecting, and the
+  visor never reconnected. A watchdog reopens the stream after 15 s of
+  silence, a 10 s hung connect, or at once when the machine wakes up.
+
 ## 3.7.1 — 2026-10-28 — Less data to the visor, logbook fixes, registry score
 
 Rolls up Rev553 → Rev557 on top of 3.7.0. Patch: no new features, no
