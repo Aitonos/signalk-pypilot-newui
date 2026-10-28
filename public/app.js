@@ -2929,6 +2929,8 @@
     "navigation.headingMagnetic",
     "environment.wind.angleApparent",
     "environment.wind.speedApparent",
+    "environment.wind.angleTrueWater",   // Rev559: T piece moves with A
+    "environment.wind.angleTrueGround",
   ]);
   function subscribeAll() {
     // Rev352 (Carlos, 2026-09-30, trace analysis): pilot-critical paths
@@ -3513,24 +3515,10 @@
         break;
       case "environment.wind.angleApparent": {
         state.windAngle = numericOrNull(value);
-        // Rev414 (fix V.2, Carlos 2026-10-04, audit Commit 4): maintain
-        // an EMA-smoothed AWA for RENDER ONLY (the wind-rose AWA diamond
-        // was jittering in AWS≈0 and in wave slap). Signed-pi delta so
-        // the EMA doesn't diverge when AWA crosses ±π. Backend has its
-        // own EMA for the VT settling loop; this one is cosmetic.
-        if (typeof state.windAngle === "number") {
-          const EMA_ALPHA = 0.13;
-          if (typeof state.windAngleDampened !== "number") {
-            state.windAngleDampened = state.windAngle;
-          } else {
-            let d = state.windAngle - state.windAngleDampened;
-            while (d >  Math.PI) d -= 2 * Math.PI;
-            while (d < -Math.PI) d += 2 * Math.PI;
-            state.windAngleDampened = state.windAngleDampened + EMA_ALPHA * d;
-          }
-        } else {
-          state.windAngleDampened = null;
-        }
+        // Rev559 (Carlos 2026-10-28): "las flechas deben ser muy fieles" -
+        // the Rev414 render EMA (alpha 0.13 per sample) made the A piece
+        // trail the raw T piece by seconds. Both pieces now draw the raw
+        // angle; A and T arrive at 2 Hz (ROSE_LIVE_PATHS).
         break;
       }
       case "environment.wind.speedApparent":
@@ -5780,12 +5768,8 @@
     // undone: amber-big-"A" = apparent, teal-spiky-"T" = true.
     const awa = document.getElementById("rose-piece-awa");           // amber piece = AWA
     const awaRaya = document.getElementById("rose-raya-awa");
-    // Rev414 (fix V.2): prefer the EMA-dampened AWA for the piece
-    // rotation so the amber diamond stops jittering in AWS≈0 / wave
-    // slap. Falls back to raw if the EMA hasn't landed yet.
-    const awaRenderRad = (typeof state.windAngleDampened === "number")
-      ? state.windAngleDampened
-      : state.windAngle;
+    // Rev559: raw AWA, same as the T piece (Rev414 EMA removed).
+    const awaRenderRad = state.windAngle;
     if (awa) {
       if (_windArrowShow.awa && awaRenderRad != null) {
         const awaDeg = awaRenderRad * RAD2DEG;
