@@ -2839,7 +2839,8 @@
     const loc = window.location;
     const wsProto = loc.protocol === "https:" ? "wss" : "ws";
     const url = `${wsProto}://${loc.host}/signalk/v1/stream?subscribe=none`;
-    ws = new WebSocket(url);
+    const sock = new WebSocket(url);
+    ws = sock;
     ws.addEventListener("open", () => {
       subscribeAll();
     });
@@ -2855,6 +2856,11 @@
       // Rev556: parked on purpose (tab hidden) - no offline mark, no
       // reconnect; the visibilitychange handler reopens it.
       if (_wsParked) return;
+      // Rev558: a frozen background tab can deliver the parked socket's
+      // close only after the tab is back and a new socket is open - it
+      // then marked pypilot offline and opened a second stream. Only the
+      // current socket's close counts.
+      if (sock !== ws) return;
       // Rev466 (Carlos safety 2026-10-12 trip): mark pypilot offline
       // immediately when the WS drops, without waiting for the next
       // /status poll (which may be seconds away). This activates the
@@ -2870,7 +2876,7 @@
       } catch { /* silent */ }
       setTimeout(connectSK, 2500);
     });
-    ws.addEventListener("error", () => { try { ws.close(); } catch {} });
+    ws.addEventListener("error", () => { try { sock.close(); } catch {} });
   }
 
   // Rev556 (Carlos 2026-10-27, docs/_audit_data_flow_2026-10-27.md): a
@@ -2918,6 +2924,12 @@
     setTimeout(() => { _renderScheduled = false; renderControl(); }, 50);
   }
 
+  // Rev558: paths drawn as moving pieces on the rose, kept at 2 Hz.
+  const ROSE_LIVE_PATHS = new Set([
+    "navigation.headingMagnetic",
+    "environment.wind.angleApparent",
+    "environment.wind.speedApparent",
+  ]);
   function subscribeAll() {
     // Rev352 (Carlos, 2026-09-30, trace analysis): pilot-critical paths
     // now go in a DEDICATED subscription with policy:"instant" and no
@@ -3019,10 +3031,13 @@
         // depth, attitude) still came through at 2 Hz while the tiles
         // redraw at 1 Hz - double traffic on the 4G link for nothing.
         // Pilot-critical paths keep their own instant subscription above.
+        // Rev558: except what moves on the rose - the AWA piece is an EMA
+        // per sample (alpha 0.13), so at 1 Hz it lagged twice as long and
+        // crept in 1 s steps (Carlos 2026-10-28 "a trompicones").
         period: 1000,
         format: "delta",
         policy: "instant",
-        minPeriod: 1000,
+        minPeriod: ROSE_LIVE_PATHS.has(p) ? 500 : 1000,
       })),
     };
     ws.send(JSON.stringify(sub));
