@@ -2841,6 +2841,7 @@
     const url = `${wsProto}://${loc.host}/signalk/v1/stream?subscribe=none`;
     const sock = new WebSocket(url);
     ws = sock;
+    _wsStartTs = Date.now();
     ws.addEventListener("open", () => {
       subscribeAll();
     });
@@ -2906,6 +2907,7 @@
       return;
     }
     if (_wsParkTimer) { clearTimeout(_wsParkTimer); _wsParkTimer = null; }
+    _wsWatchLastTick = Date.now();  // hidden-tab timer throttling is not sleep
     if (_wsParked) {
       _wsParked = false;
       _lastDeltaTs = Date.now();  // no "silent Ns" banner while reopening
@@ -2913,6 +2915,37 @@
       connectSK();
     }
   });
+
+  // Rev560 (Carlos 2026-10-28): after the laptop sleeps, the browser can
+  // keep a dead socket OPEN for minutes (no FIN ever arrives over
+  // Tailscale), or sit in CONNECTING while the tunnel comes back, so the
+  // close-driven reconnect never fires. Reopen when the stream has been
+  // silent 15 s, when a connect hangs 10 s, or at once when the timers
+  // jumped (the machine slept). The old socket's late close is ignored
+  // by the sock !== ws check in connectSK.
+  const WS_STALE_MS = 15000;
+  const WS_CONNECT_TIMEOUT_MS = 10000;
+  let _wsStartTs = Date.now();
+  let _wsWatchLastTick = Date.now();
+  function _wsWatchdog() {
+    const now = Date.now();
+    const slept = now - _wsWatchLastTick > 10000;
+    _wsWatchLastTick = now;
+    if (_wsParked || document.visibilityState === "hidden" || !ws) return;
+    let why = null;
+    if (ws.readyState === 1 && (slept || now - _lastDeltaTs > WS_STALE_MS)) {
+      why = slept ? "machine woke up" : "stream silent";
+    } else if (ws.readyState === 0 && now - _wsStartTs > WS_CONNECT_TIMEOUT_MS) {
+      why = "connect hung";
+    }
+    if (!why) return;
+    console.warn(`[pypilot-newui] SK stream reopened (${why})`);
+    const old = ws;
+    _lastDeltaTs = now;
+    connectSK();
+    try { old.close(); } catch { /* silent */ }
+  }
+  setInterval(_wsWatchdog, 2000);
 
   // Throttle renderControl. Even without user input, the pypilot_web can burst
   // ~30 deltas at reconnect and each render triggers SVG reflow. 50 ms window
