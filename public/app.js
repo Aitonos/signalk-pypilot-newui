@@ -2929,11 +2929,17 @@
   // keep a dead socket OPEN for minutes (no FIN ever arrives over
   // Tailscale), or sit in CONNECTING while the tunnel comes back, so the
   // close-driven reconnect never fires. Reopen when the stream has been
-  // silent 15 s, when a connect hangs 10 s, or at once when the timers
+  // silent 15 s, when a connect hangs 90 s, or at once when the timers
   // jumped (the machine slept). The old socket's late close is ignored
   // by the sock !== ws check in connectSK.
   const WS_STALE_MS = 15000;
-  const WS_CONNECT_TIMEOUT_MS = 10000;
+  // Rev562 (Carlos 2026-10-29, "ahora no recupera la conexion"): after a
+  // failed WebSocket, Firefox delays the next ones to the same host (up
+  // to 60 s, RFC 6455 4.1) and times out an open at 20 s by itself.
+  // Aborting a CONNECTING socket at 10 s counted as one more failure, so
+  // the delay never ran out and neither the visor nor Freeboard
+  // reconnected while plain HTTP worked. Only a last-resort abort now.
+  const WS_CONNECT_TIMEOUT_MS = 90000;
   let _wsStartTs = Date.now();
   let _wsWatchLastTick = Date.now();
   function _wsWatchdog() {
