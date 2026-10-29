@@ -9617,6 +9617,13 @@
   // returns 401 when the token is missing or expired). 200/404/403 all
   // count as "at least reachable"; only an explicit 401 forces us to
   // start a new access request.
+  // Rev563 (Carlos 2026-10-29, "me sigue pidiendo autorizacion muchas
+  // veces"): returns true / false / null. null = could not tell (network
+  // down, timeout, Pi restarting). It used to return false on any fetch
+  // error, so loading the visor on a flaky 4G link or right after a
+  // laptop wake wiped a perfectly good permanent token and asked for a
+  // new approval (SK approved the same clientId twice). Only an explicit
+  // 401 means the token is bad.
   async function isAuthValid() {
     if (!getToken()) return false;
     try {
@@ -9629,9 +9636,11 @@
       const r = await fetch(`/plugins/${PLUGIN_ID}/status`, {
         headers: authHeaders(),
         credentials: "include",
+        signal: AbortSignal.timeout(8000),
       });
-      return r.status !== 401;
-    } catch { return false; }
+      if (r.status === 401) return false;
+      return r.status >= 500 ? null : true;
+    } catch { return null; }
   }
 
   // Start (or resume) an SK Access Request. Returns true if the request
@@ -9735,7 +9744,14 @@
   // the WebSocket subscription regardless of auth on Tunatunes-style
   // setups.
   async function ensureAccessOnBoot() {
-    if (await isAuthValid()) return;
+    let valid = await isAuthValid();
+    // Rev563: undecided (link down) - keep the token and ask again until
+    // the Pi answers, instead of treating silence as a revoked token.
+    while (valid === null) {
+      await new Promise((res) => setTimeout(res, 10000));
+      valid = await isAuthValid();
+    }
+    if (valid) return;
     // Wipe the stale token so authHeaders() stops sending it.
     setToken("");
     await requestAccess();
