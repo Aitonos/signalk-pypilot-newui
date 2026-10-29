@@ -2627,12 +2627,17 @@
   const PYPILOT_TACK_SILENCE_MS = 40000;
   let _lastTackDirSeen   = null;
   let _netBannerState = "";  // "", "warn", "recovering"
+  const NET_REOPEN_GRACE_MS = 5000;
+  let _netGraceUntil = 0;
   async function _netHealthPing() {
     const t0 = performance.now();
     try {
+      // Rev561: with the link dead a fetch can hang for minutes without
+      // failing, so the ping never reported an error. 4 s < ping period.
       const r = await fetch(`/plugins/${PLUGIN_ID}/status`, {
         credentials: "include",
         cache: "no-store",
+        signal: AbortSignal.timeout(4000),
       });
       const rtt = performance.now() - t0;
       if (r.ok) {
@@ -2650,12 +2655,16 @@
     if (!banner) return;
     const now = Date.now();
     const gapMs = now - _lastDeltaTs;
-    // 1 = OPEN. Rev556: a socket still CONNECTING within 5 s of the last
-    // delta (tab just unparked) is not a network problem yet.
-    const wsBad = !ws || (ws.readyState !== 1 && !(ws.readyState === 0 && gapMs < 5000));
-    const pingRecentErr = _lastPingErrTs && (now - _lastPingErrTs) < 4000;
+    const wsBad = !ws || ws.readyState !== 1;  // 1 = OPEN
+    // Rev561: an error stays "recent" across one full ping period (5 s),
+    // so a dead link no longer flickers warn / Red OK between pings.
+    const pingRecentErr = _lastPingErrTs && (now - _lastPingErrTs) < 6000;
     const rttBad = _lastPingRttMs != null && _lastPingRttMs > 1500;
     const badNow = wsBad || gapMs > 3000 || pingRecentErr;
+    // Rev561: right after a tab unpark or a wake from sleep the stream is
+    // expected to be reopening - no warning for a few seconds, but no
+    // "Red OK" either until real deltas arrive.
+    if (badNow && now < _netGraceUntil && _netBannerState !== "warn") return;
     const veryBadRtt = rttBad;
     if (badNow) {
       const gapSec = Math.floor(gapMs / 1000);
@@ -2910,7 +2919,7 @@
     _wsWatchLastTick = Date.now();  // hidden-tab timer throttling is not sleep
     if (_wsParked) {
       _wsParked = false;
-      _lastDeltaTs = Date.now();  // no "silent Ns" banner while reopening
+      _netGraceUntil = Date.now() + NET_REOPEN_GRACE_MS;  // no banner while reopening
       console.info("[pypilot-newui] tab visible, SK stream reopened");
       connectSK();
     }
@@ -2933,7 +2942,10 @@
     _wsWatchLastTick = now;
     if (_wsParked || document.visibilityState === "hidden" || !ws) return;
     let why = null;
-    if (ws.readyState === 1 && (slept || now - _lastDeltaTs > WS_STALE_MS)) {
+    // Rev561: silence counts from the later of the last delta and this
+    // socket's start; _lastDeltaTs is only ever stamped by real deltas,
+    // or the banner reads a reconnect as "data flowing" and shows Red OK.
+    if (ws.readyState === 1 && (slept || now - Math.max(_lastDeltaTs, _wsStartTs) > WS_STALE_MS)) {
       why = slept ? "machine woke up" : "stream silent";
     } else if (ws.readyState === 0 && now - _wsStartTs > WS_CONNECT_TIMEOUT_MS) {
       why = "connect hung";
@@ -2941,7 +2953,7 @@
     if (!why) return;
     console.warn(`[pypilot-newui] SK stream reopened (${why})`);
     const old = ws;
-    _lastDeltaTs = now;
+    if (slept) _netGraceUntil = now + NET_REOPEN_GRACE_MS;
     connectSK();
     try { old.close(); } catch { /* silent */ }
   }
