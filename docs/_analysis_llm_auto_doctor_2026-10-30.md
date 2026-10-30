@@ -240,3 +240,20 @@ la lectura completa.
    salvo el botón "aplicar" del Doctor, que queda más seguro.
 3. ~~Dónde va el vigilante~~ Decidido: en la Pi 5, instalado con el
    plugin y anunciado.
+
+## Fases 2 y 3 hechas (2026-10-30)
+
+- **Fase 2** (sin navegar): `docs/_audit_pypilot_gains_0.56_2026-10-30.md`.
+  pypilot 0.56; el término I es muy lento; D/DD sobre el giróscopo; PR no
+  lineal; FF solo en cambios de rumbo; aportes por término disponibles;
+  coste de 12 valores a ritmo completo: -1,6 % de frecuencia del IMU.
+- **Fase 3** (Rev570): base de datos `nav-db/windows-AAAAMM.jsonl`, una
+  fila por tramo de 90 s con el piloto conectado. Escritura asíncrona,
+  límite 20 MB. Rumbo de giro y aportes por término pedidos a 1 Hz; la
+  TinyPilot sigue a 18,1 Hz tras el despliegue. Sigue la misma opción que
+  el grabador de sesiones.
+- Extra (Rev568-569): sesiones con resumen y cambios atribuidos; historial
+  de perfiles en el gestor.
+
+Siguiente: fase 4 (vigilante fuera de Signal K), y en paralelo dejar que la
+base de datos se llene en las próximas salidas.
