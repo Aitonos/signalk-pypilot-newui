@@ -216,6 +216,23 @@ aprendizaje.
   (`kill -STOP`) durante una prueba en el amarre y comprobar que el
   vigilante restaura el perfil.
 
+## Fase 1 hecha (2026-10-30, Rev564-567, desplegada en la Pi)
+
+| Rev | Bloque | Fallos | Tests nuevos |
+|---|---|---|---|
+| 564 | Métricas | #3 uso del servo sobre muestras con corriente (< 50 % de cobertura: sin sugerencias), #2b balance sin la escora media, #2a grabador con `heel` / `pitch` y cabecera `format: 2` | 5 |
+| 565 | Episodios | #7 banda mínima de 1°, sobrepaso aunque salte la banda, motivo de cierre; el Doctor solo usa episodios completos | 3 |
+| 566 | Aplicar en el Doctor | #4 sin sugerencias si cambian modo / perfil / ganancias en la ventana; #5 rechaza si cambió el perfil o la ganancia, uno a la vez; #6 "aplicado" solo cuando pypilot devuelve el valor | 7 |
+| 567 | Listado de sesiones | #8 cabecera + línea de cierre en vez de leer todo; caché | 3 |
+
+Medido en la Pi con las 50 sesiones reales: el listado pasaba **0,8–1,0 s
+bloqueando Signal K** cada vez; ahora **32 ms la primera vez** (8 sesiones
+sin línea de cierre, de cortes, se leen enteras una vez) y **~1 ms** las
+siguientes. Las 42 sesiones con cierre dan exactamente el mismo resumen que
+la lectura completa.
+
+379 tests en verde.
+
 ## Pendiente (decisiones de Carlos)
 
 1. ~~Sensor de timón~~ Decidido: sí, y soportar barcos con y sin sensor.
