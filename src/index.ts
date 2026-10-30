@@ -48,6 +48,7 @@ import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
 import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log";
 import { GainChangeLog, GAIN_PATH_RE } from "./gain-change-log";
 import { NavDb } from "./nav-db";
+import { GainGuard } from "./gain-guard";
 import { isCompleteEpisode } from "./episodes";
 import { loadLineage, recordCreation, renameIfPending, lookAlikes, type ProfileLineage, type LineageOrigin } from "./profile-lineage";
 import {
@@ -77,7 +78,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev570";
+const PLUGIN_REVISION = "Rev571";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -503,6 +504,9 @@ module.exports = function (app: any) {
   let sessionRecorder: SessionRecorder | null = null;
   // Rev570: navigation database, one row per 90 s engaged window.
   let navDb: NavDb | null = null;
+  // Rev571: gain watchdog guard (auto-Doctor phase 4). Idle until a
+  // gain trial begins; starts the separate watchdog process only then.
+  let gainGuard: GainGuard | null = null;
   // Rev178 (Carlos): trip recorder. Fires on autostate transitions
   // (moored <-> underway/sailing/anchored...) instead of on AP engage,
   // so it also covers motor legs and tender rides. Independent of the
@@ -1120,6 +1124,12 @@ module.exports = function (app: any) {
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
       });
+      gainGuard = new GainGuard({
+        dir: require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "gain-watchdog"),
+        host: props.host || "localhost",
+        log: (level, msg) => { try { (level === "info" ? (app as any).debug : app.error)?.(msg); } catch {} },
+      });
+      try { gainGuard.recoverOnStart(); } catch { /* silent */ }
       navDb = new NavDb({
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         rev: PLUGIN_REVISION,
@@ -1310,6 +1320,8 @@ module.exports = function (app: any) {
         try { navDb.flush(); } catch { /* silent */ }
         navDb = null;
       }
+      // Stop renewing; a trial still running is undone by the watchdog.
+      if (gainGuard) { try { gainGuard.stop(); } catch { /* silent */ } gainGuard = null; }
       // Rev178 (Carlos): close any open trip on plugin stop so the
       // summary lands on disk before the process exits.
       if (tripRecorder) {
@@ -3377,6 +3389,50 @@ module.exports = function (app: any) {
         }));
         res.json({ sessions: summaries });
       });
+      // Rev571: gain watchdog status, and the dock test of it:
+      //   POST /gain-guard/dock-test {testProfile}  switch to testProfile
+      //        under a lease (AP must be OFF); freeze Signal K and the
+      //        watchdog must switch back to the profile active before.
+      //   POST /gain-guard/end                      end it normally.
+      router.get("/gain-guard/status", (_req: any, res: any) => {
+        if (!gainGuard) return res.status(503).json({ error: "gain guard not initialised" });
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs"); const pth = require("path");
+        let logTail: string[] = [];
+        try {
+          const f = pth.join(app.getDataDirPath ? app.getDataDirPath() : ".", "gain-watchdog", "watchdog.log");
+          logTail = String(fs.readFileSync(f, "utf8")).trim().split("\n").slice(-20);
+        } catch { /* no log yet */ }
+        res.json({ ...gainGuard.status(), logTail });
+      });
+      router.post("/gain-guard/dock-test", (req: any, res: any) => {
+        if (!gainGuard || !client) return res.status(503).json({ error: "not ready" });
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const pv = client.getValues() as any;
+        if (pv["ap.enabled"] === true || pv["ap.enabled"] === 1) return res.status(409).json({ error: "disengage the autopilot first" });
+        const test = String(req.body?.testProfile || "");
+        const from = typeof pv["profile"] === "string" ? pv["profile"] : null;
+        const list: string[] = Array.isArray(pv["profiles"]) ? pv["profiles"].map(String) : [];
+        if (!from || !test || test === from || !list.includes(test)) {
+          return res.status(400).json({ error: "testProfile must be an existing profile other than the active one", active: from });
+        }
+        gainGuard.begin({ restoreProfile: from, testProfile: test, reason: "dock test" });
+        try { profileChangeLog.markPlannedWrite(test, "user", "watchdog dock test"); } catch { /* silent */ }
+        client.set("profile", test);
+        res.json({ ok: true, restoreProfile: from, testProfile: test });
+      });
+      router.post("/gain-guard/end", (_req: any, res: any) => {
+        if (!gainGuard || !client) return res.status(503).json({ error: "not ready" });
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const l = gainGuard.status().lease;
+        if (l && l.active) {
+          try { profileChangeLog.markPlannedWrite(l.restoreProfile, "user", "watchdog test end"); } catch { /* silent */ }
+          client.set("profile", l.restoreProfile);
+        }
+        gainGuard.end();
+        res.json({ ok: true, restored: l?.active ? l.restoreProfile : null });
+      });
+
       // Rev570: navigation database status and monthly files.
       router.get("/nav-db/status", (_req: any, res: any) => {
         if (!navDb) return res.status(503).json({ error: "nav-db not initialised" });

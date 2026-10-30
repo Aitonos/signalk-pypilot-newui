@@ -158,6 +158,7 @@ See [`CHANGELOG.md`](./CHANGELOG.md) for the release-by-release history.
 - `allowWrites` gates every write to pypilot and the free-form SSH console.
 - All PUT handlers validate ranges from the pypilot catalog before sending.
 - On plugin stop the socket closes cleanly; the visor auto-reconnects on Signal K restart.
+- **Gain watchdog (separate process).** Before the plugin tries a gain change on its own, it starts a small watchdog process that ships with the plugin (`dist/gain-watchdog.js`, plain Node, no extra install). It runs outside Signal K, so if the plugin crashes or Signal K freezes during the trial it switches pypilot back to the profile you had, over pypilot's own port. It only ever writes `profile`, never creates a missing one, logs what it does to `gain-watchdog/watchdog.log` in the plugin's data folder, and exits after 10 idle minutes. With automatic tuning off it never runs.
 
 ---
 
