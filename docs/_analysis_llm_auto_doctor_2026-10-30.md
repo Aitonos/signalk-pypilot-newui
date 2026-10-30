@@ -173,11 +173,53 @@ aprendizaje.
 | 6 | Sugerencias con un toque | Solo si el patrón acepta |
 | 7 | Automático supervisado | Sí |
 
+## Decisiones de Carlos (2026-10-30)
+
+1. **Sensor de ángulo de timón: sí.** Carlos lo tiene sin conectar, y
+   muchos barcos lo tendrán. El diseño debe funcionar **con y sin sensor**:
+   - con sensor: modelo físico del barco (K, T) y actividad real del timón;
+   - sin sensor: optimización directa, sin modelo.
+   El plugin detecta si hay ángulo de timón válido y elige el camino.
+2. **El vigilante corre en la Pi 5, no en la TinyPilot** (la Pi Zero es
+   demasiado débil).
+3. **Si es un proceso aparte de Signal K, hay que decirlo claramente y
+   debe instalarse con el plugin**, sin pasos manuales.
+
+## Vigilante de ganancias (propuesta)
+
+- **Qué es:** un script Node pequeño que viaja dentro del paquete del
+  plugin (sin dependencias nuevas). El plugin lo arranca como **proceso
+  hijo independiente** (`detached`), así que sigue vivo aunque Signal K se
+  cuelgue o se reinicie. No necesita root ni systemd: se instala y se
+  actualiza con el plugin.
+- **Cómo funciona (autorización que caduca):**
+  1. Antes de cada prueba, el plugin escribe en disco: perfil original,
+     perfil de prueba, ganancias de referencia y una marca de tiempo.
+  2. Mientras la prueba sigue sana, el plugin renueva la marca cada pocos
+     segundos.
+  3. Si la marca caduca (plugin caído, Signal K colgado) con una prueba
+     activa, el vigilante abre su propia conexión TCP con pypilot y
+     **vuelve al perfil original**. Lo deja registrado.
+- **Una sola instancia:** fichero de bloqueo con el PID; al arrancar, el
+  plugin reutiliza el vigilante si ya está vivo.
+- **Al arrancar el plugin:** si encuentra una prueba sin cerrar (por
+  ejemplo tras un corte de luz), restaura el perfil original antes de nada.
+  Importante porque pypilot guarda sus valores y podría arrancar con la
+  ganancia de prueba.
+- **Solo se arranca si el auto-ajuste está activado.** Con el
+  auto-ajuste apagado no hay proceso extra.
+- **Transparencia:** se explica en el README, en la descripción de la
+  opción dentro de la configuración del plugin y en el propio visor al
+  activarlo ("se arranca un proceso vigilante aparte de Signal K que
+  restaura tu perfil si el plugin falla").
+- **Prueba obligatoria antes de usarlo:** congelar Signal K a propósito
+  (`kill -STOP`) durante una prueba en el amarre y comprobar que el
+  vigilante restaura el perfil.
+
 ## Pendiente (decisiones de Carlos)
 
-1. ¿Se instala un **sensor de ángulo de timón**? Abriría la puerta al
-   modelo físico del barco (lo más sólido de Gemini) y a medir de verdad la
-   actividad del timón.
-2. ¿Arrancamos con las fases 1 y 2? No tocan el gobierno y la base de datos
-   empieza a llenarse desde la próxima salida.
-3. Supervisor: ¿en la Pi (propuesta) o en la TinyPilot?
+1. ~~Sensor de timón~~ Decidido: sí, y soportar barcos con y sin sensor.
+2. ¿Arrancamos la fase 1 (arreglar los fallos 2-8)? No toca el gobierno
+   salvo el botón "aplicar" del Doctor, que queda más seguro.
+3. ~~Dónde va el vigilante~~ Decidido: en la Pi 5, instalado con el
+   plugin y anunciado.
