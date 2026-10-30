@@ -350,16 +350,78 @@ export class SessionRecorder {
 
   // ---- discovery helpers used by the HTTP endpoints ----
 
+  // Rev567 (GPT review #8): the listing used to read and parse every
+  // session file in full, synchronously, on Signal K's thread - 50 files
+  // and 69 MB on Tunatunes, the biggest 21 MB. A closed session carries
+  // everything the listing needs in its first line (header) and its last
+  // line (end: endTs, sampleCount, finalTags), so only those are read.
+  // Files without an end line (power cut) fall back to a full read once
+  // and are cached by size + mtime.
+  private summaryCache = new Map<string, { size: number; mtimeMs: number; info: SessionInfo }>();
+
   list(): SessionInfo[] {
     const out: SessionInfo[] = [];
     let files: string[] = [];
     try { files = fs.readdirSync(this.dir).filter((f) => f.startsWith("session-") && f.endsWith(".jsonl")); } catch { return out; }
     files.sort().reverse();
+    const seen = new Set<string>();
     for (const f of files) {
-      const info = this.summarise(path.join(this.dir, f));
-      if (info) out.push(info);
+      seen.add(f);
+      const full = path.join(this.dir, f);
+      if (this.currentFile && full === this.currentFile) {
+        const live = this.liveInfo(full);
+        if (live) out.push(live);
+        continue;
+      }
+      let st: fs.Stats;
+      try { st = fs.statSync(full); } catch { continue; }
+      const hit = this.summaryCache.get(f);
+      if (hit && hit.size === st.size && hit.mtimeMs === st.mtimeMs) { out.push(hit.info); continue; }
+      const info = this.summariseFast(full) ?? this.summarise(full);
+      if (!info) continue;
+      this.summaryCache.set(f, { size: st.size, mtimeMs: st.mtimeMs, info });
+      out.push(info);
     }
+    for (const k of this.summaryCache.keys()) if (!seen.has(k)) this.summaryCache.delete(k);
     return out;
+  }
+
+  /** The session being recorded, from memory (its file is still growing). */
+  private liveInfo(file: string): SessionInfo | null {
+    if (!this.currentId || this.startTs == null) return null;
+    const head = readEdgeLines(file).first;
+    let pilot: string | null = null, profile: string | null = null;
+    let gainsAtStart: Record<string, number> | null = null;
+    try {
+      const h = head ? JSON.parse(head) : null;
+      if (h && h.type === "header") { pilot = h.pilot ?? null; profile = h.profile ?? null; gainsAtStart = h.gainsAtStart ?? null; }
+    } catch { /* header unreadable */ }
+    return {
+      id: this.currentId, file, startTs: this.startTs, endTs: null,
+      sampleCount: this.sampleCount, tags: { ...this.tags }, pilot, profile, gainsAtStart,
+    };
+  }
+
+  /** Header + end line only. Null when the file has no end line. */
+  private summariseFast(file: string): SessionInfo | null {
+    const { first, last } = readEdgeLines(file);
+    if (!first || !last) return null;
+    try {
+      const h = JSON.parse(first);
+      const e = JSON.parse(last);
+      if (h.type !== "header" || e.type !== "end" || typeof e.sampleCount !== "number") return null;
+      return {
+        id: h.sessionId || path.basename(file).replace(/^session-|\.jsonl$/g, ""),
+        file,
+        startTs: h.startTs || 0,
+        endTs: e.endTs || null,
+        sampleCount: e.sampleCount,
+        tags: { ...(e.finalTags || {}) },
+        pilot: h.pilot ?? null,
+        profile: h.profile ?? null,
+        gainsAtStart: h.gainsAtStart ?? null,
+      };
+    } catch { return null; }
   }
 
   private summarise(file: string): SessionInfo | null {
@@ -410,4 +472,34 @@ export class SessionRecorder {
   }
 
   directory(): string { return this.dir; }
+}
+
+/** Rev567: first and last non-empty lines of a file, reading at most
+ *  EDGE_BYTES from each end. A line longer than that comes back null. */
+const EDGE_BYTES = 16 * 1024;
+export function readEdgeLines(file: string): { first: string | null; last: string | null } {
+  let fd: number | null = null;
+  try {
+    fd = fs.openSync(file, "r");
+    const size = fs.fstatSync(fd).size;
+    if (size === 0) return { first: null, last: null };
+    const headLen = Math.min(size, EDGE_BYTES);
+    const head = Buffer.alloc(headLen);
+    fs.readSync(fd, head, 0, headLen, 0);
+    const headTxt = head.toString("utf8");
+    const nl = headTxt.indexOf("\n");
+    const first = nl >= 0 ? headTxt.slice(0, nl) : (size <= EDGE_BYTES ? headTxt : null);
+    const tailLen = Math.min(size, EDGE_BYTES);
+    const tail = Buffer.alloc(tailLen);
+    fs.readSync(fd, tail, 0, tailLen, size - tailLen);
+    const lines = tail.toString("utf8").split("\n").filter(Boolean);
+    // The first piece of a partial tail read may be cut mid-line.
+    const usable = tailLen < size ? lines.slice(1) : lines;
+    const last = usable.length > 0 ? usable[usable.length - 1] : null;
+    return { first: first || null, last };
+  } catch {
+    return { first: null, last: null };
+  } finally {
+    if (fd != null) { try { fs.closeSync(fd); } catch { /* silent */ } }
+  }
 }
