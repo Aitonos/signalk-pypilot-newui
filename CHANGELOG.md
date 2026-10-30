@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.7.3 — 2026-10-30 — Reconnects on a weak link
+
+Rolls up Rev561 → Rev563 on top of 3.7.2. Patch: fixes only, found on a
+flaky 4G link between laptop and boat.
+
+### Fixed
+- **Network banner**: it no longer shows "Network OK" while no data is
+  arriving. A reconnect used to count as fresh data, and the health
+  ping had no timeout, so a dead link was never reported and the
+  banner flickered between warning and OK.
+- **Reconnect after a failure**: the visor no longer aborts a connection
+  that is still opening. Firefox delays new WebSockets to a server after
+  a failure, and each early abort counted as one more failure, so after
+  a laptop sleep the visor could stay disconnected while plain requests
+  worked.
+- **Signal K approval asked again**: the visor no longer discards its
+  permanent device token when it cannot reach the server at start-up.
+  A network error was taken as a revoked token, so opening the visor on
+  a weak link asked for a new approval. Only an explicit "unauthorized"
+  from Signal K does now; otherwise it keeps the token and checks again.
+
+### Docs
+- README: AUTO WIND listed among the manoeuvres pypilot doesn't have.
+
 ## 3.7.2 — 2026-10-28 — Faithful wind arrows, reconnect after sleep
 
 Rolls up Rev558 → Rev560 on top of 3.7.1. Patch: fixes only.

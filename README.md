@@ -17,7 +17,7 @@ Spend more time sailing and less time guessing which slider to move.
 - **Safer at sea** — pre-departure READY / CAVEATS / DO-NOT-ENGAGE check, 17 alarm rules, auto-disengage on lost authority, stuck-pilot recovery and a reconnect-restore banner.
 - **Your whole boat on one screen** — chartplotter, AIS collision targets, tides, anchor watch and polar performance, right inside the compass rose.
 - **Follows your Freeboard routes** — pypilot's NAV mode with no extra plugins: auto-advance with a spoken message, compass on the current heading at the destination or on data loss.
-- **Manoeuvres pypilot doesn't have** — *Head to wind* to hoist sail, *Downwind* to strike it, synthetic tack with countdown.
+- **Manoeuvres pypilot doesn't have** — *AUTO WIND* (apparent wind upwind, true wind downwind, switched for you), *Head to wind* to hoist sail, *Downwind* to strike it, synthetic tack with countdown.
 - **Logs every outing** — automatic trip recorder with 17 KPIs, coloured track, tack history and a shareable report card.
 - **Plays well with Signal K** — Autopilot API v2 provider, the full pypilot catalog as Signal K paths, KIP-ready switches and canonical notifications.
 - **Light on the Raspberry Pi** — on the Pi's own screen it drops animations, blur and glow so the GPU stays free for other apps.
