@@ -97,3 +97,102 @@ describe("DoctorEngine downwind roll (Rev564)", () => {
     assert.ok(r.findings.some((f) => f.category === "downwind-roll"));
   });
 });
+
+/** Minimal pypilot stand-in: values change only when "pypilot" echoes
+ *  them back, `echoMs` after the write (never if echo is false). */
+function fakeClient(init: Record<string, unknown>, opts: { echo?: boolean; echoMs?: number } = {}) {
+  const values: Record<string, unknown> = { ...init };
+  const echo = opts.echo ?? true;
+  return {
+    values,
+    getValues: () => values,
+    getCatalog: () => ({}),
+    set: (name: string, v: unknown) => {
+      if (echo || name === "profile") setTimeout(() => { values[name] = v; }, opts.echoMs ?? 20);
+      return true;
+    },
+  };
+}
+
+const GAINS = { "ap.pilot": "basic", "profile": "default", "ap.pilot.basic.P": 0.003, "ap.pilot.basic.I": 0.001, "ap.pilot.basic.D": 0.09 };
+
+/** A finished diagnostic with a +I suggestion, ready to apply. */
+function diagnosed(client: ReturnType<typeof fakeClient>) {
+  const h = fill(120, () => ({ headingActual: -5 * DEG, servoCurrent: 0.0 }));
+  const doc = new DoctorEngine(h, client as any);
+  const session = {
+    id: "t", startedTs: Date.now() - 180_000, targetDurationSec: 180,
+    pilotId: "basic", initialGains: { P: 0.003, I: 0.001, D: 0.09 }, originalProfile: "default",
+  };
+  const r = (doc as any).analyze(session) as DoctorResult;
+  (doc as any).result = r;
+  const sug = r.suggestions.find((s) => s.gainKey === "I");
+  assert.ok(sug, "expected a +I suggestion");
+  return { doc, sug: sug! };
+}
+
+describe("DoctorEngine configuration checks (Rev566)", () => {
+  it("does not suggest from a window that mixes two modes", () => {
+    const h = fill(120, (i) => ({ headingActual: -5 * DEG, servoCurrent: 0.0, mode: i < 60 ? "compass" : "gps" }));
+    const r = analyze(h);
+    assert.ok(r.findings.some((f) => f.category === "config-changed"));
+    assert.equal(r.suggestions.length, 0);
+  });
+
+  it("does not suggest when the gains changed during the session", () => {
+    const h = fill(120, () => ({ headingActual: -5 * DEG, servoCurrent: 0.0 }));
+    const c = fakeClient({ ...GAINS, "ap.pilot.basic.I": 0.002 });
+    const doc = new DoctorEngine(h, c as any);
+    const r = (doc as any).analyze({
+      id: "t", startedTs: Date.now() - 180_000, targetDurationSec: 180,
+      pilotId: "basic", initialGains: { P: 0.003, I: 0.001, D: 0.09 }, originalProfile: "default",
+    }) as DoctorResult;
+    assert.ok(r.findings.some((f) => f.category === "config-changed"));
+    assert.equal(r.suggestions.length, 0);
+  });
+});
+
+describe("DoctorEngine apply (Rev566)", () => {
+  it("refuses when the profile changed since the diagnostic", async () => {
+    const c = fakeClient(GAINS);
+    const { doc, sug } = diagnosed(c);
+    c.values["profile"] = "heavy";
+    const res = await doc.applySuggestion(sug.id);
+    assert.equal(res.ok, false);
+    assert.match(res.message, /Profile changed/);
+  });
+
+  it("refuses when the gain is no longer the measured one", async () => {
+    const c = fakeClient(GAINS);
+    const { doc, sug } = diagnosed(c);
+    c.values["ap.pilot.basic.I"] = 0.0015;
+    const res = await doc.applySuggestion(sug.id);
+    assert.equal(res.ok, false);
+    assert.equal(sug.applied, false);
+  });
+
+  it("marks applied only after pypilot reports the new value", async () => {
+    const c = fakeClient(GAINS, { echoMs: 200 });
+    const { doc, sug } = diagnosed(c);
+    const res = await doc.applySuggestion(sug.id);
+    assert.equal(res.ok, true, res.message);
+    assert.equal(sug.applied, true);
+    assert.equal(c.values["ap.pilot.basic.I"], sug.suggestedValue);
+  });
+
+  it("does not mark applied when pypilot never confirms", async () => {
+    const c = fakeClient(GAINS, { echo: false });
+    const { doc, sug } = diagnosed(c);
+    const res = await doc.applySuggestion(sug.id);
+    assert.equal(res.ok, false);
+    assert.match(res.message, /did not confirm/);
+    assert.equal(sug.applied, false);
+  });
+
+  it("serialises two applies arriving together", async () => {
+    const c = fakeClient(GAINS, { echoMs: 100 });
+    const { doc, sug } = diagnosed(c);
+    const [a, b] = await Promise.all([doc.applySuggestion(sug.id), doc.applySuggestion(sug.id)]);
+    assert.equal([a, b].filter((r) => r.ok).length, 1);
+  });
+});

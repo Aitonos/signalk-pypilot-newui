@@ -100,9 +100,17 @@ interface Session {
   pilotId: string;
   initialGains: Record<string, number>;
   originalProfile: string | null;
+  /** Rev566: AP mode when the session started. */
+  mode?: string | null;
 }
 
 const MIN_DURATION_SEC = 30;
+// Rev566: how long to wait for pypilot to report a written gain back.
+const READBACK_TIMEOUT_MS = 3000;
+
+function sameGain(a: unknown, b: number): boolean {
+  return typeof a === "number" && Math.abs(a - b) <= 1e-9 + 1e-6 * Math.abs(b);
+}
 const DEFAULT_DURATION_SEC = 180;
 // Rev564: share of engaged samples that must carry a servo current
 // reading before servo duty is trusted.
@@ -211,6 +219,7 @@ export class DoctorEngine {
       pilotId,
       initialGains,
       originalProfile,
+      mode: typeof pv["ap.mode"] === "string" ? pv["ap.mode"] as string : null,
     };
     this.result = null;
     this.state = "running";
@@ -294,6 +303,23 @@ export class DoctorEngine {
         metric: `n=${n}`,
         messageKey: "doctor.finding.insufficientData",
         messageArgs: { n: String(n) },
+      });
+      return this.buildResult(session, now, samples, engaged, findings, suggestions);
+    }
+
+    // Rev566 (GPT review #4): the whole window must come from one
+    // configuration. A mode change in the samples, or a profile / gain
+    // different now from the one at the start, means the errors mix two
+    // setups and no single gain change can be derived from them.
+    const changed = this.configChange(session, engaged);
+    if (changed) {
+      findings.push({
+        category: "config-changed",
+        severity: "warn",
+        message: `The ${changed} changed during the session, so the samples mix two setups. Run a new session without changing it.`,
+        metric: `changed=${changed}`,
+        messageKey: "doctor.finding.configChanged",
+        messageArgs: { what: changed },
       });
       return this.buildResult(session, now, samples, engaged, findings, suggestions);
     }
@@ -558,6 +584,23 @@ export class DoctorEngine {
     return this.buildResult(session, now, samples, engaged, findings, suggestions);
   }
 
+  /** Rev566: "mode" | "profile" | "gains" when the configuration seen
+   *  in the window is not the one the session started with, else null. */
+  private configChange(session: Session, engaged: Sample[]): "mode" | "profile" | "gains" | null {
+    const modes = new Set(engaged.map((s) => s.mode).filter((m): m is string => typeof m === "string"));
+    if (modes.size > 1) return "mode";
+    if (!this.client) return null;
+    const pv = this.client.getValues() as any;
+    if (session.originalProfile != null && typeof pv["profile"] === "string" && pv["profile"] !== session.originalProfile) {
+      return "profile";
+    }
+    for (const [k, v] of Object.entries(session.initialGains)) {
+      const now = pv[`ap.pilot.${session.pilotId}.${k}`];
+      if (typeof now === "number" && !sameGain(now, v)) return "gains";
+    }
+    return null;
+  }
+
   private buildResult(
     session: Session, now: number,
     samples: Sample[], engaged: Sample[],
@@ -658,12 +701,44 @@ export class DoctorEngine {
     if (m && typeof vals["ap.pilot"] === "string" && vals["ap.pilot"] !== m[1]) {
       return { ok: false, message: `Pilot changed to '${vals["ap.pilot"]}' since the diagnostic (it measured '${m[1]}'). Run a fresh session.` };
     }
+    // Rev566 (GPT review #5): the suggestion was computed from the
+    // profile and gain measured. If the sailor switched profile or the
+    // gain changed since, the fork would copy other gains and the value
+    // would no longer fit them.
+    const measuredProfile = this.result.originalProfile;
+    if (measuredProfile != null && typeof vals["profile"] === "string" && vals["profile"] !== measuredProfile) {
+      return { ok: false, message: `Profile changed to '${vals["profile"]}' since the diagnostic (it measured '${measuredProfile}'). Run a fresh session.` };
+    }
+    if (!sameGain(vals[s.path], s.currentValue)) {
+      return { ok: false, message: `${s.gainKey} is no longer ${s.currentValue} (now ${vals[s.path]}). Run a fresh session.` };
+    }
+    // Rev566 (GPT review #5): one apply at a time; the checks above run
+    // again after every wait below.
+    if (this.applying) return { ok: false, message: "Another change is being applied. Try again in a few seconds." };
+    this.applying = true;
+    try {
+      return await this.applyChecked(s);
+    } finally {
+      this.applying = false;
+    }
+  }
+
+  private applying = false;
+
+  private async applyChecked(s: Suggestion): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
+    if (!this.result || !this.client) return { ok: false, message: "No result available." };
     // Fork the profile before the first write so the original stays intact.
     const fork = await this.ensureForkedProfile();
     if (!fork.name) return { ok: false, message: fork.error || "Profile fork failed - nothing applied." };
     const forked = fork.name;
     if ((this.client.getValues() as any)["profile"] !== forked) {
       return { ok: false, message: `Active profile is no longer '${forked}'. Run a fresh session.` };
+    }
+    if (s.applied || this.result.suggestions.some((x) => x.applied)) {
+      return { ok: false, message: "Run a fresh Doctor session before applying the next suggestion.", mustRunFreshSession: true };
+    }
+    if (!sameGain((this.client.getValues() as any)[s.path], s.currentValue)) {
+      return { ok: false, message: `${s.gainKey} changed while the profile was being copied. Run a fresh session.` };
     }
     // Rev536 (Gemini review 3 #6): keep the value inside pypilot's own
     // range for that gain (an out-of-range write is ignored by pypilot).
@@ -676,6 +751,16 @@ export class DoctorEngine {
     try {
       if (!this.client.set(s.path, s.suggestedValue)) {
         return { ok: false, message: `pypilot did not accept ${s.gainKey} = ${s.suggestedValue}.` };
+      }
+      // Rev566 (GPT review #6): sent is not applied. Wait for pypilot to
+      // report the new value back before calling it done (the client's
+      // values only change when pypilot sends them).
+      const t0 = Date.now();
+      while (!sameGain((this.client.getValues() as any)[s.path], s.suggestedValue)) {
+        if (Date.now() - t0 >= READBACK_TIMEOUT_MS) {
+          return { ok: false, message: `pypilot did not confirm ${s.gainKey} = ${s.suggestedValue} within ${READBACK_TIMEOUT_MS / 1000} s. Check the value in the Tune tab before retrying.` };
+        }
+        await new Promise((r) => setTimeout(r, 100));
       }
       s.applied = true;
       s.appliedTs = Date.now();
