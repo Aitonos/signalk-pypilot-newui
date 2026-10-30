@@ -83,6 +83,8 @@ export interface NavDbRow {
     termsRms: Record<string, number>;
   };
   ep: { n: number; complete: number; overshootMean: number | null; riseMeanSec: number | null };
+  /** Rev572: shadow-mode decision for this window (shadow-tuner.ts). */
+  shadow?: unknown;
 }
 
 class Stat {
@@ -234,6 +236,8 @@ interface NavDbOptions {
   minSec?: number;
   maxBytes?: number;
   episodes?: () => NavDbEpisode[];
+  /** Rev572: called with each closed row before it is written. */
+  decorate?: (row: NavDbRow) => void;
   log?: (level: "info" | "warn" | "error", msg: string) => void;
 }
 
@@ -295,6 +299,7 @@ export class NavDb {
     let eps: NavDbEpisode[] = [];
     try { eps = this.opts.episodes ? this.opts.episodes() : []; } catch { /* silent */ }
     const row = w.close(this.opts.rev, eps, this.minSec);
+    try { this.opts.decorate?.(row); } catch { /* silent */ }
     this.rows += 1;
     this.lastRow = row;
     const d = new Date(row.t0);

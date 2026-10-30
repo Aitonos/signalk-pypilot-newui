@@ -120,6 +120,23 @@ class SummaryAcc {
   }
 }
 
+/** Rev572: what shadow mode would have tried in this session. */
+export interface SessionShadow {
+  windows: number;
+  valid: number;
+  /** Windows comparable with the one before. */
+  comparable: number;
+  /** Moments when an A/B/A trial would have been possible. */
+  abaFeasible: number;
+  proposals: Array<{ ts: number; gain: string; pct: number; from: number; to: number; why: string; detail: string }>;
+  /** Symptom seen but no action, with the reason, counted. */
+  blocked: Record<string, number>;
+}
+
+function emptyShadow(): SessionShadow {
+  return { windows: 0, valid: 0, comparable: 0, abaFeasible: 0, proposals: [], blocked: {} };
+}
+
 export interface SessionTags {
   wind?: string;   // "<5" | "5-10" | "10-15" | "15-20" | "20-30" | ">30"
   sea?: string;    // "flat" | "ripple" | "short-chop" | "long-swell" | "mixed"
@@ -142,6 +159,8 @@ export interface SessionInfo {
   /** Rev568: null for sessions recorded before Rev568. */
   summary?: SessionSummary | null;
   changes?: SessionChange[];
+  /** Rev572: null for sessions recorded before Rev572. */
+  shadow?: SessionShadow | null;
 }
 
 interface Options {
@@ -163,6 +182,7 @@ export class SessionRecorder {
   private flushTimer: NodeJS.Timeout | null = null;
   private acc = new SummaryAcc();
   private changes: SessionChange[] = [];
+  private shadow: SessionShadow = emptyShadow();
 
   constructor(opts: Options) {
     this.dir = path.join(opts.dataDir, "nav-sessions");
@@ -328,6 +348,7 @@ export class SessionRecorder {
     this.tags = {};
     this.acc = new SummaryAcc();
     this.changes = [];
+    this.shadow = emptyShadow();
     const headerLine = JSON.stringify({
       type: "header",
       format: SESSION_FORMAT,
@@ -368,6 +389,29 @@ export class SessionRecorder {
     };
     this.buffer.push(JSON.stringify({ type: "change", ...clean }));
     if (this.changes.length < MAX_CHANGES) this.changes.push(clean);
+  }
+
+  /** Rev572: note the shadow-mode decision for a closed 90 s window. */
+  recordShadow(w: {
+    t0: number; valid: boolean; comparablePrev: boolean | null; abaFeasible: boolean;
+    action: { gain: string; pct: number; from: number; to: number; why: string; detail: string } | null;
+    blocked: string | null;
+  }): void {
+    if (!this.currentFile) return;
+    const sh = this.shadow;
+    sh.windows += 1;
+    if (w.valid) sh.valid += 1;
+    if (w.comparablePrev) sh.comparable += 1;
+    if (w.abaFeasible) sh.abaFeasible += 1;
+    if (w.action && sh.proposals.length < MAX_CHANGES) {
+      const a = w.action;
+      sh.proposals.push({ ts: w.t0, gain: a.gain, pct: a.pct, from: a.from, to: a.to, why: a.why, detail: a.detail });
+    }
+    if (w.blocked) {
+      const k = w.blocked.replace(/\s*\(.*$/, "").slice(0, 60);
+      if (k in sh.blocked || Object.keys(sh.blocked).length < 20) sh.blocked[k] = (sh.blocked[k] || 0) + 1;
+    }
+    this.buffer.push(JSON.stringify({ type: "shadow", ts: w.t0, ...w }));
   }
 
   /** Rev568: summary of the session being recorded, from memory. */
@@ -424,6 +468,7 @@ export class SessionRecorder {
       finalTags: this.tags,
       summary: this.acc.result(durMs / 1000, this.changes.length),
       changes: this.changes,
+      shadow: this.shadow,
     }));
     this.flush();
     if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
@@ -499,6 +544,7 @@ export class SessionRecorder {
       id: this.currentId, file, startTs: this.startTs, endTs: null,
       sampleCount: this.sampleCount, tags: { ...this.tags }, pilot, profile, gainsAtStart,
       summary: this.currentSummary(), changes: this.changes.slice(),
+      shadow: { ...this.shadow, proposals: this.shadow.proposals.slice(), blocked: { ...this.shadow.blocked } },
     };
   }
 
@@ -522,6 +568,7 @@ export class SessionRecorder {
         gainsAtStart: h.gainsAtStart ?? null,
         summary: e.summary ?? null,
         changes: Array.isArray(e.changes) ? e.changes : [],
+        shadow: e.shadow ?? null,
       };
     } catch { return null; }
   }

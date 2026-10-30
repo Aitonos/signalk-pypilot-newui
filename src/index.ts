@@ -49,6 +49,7 @@ import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log
 import { GainChangeLog, GAIN_PATH_RE } from "./gain-change-log";
 import { NavDb } from "./nav-db";
 import { GainGuard } from "./gain-guard";
+import { ShadowTuner } from "./shadow-tuner";
 import { isCompleteEpisode } from "./episodes";
 import { loadLineage, recordCreation, renameIfPending, lookAlikes, type ProfileLineage, type LineageOrigin } from "./profile-lineage";
 import {
@@ -78,7 +79,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev571";
+const PLUGIN_REVISION = "Rev572";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -507,6 +508,8 @@ module.exports = function (app: any) {
   // Rev571: gain watchdog guard (auto-Doctor phase 4). Idle until a
   // gain trial begins; starts the separate watchdog process only then.
   let gainGuard: GainGuard | null = null;
+  // Rev572: shadow mode (auto-Doctor phase 5).
+  let shadowTuner: ShadowTuner | null = null;
   // Rev178 (Carlos): trip recorder. Fires on autostate transitions
   // (moored <-> underway/sailing/anchored...) instead of on AP engage,
   // so it also covers motor legs and tender rides. Independent of the
@@ -1130,9 +1133,28 @@ module.exports = function (app: any) {
         log: (level, msg) => { try { (level === "info" ? (app as any).debug : app.error)?.(msg); } catch {} },
       });
       try { gainGuard.recoverOnStart(); } catch { /* silent */ }
+      shadowTuner = new ShadowTuner({
+        range: (pilot, gain) => {
+          const meta = client ? (client.getCatalog() as any)[`ap.pilot.${pilot}.${gain}`] : null;
+          return meta && typeof meta.min === "number" && typeof meta.max === "number" ? { min: meta.min, max: meta.max } : null;
+        },
+      });
       navDb = new NavDb({
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         rev: PLUGIN_REVISION,
+        // Rev572: shadow mode decides on every closed window what it
+        // would try; nothing is written to pypilot.
+        decorate: (row) => {
+          if (!shadowTuner) return;
+          const d = shadowTuner.decide(row);
+          row.shadow = d;
+          if (sessionRecorder) {
+            sessionRecorder.recordShadow({
+              t0: row.t0, valid: row.valid, comparablePrev: d.comparablePrev, abaFeasible: d.abaFeasible,
+              action: d.action, blocked: d.blocked,
+            });
+          }
+        },
         episodes: () => (episodes ? episodes.snapshot() : []).map((e) => ({
           startedTs: e.startedTs, endedTs: e.endedTs, overshoot: e.overshoot, riseSec: e.riseSec, complete: isCompleteEpisode(e),
         })),
@@ -3466,7 +3488,7 @@ module.exports = function (app: any) {
         res.json({
           id: row.id, startTs: row.startTs, endTs: row.endTs, samples: row.sampleCount,
           tags: row.tags, pilot: row.pilot, profile: row.profile, gainsAtStart: row.gainsAtStart,
-          summary: row.summary ?? null, changes: row.changes ?? [],
+          summary: row.summary ?? null, changes: row.changes ?? [], shadow: row.shadow ?? null,
         });
       });
       router.get("/session-recorder/download/:id", (req: any, res: any) => {

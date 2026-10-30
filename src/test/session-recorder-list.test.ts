@@ -109,3 +109,24 @@ describe("SessionRecorder summary and changes (Rev568)", () => {
     assert.equal(row.summary ?? null, null);
   });
 });
+
+describe("SessionRecorder shadow (Rev572)", () => {
+  it("keeps the shadow-mode tally and proposals in the end line", () => {
+    const data = dataDir();
+    const rec = new SessionRecorder({ dataDir: data, flushIntervalMs: 60_000 });
+    rec.start({ pilot: "basic", profile: "default", gainsAtStart: null, revision: "Rev572" });
+    (rec as any).startTs = Date.now() - 300_000;
+    for (let i = 0; i < 40; i += 1) rec.sample({ ts: 1_000_000 + i * 1000, hdgErr: 0, servoCur: 0, mode: "compass" } as any);
+    rec.recordShadow({ t0: 1, valid: true, comparablePrev: null, abaFeasible: false, action: null, blocked: null });
+    rec.recordShadow({ t0: 2, valid: true, comparablePrev: true, abaFeasible: false,
+      action: { gain: "D", pct: 10, from: 0.15, to: 0.165, why: "oscillation", detail: "oscillating every 12 s" }, blocked: null });
+    rec.recordShadow({ t0: 3, valid: true, comparablePrev: true, abaFeasible: true, action: null, blocked: "servo at its limit (80 %, error 6°)" });
+    rec.stop();
+    const [r] = rec.list();
+    assert.equal(r.shadow!.windows, 3);
+    assert.equal(r.shadow!.comparable, 2);
+    assert.equal(r.shadow!.abaFeasible, 1);
+    assert.equal(r.shadow!.proposals[0].gain, "D");
+    assert.deepEqual(r.shadow!.blocked, { "servo at its limit": 1 });
+  });
+});

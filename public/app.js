@@ -480,6 +480,19 @@
       "sess.src.gust-boost-restore": "gust over: D back",
       "sess.src.external":   "other app or pypilot",
       "sess.src.unknown":    "unknown",
+      "sess.sh.title":       "Shadow mode (nothing was applied)",
+      "sess.sh.windows":     "90 s windows",
+      "sess.sh.valid":       "clean enough to compare",
+      "sess.sh.comparable":  "comparable with the previous one",
+      "sess.sh.aba":         "moments an A/B/A trial was possible",
+      "sess.sh.proposals":   "What it would have tried",
+      "sess.sh.none":        "Nothing: no clear symptom.",
+      "sess.sh.blocked":     "Symptoms it would not act on",
+      "sess.sh.why.oscillation": "oscillating",
+      "sess.sh.why.overshoot": "overshoots when arriving",
+      "sess.sh.why.nervous": "nervous servo",
+      "sess.sh.why.bias":    "sustained offset",
+      "sess.sh.why.slow":    "slow to reach the heading",
       "sess.advice.title":   "Received advice",
       "sess.advice.empty":   "No advice received yet. Share a session first, then upload the advice JSON you get back.",
       "sess.advice.findings": "Findings",
@@ -1515,6 +1528,19 @@
       "sess.src.gust-boost-restore": "fin de racha: vuelve D",
       "sess.src.external":   "otra app o pypilot",
       "sess.src.unknown":    "desconocido",
+      "sess.sh.title":       "Modo sombra (no se aplicó nada)",
+      "sess.sh.windows":     "Tramos de 90 s",
+      "sess.sh.valid":       "válidos para comparar",
+      "sess.sh.comparable":  "comparables con el anterior",
+      "sess.sh.aba":         "momentos con prueba A/B/A posible",
+      "sess.sh.proposals":   "Lo que habría probado",
+      "sess.sh.none":        "Nada: ningún síntoma claro.",
+      "sess.sh.blocked":     "Síntomas en los que no habría actuado",
+      "sess.sh.why.oscillation": "oscila",
+      "sess.sh.why.overshoot": "se pasa al llegar",
+      "sess.sh.why.nervous": "servo nervioso",
+      "sess.sh.why.bias":    "desvío sostenido",
+      "sess.sh.why.slow":    "lento en llegar al rumbo",
       "sess.advice.title":   "Consejos recibidos",
       "sess.advice.empty":   "No hay consejos aún. Comparte una sesión y sube después el JSON de consejos que recibas.",
       "sess.advice.findings": "Hallazgos",
@@ -13515,6 +13541,35 @@
             <div style="color:var(--fg-dim)">${esc(who)}${c.reason ? " · " + esc(c.reason) : ""}</div>
           </div>`;
         }).join("") + "</div>";
+      }
+    }
+    // Rev572: shadow mode - what the automatic tuner would have tried.
+    const sh = d && d.shadow;
+    if (sh && sh.windows > 0) {
+      const hhmm2 = (ms) => { const x = new Date(ms); return `${String(x.getHours()).padStart(2, "0")}:${String(x.getMinutes()).padStart(2, "0")}`; };
+      body += `<h4 style="margin:12px 0 6px">${esc(t("sess.sh.title") || "Shadow mode")}</h4>`
+        + row(t("sess.sh.windows") || "90 s windows", String(sh.windows))
+        + row(t("sess.sh.valid") || "clean", String(sh.valid))
+        + row(t("sess.sh.comparable") || "comparable", String(sh.comparable))
+        + row(t("sess.sh.aba") || "A/B/A possible", String(sh.abaFeasible));
+      body += `<div style="font-size:13px;margin:8px 0 4px">${esc(t("sess.sh.proposals") || "What it would have tried")}</div>`;
+      if (!sh.proposals || sh.proposals.length === 0) {
+        body += `<div class="hint">${esc(t("sess.sh.none") || "Nothing.")}</div>`;
+      } else {
+        body += "<div style=\"display:flex;flex-direction:column;gap:6px\">" + sh.proposals.map((a) => {
+          const whyKey = `sess.sh.why.${a.why}`;
+          const why = t(whyKey) !== whyKey ? t(whyKey) : a.why;
+          const fmt = (v) => String(Number(Number(v).toPrecision(4)));
+          return `<div style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px">
+            <div><span style="font-family:ui-monospace,monospace;color:var(--fg-dim)">${hhmm2(a.ts)}</span> · ${esc(a.gain)} ${a.pct > 0 ? "+" : ""}${a.pct} % (${esc(fmt(a.from))} → ${esc(fmt(a.to))}) · ${esc(why)}</div>
+            <div style="color:var(--fg-dim)">${esc(a.detail)}</div>
+          </div>`;
+        }).join("") + "</div>";
+      }
+      const bl = Object.entries(sh.blocked || {});
+      if (bl.length) {
+        body += `<div style="font-size:13px;margin:8px 0 4px">${esc(t("sess.sh.blocked") || "Not acted on")}</div>`
+          + bl.map(([k, n]) => `<div class="hint" style="margin-top:2px">${esc(k)} ×${n}</div>`).join("");
       }
     }
     const title = (t("sess.sum.title") || "Session {date}").replace("{date}", _sessFmtDate(d && d.startTs));
