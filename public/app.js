@@ -922,6 +922,15 @@
       "prompt.profileImportName": "Name for the imported profile:",
       "profile.rename.reserved": "Cannot rename a reserved profile (basic/default).",
       "profile.rename.exists": "A profile with that name already exists.",
+      "pm.lin.none":         "no history (created before Rev569)",
+      "pm.lin.tune":         "tuned from",
+      "pm.lin.new":          "new, copy of",
+      "pm.lin.doctor":       "Doctor on",
+      "pm.lin.import":       "imported (over",
+      "pm.lin.user":         "copy of",
+      "pm.lin.external":     "made outside the visor, copy of",
+      "pm.lin.renamed":      "renamed from",
+      "pm.lookAlike":        "These names look the same but are different profiles (spaces or capitals): {names}. Rename or delete the one you do not use.",
       "profile.rename.failed": "Could not rename the profile.",
       "profile.export.noActive": "No active profile to export.",
       "profile.export.noGains": "No gains available to export. Open the Tune tab first so they load.",
@@ -1953,6 +1962,15 @@
       "prompt.profileImportName": "Nombre para el perfil importado:",
       "profile.rename.reserved": "No se puede renombrar un perfil reservado (basic/default).",
       "profile.rename.exists": "Ya existe un perfil con ese nombre.",
+      "pm.lin.none":         "sin historial (creado antes de Rev569)",
+      "pm.lin.tune":         "ajuste de",
+      "pm.lin.new":          "nuevo, copia de",
+      "pm.lin.doctor":       "Doctor sobre",
+      "pm.lin.import":       "importado (sobre",
+      "pm.lin.user":         "copia de",
+      "pm.lin.external":     "creado fuera del visor, copia de",
+      "pm.lin.renamed":      "renombrado de",
+      "pm.lookAlike":        "Estos nombres parecen iguales pero son perfiles distintos (espacios o mayúsculas): {names}. Renombra o borra el que no uses.",
       "profile.rename.failed": "No se pudo renombrar el perfil.",
       "profile.export.noActive": "No hay perfil activo para exportar.",
       "profile.export.noGains": "No hay ganancias disponibles. Abre la pestaña Tune primero para que se carguen.",
@@ -11159,7 +11177,7 @@
 
   // For pypilot-specific paths that the Autopilot API does NOT cover (gains,
   // profiles, calibration, tack detail), route through our own /raw endpoint.
-  async function pluginRaw(name, value) {
+  async function pluginRaw(name, value, opts) {
     // Rev465/466 (Carlos safety audit 2026-10-12 trip): abort BEFORE
     // POST when pypilot offline OR WebSocket closed. See
     // _pypilotWriteBlocked for the full rationale.
@@ -11187,7 +11205,9 @@
     const res = await skFetch(url, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, value }),
+      // Rev569: opts.origin tells the backend how a NEW profile is made
+      // (new / tune / rename / import) for its history.
+      body: JSON.stringify(opts && opts.origin ? { name, value, origin: opts.origin } : { name, value }),
     });
     handleAuth(res);
     // Rev507: keep the values cache in step with what the sailor just
@@ -16316,6 +16336,43 @@
     return _pmDialogShow("alert", { title, body: body || "" });
   }
 
+  // Rev569: "Ceñida fondo medio viento" and "Ceñida fondo medio viento "
+  // were two profiles. A new name that only differs in spaces or capitals
+  // from an existing one counts as taken (`except` = the profile being
+  // renamed).
+  function _pmNormName(n) { return String(n || "").trim().replace(/\s+/g, " ").toLowerCase(); }
+  function _pmNameTaken(name, except) {
+    const k = _pmNormName(name);
+    return (state.profiles || []).some((p) => p !== except && _pmNormName(p) === k);
+  }
+  // Rev569 (Carlos 2026-10-30): history line per profile in the manager:
+  // version, creation time, how and from which profile it was made.
+  let _pmLineage = { lineage: {}, lookAlikes: [] };
+  let _pmLineageTs = 0;
+  async function _pmRefreshLineage() {
+    if (Date.now() - _pmLineageTs < 2000) return;
+    _pmLineageTs = Date.now();
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/profiles/lineage`);
+      if (!r.ok) return;
+      const j = await r.json();
+      const changed = JSON.stringify(j) !== JSON.stringify(_pmLineage);
+      _pmLineage = { lineage: j.lineage || {}, lookAlikes: j.lookAlikes || [] };
+      const m = document.getElementById("pm-modal");
+      if (changed && m && !m.hidden) _pmRender();
+    } catch { /* silent */ }
+  }
+  function _pmLineageText(name) {
+    const e = (_pmLineage.lineage || {})[name];
+    const q = (n) => `"${n}"`;
+    const renamed = e && e.renamedFrom ? ` · ${t("pm.lin.renamed") || "renamed from"} ${q(e.renamedFrom)}` : "";
+    if (!e || !e.createdTs) return (t("pm.lin.none") || "no history") + renamed;
+    const how = t(`pm.lin.${e.origin}`);
+    const howTxt = how && how !== `pm.lin.${e.origin}` ? how : e.origin;
+    const parent = e.parent ? ` ${q(e.parent)}${e.origin === "import" ? ")" : ""}` : (e.origin === "import" ? ")" : "");
+    return `v${e.version} · ${_sessFmtDate(e.createdTs)} · ${howTxt}${parent}${renamed}`;
+  }
+
   function _pmOpen() {
     const m = document.getElementById("pm-modal");
     if (!m) return;
@@ -16336,6 +16393,20 @@
     const list = document.getElementById("pm-list");
     if (!list) return;
     list.innerHTML = "";
+    _pmRefreshLineage();
+    let warn = document.getElementById("pm-lookalike");
+    if (!warn) {
+      warn = document.createElement("div");
+      warn.id = "pm-lookalike";
+      warn.className = "hint";
+      warn.style.color = "var(--warn, #e8c23a)";
+      list.parentNode.insertBefore(warn, list);
+    }
+    const groups = (_pmLineage.lookAlikes || []).map((g) => g.map((n) => `"${n}"`).join(" / "));
+    warn.hidden = groups.length === 0;
+    warn.textContent = groups.length
+      ? "⚠ " + (t("pm.lookAlike") || "Look-alike names: {names}").replace("{names}", groups.join("; "))
+      : "";
     const profiles = Array.isArray(state.profiles) ? state.profiles : [];
     for (const name of profiles) {
       const li = document.createElement("li");
@@ -16368,6 +16439,12 @@
       const nameEl = document.createElement("div");
       nameEl.className = "pm-name";
       nameEl.textContent = name;
+      const lin = document.createElement("div");
+      lin.className = "hint";
+      lin.style.marginTop = "2px";
+      lin.style.whiteSpace = "normal";   // .pm-name is nowrap
+      lin.textContent = _pmLineageText(name);
+      nameEl.appendChild(lin);
       nameEl.addEventListener("click", async () => {
         if (name === state.profile) return;
         try {
@@ -16407,15 +16484,16 @@
     if (!raw) return;
     const name = raw.trim().replace(/\s+/g, " ");
     if (!name) return;
-    if ((state.profiles || []).includes(name)) {
+    if (_pmNameTaken(name)) {
       await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
       return;
     }
     try {
-      await pluginRaw("profile", name);
+      await pluginRaw("profile", name, { origin: "new" });
       state.profile = name;
       // Allow the delta to catch up before re-render.
       setTimeout(_pmRender, 400);
+      setTimeout(_pmRender, 4000);   // Rev569: history resolves ~2.5 s later
     } catch (e) { console.warn("[pm] new failed:", e); }
   }
   async function _pmActionRename() {
@@ -16427,7 +16505,7 @@
     if (raw == null) return;
     const newName = raw.trim().replace(/\s+/g, " ");
     if (!newName || newName === oldName) return;
-    if ((state.profiles || []).includes(newName)) {
+    if (_pmNameTaken(newName, oldName)) {
       await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
       return;
     }
@@ -16439,12 +16517,13 @@
         await pluginRaw("profile", oldName);
         await new Promise((r) => setTimeout(r, 300));
       }
-      await pluginRaw("profile", newName);
+      await pluginRaw("profile", newName, { origin: "rename" });
       await new Promise((r) => setTimeout(r, 400));
       const remaining = (state.profiles || []).filter((p) => p !== oldName);
       await pluginRaw("profiles", remaining);
       _pmSelected.clear();
       setTimeout(_pmRender, 300);
+      setTimeout(_pmRender, 6000);   // Rev569: the rename lands in the history ~4 s later
     } catch (e) {
       console.warn("[pm] rename failed:", e);
       await _pmAlert(t("profile.rename.failed") || "No se pudo renombrar el perfil.");
@@ -16559,13 +16638,13 @@
       if (raw == null) return;
       const newName = raw.trim().replace(/\s+/g, " ");
       if (!newName) return;
-      if ((state.profiles || []).includes(newName)) {
+      if (_pmNameTaken(newName)) {
         await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
         return;
       }
       // Rev539 (GPT review 5 #10): the gains go into the NEW profile only
       // once pypilot confirms it is active; otherwise nothing is written.
-      const pr = await pluginRaw("profile", newName);
+      const pr = await pluginRaw("profile", newName, { origin: "import" });
       if (!pr || pr.ok === false) throw new Error(`profile '${newName}' not created`);
       const tP = Date.now();
       while (Date.now() - tP < 3000 && state.profile !== newName) await new Promise((r) => setTimeout(r, 100));
@@ -16904,12 +16983,12 @@
         try { nameInput && nameInput.focus(); } catch { /* silent */ }
         return;
       }
-      if (state.profiles && state.profiles.includes(chosenName)) {
+      if (_pmNameTaken(chosenName)) {
         alert(t("profile.rename.exists") || "Ya existe un profile con ese nombre.");
         try { nameInput && nameInput.focus(); nameInput && nameInput.select(); } catch { /* silent */ }
         return;
       }
-      try { pluginRaw("profile", chosenName); } catch { /* silent */ }
+      try { pluginRaw("profile", chosenName, { origin: "tune" }); } catch { /* silent */ }
       close();
     };
     if (cancelBtn) cancelBtn.onclick = () => {

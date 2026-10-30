@@ -47,6 +47,7 @@ import {
 import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
 import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log";
 import { GainChangeLog, GAIN_PATH_RE } from "./gain-change-log";
+import { loadLineage, recordCreation, renameIfPending, lookAlikes, type ProfileLineage, type LineageOrigin } from "./profile-lineage";
 import {
   loadMetadata,
   upsert as pmUpsert,
@@ -74,7 +75,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev568";
+const PLUGIN_REVISION = "Rev569";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -213,6 +214,8 @@ interface PluginProps {
   // keyed by pypilot profile name. Visor renders it as chips; future
   // auto-profile-by-condition may read from it.
   profileMetadata?: ProfileMetadata;
+  /** Rev569: per-profile history (created, parent, version). */
+  profileLineage?: ProfileLineage;
   // Rev290 (E2/E3): per-install alarm thresholds. Overrides the
   // module-level RULE_* defaults in alarms.ts. Undefined fields fall
   // back to the defaults.
@@ -457,6 +460,40 @@ module.exports = function (app: any) {
   // Rev568: same for gains, so each recorded session lists who changed
   // which gain and why.
   const gainChangeLog = new GainChangeLog();
+
+  // Rev569: profile history. pypilot reports the new name in `profiles`
+  // and the switch in `profile` in either order, so a creation is
+  // resolved LINEAGE_SETTLE_MS later from the profile change log: the
+  // switch TO the new name says which profile it was copied from and who
+  // asked for it.
+  const LINEAGE_SETTLE_MS = 2500;
+  function _lineageSave(): void {
+    try { app.savePluginOptions?.(props, () => { /* silent */ }); } catch { /* silent */ }
+  }
+  function _lineageCreated(name: string): void {
+    const store: ProfileLineage = props.profileLineage ?? {};
+    if (store[name]) return;
+    const now = Date.now();
+    const sw = profileChangeLog.entries().slice().reverse()
+      .find((e) => e.to === name && now - e.ts <= LINEAGE_SETTLE_MS + 10_000);
+    let origin: LineageOrigin = "external";
+    if (sw) {
+      if (sw.source === "doctor") origin = "doctor";
+      else if (sw.source === "user") {
+        const m = /^origin:(new|tune|import|rename)$/.exec(sw.reason || "");
+        origin = m ? (m[1] === "rename" ? "user" : m[1] as LineageOrigin) : "user";
+      }
+    }
+    recordCreation(store, name, sw?.from ?? null, origin, sw?.ts ?? now);
+    props.profileLineage = store;
+    _lineageSave();
+  }
+  function _lineageRemoved(name: string): void {
+    const store: ProfileLineage = props.profileLineage ?? {};
+    renameIfPending(store, name, Date.now());
+    props.profileLineage = store;
+    _lineageSave();
+  }
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -1930,7 +1967,11 @@ module.exports = function (app: any) {
         // "user" so the change log credits them correctly. Any other
         // key falls through unmodified.
         if (name === "profile" && typeof value === "string") {
-          try { profileChangeLog.markPlannedWrite(value, "user", "PUT /raw"); }
+          // Rev569: the visor says how a NEW profile is being made (Tune
+          // fork, New, rename, import) so its history can show it.
+          const origin = typeof req.body?.origin === "string" && /^(new|tune|rename|import)$/.test(req.body.origin)
+            ? req.body.origin : null;
+          try { profileChangeLog.markPlannedWrite(value, "user", origin ? `origin:${origin}` : "PUT /raw"); }
           catch { /* silent */ }
         }
         // Rev568: gain edits from the visor (Tune tab) are the user's.
@@ -2907,6 +2948,13 @@ module.exports = function (app: any) {
           summary: profileChangeLog.summary(),
           entries: profileChangeLog.entries(),
         });
+      });
+
+      // Rev569: per-profile history and look-alike names for the manager.
+      router.get("/profiles/lineage", (_req: any, res: any) => {
+        const names: string[] = Array.isArray((client?.getValues() as any)?.["profiles"])
+          ? ((client!.getValues() as any)["profiles"] as unknown[]).map(String) : [];
+        res.json({ lineage: props.profileLineage ?? {}, lookAlikes: lookAlikes(names) });
       });
 
       // Rev289 (B5): profile metadata store.
@@ -3888,6 +3936,7 @@ module.exports = function (app: any) {
       // schema â€” a plugin downgrade could otherwise leave stray rows
       // with unknown conditions.
       profileMetadata: loadMetadata(options.profileMetadata),
+      profileLineage: loadLineage(options.profileLineage),
       // Rev290 (E2/E3): threshold overrides, clamped to sane ranges.
       alarmLowVoltageV: clampNumber(options.alarmLowVoltageV, 8, 14, 11.0),
       alarmServoTempC: clampNumber(options.alarmServoTempC, 40, 85, 60),
@@ -6367,6 +6416,7 @@ module.exports = function (app: any) {
     const profileSwitchKey = (s: string) => s.replace(/[^A-Za-z0-9_]/g, "_") || "unnamed";
     const profileSwitchPath = (s: string) => `${SW_PROFILE_PREFIX}.${profileSwitchKey(s)}`;
     let profilesList: string[] = [];
+    let profilesListSeen = false;
     let activeProfile: string | null = null;
     const registeredProfileSwitches: Set<string> = new Set();
     const emitProfileSwitches = () => {
@@ -6433,6 +6483,15 @@ module.exports = function (app: any) {
     (app as any)._pypilotNewuiProfileHook = (name: string, value: unknown) => {
       if (name === "profiles" && Array.isArray(value)) {
         const next = value.map(String);
+        // Rev569: profiles added / removed since the last list feed the
+        // per-profile history. Skipped for the first list after start.
+        if (profilesListSeen) {
+          const added = next.filter((p) => !profilesList.includes(p));
+          const removed = profilesList.filter((p) => !next.includes(p));
+          for (const p of added) setTimeout(() => _lineageCreated(p), LINEAGE_SETTLE_MS);
+          for (const p of removed) setTimeout(() => _lineageRemoved(p), LINEAGE_SETTLE_MS + 1500);
+        }
+        profilesListSeen = true;
         profilesList = next;
         for (const p of next) ensureProfileSwitchHandler(p);
         emitProfileSwitches();
