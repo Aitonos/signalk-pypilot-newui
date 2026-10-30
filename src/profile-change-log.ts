@@ -81,8 +81,9 @@ export class ProfileChangeLog {
     this.planned.push({ name, source, reason, ts: now });
   }
 
-  /** Feed one 'profile' delta from pypilot. */
-  observeDelta(newProfile: string, now: number = Date.now()): void {
+  /** Feed one 'profile' delta from pypilot. Rev568: returns the entry it
+   *  logged, or null when the profile did not actually change. */
+  observeDelta(newProfile: string, now: number = Date.now()): ProfileChangeEntry | null {
     this.gcPlanned(now);
     // Match the freshest planned write to this delta.
     let source: ProfileChangeSource = "external";
@@ -101,7 +102,7 @@ export class ProfileChangeLog {
     if (this.lastProfile !== null && this.lastProfile === newProfile) {
       // Still consume the planned write if any — that's the caller's
       // intent even if the value happened to be identical.
-      return;
+      return null;
     }
     const entry: ProfileChangeEntry = {
       ts: now,
@@ -113,6 +114,7 @@ export class ProfileChangeLog {
     this.ring.push(entry);
     if (this.ring.length > this.ringCapacity) this.ring.shift();
     this.lastProfile = newProfile;
+    return entry;
   }
 
   /** Read-only snapshot, newest last. */

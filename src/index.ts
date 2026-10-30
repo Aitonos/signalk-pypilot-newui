@@ -46,6 +46,7 @@ import {
 } from "./tuning-knobs";
 import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
 import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log";
+import { GainChangeLog, GAIN_PATH_RE } from "./gain-change-log";
 import {
   loadMetadata,
   upsert as pmUpsert,
@@ -73,7 +74,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev567";
+const PLUGIN_REVISION = "Rev568";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -453,6 +454,9 @@ module.exports = function (app: any) {
   // credits the source, or records "external" for changes we did not
   // initiate.
   const profileChangeLog = new ProfileChangeLog();
+  // Rev568: same for gains, so each recorded session lists who changed
+  // which gain and why.
+  const gainChangeLog = new GainChangeLog();
   // Rev143 (Carlos): navigation session recorder. Persists engaged
   // sessions labelled by conditions to disk so I (Claude) can analyse
   // them offline and inject boat-specific tuning heuristics in a
@@ -822,6 +826,21 @@ module.exports = function (app: any) {
             ((n: string, v: unknown) => void) | undefined;
           if (hook) hook(name, value);
         } catch { /* silent */ }
+        // Rev568: a gain that moved on its own goes into the session.
+        // Unclaimed ones wait 3 s in case a profile switch explains them;
+        // pypilot reports values many times a second, so draining here
+        // is enough.
+        try {
+          const now = Date.now();
+          const gc = gainChangeLog.observe(name, value, now);
+          const out = gainChangeLog.drain(now);
+          if (gc) out.push(gc);
+          if (sessionRecorder) {
+            for (const c of out) {
+              sessionRecorder.recordChange({ ts: c.ts, kind: "gain", key: c.key, from: c.from, to: c.to, source: c.source, reason: c.reason });
+            }
+          }
+        } catch { /* silent */ }
       });
 
       // Rev24: register KIP-friendly action PUT handlers regardless of
@@ -1012,6 +1031,11 @@ module.exports = function (app: any) {
       // Rev296 (bug D): Doctor fork writes go through the change log.
       doctor.setProfileWriteHook((name, reason) => {
         try { profileChangeLog.markPlannedWrite(name, "doctor", reason); }
+        catch { /* silent */ }
+      });
+      // Rev568: and its gain writes, with the finding behind them.
+      doctor.setGainWriteHook((path, value, reason) => {
+        try { gainChangeLog.markPlannedWrite(path, value, "doctor", reason); }
         catch { /* silent */ }
       });
       // Rev282: roll feed-forward, off unless the user turned it on.
@@ -1907,6 +1931,11 @@ module.exports = function (app: any) {
         // key falls through unmodified.
         if (name === "profile" && typeof value === "string") {
           try { profileChangeLog.markPlannedWrite(value, "user", "PUT /raw"); }
+          catch { /* silent */ }
+        }
+        // Rev568: gain edits from the visor (Tune tab) are the user's.
+        if (GAIN_PATH_RE.test(name) && typeof value === "number") {
+          try { gainChangeLog.markPlannedWrite(name, value, "user", "Tune"); }
           catch { /* silent */ }
         }
         // Rev381 (Carlos, 2026-10-01): intercept tack-begin via /raw.
@@ -3279,8 +3308,22 @@ module.exports = function (app: any) {
           pilot: r.pilot,
           profile: r.profile,
           hasAdvice: _sessionHasAdvice(r.id),
+          // Rev568: numbers only; the change list comes from /summary.
+          summary: r.summary ?? null,
         }));
         res.json({ sessions: summaries });
+      });
+      // Rev568: one session's summary and its profile / gain changes.
+      router.get("/session-recorder/session/:id/summary", (req: any, res: any) => {
+        if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        const id = String(req.params.id || "").replace(/[^A-Za-z0-9\-]/g, "");
+        const row = sessionRecorder.list().find((r) => r.id === id);
+        if (!row) return res.status(404).json({ error: "not found" });
+        res.json({
+          id: row.id, startTs: row.startTs, endTs: row.endTs, samples: row.sampleCount,
+          tags: row.tags, pilot: row.pilot, profile: row.profile, gainsAtStart: row.gainsAtStart,
+          summary: row.summary ?? null, changes: row.changes ?? [],
+        });
       });
       router.get("/session-recorder/download/:id", (req: any, res: any) => {
         if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
@@ -4834,7 +4877,10 @@ module.exports = function (app: any) {
       const boostedD = currentD * 1.20;
       _gustBoostUntilMs = now + GUST_BOOST_SEC * 1000;
       _gustBoostRestoreGain = { pilot, key: "D", value: currentD, boosted: boostedD };
-      try { client.set(key, boostedD); } catch { /* silent */ }
+      try {
+        gainChangeLog.markPlannedWrite(key, boostedD, "gust-boost", `Gust ${summary}: D +20 % for ${GUST_BOOST_SEC} s`);
+        client.set(key, boostedD);
+      } catch { /* silent */ }
       _emitAdvisoryNotification("gust-boost-d",
         `Gust ${summary}: D boosted ${currentD.toFixed(4)} -> ${boostedD.toFixed(4)} for ${GUST_BOOST_SEC} s`);
       return;
@@ -4877,7 +4923,10 @@ module.exports = function (app: any) {
         && typeof nowD === "number" && typeof r.boosted === "number"
         && Math.abs(nowD - r.boosted) <= Math.max(1e-4, Math.abs(r.boosted) * 0.01);   // self-audit Rev540: pypilot may round
       if (client && r && untouched) {
-        try { client.set(`ap.pilot.${r.pilot}.${r.key}`, r.value); } catch { /* silent */ }
+        try {
+          gainChangeLog.markPlannedWrite(`ap.pilot.${r.pilot}.${r.key}`, r.value, "gust-boost-restore", "gust window expired");
+          client.set(`ap.pilot.${r.pilot}.${r.key}`, r.value);
+        } catch { /* silent */ }
       }
       _gustBoostUntilMs = null;
       _gustBoostRestoreGain = null;
@@ -6389,7 +6438,17 @@ module.exports = function (app: any) {
         emitProfileSwitches();
       } else if (name === "profile" && typeof value === "string") {
         // Rev296 (bug D): log the change with attribution.
-        try { profileChangeLog.observeDelta(value); } catch { /* silent */ }
+        try {
+          const entry = profileChangeLog.observeDelta(value);
+          // Rev568: into the session too; the gains that follow a profile
+          // switch belong to it, not to separate changes.
+          if (entry) {
+            gainChangeLog.noteProfileChange(entry.ts);
+            if (sessionRecorder) {
+              sessionRecorder.recordChange({ ts: entry.ts, kind: "profile", key: "profile", from: entry.from, to: entry.to, source: entry.source, reason: entry.reason });
+            }
+          }
+        } catch { /* silent */ }
         activeProfile = value;
         // If pypilot revealed a profile name we did not yet know about,
         // register it lazily so KIP still sees the switch immediately.

@@ -455,6 +455,31 @@
       "sess.list.delete":    "Delete",
       "sess.list.delConfirm": "Delete session {id}?",
       "sess.list.hasAdvice": "advice received",
+      "sess.list.summary":   "Summary",
+      "sess.sum.title":      "Session {date}",
+      "sess.sum.none":       "This session was recorded before summaries existed (before Rev568). Download the JSON to analyse it.",
+      "sess.sum.duration":   "Duration",
+      "sess.sum.modes":      "Mode",
+      "sess.sum.wind":       "Mean true wind",
+      "sess.sum.sog":        "Mean speed",
+      "sess.sum.bias":       "Mean heading offset",
+      "sess.sum.rms":        "Heading error (RMS)",
+      "sess.sum.servo":      "Servo working",
+      "sess.sum.profile":    "Profile at start",
+      "sess.sum.profileWord": "Profile",
+      "sess.back":           "Back",
+      "sess.sum.changes":    "Changes during the session",
+      "sess.sum.noChanges":  "No profile or gain changes.",
+      "sess.src.user":       "you",
+      "sess.src.doctor":     "Doctor",
+      "sess.src.auto-profile": "auto profile (wind)",
+      "sess.src.autowind":   "AUTO WIND",
+      "sess.src.gust-heavy": "gust: heavy profile",
+      "sess.src.gust-heavy-restore": "gust over: profile back",
+      "sess.src.gust-boost": "gust: more D",
+      "sess.src.gust-boost-restore": "gust over: D back",
+      "sess.src.external":   "other app or pypilot",
+      "sess.src.unknown":    "unknown",
       "sess.advice.title":   "Received advice",
       "sess.advice.empty":   "No advice received yet. Share a session first, then upload the advice JSON you get back.",
       "sess.advice.findings": "Findings",
@@ -1456,6 +1481,31 @@
       "sess.list.delete":    "Borrar",
       "sess.list.delConfirm": "Borrar sesión {id}?",
       "sess.list.hasAdvice": "consejos recibidos",
+      "sess.list.summary":   "Resumen",
+      "sess.sum.title":      "Sesión {date}",
+      "sess.sum.none":       "Esta sesión se grabó antes de que existieran los resúmenes (antes de Rev568). Descarga el JSON para analizarla.",
+      "sess.sum.duration":   "Duración",
+      "sess.sum.modes":      "Modo",
+      "sess.sum.wind":       "Viento real medio",
+      "sess.sum.sog":        "Velocidad media",
+      "sess.sum.bias":       "Desvío medio de rumbo",
+      "sess.sum.rms":        "Error de rumbo (RMS)",
+      "sess.sum.servo":      "Servo trabajando",
+      "sess.sum.profile":    "Perfil al empezar",
+      "sess.sum.profileWord": "Perfil",
+      "sess.back":           "Volver",
+      "sess.sum.changes":    "Cambios durante la sesión",
+      "sess.sum.noChanges":  "Sin cambios de perfil ni de ganancias.",
+      "sess.src.user":       "tú",
+      "sess.src.doctor":     "Doctor",
+      "sess.src.auto-profile": "perfil automático (viento)",
+      "sess.src.autowind":   "AUTO WIND",
+      "sess.src.gust-heavy": "racha: perfil fuerte",
+      "sess.src.gust-heavy-restore": "fin de racha: vuelve el perfil",
+      "sess.src.gust-boost": "racha: más D",
+      "sess.src.gust-boost-restore": "fin de racha: vuelve D",
+      "sess.src.external":   "otra app o pypilot",
+      "sess.src.unknown":    "desconocido",
       "sess.advice.title":   "Consejos recibidos",
       "sess.advice.empty":   "No hay consejos aún. Comparte una sesión y sube después el JSON de consejos que recibas.",
       "sess.advice.findings": "Hallazgos",
@@ -13372,6 +13422,7 @@
           <div style="font-family:ui-monospace,monospace;font-size:11px;color:var(--fg-dim)">${_sessFmtDate(s.startTs)}  ·  ${s.samples} samples  ·  ${dur}</div>
           <div style="font-size:12px;margin:4px 0">${tags} ${advice}</div>
           <div class="row" style="gap:6px;flex-wrap:wrap">
+            <button class="ghost sess-sum" data-id="${s.id}">${t("sess.list.summary") || "Summary"}</button>
             <a class="ghost sess-dl" data-id="${s.id}" href="/plugins/${PLUGIN_ID}/session-recorder/download/${s.id}" download>${t("sess.list.download") || "Download JSON"}</a>
             <button class="ghost sess-share" data-id="${s.id}">${t("sess.list.share") || "Share"}</button>
             <button class="ghost sess-del" data-id="${s.id}">${t("sess.list.delete") || "Delete"}</button>
@@ -13382,6 +13433,7 @@
     const m = _sessOpenModal(t("sess.list.title") || "Sesiones grabadas", body, [
       { label: t("sess.close") || "Close", onClick: (close) => close() },
     ]);
+    m.querySelectorAll(".sess-sum").forEach((b) => b.addEventListener("click", () => _sessOpenSummaryModal(b.dataset.id)));
     m.querySelectorAll(".sess-share").forEach((b) => b.addEventListener("click", () => {
       const id = b.dataset.id;
       const url = `${location.origin}/plugins/${PLUGIN_ID}/session-recorder/download/${id}`;
@@ -13393,6 +13445,63 @@
       const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/session/${b.dataset.id}`, { method: "DELETE" });
       if (r.ok) _sessOpenListModal();
     }));
+  }
+  // Rev568 (Carlos 2026-10-30, "al pinchar, un resumen y si se aplicaron
+  // cambios y por qué"): numbers computed while recording plus every
+  // profile / gain change with who made it and why. Same modal and the
+  // same plain rows as the list; Back returns to the list.
+  async function _sessOpenSummaryModal(id) {
+    let d = null;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/session/${encodeURIComponent(id)}/summary`);
+      if (r.ok) d = await r.json();
+    } catch { /* silent */ }
+    const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const row = (label, value) => value == null || value === "" ? "" :
+      `<div class="row" style="justify-content:space-between;gap:8px;font-size:13px;padding:3px 0"><span style="color:var(--fg-dim)">${esc(label)}</span><span>${esc(value)}</span></div>`;
+    const sm = d && d.summary;
+    let body;
+    if (!d) {
+      body = `<div class="hint">${esc(t("sess.list.empty") || "No sessions recorded yet.")}</div>`;
+    } else if (!sm) {
+      body = `<div class="hint">${esc(t("sess.sum.none") || "No summary for this session.")}</div>`;
+    } else {
+      const modes = Object.entries(sm.modes || {}).sort((a, b) => b[1] - a[1])
+        .map(([k, n]) => `${k} ${_sessFmtDur(n)}`).join(", ");
+      const fmtDeg = (v) => v == null ? null : `${v.toFixed(1)}°`;
+      body = row(t("sess.sum.duration") || "Duration", _sessFmtDur(sm.durationSec))
+        + row(t("sess.sum.modes") || "Mode", modes)
+        + row(t("sess.sum.profile") || "Profile at start", d.profile)
+        + row(t("sess.sum.wind") || "Mean true wind", sm.twsMeanKn == null ? null : `${sm.twsMeanKn.toFixed(1)} kn`)
+        + row(t("sess.sum.sog") || "Mean speed", sm.sogMeanKn == null ? null : `${sm.sogMeanKn.toFixed(1)} kn`)
+        + row(t("sess.sum.bias") || "Mean heading offset", fmtDeg(sm.meanErrDeg))
+        + row(t("sess.sum.rms") || "Heading error (RMS)", fmtDeg(sm.rmsErrDeg))
+        + row(t("sess.sum.servo") || "Servo working", sm.servoDutyPct == null ? null : `${sm.servoDutyPct} %`);
+      const changes = (d.changes || []).slice().sort((a, b) => a.ts - b.ts);
+      body += `<h4 style="margin:12px 0 6px">${esc(t("sess.sum.changes") || "Changes during the session")}</h4>`;
+      if (changes.length === 0) {
+        body += `<div class="hint">${esc(t("sess.sum.noChanges") || "No profile or gain changes.")}</div>`;
+      } else {
+        const hhmm = (ms) => { const x = new Date(ms); return `${String(x.getHours()).padStart(2, "0")}:${String(x.getMinutes()).padStart(2, "0")}`; };
+        const fmtV = (v) => typeof v === "number" ? String(Number(v.toPrecision(4))) : (v ?? "?");
+        body += "<div style=\"display:flex;flex-direction:column;gap:6px\">" + changes.map((c) => {
+          const what = c.kind === "profile"
+            ? `${esc(t("sess.sum.profileWord") || "Profile")}: ${esc(fmtV(c.from))} → ${esc(fmtV(c.to))}`
+            : `${esc(String(c.key).split(".").pop())}: ${esc(fmtV(c.from))} → ${esc(fmtV(c.to))}`;
+          const srcKey = `sess.src.${c.source}`;
+          const who = t(srcKey) !== srcKey ? t(srcKey) : c.source;   // t() returns the key when missing
+          return `<div style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px">
+            <div><span style="font-family:ui-monospace,monospace;color:var(--fg-dim)">${hhmm(c.ts)}</span> · ${what}</div>
+            <div style="color:var(--fg-dim)">${esc(who)}${c.reason ? " · " + esc(c.reason) : ""}</div>
+          </div>`;
+        }).join("") + "</div>";
+      }
+    }
+    const title = (t("sess.sum.title") || "Session {date}").replace("{date}", _sessFmtDate(d && d.startTs));
+    _sessOpenModal(title, body, [
+      { label: t("sess.back") || "Back", onClick: () => _sessOpenListModal() },
+      { label: t("sess.close") || "Close", onClick: (close) => close() },
+    ]);
   }
   async function _sessOpenAdviceModal() {
     let advice = [];

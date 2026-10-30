@@ -9,12 +9,18 @@
 //   - one JSONL file per session in <dataDir>/nav-sessions/
 //   - filename: session-<yyyymmdd>-<hhmmss>-<epochSuffix>.jsonl
 //   - first line: header (pilot, profile, gains at start, plugin rev)
-//   - later lines: samples (1 Hz), tags updates, session close
+//   - later lines: samples (1 Hz), tags updates, changes (Rev568),
+//     session close
+//   - Rev568: the end line also carries a summary (error, servo work,
+//     wind, speed, modes) and the list of profile / gain changes with
+//     who made them and why, so the visor can show them without
+//     reading the whole file
 //   - sessions auto-open on engage, auto-close on disengage or plugin stop
 //   - flush to disk every 30 s so a crash loses at most that much data
 
 import * as fs from "fs";
 import * as path from "path";
+import { SERVO_ON_MIN_A } from "./constants";
 
 export interface SessionSample {
   ts: number;
@@ -48,6 +54,72 @@ export interface SessionSample {
  *  in the header (rollRms / pitchRms), 2 = heel / pitch. */
 export const SESSION_FORMAT = 2;
 
+/** Rev568: a profile or gain change seen while recording. */
+export interface SessionChange {
+  ts: number;
+  kind: "profile" | "gain";
+  /** "profile" or the pypilot gain path ("ap.pilot.basic.D"). */
+  key: string;
+  from: string | number | null;
+  to: string | number;
+  /** Who made it: user, doctor, auto-profile, gust-boost, external... */
+  source: string;
+  reason?: string;
+}
+
+/** Rev568: per-session numbers, computed while recording. */
+export interface SessionSummary {
+  durationSec: number;
+  samples: number;
+  /** Mean signed heading (or wind angle) error, degrees. */
+  meanErrDeg: number | null;
+  rmsErrDeg: number | null;
+  /** % of samples with servo current where the servo was drawing. */
+  servoDutyPct: number | null;
+  twsMeanKn: number | null;
+  sogMeanKn: number | null;
+  /** Samples (= seconds at 1 Hz) spent in each AP mode. */
+  modes: Record<string, number>;
+  changes: number;
+}
+
+const MAX_CHANGES = 100;
+const MS_TO_KN = 1.943844;
+const RAD_TO_DEG = 180 / Math.PI;
+
+/** Running sums for SessionSummary; O(1) per sample. */
+class SummaryAcc {
+  private n = 0;
+  private errN = 0; private errSum = 0; private errSumSq = 0;
+  private curN = 0; private curOn = 0;
+  private twsN = 0; private twsSum = 0;
+  private sogN = 0; private sogSum = 0;
+  private readonly modes: Record<string, number> = {};
+  add(s: Partial<SessionSample>): void {
+    this.n += 1;
+    if (typeof s.hdgErr === "number" && isFinite(s.hdgErr)) { this.errN += 1; this.errSum += s.hdgErr; this.errSumSq += s.hdgErr * s.hdgErr; }
+    if (typeof s.servoCur === "number") { this.curN += 1; if (s.servoCur > SERVO_ON_MIN_A) this.curOn += 1; }
+    if (typeof s.tws === "number" && isFinite(s.tws)) { this.twsN += 1; this.twsSum += s.tws; }
+    if (typeof s.sog === "number" && isFinite(s.sog)) { this.sogN += 1; this.sogSum += s.sog; }
+    const m = typeof s.mode === "string" && s.mode ? s.mode : "?";
+    if (m in this.modes || Object.keys(this.modes).length < 10) this.modes[m] = (this.modes[m] || 0) + 1;
+  }
+  result(durationSec: number, changes: number): SessionSummary {
+    const r1 = (v: number) => Math.round(v * 10) / 10;
+    return {
+      durationSec: Math.round(durationSec),
+      samples: this.n,
+      meanErrDeg: this.errN ? r1(this.errSum / this.errN * RAD_TO_DEG) : null,
+      rmsErrDeg: this.errN ? r1(Math.sqrt(this.errSumSq / this.errN) * RAD_TO_DEG) : null,
+      servoDutyPct: this.curN ? Math.round(100 * this.curOn / this.curN) : null,
+      twsMeanKn: this.twsN ? r1(this.twsSum / this.twsN * MS_TO_KN) : null,
+      sogMeanKn: this.sogN ? r1(this.sogSum / this.sogN * MS_TO_KN) : null,
+      modes: { ...this.modes },
+      changes,
+    };
+  }
+}
+
 export interface SessionTags {
   wind?: string;   // "<5" | "5-10" | "10-15" | "15-20" | "20-30" | ">30"
   sea?: string;    // "flat" | "ripple" | "short-chop" | "long-swell" | "mixed"
@@ -67,6 +139,9 @@ export interface SessionInfo {
   pilot: string | null;
   profile: string | null;
   gainsAtStart: Record<string, number> | null;
+  /** Rev568: null for sessions recorded before Rev568. */
+  summary?: SessionSummary | null;
+  changes?: SessionChange[];
 }
 
 interface Options {
@@ -86,6 +161,8 @@ export class SessionRecorder {
   private tags: SessionTags = {};
   private buffer: string[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
+  private acc = new SummaryAcc();
+  private changes: SessionChange[] = [];
 
   constructor(opts: Options) {
     this.dir = path.join(opts.dataDir, "nav-sessions");
@@ -249,6 +326,8 @@ export class SessionRecorder {
     this.startTs = Date.now();
     this.sampleCount = 0;
     this.tags = {};
+    this.acc = new SummaryAcc();
+    this.changes = [];
     const headerLine = JSON.stringify({
       type: "header",
       format: SESSION_FORMAT,
@@ -274,9 +353,27 @@ export class SessionRecorder {
     if (!this.currentFile) return;
     this.buffer.push(JSON.stringify({ type: "sample", ...s }));
     this.sampleCount += 1;
+    this.acc.add(s);
     // Cap in-memory buffer at 2000 lines (~200 KB) so a stuck disk
     // does not eat all the plugin's RAM.
     if (this.buffer.length > 2000) this.buffer = this.buffer.slice(-2000);
+  }
+
+  /** Rev568: note a profile / gain change in the session being recorded. */
+  recordChange(c: SessionChange): void {
+    if (!this.currentFile) return;
+    const clean: SessionChange = {
+      ...c,
+      reason: c.reason ? String(c.reason).slice(0, 160).replace(/[\r\n\t]+/g, " ") : undefined,
+    };
+    this.buffer.push(JSON.stringify({ type: "change", ...clean }));
+    if (this.changes.length < MAX_CHANGES) this.changes.push(clean);
+  }
+
+  /** Rev568: summary of the session being recorded, from memory. */
+  currentSummary(): SessionSummary | null {
+    if (!this.currentFile || this.startTs == null) return null;
+    return this.acc.result((Date.now() - this.startTs) / 1000, this.changes.length);
   }
 
   updateTags(patch: SessionTags): void {
@@ -325,6 +422,8 @@ export class SessionRecorder {
       endTs,
       sampleCount: this.sampleCount,
       finalTags: this.tags,
+      summary: this.acc.result(durMs / 1000, this.changes.length),
+      changes: this.changes,
     }));
     this.flush();
     if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
@@ -399,6 +498,7 @@ export class SessionRecorder {
     return {
       id: this.currentId, file, startTs: this.startTs, endTs: null,
       sampleCount: this.sampleCount, tags: { ...this.tags }, pilot, profile, gainsAtStart,
+      summary: this.currentSummary(), changes: this.changes.slice(),
     };
   }
 
@@ -420,6 +520,8 @@ export class SessionRecorder {
         pilot: h.pilot ?? null,
         profile: h.profile ?? null,
         gainsAtStart: h.gainsAtStart ?? null,
+        summary: e.summary ?? null,
+        changes: Array.isArray(e.changes) ? e.changes : [],
       };
     } catch { return null; }
   }
@@ -435,6 +537,13 @@ export class SessionRecorder {
       let pilot: string | null = null;
       let profile: string | null = null;
       let gainsAtStart: Record<string, number> | null = null;
+      let summary: SessionSummary | null = null;
+      const changes: SessionChange[] = [];
+      // Rev568: a format-2 file without an end line (power cut) gets its
+      // summary rebuilt from the samples; older files have none.
+      const acc = new SummaryAcc();
+      let lastSampleTs = 0;
+      let formatAtLeast2 = false;
       for (const line of lines) {
         try {
           const j = JSON.parse(line);
@@ -444,17 +553,26 @@ export class SessionRecorder {
             pilot = j.pilot ?? null;
             profile = j.profile ?? null;
             gainsAtStart = j.gainsAtStart ?? null;
+            formatAtLeast2 = (j.format ?? 1) >= 2;
           } else if (j.type === "sample") {
             sampleCount += 1;
+            acc.add(j);
+            lastSampleTs = j.ts || lastSampleTs;
+          } else if (j.type === "change") {
+            if (changes.length < MAX_CHANGES) changes.push(j);
           } else if (j.type === "tags") {
             tags = { ...tags, ...(j.tags || {}) };
           } else if (j.type === "end") {
             endTs = j.endTs || null;
             if (j.finalTags) tags = { ...tags, ...j.finalTags };
+            if (j.summary) summary = j.summary;
           }
         } catch { /* skip corrupt line */ }
       }
-      return { id, file, startTs, endTs, sampleCount, tags, pilot, profile, gainsAtStart };
+      if (!summary && formatAtLeast2 && startTs && lastSampleTs) {
+        summary = acc.result((lastSampleTs - startTs) / 1000, changes.length);
+      }
+      return { id, file, startTs, endTs, sampleCount, tags, pilot, profile, gainsAtStart, summary, changes };
     } catch {
       return null;
     }
@@ -476,7 +594,7 @@ export class SessionRecorder {
 
 /** Rev567: first and last non-empty lines of a file, reading at most
  *  EDGE_BYTES from each end. A line longer than that comes back null. */
-const EDGE_BYTES = 16 * 1024;
+const EDGE_BYTES = 64 * 1024;   // Rev568: the end line carries up to 100 changes
 export function readEdgeLines(file: string): { first: string | null; last: string | null } {
   let fd: number | null = null;
   try {

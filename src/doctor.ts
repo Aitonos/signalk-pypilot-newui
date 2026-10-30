@@ -652,6 +652,12 @@ export class DoctorEngine {
   setProfileWriteHook(cb: ((name: string, reason: string) => void) | null): void {
     this.profileWriteHook = cb;
   }
+  /** Rev568: same for gain writes, so the session lists why the Doctor
+   *  changed a gain. Called just before client.set(path, value). */
+  private gainWriteHook: ((path: string, value: number, reason: string) => void) | null = null;
+  setGainWriteHook(cb: ((path: string, value: number, reason: string) => void) | null): void {
+    this.gainWriteHook = cb;
+  }
 
   /** Rev535 (GPT review 3 #2/#5): fork into a uniquely named profile and
    *  WAIT until pypilot reports it active - writing the gain before that
@@ -749,6 +755,9 @@ export class DoctorEngine {
       return { ok: false, message: `${s.gainKey} is already at pypilot's limit (${s.currentValue}).` };
     }
     try {
+      const pct = `${s.deltaPct >= 0 ? "+" : ""}${Math.round(s.deltaPct)} %`;
+      try { this.gainWriteHook?.(s.path, s.suggestedValue, `Doctor ${s.gainKey} ${pct}: ${s.reason}`); }
+      catch { /* silent */ }
       if (!this.client.set(s.path, s.suggestedValue)) {
         return { ok: false, message: `pypilot did not accept ${s.gainKey} = ${s.suggestedValue}.` };
       }
