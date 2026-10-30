@@ -47,6 +47,8 @@ import {
 import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
 import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log";
 import { GainChangeLog, GAIN_PATH_RE } from "./gain-change-log";
+import { NavDb } from "./nav-db";
+import { isCompleteEpisode } from "./episodes";
 import { loadLineage, recordCreation, renameIfPending, lookAlikes, type ProfileLineage, type LineageOrigin } from "./profile-lineage";
 import {
   loadMetadata,
@@ -75,7 +77,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev569";
+const PLUGIN_REVISION = "Rev570";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -499,6 +501,8 @@ module.exports = function (app: any) {
   // them offline and inject boat-specific tuning heuristics in a
   // future Rev. See src/session-recorder.ts.
   let sessionRecorder: SessionRecorder | null = null;
+  // Rev570: navigation database, one row per 90 s engaged window.
+  let navDb: NavDb | null = null;
   // Rev178 (Carlos): trip recorder. Fires on autostate transitions
   // (moored <-> underway/sailing/anchored...) instead of on AP engage,
   // so it also covers motor legs and tender rides. Independent of the
@@ -691,7 +695,7 @@ module.exports = function (app: any) {
         sessionRecorderEnabled: {
           type: "boolean",
           title: "Record labelled navigation sessions",
-          description: "When ON, the plugin appends 1 Hz autopilot telemetry (heading command/actual, servo current/duty, wind, etc.) to a JSONL file for every engaged session. Files stay on the Pi 5 until you download them from the visor. Used to feed the AI-tuned Doctor roadmap.",
+          description: "When ON, the plugin appends 1 Hz autopilot telemetry (heading command/actual, servo current/duty, wind, etc.) to a JSONL file for every engaged session. Files stay on the Pi 5 until you download them from the visor. Used to feed the AI-tuned Doctor roadmap. Also keeps a navigation database (one summary row per 90 s engaged, nav-db folder, capped at 20 MB) for the automatic tuning work. Nothing is sent anywhere.",
           default: true,
         },
         sensorsIgnored: {
@@ -1116,6 +1120,14 @@ module.exports = function (app: any) {
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
       });
+      navDb = new NavDb({
+        dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
+        rev: PLUGIN_REVISION,
+        episodes: () => (episodes ? episodes.snapshot() : []).map((e) => ({
+          startedTs: e.startedTs, endedTs: e.endedTs, overshoot: e.overshoot, riseSec: e.riseSec, complete: isCompleteEpisode(e),
+        })),
+        log: (level, msg) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
+      });
       // Rev525: black box, own subfolder.
       blackBox = new BlackBox(app.getDataDirPath ? app.getDataDirPath() : ".",
         (m: string) => { try { (app as any).debug?.(m); } catch { /* silent */ } });
@@ -1293,6 +1305,10 @@ module.exports = function (app: any) {
       if (sessionRecorder) {
         try { sessionRecorder.stop(); } catch {}
         sessionRecorder = null;
+      }
+      if (navDb) {
+        try { navDb.flush(); } catch { /* silent */ }
+        navDb = null;
       }
       // Rev178 (Carlos): close any open trip on plugin stop so the
       // summary lands on disk before the process exits.
@@ -3361,6 +3377,30 @@ module.exports = function (app: any) {
         }));
         res.json({ sessions: summaries });
       });
+      // Rev570: navigation database status and monthly files.
+      router.get("/nav-db/status", (_req: any, res: any) => {
+        if (!navDb) return res.status(503).json({ error: "nav-db not initialised" });
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs"); const pth = require("path");
+        const st = navDb.stats();
+        const files = navDb.files().map((f) => {
+          let size = 0;
+          try { size = fs.statSync(pth.join(st.dir, f)).size; } catch { /* silent */ }
+          return { file: f, size };
+        });
+        res.json({ rowsThisRun: st.rowsThisRun, lastRow: st.lastRow, files });
+      });
+      router.get("/nav-db/download/:file", (req: any, res: any) => {
+        if (!navDb) return res.status(503).json({ error: "nav-db not initialised" });
+        const f = String(req.params.file || "");
+        if (!/^windows-\d{6}\.jsonl$/.test(f)) return res.status(400).json({ error: "bad file" });
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pth = require("path");
+        res.setHeader("Content-Disposition", `attachment; filename="${f}"`);
+        res.type("application/x-ndjson").sendFile(pth.join(navDb.stats().dir, f), (err: any) => {
+          if (err && !res.headersSent) res.status(404).json({ error: "not found" });
+        });
+      });
       // Rev568: one session's summary and its profile / gain changes.
       router.get("/session-recorder/session/:id/summary", (req: any, res: any) => {
         if (!sessionRecorder) return res.status(503).json({ error: "recorder not initialised" });
@@ -4301,6 +4341,38 @@ module.exports = function (app: any) {
       sessionRecorder.stop();
     }
     lastEngagedState = engagedNow;
+    // Rev570: feed the navigation database every tick (a disengage
+    // closes its window). Records only; never writes to pypilot.
+    if (navDb) {
+      try {
+        const pv = (client && client.connected) ? client.getValues() : {};
+        const pilot = typeof pv["ap.pilot"] === "string" ? pv["ap.pilot"] as string : null;
+        const gains: Record<string, number> = {};
+        const terms: Record<string, number> = {};
+        if (pilot) {
+          for (const k of ["P", "I", "D", "DD", "PR", "FF"]) {
+            const g = pv[`ap.pilot.${pilot}.${k}`];
+            if (typeof g === "number") gains[k] = g;
+            const c = pv[`ap.pilot.${pilot}.${k}gain`];
+            if (typeof c === "number") terms[k] = c;
+          }
+        }
+        const twa = (app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null);
+        const twaRad = typeof twa === "number" ? twa : null;
+        navDb.onSample({
+          ts: s.ts, engaged: engagedNow, mode: s.mode, pilot,
+          profile: typeof pv["profile"] === "string" ? pv["profile"] as string : null,
+          gains, terms,
+          hdgErr: _modeAwareErrRad(s, twaRad),
+          hdgRate: typeof pv["imu.headingrate"] === "number" ? pv["imu.headingrate"] as number : null,
+          servoCur: s.servoCurrent,
+          servoFlags: typeof pv["servo.flags"] === "string" ? pv["servo.flags"] as string : null,
+          tws: s.tws, twa: twaRad, aws: s.aws, awa: s.awa, sog: s.sog, heel: s.heel, pitch: s.pitch,
+          tackState: typeof pv["ap.tack.state"] === "string" ? pv["ap.tack.state"] as string : null,
+          gustActive: _gustBoostUntilMs != null || _gustHeavyUntilMs != null,
+        });
+      } catch { /* silent */ }
+    }
     if (engagedNow && sessionRecorder.isRecording()) {
       const pv = (client && client.connected) ? client.getValues() : {};
       // Rev146: TWA comes from angleTrueWater in most SK setups
@@ -5703,6 +5775,12 @@ module.exports = function (app: any) {
       name === "servo.amp_hours"
     ) return WATCH_MED;
     if (name === "imu.warning" || name === "imu.error") return WATCH_MED;
+    // Rev570: navigation database - yaw rate and what each pypilot term
+    // adds to the servo command, sampled once a second (pypilot computes
+    // them at the IMU rate anyway; 1 Hz costs the TinyPilot nothing
+    // measurable, see docs/_audit_pypilot_gains_0.56_2026-10-30.md).
+    if (name === "imu.headingrate") return WATCH_MED;
+    if (/^ap\.pilot\.[^.]+\.(P|I|D|DD|PR|FF)gain$/.test(name)) return WATCH_MED;
     // Rev508: false end stop evidence for steer-watch + session log.
     if (name === "servo.flags") return WATCH_MED;
     if (name === "servo.faults") return WATCH_LOW;
