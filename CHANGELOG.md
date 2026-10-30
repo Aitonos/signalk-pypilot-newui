@@ -1,5 +1,52 @@
 # Changelog
 
+## 3.8.0 — 2026-10-30 — Session summaries, profile history, shadow-mode tuning
+
+Rolls up Rev564 → Rev572 on top of 3.7.3. Minor: new features, no
+breaking changes. First steps towards automatic tuning; **nothing in this
+release changes gains on its own**.
+
+### Added
+- **Session Summary**: in the recorded-sessions list, Summary shows the
+  heading error, servo work, wind, speed and time per mode, and every
+  profile or gain change during the session with who made it (you,
+  Doctor, auto profile, gust, another app) and why. Sessions recorded
+  before this release have no summary.
+- **Profile history**: the profile manager shows under each profile its
+  version, when it was made, which profile it was copied from and how
+  (Tune, New, Doctor, import). A rename keeps the history. Names that only
+  differ in spaces or capitals are flagged and count as taken when you
+  create a new one.
+- **Navigation database**: one row per 90 s with the pilot engaged
+  (conditions, setup, heading error, servo work, what each pypilot term
+  contributed), kept on the Pi (`nav-db`, capped at 20 MB). Follows the
+  "record sessions" option.
+- **Shadow mode**: each 90 s window is judged - which single gain step an
+  automatic tuner would try and why, and whether a fair before / after
+  comparison would be possible. Shown in the session Summary. Nothing is
+  applied.
+- **Gain watchdog**: a small separate process shipped with the plugin
+  that switches pypilot back to the original profile if the plugin or
+  Signal K stops during a gain trial. Only runs during a trial; with
+  automatic tuning off (the case in this release) it never starts.
+  Tested on the boat by freezing Signal K: profile restored after 15 s.
+
+### Fixed
+- **Doctor**: servo activity is computed only over samples that report
+  current (missing data made the servo look idle and could hide the
+  "servo at its limit" block); no suggestion from a session that mixed
+  modes, profiles or gains; applying refuses when the profile or the gain
+  changed since the diagnostic, runs one at a time, and only reports
+  "applied" once pypilot confirms the value.
+- **Downwind roll hint**: a boat steadily heeled is no longer read as
+  rolling.
+- **Correction measurements**: small heading changes can now count as
+  settled, and an overshoot is caught even when the boat jumps past the
+  target between two readings.
+- **Recorded-sessions list**: opens instantly; it used to read every
+  session file in full and blocked Signal K for about a second each time
+  (measured on the boat with 50 sessions).
+
 ## 3.7.3 — 2026-10-30 — Reconnects on a weak link
 
 Rolls up Rev561 → Rev563 on top of 3.7.2. Patch: fixes only, found on a
