@@ -63,12 +63,16 @@ brusco.
 ## El ciclo
 
 ```
- tramo base (3 min estable)
+ tramo base (90 s estable)
       │  ¿hay un síntoma claro de "falta"?  ── no ──► seguir observando
       ▼ sí
  aplicar 1 paso en 1 parámetro (sobre copia del perfil)
       │
- tramo de prueba (3 min estable, condiciones comparables)
+ tramo de prueba (90 s estable, condiciones comparables)
+      │
+ vuelta a la base (90 s): si la mar o el viento cambiaron entre la
+ primera y la segunda base, la prueba no vale (A/B/A, propuesto por
+ Gemini y GPT)
       │
       ├─ mejora el síntoma y no aparece ningún síntoma de "sobra" ──► se queda
       ├─ aparece un síntoma de "sobra" (nos pasamos) ─────────────► se deshace
@@ -92,7 +96,7 @@ Por eso dos tramos solo se comparan si:
 - estado de mar parecido: RMS de escora y de cabeceo dentro de ±25 %;
 - sin viradas, trasluchadas, rachas detectadas ni cambios de modo dentro de
   ningún tramo;
-- 1–2 minutos cada uno (Carlos: 10 min "no es nada dinámico"). Es el mínimo
+- 90 s cada uno (A/B/A: base, prueba, base) (Carlos: 10 min "no es nada dinámico"). Es el mínimo
   para que entren bastantes olas (periodo 5–15 s) y la comparación no la
   decida una ola suelta.
 
@@ -118,11 +122,14 @@ funciona, solo elige, por eso puede ser inmediata. Ya existe en parte
 - velocidad del barco (a poca velocidad el timón manda menos);
 - rumbo respecto al viento (ceñida / través / empopada).
 
-**Capa lenta (1–2 min) — aprende.** El ciclo medir → ajustar → medir →
+**Capa lenta (pruebas A/B/A de 3 × 90 s) — aprende.** El ciclo medir → ajustar → medir →
 conservar o deshacer de arriba. Lo que aprende queda guardado por
 situación, y la capa rápida lo usa en cuanto se repite esa situación.
-En una salida de 4 h son unas 80–100 pruebas; el piloto mejora durante la
-salida y de una salida a otra.
+Corrección (GPT, 2026-10-30): con A/B/A de 3 × 90 s más asentamiento,
+cada prueba son unos 5 min; en 4 h caben como máximo ~45, y en la práctica
+bastantes menos tras descartar maniobras y cambios de condiciones
+(estimación: 15–30). El aprendizaje se acumula sobre todo de una salida a
+otra.
 
 ## Base de datos de navegación (IMU + resultados)
 
@@ -133,7 +140,7 @@ Ya existe la mitad: el **session recorder** (`src/session-recorder.ts`,
 Rev143, pensado como "fase 1 del Doctor con IA") graba cada navegación con
 el piloto conectado, a 1 Hz, con las ganancias al inicio, en JSONL en la Pi.
 
-Lo nuevo sería **una fila por tramo de 1–2 min**, no muestras crudas:
+Lo nuevo sería **una fila por tramo de 90 s**, no muestras crudas:
 
 | Grupo | Campos |
 |---|---|
@@ -159,7 +166,7 @@ Lo nuevo sería **una fila por tramo de 1–2 min**, no muestras crudas:
 
 - Un solo parámetro a la vez, un paso del 10–20 %.
 - Nunca más de ±40 % sobre el perfil original.
-- Un cambio por tramo de 1–2 min como mucho, y nunca dos seguidos en el
+- Una prueba A/B/A cada vez, y nunca dos seguidos en el
   mismo parámetro sin un tramo de comprobación entre medias.
 - Se trabaja sobre una **copia** del perfil de la franja de viento; el
   original no se toca y se vuelve a él con un toque.
@@ -193,7 +200,8 @@ Lo nuevo sería **una fila por tramo de 1–2 min**, no muestras crudas:
 ## Preguntas para Carlos
 
 1. ¿Empezamos por el modo sombra o directamente con P e I?
-2. ~~¿Un cambio cada 10 minutos?~~ Resuelto: dos capas, tramos de 1–2 min.
+2. ~~¿Un cambio cada 10 minutos?~~ Resuelto: dos capas; pruebas A/B/A de
+   3 × 90 s (Gemini y GPT).
 3. ¿El aviso por voz en cada cambio, o solo en el historial?
 4. ¿Empezamos ya a llenar la base de datos (filas por tramo) aunque el
    ajuste automático tarde en llegar? Cuantas más salidas grabadas, antes

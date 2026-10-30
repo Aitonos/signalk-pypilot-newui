@@ -133,6 +133,46 @@ Puntos propios de GPT (no están en Gemini):
 | 6 | Sugerencias con un toque ("D +10 %: [Aplicar] [Ignorar]") | Solo si el patrón acepta |
 | 7 | Automático con pasos pequeños; lo aprendido se consolida tras varias salidas | Sí |
 
+## GPT, segunda ronda (con acceso a los ficheros)
+
+Con el código delante cambia su valoración: hay una base aprovechable
+(historial acotado, perfil copia antes de aplicar, espera a que el perfil
+esté activo, un cambio por diagnóstico, rechazo si cambia el piloto, límites
+del catálogo de pypilot). Señala fallos concretos. **Verificados uno a uno
+en el código (2026-10-30):**
+
+| # | Fallo que señala GPT | Dónde | Verificado | Impacto |
+|---|---|---|---|---|
+| 2a | El grabador guarda la **escora instantánea** en un campo llamado `rollRms`, y `pitchRms` siempre null | `src/index.ts` 4248-4249 | **Sí** | Las 50 sesiones grabadas tienen ese campo mal nombrado. Versionar el formato antes de aprender de ellas |
+| 2b | El aviso de balance en empopada calcula el RMS de la escora **sin restar la media**: 10° de escora fija dan 10° de "balance" | `src/doctor.ts` 497-507 | **Sí** | Falso aviso "activa Roll FF" con el barco escorado y quieto |
+| 3 | Uso del servo dividido entre **todas** las muestras, también las que no traen corriente | `src/doctor.ts` 265-267 | **Sí** | Si falta telemetría, el uso del servo sale más bajo y puede no saltar el bloqueo de "servo al límite" |
+| 4 | El análisis mezcla tramos con distinto modo o perfil dentro de la misma ventana | `src/doctor.ts` 241-248 | **Sí** | Puede recomendar a partir de datos de dos configuraciones |
+| 5 | Al aplicar solo se comprueba el piloto, **no el perfil**: si cambiaste de perfil, se copia el nuevo y se le aplica un valor calculado con las ganancias del anterior | `src/doctor.ts` 605-644 | **Sí** | Valor fuera de contexto (el original queda a salvo por la copia) |
+| 6 | Se marca "aplicado" al enviar la ganancia, **sin leer de vuelta** el valor en pypilot | `src/doctor.ts` 636-640 | **Sí** | Para el modo automático es imprescindible: enviar → leer → verificar → medir |
+| 7 | Episodios: banda de asentamiento del 5 % (±0,15° en un cambio de 3°); el sobrepaso solo cuenta si antes entró en la banda del 10 %; cierre sin motivo | `src/episodes.ts` 124-125, 268 | **Sí** | Cambios pequeños se dan por "no asentados"; sobrepasos que saltan la banda se pierden; episodios interrumpidos se mezclan con los completos |
+| 8 | El listado de sesiones lee y analiza **todos los ficheros de golpe y de forma síncrona** | `src/session-recorder.ts` 345-357 (`readFileSync`) | **Sí**, y medido: **50 ficheros, 69 MB** en la Pi, el mayor de 21 MB | Bloquea el hilo de Signal K cada vez que se abre el listado. Mismo tipo de riesgo que el cuelgue de octubre |
+| 9 | El diseño dice 3 min en un sitio y 1-2 min en otro; 80-100 pruebas en 4 h no salen | `docs/_design_auto_doctor_2026-10-30.md` | **Sí** | Corregido en el diseño (ver abajo) |
+
+Conclusión de GPT, que comparto: **el obstáculo inmediato no es elegir una
+IA, sino que los datos permitan afirmar con rigor que un cambio ha mejorado
+el gobierno.** Los fallos 2-8 hay que arreglarlos antes de cualquier
+aprendizaje.
+
+## Plan revisado
+
+| Fase | Entregable | Toca el gobierno |
+|---|---|---|
+| 1a | Arreglar métricas: uso del servo sobre muestras válidas con cobertura mínima (#3), balance sin la media (#2b), escora/balance bien nombrados y formato versionado en el grabador (#2a) | No |
+| 1b | Episodios: banda mínima absoluta, detección del cruce del objetivo, motivo de cierre (#7) | No |
+| 1c | Doctor: descartar ventanas con cambios de modo/perfil (#4); comprobar perfil y ganancias antes de aplicar, serializar, y leer de vuelta el valor (#5, #6) | Solo el botón "aplicar" del Doctor, más seguro |
+| 1d | Grabador: resumen por sesión guardado al cerrar; el listado no vuelve a leer los ficheros (#8) | No |
+| 2 | Comprobar qué hace cada ganancia en el pypilot instalado y a qué ritmo llegan los datos de la TinyPilot | No |
+| 3 | Base de datos por tramos | No |
+| 4 | Vigilante fuera de Signal K | No (solo restaura) |
+| 5 | Comparador A/B/A en modo sombra | No |
+| 6 | Sugerencias con un toque | Solo si el patrón acepta |
+| 7 | Automático supervisado | Sí |
+
 ## Pendiente (decisiones de Carlos)
 
 1. ¿Se instala un **sensor de ángulo de timón**? Abriría la puerta al
