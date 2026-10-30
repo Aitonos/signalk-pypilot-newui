@@ -54,8 +54,20 @@ export interface EpisodeSummary {
   sseRad: number | null;
   /** True if the episode closed on the maxDuration timeout without settling. */
   timedOut: boolean;
+  /** Rev565 (GPT review #7): why the episode closed. Only "settled" and
+   *  "timeout" are complete evaluations of a correction; the others were
+   *  cut short and must not be scored as if the pilot had finished. */
+  endReason: EpisodeEndReason;
   /** Number of samples consumed. */
   samples: number;
+}
+
+export type EpisodeEndReason = "settled" | "timeout" | "superseded" | "mode-change" | "disengaged";
+
+/** True when the episode ran to an end the pilot itself produced
+ *  (settled or timed out), so its numbers can be compared. */
+export function isCompleteEpisode(ep: EpisodeSummary): boolean {
+  return ep.endReason === "settled" || ep.endReason === "timeout";
 }
 
 export interface EpisodeDetectorOptions {
@@ -65,6 +77,10 @@ export interface EpisodeDetectorOptions {
   riseBandFrac?: number;
   /** Settling band as a fraction of |stepRad|. Default 0.05 (5%). */
   settleBandFrac?: number;
+  /** Rev565 (GPT review #7): floor for both bands (rad). 5% of a 3° step
+   *  is ±0.15°, tighter than the heading sensor and the waves allow, so
+   *  small corrections were scored as "never settled". Default 1°. */
+  minBandRad?: number;
   /** Hold time inside the settling band to declare settled (s). Default 5. */
   settleHoldSec?: number;
   /** Absolute max episode duration (s). Default 60. */
@@ -108,6 +124,7 @@ export class EpisodeDetector {
   private readonly minStepRad: number;
   private readonly riseBandFrac: number;
   private readonly settleBandFrac: number;
+  private readonly minBandRad: number;
   private readonly settleHoldSec: number;
   private readonly maxDurationSec: number;
   private readonly sseWindowSec: number;
@@ -123,6 +140,7 @@ export class EpisodeDetector {
     this.minStepRad     = opts.minStepRad     ?? 3 * DEG;
     this.riseBandFrac   = opts.riseBandFrac   ?? 0.10;
     this.settleBandFrac = opts.settleBandFrac ?? 0.05;
+    this.minBandRad     = opts.minBandRad     ?? 1 * DEG;
     this.settleHoldSec  = opts.settleHoldSec  ?? 5;
     this.maxDurationSec = opts.maxDurationSec ?? 60;
     this.sseWindowSec   = opts.sseWindowSec   ?? 5;
@@ -134,7 +152,7 @@ export class EpisodeDetector {
   onSample(s: Sample): void {
     // Disengaged: close any open episode without a settling.
     if (!s.engaged) {
-      if (this.open) this.closeOpen(s.ts, false);
+      if (this.open) this.closeOpen(s.ts, "disengaged");
       this.lastCmd = null;
       this.lastMode = null;
       return;
@@ -152,7 +170,7 @@ export class EpisodeDetector {
     // space (compass 180 -> AWA 45 is not a -135 step). Close what was
     // open and start the baseline again.
     if (this.lastCmd != null && this.lastMode !== mode) {
-      if (this.open) this.closeOpen(s.ts, false);
+      if (this.open) this.closeOpen(s.ts, "mode-change");
       this.lastCmd = cmd;
       this.lastMode = mode;
       return;
@@ -161,7 +179,7 @@ export class EpisodeDetector {
     // Detect a step: change in headingCmd larger than the threshold.
     if (this.lastCmd != null && Math.abs(wrapPi(cmd - this.lastCmd)) >= this.minStepRad) {
       // Close previous episode as superseded (if still open).
-      if (this.open) this.closeOpen(s.ts, false);
+      if (this.open) this.closeOpen(s.ts, "superseded");
       // Open a new one.
       const step = wrapPi(cmd - this.lastCmd);
       this.open = {
@@ -204,16 +222,21 @@ export class EpisodeDetector {
       // Rev538 (GPT review 4 #9): a hole in the data breaks "continuously
       // inside the band", and the time limit still applies.
       ep.candidateSettleTs = null;
-      if ((s.ts - ep.startedTs) / 1000 >= this.maxDurationSec) this.closeOpen(s.ts, true);
+      if ((s.ts - ep.startedTs) / 1000 >= this.maxDurationSec) this.closeOpen(s.ts, "timeout");
       return;
     }
 
     const stepAbs = Math.abs(ep.stepRad);
-    const riseBand = stepAbs * this.riseBandFrac;
-    const settleBand = stepAbs * this.settleBandFrac;
+    const riseBand = Math.max(stepAbs * this.riseBandFrac, this.minBandRad);
+    const settleBand = Math.max(stepAbs * this.settleBandFrac, this.minBandRad);
 
     // Rise: first time |error| enters the rise band.
-    if (!ep.hasEnteredRiseBand && Math.abs(err) <= riseBand) {
+    // Rev565 (GPT review #7): or the first sample already past the
+    // target. At 1 Hz a fast turn can jump from short of the target to
+    // beyond it without a sample inside the band; that overshoot was
+    // never counted.
+    const pastTarget = Math.sign(err) === -ep.targetSide;
+    if (!ep.hasEnteredRiseBand && (Math.abs(err) <= riseBand || pastTarget)) {
       ep.hasEnteredRiseBand = true;
       ep.riseSec = (s.ts - ep.startedTs) / 1000;
     }
@@ -237,7 +260,7 @@ export class EpisodeDetector {
       const heldSec = (s.ts - ep.candidateSettleTs) / 1000;
       if (heldSec >= this.settleHoldSec && ep.settlingSec == null) {
         ep.settlingSec = (ep.candidateSettleTs - ep.startedTs) / 1000;
-        this.closeOpen(s.ts, false);
+        this.closeOpen(s.ts, "settled");
         return;
       }
     } else {
@@ -247,11 +270,12 @@ export class EpisodeDetector {
     // Timeout.
     const elapsedSec = (s.ts - ep.startedTs) / 1000;
     if (elapsedSec >= this.maxDurationSec) {
-      this.closeOpen(s.ts, true);
+      this.closeOpen(s.ts, "timeout");
     }
   }
 
-  private closeOpen(endedTs: number, timedOut: boolean): void {
+  private closeOpen(endedTs: number, endReason: EpisodeEndReason): void {
+    const timedOut = endReason === "timeout";
     const ep = this.open;
     if (!ep) return;
     const stepAbs = Math.abs(ep.stepRad);
@@ -278,6 +302,7 @@ export class EpisodeDetector {
       settlingSec: ep.settlingSec,
       sseRad: sse,
       timedOut,
+      endReason,
       samples: ep.buffer.length,
     };
     this.history.push(summary);

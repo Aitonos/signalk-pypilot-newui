@@ -17,7 +17,7 @@ import { Historian, Sample } from "./historian";
 import { errorRad } from "./kpis";
 import { PypilotClient } from "./pypilot-client";
 import { SERVO_ON_MIN_A } from "./constants";
-import { EpisodeDetector } from "./episodes";
+import { EpisodeDetector, isCompleteEpisode } from "./episodes";
 
 export type DoctorState = "idle" | "running" | "analyzing" | "completed" | "cancelled";
 
@@ -455,7 +455,11 @@ export class DoctorEngine {
     // Doctor session's window. Complements Rule 2 (raw oscillation) with
     // per-correction Rise/Overshoot/Settling.
     if (this.episodes) {
-      const eps = this.episodes.snapshot().filter(e => e.endedTs >= session.startedTs && e.endedTs <= now);
+      // Rev565 (GPT review #7): only corrections the pilot finished
+      // (settled or timed out); superseded / mode-change / disengaged
+      // episodes were cut short and would skew the averages.
+      const eps = this.episodes.snapshot().filter(e =>
+        e.endedTs >= session.startedTs && e.endedTs <= now && isCompleteEpisode(e));
       if (eps.length >= 3) {
         let overshootSum = 0, overshootN = 0;
         let timedOutCount = 0;

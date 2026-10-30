@@ -247,7 +247,7 @@ describe("rateEpisode", () => {
       startedTs: 0, endedTs: 10_000, mode: "compass",
       stepRad: 10 * DEG,
       riseSec: 3, overshoot: 0.05, settlingSec: 6, sseRad: 0.5 * DEG,
-      timedOut: false, samples: 10,
+      timedOut: false, endReason: "settled" as const, samples: 10,
     };
     const r = rateEpisode(good);
     assert.equal(r.overall, "good");
@@ -258,9 +258,48 @@ describe("rateEpisode", () => {
       startedTs: 0, endedTs: 60_000, mode: "compass",
       stepRad: 20 * DEG,
       riseSec: 30, overshoot: 0.45, settlingSec: null, sseRad: 8 * DEG,
-      timedOut: true, samples: 60,
+      timedOut: true, endReason: "timeout" as const, samples: 60,
     };
     const r = rateEpisode(bad);
     assert.equal(r.overall, "poor");
+  });
+});
+
+describe("EpisodeDetector Rev565 (GPT review #7)", () => {
+  /** Feed: 3 s on target 0, then a step to `stepDeg`, then the given
+   *  heading sequence (deg, one per second). */
+  function run(stepDeg: number, headingsDeg: number[], tail?: (d: EpisodeDetector, ts: number) => void) {
+    const d = new EpisodeDetector();
+    let ts = 0;
+    for (let i = 0; i < 3; i += 1) { d.onSample(mkSample({ ts, headingCmd: 0, headingActual: 0 })); ts += 1000; }
+    for (const h of headingsDeg) {
+      d.onSample(mkSample({ ts, headingCmd: stepDeg * DEG, headingActual: h * DEG }));
+      ts += 1000;
+    }
+    if (tail) tail(d, ts);
+    return d.snapshot();
+  }
+
+  it("a 3° correction holding within ±0.5° counts as settled", () => {
+    const eps = run(3, [1, 2.5, 3.4, 2.6, 3.5, 2.7, 3.3, 2.8, 3.2, 3.0]);
+    assert.equal(eps.length, 1);
+    assert.equal(eps[0].endReason, "settled");
+    assert.notEqual(eps[0].settlingSec, null);
+  });
+
+  it("an overshoot is counted when no sample falls inside the rise band", () => {
+    // 20° step: rise band ±2°. Jumps 15° -> 26° (6° past) -> back to 20°.
+    const eps = run(20, [5, 15, 26, 22, 20, 20, 20, 20, 20, 20, 20]);
+    assert.equal(eps.length, 1);
+    assert.ok(eps[0].overshoot != null && eps[0].overshoot > 0.25, `overshoot ${eps[0].overshoot}`);
+  });
+
+  it("records why an episode was cut short", () => {
+    const sup = run(10, [2, 4], (d, ts) => d.onSample(mkSample({ ts, headingCmd: 30 * DEG, headingActual: 5 * DEG })));
+    assert.equal(sup[0].endReason, "superseded");
+    const off = run(10, [2, 4], (d, ts) => d.onSample(mkSample({ ts, headingCmd: 10 * DEG, headingActual: 5 * DEG, engaged: false })));
+    assert.equal(off[0].endReason, "disengaged");
+    const mode = run(10, [2, 4], (d, ts) => d.onSample(mkSample({ ts, headingCmd: 40 * DEG, headingActual: 5 * DEG, mode: "wind", awa: 40 * DEG })));
+    assert.equal(mode[0].endReason, "mode-change");
   });
 });
