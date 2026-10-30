@@ -206,3 +206,37 @@ Lo nuevo sería **una fila por tramo de 90 s**, no muestras crudas:
 4. ¿Empezamos ya a llenar la base de datos (filas por tramo) aunque el
    ajuste automático tarde en llegar? Cuantas más salidas grabadas, antes
    sabrá qué va bien en cada situación.
+
+## Modo sombra v1 (Rev572) — reglas exactas
+
+Se evalúa cada tramo de 90 s de la base de datos al cerrarse. **No escribe
+nada en pypilot.** Anota en el tramo y en la sesión qué haría y por qué.
+
+**¿Comparable con el tramo anterior?** Los dos válidos, mismo modo,
+piloto, perfil, ganancias y amura; viento real ±2,5 kn; balance, cabeceo
+y velocidad de giro (RMS) dentro de ±25 % (con un mínimo absoluto de
+0,5° / 0,5 °/s para que la mar llana no cuente como cambio).
+
+**¿Se podría hacer una prueba A/B/A ahora?** Los tres últimos tramos
+comparables entre sí. El dato importante de esta fase: cuántas veces se da
+en la ría.
+
+**Qué probaría** (una acción, la primera que se cumpla; pasos del 10 %):
+
+| Prioridad | Síntoma en el tramo | Acción | Notas |
+|---|---|---|---|
+| 0 | Servo > 75 % del tiempo y error RMS > 5° | ninguna: "servo al límite" | El ajuste no arregla un motor saturado |
+| 0 | Uso del servo desconocido (< 50 % de muestras con corriente) | ninguna | |
+| 1 | Oscila: ≥ 6 cruces del rumbo, periodo < 20 s, error RMS > 3° | D +10 % | |
+| 2 | Se pasa al llegar: sobrepaso medio > 20 % (≥ 2 cambios completos) | D +10 % | |
+| 3 | Servo nervioso: error RMS < 1,5° y servo > 35 % | D −10 % | "Sobra" D |
+| 4 | Desvío sostenido: \|desvío medio\| > 3° | PR +10 % | I es muy lento en pypilot 0.56 (auditoría fase 2); PR actúa antes |
+| 5 | Lento en llegar: subida media > 8 s y servo < 55 % | P +10 % | Solo si el servo tiene margen |
+
+Límites: nunca fuera del rango de pypilot ni a más de ±40 % del valor que
+tenía ese perfil la primera vez que se vio en esta ejecución; si el paso
+se saldría, se anota "bloqueado: límite".
+
+Lo que se aprende de esta fase en el agua: si las acciones tienen sentido
+para el patrón, cuántas veces proponen algo, y si hay bastantes tramos
+comparables para que el A/B/A sea viable.
