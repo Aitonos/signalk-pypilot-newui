@@ -92,7 +92,9 @@ Por eso dos tramos solo se comparan si:
 - estado de mar parecido: RMS de escora y de cabeceo dentro de ±25 %;
 - sin viradas, trasluchadas, rachas detectadas ni cambios de modo dentro de
   ningún tramo;
-- al menos 3 minutos cada uno (como la sesión del Doctor).
+- 1–2 minutos cada uno (Carlos: 10 min "no es nada dinámico"). Es el mínimo
+  para que entren bastantes olas (periodo 5–15 s) y la comparación no la
+  decida una ola suelta.
 
 Si no se cumple, la prueba no vale y se vuelve al valor anterior.
 
@@ -100,11 +102,65 @@ Para dar el cambio por bueno, la métrica del síntoma tiene que mejorar al
 menos un 15 % y ninguna métrica de "sobra" puede empeorar más de un 10 %.
 (Umbrales iniciales, a ajustar tras las primeras salidas.)
 
+## Dos capas: reaccionar en segundos, aprender en minutos
+
+Carlos quiere ajuste "en tiempo real". Medir si un cambio ha mejorado no se
+puede en segundos (la ola decide el error a corto plazo), y un ajustador que
+cambia ganancias tan rápido como el piloto corrige entra en el bucle y lo
+puede hacer oscilar. Se separa en dos capas:
+
+**Capa rápida (segundos) — elige.** Según las condiciones de ahora mismo,
+pone al instante los ajustes ya conocidos para esa situación. No mide si
+funciona, solo elige, por eso puede ser inmediata. Ya existe en parte
+(perfil por franja de viento, D +20 % durante 20 s en racha). Se amplía a:
+
+- estado de la mar (escora, cabeceo, guiñada del IMU);
+- velocidad del barco (a poca velocidad el timón manda menos);
+- rumbo respecto al viento (ceñida / través / empopada).
+
+**Capa lenta (1–2 min) — aprende.** El ciclo medir → ajustar → medir →
+conservar o deshacer de arriba. Lo que aprende queda guardado por
+situación, y la capa rápida lo usa en cuanto se repite esa situación.
+En una salida de 4 h son unas 80–100 pruebas; el piloto mejora durante la
+salida y de una salida a otra.
+
+## Base de datos de navegación (IMU + resultados)
+
+Carlos: "con el IMU tenemos muchos datos que podemos usar para ir haciendo
+una DB". Es la memoria de la capa lenta.
+
+Ya existe la mitad: el **session recorder** (`src/session-recorder.ts`,
+Rev143, pensado como "fase 1 del Doctor con IA") graba cada navegación con
+el piloto conectado, a 1 Hz, con las ganancias al inicio, en JSONL en la Pi.
+
+Lo nuevo sería **una fila por tramo de 1–2 min**, no muestras crudas:
+
+| Grupo | Campos |
+|---|---|
+| Condiciones | modo, TWS, TWA (ceñida/través/empopada), SOG, RMS de escora, RMS de cabeceo, guiñada del IMU (`imu.headingrate`), periodo de ola estimado |
+| Ajuste usado | perfil, P, I, D (y DD/PR/FF tal cual) |
+| Resultado | error medio, error RMS, oscilación (cruces y periodo), uso del servo, corriente media, episodios (subida, sobrepaso, asentamiento) |
+| Decisión | qué parámetro se probó, se quedó o se deshizo, por qué |
+
+- Unos 200 bytes por fila: 4 h de navegación son ~240 filas. Nada para la
+  Pi.
+- Fichero JSONL en el directorio de datos del plugin, sin dependencias
+  nuevas (sin SQLite). Persiste entre salidas y reinicios (el backend es el
+  dueño de los datos, no el navegador).
+- Las estadísticas del IMU (RMS de escora, cabeceo y guiñada) se calculan
+  con todas las muestras que lleguen, no solo con la de cada segundo, para
+  no perder el movimiento de ola corto.
+- Para elegir ajuste se agrupan las filas por situación (franja de viento ×
+  mar × rumbo al viento × velocidad). Con pocas filas en una situación, se
+  usa la situación vecina o el perfil original.
+- Exportable para analizarla fuera (como ya permite el session recorder).
+
 ## Límites de seguridad
 
 - Un solo parámetro a la vez, un paso del 10–20 %.
 - Nunca más de ±40 % sobre el perfil original.
-- Como mucho un cambio cada 10 minutos.
+- Un cambio por tramo de 1–2 min como mucho, y nunca dos seguidos en el
+  mismo parámetro sin un tramo de comprobación entre medias.
 - Se trabaja sobre una **copia** del perfil de la franja de viento; el
   original no se toca y se vuelve a él con un toque.
 - Cualquier alarma, pérdida de autoridad, desconexión del piloto o maniobra
@@ -137,5 +193,8 @@ menos un 15 % y ninguna métrica de "sobra" puede empeorar más de un 10 %.
 ## Preguntas para Carlos
 
 1. ¿Empezamos por el modo sombra o directamente con P e I?
-2. ¿Te vale un cambio como máximo cada 10 minutos, o lo quieres más rápido?
+2. ~~¿Un cambio cada 10 minutos?~~ Resuelto: dos capas, tramos de 1–2 min.
 3. ¿El aviso por voz en cada cambio, o solo en el historial?
+4. ¿Empezamos ya a llenar la base de datos (filas por tramo) aunque el
+   ajuste automático tarde en llegar? Cuantas más salidas grabadas, antes
+   sabrá qué va bien en cada situación.
