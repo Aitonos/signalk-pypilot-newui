@@ -257,3 +257,16 @@ la lectura completa.
 
 Siguiente: fase 4 (vigilante fuera de Signal K), y en paralelo dejar que la
 base de datos se llene en las próximas salidas.
+
+## Fase 4 hecha y probada en la Pi (2026-10-30, Rev571)
+
+Vigilante de ganancias (`dist/gain-watchdog.js`), proceso aparte de
+Signal K, arrancado solo durante una prueba. Prueba obligatoria en el
+amarre (`scripts/dock-test-watchdog.sh`, lanzada por Carlos con su login):
+perfil de prueba `default`, Signal K congelado con SIGSTOP a las 22:38:35,
+**perfil original restaurado a los 15 s** (el plazo de la autorización),
+Signal K descongelado y respondiendo (HTTP 200). `RESULT: PASS`.
+
+El "Ce�ida" que muestra la terminal es solo cómo la consola de la Pi
+pinta la ñ (locale); pypilot y el registro del vigilante tienen el nombre
+correcto.
