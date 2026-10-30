@@ -271,6 +271,7 @@
       "doctor.finding.authority":   "Servo running at {duty}% duty but heading error still {rms}°. AP is losing authority.",
       "doctor.finding.noise":       "Heading is tight ({rms}°) but servo running {duty}% duty - possible chatter on a noisy heading signal.",
       "doctor.finding.hardwareCeiling": "Servo running at {duty}% duty with {rms}° RMS error - the drive is saturated. Tuning cannot close a hardware limit; consider a more powerful actuator or reducing steering system friction.",
+      "doctor.finding.servoUnknown": "Servo current was reported in only {pct}% of the session. Servo activity is unknown, so no gain change is suggested.",
       "alarm.summary.active":      "{n} active",
       "alarm.summary.muted":       "{n} muted",
       "alarm.summary.off":         "{n} off",
@@ -1274,6 +1275,7 @@
       "doctor.finding.authority":   "Servo al {duty}% de trabajo pero el error de rumbo sigue en {rms}°. El piloto pierde autoridad.",
       "doctor.finding.noise":       "Rumbo muy ajustado ({rms}°) pero servo al {duty}% de trabajo - posible ruido en la señal de rumbo.",
       "doctor.finding.hardwareCeiling": "Servo al {duty}% de trabajo con {rms}° de error RMS - el actuador esta saturado. Ningun ajuste de P/I/D cierra un limite hardware; considera un servo más potente o reducir la friccion del sistema de dirección.",
+      "doctor.finding.servoUnknown": "Solo llegó la corriente del servo en el {pct}% de la sesión. No se sabe cuánto trabajó el servo, así que no se propone ningún cambio de ganancias.",
       "alarm.summary.active":      "{n} activas",
       "alarm.summary.muted":       "{n} silenciadas",
       "alarm.summary.off":         "{n} off",
@@ -2232,6 +2234,7 @@
       "doctor.finding.authority":   "Servo bei {duty}% aber Kursfehler {rms}°. AP verliert Autoritaet.",
       "doctor.finding.noise":       "Kurs sehr eng ({rms}°) aber Servo bei {duty}% - moegliches Rauschen im Kurssignal.",
       "doctor.finding.hardwareCeiling": "Servo bei {duty}% mit {rms}° RMS-Fehler - Antrieb gesaettigt. Keine Gain-Aenderung schliesst ein Hardware-Limit; staerkerer Antrieb oder geringere Reibung.",
+      "doctor.finding.servoUnknown": "Servostrom nur in {pct}% der Sitzung gemeldet. Servoaktivitaet unbekannt, daher keine Gain-Aenderung vorgeschlagen.",
       // Restart triad + helm
       "setup.restart.title":         "Notfall-Neustart / Reboot",
       "helm.warn":    "STELL SICHER, DASS JEMAND AM RUDER STEHT, bevor du fortfahrst. Nicht der Moment, unter Deck zu sein.",
@@ -2433,6 +2436,7 @@
       "doctor.finding.authority":   "Servo a {duty}% mais erreur de cap {rms}°. AP en perte d'autorite.",
       "doctor.finding.noise":       "Cap tres serre ({rms}°) mais servo a {duty}% - bruit possible dans le signal de cap.",
       "doctor.finding.hardwareCeiling": "Servo a {duty}% avec {rms}° d'erreur RMS - actionneur sature. Aucun reglage P/I/D ne peut fermer une limite materielle ; envisager un servo plus puissant.",
+      "doctor.finding.servoUnknown": "Courant servo recu sur seulement {pct}% de la session. Activite du servo inconnue : aucun changement de gain propose.",
       // Restart triad + helm
       "setup.restart.title":         "Urgence : redemarrage / reboot",
       "helm.warn":    "ASSURE-TOI QU'UNE PERSONNE EST A LA BARRE avant de continuer. Ce n'est pas le moment d'etre en bas.",

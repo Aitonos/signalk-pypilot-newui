@@ -104,6 +104,9 @@ interface Session {
 
 const MIN_DURATION_SEC = 30;
 const DEFAULT_DURATION_SEC = 180;
+// Rev564: share of engaged samples that must carry a servo current
+// reading before servo duty is trusted.
+const SERVO_MIN_COVERAGE = 0.5;
 
 export class DoctorEngine {
   private state: DoctorState = "idle";
@@ -262,9 +265,15 @@ export class DoctorEngine {
     const meanDeg = mean * 180 / Math.PI;
     const rmsDeg = rms * 180 / Math.PI;
 
-    // Servo duty (fraction of engaged samples with servo drawing)
-    const servoOnCount = engaged.filter((s) => typeof s.servoCurrent === "number" && s.servoCurrent > SERVO_ON_MIN_A).length;
-    const servoDuty = engaged.length > 0 ? servoOnCount / engaged.length : 0;
+    // Servo duty (fraction of engaged samples with servo drawing).
+    // Rev564 (GPT review of the auto-Doctor design #3): over the samples
+    // that carry a current reading only. Dividing by every engaged sample
+    // counted missing telemetry as "servo idle", so lost current readings
+    // lowered the duty and could hide the hardware-ceiling block below.
+    const withCurrent = engaged.filter((s) => typeof s.servoCurrent === "number");
+    const servoOnCount = withCurrent.filter((s) => (s.servoCurrent as number) > SERVO_ON_MIN_A).length;
+    const servoDuty = withCurrent.length > 0 ? servoOnCount / withCurrent.length : 0;
+    const servoCoverage = engaged.length > 0 ? withCurrent.length / engaged.length : 0;
 
     // Zero-crossing count -> rough oscillation period estimate
     let crossings = 0;
@@ -285,6 +294,22 @@ export class DoctorEngine {
         metric: `n=${n}`,
         messageKey: "doctor.finding.insufficientData",
         messageArgs: { n: String(n) },
+      });
+      return this.buildResult(session, now, samples, engaged, findings, suggestions);
+    }
+
+    // Rev564: without servo current for at least half of the session the
+    // hardware-ceiling and authority checks cannot be made, so no gain
+    // change is suggested (it might push a saturated drive harder).
+    if (servoCoverage < SERVO_MIN_COVERAGE) {
+      const pct = (servoCoverage * 100).toFixed(0);
+      findings.push({
+        category: "servo-unknown",
+        severity: "warn",
+        message: `Servo current reported in only ${pct}% of the session. Servo activity is unknown, so no gain change is suggested.`,
+        metric: `servoCoverage=${pct}%`,
+        messageKey: "doctor.finding.servoUnknown",
+        messageArgs: { pct },
       });
       return this.buildResult(session, now, samples, engaged, findings, suggestions);
     }
@@ -494,17 +519,24 @@ export class DoctorEngine {
     if (this.getPluginState) {
       const st = this.getPluginState();
       if (st.rollFfGain === 0) {
+        // Rev564 (GPT review #2b): roll RMS around the mean heel. Without
+        // removing the mean, a boat steadily heeled 10° with no rolling
+        // at all read as 10° of roll.
+        let heelSum = 0;
         let heelSumSq = 0;
         let n = 0;
         for (const s of engaged) {
           if (typeof s.heel !== "number") continue;
           if (typeof s.twa !== "number") continue;
           if (Math.abs(s.twa) < Math.PI / 2) continue; // upwind: skip
+          heelSum += s.heel;
           heelSumSq += s.heel * s.heel;
           n += 1;
         }
         if (n >= 30) {
-          const heelRmsDeg = Math.sqrt(heelSumSq / n) * 180 / Math.PI;
+          const heelMean = heelSum / n;
+          const heelVar = Math.max(0, heelSumSq / n - heelMean * heelMean);
+          const heelRmsDeg = Math.sqrt(heelVar) * 180 / Math.PI;
           if (heelRmsDeg > 5) {
             findings.push({
               category: "downwind-roll",

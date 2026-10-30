@@ -37,9 +37,16 @@ export interface SessionSample {
   awa: number | null;
   sog: number | null;
   cog: number | null;
-  pitchRms: number | null;
-  rollRms: number | null;
+  // Rev564 (GPT review #2a): instantaneous attitude, named for what it
+  // is. Format 1 files (no `format` in the header) stored the heel in a
+  // field called `rollRms` and always null in `pitchRms`.
+  heel: number | null;   // rad, navigation.attitude.roll at this sample
+  pitch: number | null;  // rad, navigation.attitude.pitch at this sample
 }
+
+/** Rev564: bumped when a sample field changes meaning. 1 = no `format`
+ *  in the header (rollRms / pitchRms), 2 = heel / pitch. */
+export const SESSION_FORMAT = 2;
 
 export interface SessionTags {
   wind?: string;   // "<5" | "5-10" | "10-15" | "15-20" | "20-30" | ">30"
@@ -244,6 +251,7 @@ export class SessionRecorder {
     this.tags = {};
     const headerLine = JSON.stringify({
       type: "header",
+      format: SESSION_FORMAT,
       sessionId: this.currentId,
       startTs: this.startTs,
       pilot: header.pilot,
