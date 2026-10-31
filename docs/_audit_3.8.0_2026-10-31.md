@@ -45,3 +45,10 @@ código; gravedad pensando en el barco.
 5. **F**: cerrar el tramo de la base de datos antes que la sesión.
 6. **G**: corregir el README.
 7. **H**: la prueba del amarre termina sola a los 2 minutos.
+
+## Estado (2026-10-31)
+
+- A arreglado en **Rev573**; B, C, D, E, F, G, H en **Rev574**. 413 tests
+  (6 nuevos). Desplegado en la Pi; Signal K activo y sin errores nuevos.
+- **La 3.8.0 publicada en NPM lleva el fallo A** (racha "más D" con D
+  desfasada). Candidato a 3.8.1 (patch) en cuanto Carlos dé el OK.
