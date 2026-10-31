@@ -1,5 +1,30 @@
 # Changelog
 
+## 3.8.1 — 2026-10-31 — Audit fixes
+
+Rolls up Rev573 → Rev574 on top of 3.8.0. Patch: fixes only, from an
+audit of 3.8.0 (`docs/_audit_3.8.0_2026-10-31.md`).
+
+### Fixed
+- **Gains always up to date**: the plugin only asked pypilot for the gains
+  while the Tune tab was on screen and used stale values the rest of the
+  time. With the "boost D" gust strategy this could write 1.2 × the
+  previous profile's D into the active profile and then "restore" that old
+  D, leaving the active profile's D changed. The Doctor, session changes,
+  the navigation database and shadow mode also saw old gains. Gains are
+  now watched all the time (pypilot only sends them when they change).
+- **Shadow mode / navigation database**: a ±10 or the first turn after
+  engaging no longer counts as a sustained offset or an oscillation (the
+  heading error of each window uses steady seconds only; windows made
+  mostly of corrections are flagged); comparisons only between windows in
+  a row; gusts flagged whatever the gust strategy; the last window of an
+  outing now reaches the session Summary.
+- **Watchdog dock test** ends by itself after 2 minutes if nobody finishes
+  it.
+- **README**: what the gain watchdog covers when Signal K crashes (the
+  plugin restores the profile when it starts again) versus freezes
+  (watchdog, 15 s).
+
 ## 3.8.0 — 2026-10-30 — Session summaries, profile history, shadow-mode tuning
 
 Rolls up Rev564 → Rev572 on top of 3.7.3. Minor: new features, no
