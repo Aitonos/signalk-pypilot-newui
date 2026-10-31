@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev592)
+## Unreleased (Rev584 → Rev593)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -21,9 +21,10 @@
   is only published while sailing) on one line across the full width; the
   font shrinks if needed. Scale labels carry only the number and the right
   margin is sized to the widest one.
-- Bottom bar heights: chart / Freeboard 16 % of the screen in portrait
-  (~40 % of the column in landscape), heel bar half of that, animated when
-  switching. The button rows take all the spare height (bigger buttons in
+- Bottom bar heights, animated when switching: portrait chart / Freeboard
+  22.4 % of the screen, heel bar 8 % (12 % in full screen); landscape
+  chart / Freeboard ~40 % of the column (50 % in full screen), heel bar
+  ~20 %, one gap from the buttons. The button rows take all the spare height (bigger buttons in
   the heel view and in full screen). With the tab bar hidden the top notch
   / status strip is used too.
 - **Freeboard as a third view of the bottom bar** (the warm preloaded

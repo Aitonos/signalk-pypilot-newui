@@ -122,6 +122,22 @@ como tercera vista, del tamaño de la gráfica.
   mapa; la × vuelve a la siguiente vista. Doble toque en la rosa con
   Freeboard en la barra lo sube a la rosa.
 
+## Sexta ronda (Rev593)
+
+Carlos: en vertical normal, gráfica y Freeboard +40 % quitándoselo a la
+rosa; en vertical a pantalla completa, escora +50 % y gráfica / Freeboard
++40 %; en apaisado a pantalla completa, gráfica / Freeboard +25 %; y en
+apaisado menos separación entre la barra y los botones.
+
+| Vista (412 x 660 / 1280 x 800) | Rev592 | Rev593 normal | Rev593 pantalla completa |
+|---|---|---|---|
+| Vertical, gráfica / Freeboard | 106 px | 148 px (22,4 % del alto) | 22,4 % del alto |
+| Vertical, escora | 53 px | 53 px (8 %) | 79 px (12 %) |
+| Apaisado, gráfica / Freeboard | 287 px | 297 px (sin margen extra) | 372 px |
+
+"Pantalla completa" = la del botón de arriba a la derecha (API del
+navegador), marcada con la clase `is-fullscreen` en el `body`.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -133,7 +149,7 @@ como tercera vista, del tamaño de la gráfica.
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev592)
+## QA en el barco (QA Rev593)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.

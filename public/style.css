@@ -1355,6 +1355,12 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   #tab-control .controls .swipe-hint { min-height: 48px; }
   #tab-control .controls:has(.swipe-hint.view-chart),
   #tab-control .controls:has(.swipe-hint.view-fb) { --strip-fr: 1.33fr; }
+  /* Rev593 (Carlos): full screen gives chart / Freeboard 25 % more
+     height (half of the column), and the strip sits one gap from the
+     buttons (no extra top margin). */
+  body.is-fullscreen #tab-control .controls:has(.swipe-hint.view-chart),
+  body.is-fullscreen #tab-control .controls:has(.swipe-hint.view-fb) { --strip-fr: 2fr; }
+  #tab-control .controls .swipe-hint { margin-top: 0; }
 }
 
 /* Rev56: horizontal scroll wrapper for the paths tables. On portrait
@@ -2399,9 +2405,14 @@ main { touch-action: pan-y; overflow-x: hidden; }
      strip has a set height - chart / Freeboard 80 % of what Rev590 gave
      (16 % of the screen, also in full screen), heel bar half of that.
      The height animates when the view changes. */
+  /* Rev593 (Carlos): chart / Freeboard +40 % (from the rose), and in
+     full screen the heel bar +50 % too. */
   #tab-control {
-    --strip-chart-h: max(96px, 16vh);
+    --strip-chart-h: max(96px, 22.4vh);
     --strip-heel-h: max(48px, 8vh);
+  }
+  body.is-fullscreen #tab-control {
+    --strip-heel-h: max(48px, 12vh);
   }
   #tab-control .controls .row-tack-mode,
   #tab-control .controls .row-nudge-ap { flex: 1 1 0; min-height: clamp(60px, 15vw, 96px); }
