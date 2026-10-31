@@ -1,5 +1,38 @@
 # Changelog
 
+## 3.8.2 — 2026-10-31 — Safety fixes from two external audits and a self-audit
+
+Rolls up Rev575 → Rev583 on top of 3.8.1. Patch: fixes only. Details in
+`docs/_audit_gpt_3.8.1_verificada_2026-10-31.md` and
+`docs/_autoauditoria_pre_3.8.2_2026-10-31.md`.
+
+### Fixed
+- **Angles could freeze Signal K**: normalising an angle looped forever on
+  an invalid or huge value (in the plugin and in the visor). Now constant
+  time; invalid values count as "no data".
+- **Gust "boost D" restore**: D is restored only on the profile that was
+  boosted (if you switched profile it waits until that profile is active
+  again), reported only when pypilot shows the value, retried every 5 s if
+  refused, never cancelled by a missing value, and kept on disk so a
+  Signal K restart mid-gust still restores it. The "temporary heavy
+  profile" switch-back works the same way.
+- **Route following**: APB sentences and waypoint advances now require
+  `allowWrites`, like every other write.
+- **Doctor**: resetting it while applying no longer crashes; no new
+  diagnostic while a gain is being applied; a profile or gain changed and
+  changed back during a session is detected.
+- **Gain watchdog**: keeps retrying when the link to pypilot drops; never
+  overrides a profile you picked yourself; each trial has its own id so an
+  old restore cannot disarm a newer trial; restarted if it dies during a
+  trial; respects `allowWrites` at start.
+- **Navigation database / shadow mode**: a window needs most of its
+  samples (no long gaps); windows are compared only with similar boat
+  speed, angle to the wind and wind present in both; no proposals that
+  change nothing.
+- **Sensor quality**: a value without timestamp that stops changing shows
+  as UNKNOWN instead of "good" forever.
+- **SSH consoles**: command output capped at 256 KB while it runs.
+
 ## 3.8.1 — 2026-10-31 — Audit fixes
 
 Rolls up Rev573 → Rev574 on top of 3.8.0. Patch: fixes only, from an

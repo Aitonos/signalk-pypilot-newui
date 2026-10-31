@@ -157,10 +157,10 @@ See [`CHANGELOG.md`](./CHANGELOG.md) for the release-by-release history.
 
 - This plugin is an **aid** to navigation and steering. It does not replace the skipper's vigilance, correct manoeuvring, direct observation of the surroundings, or official charts and notices. Verify in safe waters before relying on the autopilot for demanding manoeuvres.
 - `allowDirectServo` defaults to **off** — pypilot's direct `servo.command` back-door for manual steering is not exposed until you enable it.
-- `allowWrites` gates every write to pypilot and the free-form SSH console.
+- `allowWrites` gates every write to pypilot (including the route follower's APB sentences and the gain watchdog) and the free-form SSH console.
 - All PUT handlers validate ranges from the pypilot catalog before sending.
 - On plugin stop the socket closes cleanly; the visor auto-reconnects on Signal K restart.
-- **Gain watchdog (separate process).** Before the plugin tries a gain change on its own, it starts a small watchdog process that ships with the plugin (`dist/gain-watchdog.js`, plain Node, no extra install). It runs outside Signal K, so if Signal K freezes during the trial it switches pypilot back to the profile you had within 15 s, over pypilot's own port. If Signal K crashes or is restarted, systemd stops the watchdog too; the plugin then restores the profile itself as soon as it starts again. It only ever writes `profile`, never creates a missing one, logs what it does to `gain-watchdog/watchdog.log` in the plugin's data folder, and exits after 10 idle minutes. With automatic tuning off it never runs.
+- **Gain watchdog (separate process).** Before the plugin tries a gain change on its own, it starts a small watchdog process that ships with the plugin (`dist/gain-watchdog.js`, plain Node, no extra install). It runs outside Signal K, so if Signal K freezes during the trial it switches pypilot back to the profile you had within 15 s, over pypilot's own port. If Signal K crashes or is restarted, systemd stops the watchdog too; the plugin then restores the profile itself as soon as it starts again. It only ever writes `profile`, only while the trial profile is still active (a profile you picked yourself meanwhile is left alone), never creates a missing one, respects `allowWrites`, keeps retrying if the link to pypilot drops, logs what it does to `gain-watchdog/watchdog.log` in the plugin's data folder, and exits after 10 idle minutes. With automatic tuning off it never runs.
 
 ---
 
