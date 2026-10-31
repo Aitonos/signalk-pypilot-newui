@@ -99,3 +99,15 @@ describe("NavDb steady samples (Rev574, audit #B/#D)", () => {
     assert.ok(row!.why.includes("steps"));
   });
 });
+
+describe("NavDb coverage (Rev579, GPT audit A03)", () => {
+  it("two samples 89 s apart are not a valid 90 s window", () => {
+    const d2 = db();
+    d2.onSample(smp(0));
+    d2.onSample(smp(89));
+    const r2 = d2.onSample(smp(90, { engaged: false }));
+    assert.ok(r2);
+    assert.equal(r2!.valid, false);
+    assert.ok(r2!.why.includes("coverage"));
+  });
+});

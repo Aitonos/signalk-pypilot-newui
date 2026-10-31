@@ -92,3 +92,18 @@ describe("ShadowTuner contiguity (Rev574, audit #C)", () => {
     assert.equal(t.decide(next).abaFeasible, false, "the first of the three is an hour earlier");
   });
 });
+
+describe("ShadowTuner (Rev579, GPT audit A04/A05)", () => {
+  it("A04: different boat speed or angle to the wind is not comparable", () => {
+    assert.ok(incomparable(row(), row({ ctx: { sogKn: 12 } })).includes("speed"));
+    assert.ok(incomparable(row(), row({ ctx: { twaDeg: 60 } })).includes("wind angle"));
+    assert.deepEqual(incomparable(row({ ctx: { twaDeg: 178 } }), row({ ctx: { twaDeg: -175 } })), [], "wraps around 180");
+    assert.ok(incomparable(row(), row({ ctx: { twsKn: null } })).includes("wind"));
+  });
+
+  it("A05: no proposal that changes nothing (gain at 0)", () => {
+    const d = new ShadowTuner().decide(row({ ctx: { gains: { P: 0.0165, D: 0.15, PR: 0 } }, res: { errMeanDeg: 5 } }));
+    assert.equal(d.action, null);
+    assert.match(d.blocked || "", /does not change/);
+  });
+});

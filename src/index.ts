@@ -81,7 +81,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev578";
+const PLUGIN_REVISION = "Rev579";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -107,6 +107,8 @@ const SOURCE_LABEL = "pypilot-newui";
 const WATCH_HIGH: number = 0.5;   // 2 Hz - only the couple of state paths that drive the AP indicator
 const WATCH_MED: number = 1;      // 1 Hz - core telemetry watched permanently (voltage, current, engaged)
 const WATCH_LOW: number = 10;     // 0.1 Hz - resting rate for RangeSettings the user opted-in but is not looking at
+// Rev579 (GPT audit B05): most SSH output kept per command.
+const SSH_OUT_MAX = 256 * 1024;
 const WATCH_FOCUS_MAX_TTL_S: number = 300;   // cap the requested TTL so a leaked focus dies within 5 min
 const WATCH_FOCUS_MIN_PERIOD_S: number = 0.5; // client cannot ask faster than 2 Hz
 const WATCH_FOCUS_MAX_KEYS: number = 80;      // per-request key cap
@@ -2423,9 +2425,16 @@ module.exports = function (app: any) {
               conn.exec(restartCmd, { pty: true }, (err: any, stream: any) => {
                 if (err) { finish({ ok: false, out: err.message }); return; }
                 let out = "";
+                let truncated = false;
                 stream.on("close", (code: number) => finish({ ok: code === 0, out, code }));
-                stream.on("data", (data: Buffer) => { out += data.toString(); });
-                stream.stderr.on("data", (data: Buffer) => { out += data.toString(); });
+                // Rev579 (GPT audit B05): cap what is kept while the command
+                // runs; a chatty command no longer grows memory unbounded.
+                const keep = (data: Buffer) => {
+                  if (out.length < SSH_OUT_MAX) out += data.toString().slice(0, SSH_OUT_MAX - out.length);
+                  else if (!truncated) { truncated = true; out += "\n[output truncated]"; }
+                };
+                stream.on("data", keep);
+                stream.stderr.on("data", keep);
                 // If sudo prompts for a password on stdin (NOPASSWD not
                 // configured), feed the SSH password again. Works on many
                 // TinyCore setups where the same password is used for both.
@@ -2534,9 +2543,16 @@ module.exports = function (app: any) {
               conn.exec(cmd, { pty: true }, (err: any, stream: any) => {
                 if (err) { clearTimeout(killTimer); finish({ ok: false, stdout: err.message }); return; }
                 let out = "";
+                let truncated = false;
                 stream.on("close", (code: number) => { clearTimeout(killTimer); finish({ ok: code === 0, stdout: out, code }); });
-                stream.on("data", (data: Buffer) => { out += data.toString(); });
-                stream.stderr.on("data", (data: Buffer) => { out += data.toString(); });
+                // Rev579 (GPT audit B05): cap what is kept while the command
+                // runs; a chatty command no longer grows memory unbounded.
+                const keep = (data: Buffer) => {
+                  if (out.length < SSH_OUT_MAX) out += data.toString().slice(0, SSH_OUT_MAX - out.length);
+                  else if (!truncated) { truncated = true; out += "\n[output truncated]"; }
+                };
+                stream.on("data", keep);
+                stream.stderr.on("data", keep);
                 setTimeout(() => { try { stream.write(sshPassword + "\n"); } catch {} }, 300);
               });
             });
@@ -3917,9 +3933,16 @@ module.exports = function (app: any) {
               conn.exec(cmd, { pty: true }, (err: any, stream: any) => {
                 if (err) { finish({ ok: false, stdout: err.message }); return; }
                 let out = "";
+                let truncated = false;
                 stream.on("close", (code: number) => finish({ ok: code === 0, stdout: out, code }));
-                stream.on("data", (data: Buffer) => { out += data.toString(); });
-                stream.stderr.on("data", (data: Buffer) => { out += data.toString(); });
+                // Rev579 (GPT audit B05): cap what is kept while the command
+                // runs; a chatty command no longer grows memory unbounded.
+                const keep = (data: Buffer) => {
+                  if (out.length < SSH_OUT_MAX) out += data.toString().slice(0, SSH_OUT_MAX - out.length);
+                  else if (!truncated) { truncated = true; out += "\n[output truncated]"; }
+                };
+                stream.on("data", keep);
+                stream.stderr.on("data", keep);
                 setTimeout(() => { try { stream.write(sshPassword + "\n"); } catch {} }, 300);
               });
             });

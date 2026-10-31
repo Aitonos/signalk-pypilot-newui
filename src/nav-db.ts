@@ -132,6 +132,8 @@ export class NavDbWindow {
   private crossings = 0;
   private lastErrSign = 0;
   private steadyN = 0;
+  /** Rev579 (GPT audit A03): longest gap between two samples. */
+  private maxGapMs = 0;
   private curN = 0; private curOn = 0; private cur = new Stat();
   private overcurrent = false;
   private tws = new Stat(); private sog = new Stat(); private aws = new Stat();
@@ -148,6 +150,7 @@ export class NavDbWindow {
 
   add(s: NavDbSample): void {
     this.n += 1;
+    if (this.n > 1) this.maxGapMs = Math.max(this.maxGapMs, s.ts - this.t1);
     this.t1 = s.ts;
     const f = this.first;
     if (s.mode !== f.mode) this.why.add("mode");
@@ -194,6 +197,9 @@ export class NavDbWindow {
   close(rev: string, episodes: NavDbEpisode[], minSec: number): NavDbRow {
     const why = new Set(this.why);
     if (this.durationSec() < minSec) why.add("short");
+    // Rev579 (GPT audit A03): a 90 s window needs ~90 samples (1 Hz) and
+    // no long hole; two samples 89 s apart are not 90 s of observation.
+    if (this.n < 0.8 * this.durationSec() || this.maxGapMs > 10_000) why.add("coverage");
     if (this.n > 0 && this.steadyN / this.n < 0.5) why.add("steps");
     else if (this.steadyN > 0 && this.err.n / this.steadyN < 0.8) why.add("coverage");
     const sorted = this.absErr.slice().sort((a, b) => a - b);

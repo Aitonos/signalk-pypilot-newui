@@ -48,6 +48,8 @@ const SEA_REL = 0.25;
 const CONTIGUOUS_MS = 5000;
 const contiguous = (a: NavDbRow, b: NavDbRow) => b.t0 - a.t1 <= CONTIGUOUS_MS && b.t0 >= a.t0;
 const TWS_KN = 2.5;
+const SOG_KN = 1.5;
+const TWA_DEG = 20;
 
 function seaClose(a: number | null, b: number | null, floor: number): boolean {
   if (a == null || b == null) return a == null && b == null;
@@ -63,6 +65,15 @@ export function incomparable(a: NavDbRow, b: NavDbRow): string[] {
   if (JSON.stringify(a.ctx.gains) !== JSON.stringify(b.ctx.gains)) why.push("gains");
   if (a.ctx.tack !== b.ctx.tack) why.push("tack");
   if (a.ctx.twsKn != null && b.ctx.twsKn != null && Math.abs(a.ctx.twsKn - b.ctx.twsKn) > TWS_KN) why.push("wind");
+  // Rev579 (GPT audit A04): wind known in one window only, boat speed and
+  // the angle to the true wind count too.
+  else if ((a.ctx.twsKn == null) !== (b.ctx.twsKn == null)) why.push("wind");
+  const sa = a.ctx.sogKn, sb = b.ctx.sogKn;
+  if ((sa == null) !== (sb == null)
+    || (sa != null && sb != null && Math.abs(sa - sb) > Math.max(SOG_KN, SEA_REL * Math.max(sa, sb)))) why.push("speed");
+  const ta = a.ctx.twaDeg, tb = b.ctx.twaDeg;
+  if ((ta == null) !== (tb == null)
+    || (ta != null && tb != null && Math.abs(((ta - tb + 540) % 360) - 180) > TWA_DEG)) why.push("wind angle");
   if (!seaClose(a.ctx.rollSdDeg, b.ctx.rollSdDeg, 0.5)
     || !seaClose(a.ctx.pitchSdDeg, b.ctx.pitchSdDeg, 0.5)
     || !seaClose(a.ctx.yawRateRmsDps, b.ctx.yawRateRmsDps, 0.5)) why.push("sea");
@@ -130,6 +141,9 @@ export class ShadowTuner {
     const from = row.ctx.gains[c.gain];
     if (typeof from !== "number") return { action: null, blocked: `${c.gain} not reported` };
     const to = round5(from * (1 + c.dir * this.stepPct / 100));
+    // Rev579 (GPT audit A05): a percentage of 0 is 0 - no proposal that
+    // changes nothing. Starting a gain from 0 would need an explicit rule.
+    if (to === from) return { action: null, blocked: `${c.gain} ${c.why}: ${c.gain} is ${from}, a ${this.stepPct} % step does not change it` };
     const base = anchor[c.gain] ?? from;
     const rng = row.ctx.pilot ? this.opts.range?.(row.ctx.pilot, c.gain) : null;
     if (Math.abs(to - base) > base * this.maxDevPct / 100 + 1e-12) {
