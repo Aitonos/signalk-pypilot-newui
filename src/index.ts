@@ -79,7 +79,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev572";
+const PLUGIN_REVISION = "Rev573";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -5858,6 +5858,14 @@ module.exports = function (app: any) {
     // them at the IMU rate anyway; 1 Hz costs the TinyPilot nothing
     // measurable, see docs/_audit_pypilot_gains_0.56_2026-10-30.md).
     if (name === "imu.headingrate") return WATCH_MED;
+    // Rev573 (audit 3.8.0 #A): the gains themselves, always. They were
+    // only watched while the visor's Tune tab was on screen, so the
+    // plugin kept stale values the rest of the time: the boost-D gust
+    // strategy then wrote 1.2 x the PREVIOUS profile's D into the active
+    // profile (and "restored" that stale D afterwards); the Doctor,
+    // session changes, nav-db and shadow mode saw old gains. pypilot only
+    // sends a gain when it changes, so this costs nothing.
+    if (/^ap\.pilot\.[^.]+\.(P|I|D|DD|PR|FF)$/.test(name)) return WATCH_MED;
     if (/^ap\.pilot\.[^.]+\.(P|I|D|DD|PR|FF)gain$/.test(name)) return WATCH_MED;
     // Rev508: false end stop evidence for steer-watch + session log.
     if (name === "servo.flags") return WATCH_MED;
