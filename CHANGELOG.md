@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev590)
+## Unreleased (Rev584 → Rev592)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -21,9 +21,16 @@
   is only published while sailing) on one line across the full width; the
   font shrinks if needed. Scale labels carry only the number and the right
   margin is sized to the widest one.
-- Portrait button height follows the screen width, so in full screen the
-  extra height goes to the rose and the chart; with the tab bar hidden the
-  top notch / status strip is used too.
+- Bottom bar heights: chart / Freeboard 16 % of the screen in portrait
+  (~40 % of the column in landscape), heel bar half of that, animated when
+  switching. The button rows take all the spare height (bigger buttons in
+  the heel view and in full screen). With the tab bar hidden the top notch
+  / status strip is used too.
+- **Freeboard as a third view of the bottom bar** (the warm preloaded
+  frame, laid over the bar, no reload). The double tap cycles through the
+  views chosen in the corner-config popup (heel bar, chart, Freeboard);
+  × on Freeboard leaves that view.
+- No arrow buttons on the heel bar: tabs change by swipe.
 - Heel / rudder pointer: thick glowing line from the top and bottom edges
   of the bar to the number.
 - A finger on a chart (bottom bar in chart view, Chart tab) no longer

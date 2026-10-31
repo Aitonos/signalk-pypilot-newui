@@ -99,6 +99,29 @@ crecían los botones, no la rosa ni la gráfica.
 - Barra de pestañas oculta: se quita el margen superior de la zona segura
   (muesca), la rosa empieza arriba del todo.
 
+## Quinta ronda (Rev591-592)
+
+Carlos: lo que sobre de alto debe ir a los botones, no a la barra; la
+escora a la mitad de alto que la gráfica, con animación; sin flechas en la
+escora (solo deslizar); gráfica 20 % más baja que en Rev590; y Freeboard
+como tercera vista, del tamaño de la gráfica.
+
+| Vista | Vertical (móvil 412 x 660) | Apaisado (1280 x 800) |
+|---|---|---|
+| Gráfica / Freeboard | 16 % del alto (106 px), botones 62 px | ~40 % de la columna (287 px) |
+| Escora | la mitad (53 px), botones 86 px | la mitad (139 px), botones 297 px |
+
+- La rosa tiene el alto limitado como si la barra estuviera en tamaño
+  gráfica, así que al pasar a escora el alto liberado va a los botones.
+- Freeboard: se reutiliza el marco precargado y se coloca encima de la
+  barra (posición fija medida cada 0,5 s y al cambiar de tamaño), corrigiendo
+  el desfase cuando un contenedor con transformación hace de referencia. No
+  se recarga ni abre una segunda conexión.
+- Doble toque: recorre las vistas marcadas en "El doble toque alterna
+  entre" (al menos una). Dentro de Freeboard el doble toque lo recibe el
+  mapa; la × vuelve a la siguiente vista. Doble toque en la rosa con
+  Freeboard en la barra lo sube a la rosa.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -110,7 +133,7 @@ crecían los botones, no la rosa ni la gráfica.
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev590)
+## QA en el barco (QA Rev592)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.
@@ -125,8 +148,11 @@ crecían los botones, no la rosa ni la gráfica.
 9. Leyenda: "media 10m" y valores que cambian despacio (media), no al
    segundo.
 10. Deslizar el dedo de lado sobre la gráfica no cambia de pestaña.
-11. Pantalla completa en el móvil: los botones no crecen; la rosa sube hasta
-    la muesca y la gráfica se queda con el resto.
+11. Pantalla completa en el móvil: el alto extra va a los botones.
+12. Doble toque: escora (media altura) -> gráfica -> Freeboard, con
+    animación de altura; la × de Freeboard vuelve a escora.
+13. Freeboard en la barra: se ve el barco y se puede mover el mapa; al
+    ocultar / mostrar pestañas sigue encajado en la barra.
 5. Cambiar series y ventana en la ventana de configuración; recargar el
    visor: se conservan.
 6. Pestaña Gráfica: Polar y TWA disponibles; el resto igual que antes.

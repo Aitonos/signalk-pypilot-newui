@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev590" />
+  <link rel="stylesheet" href="style.css?v=Rev592" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1028,6 +1028,12 @@
                 <input type="radio" name="helm-bar-src" value="rudder" id="helm-bar-src-rudder" />
                 <span data-i18n="dash.helmBar.rudder">Rudder angle</span>
               </label>
+            </div>
+            <div class="hint" style="font-size:12px;margin:8px 0 4px" data-i18n="dash.helmViews.title">Double tap cycles through:</div>
+            <div class="chart-paths-row" id="helm-views">
+              <label class="chart-path-chip"><input type="checkbox" data-hview="bar"><span data-i18n="dash.helmViews.bar">Heel / rudder bar</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hview="chart"><span data-i18n="dash.helmViews.chart">Chart</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hview="fb"><span>Freeboard</span></label>
             </div>
             <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px;margin-top:10px" data-i18n="dash.helmChart.title">CHART IN THE BOTTOM BAR</div>
             <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmChart.hint">Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.</div>
@@ -2761,6 +2767,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev590"></script>
+  <script src="app.js?v=Rev592"></script>
 </body>
 </html>

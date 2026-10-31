@@ -752,6 +752,9 @@
       "dash.helmChart.title": "CHART IN THE BOTTOM BAR",
       "dash.helmChart.hint":  "Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.",
       "helmChart.polar":      "Polar max speed",
+      "dash.helmViews.title": "Double tap cycles through:",
+      "dash.helmViews.bar":   "Heel / rudder bar",
+      "dash.helmViews.chart": "Chart",
       "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
       "dash.helmBar.rudder": "Rudder angle",
@@ -1811,6 +1814,9 @@
       "dash.helmChart.title": "GRÁFICA EN LA BARRA DE ABAJO",
       "dash.helmChart.hint":  "Doble toque en la barra de abajo para alternar entre la barra y esta gráfica. Pulsación larga abre estos ajustes; con el dedo sobre la gráfica ves los valores de ese momento.",
       "helmChart.polar":      "Polar vel. máx.",
+      "dash.helmViews.title": "El doble toque alterna entre:",
+      "dash.helmViews.bar":   "Barra de escora / timón",
+      "dash.helmViews.chart": "Gráfica",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
       "dash.helmBar.rudder": "Ángulo del timón",
@@ -2912,6 +2918,8 @@
       const isFs = !!document.fullscreenElement;
       btn.textContent = isFs ? "⤢" : "⛶";
       btn.classList.toggle("is-fullscreen", isFs);
+      // Rev591: the Control layout gives the buttons more height in full screen.
+      document.body.classList.toggle("is-fullscreen", isFs);
     };
     const enterFs = async () => {
       const root = document.documentElement;
@@ -4871,7 +4879,7 @@
     "pypilot-newui.roseBottomChipPaths", "pypilot-newui.windCornerShow", "pypilot-newui.windCornerPinned",
     "pypilot-newui.windArrow.awa", "pypilot-newui.windArrow.twa", "pypilot-newui.showCog",
     "pypilot-newui.showCurrent", "pypilotnewui.helmBar",
-    "pypilotnewui.helmView", "pypilotnewui.helmChart",
+    "pypilotnewui.helmView", "pypilotnewui.helmChart", "pypilotnewui.helmViews",
   ];
   const DISPLAY_PRESETS_LOCAL_KEY = "pypilot-newui.displayPresets";
   let _dashPresetsServer = [];
@@ -12309,6 +12317,8 @@
       };
       if (rose) rose.addEventListener("dblclick", (ev) => {
         ev.preventDefault();
+        // Rev591: Freeboard shown in the strip moves up to the rose.
+        if (_fbApi && _fbApi.inStrip()) { _helmSetView("bar"); openFb(); return; }
         if (fbIsOpen()) { closeFb(); } else { openFb(); }
       });
       // Preload only if enabled and Freeboard-SK is installed.
@@ -12335,7 +12345,63 @@
           else if (!fbIsOpen()) unloadFb();
         });
       }
-      if (fbClose) fbClose.addEventListener("click", closeFb);
+      // Rev591 (Carlos): Freeboard as the third view of the Control
+      // bottom strip. The same warm frame is laid over the strip (fixed
+      // at its rect) so it never reloads; × leaves that view.
+      let stripEl = null, stripTimer = null, stripRO = null;
+      const placeInStrip = () => {
+        if (!stripEl || !fbBox) return;
+        const r = stripEl.getBoundingClientRect();
+        const set = (top, left) => {
+          fbBox.style.setProperty("--fb-top", top + "px");
+          fbBox.style.setProperty("--fb-left", left + "px");
+        };
+        fbBox.style.setProperty("--fb-width", r.width + "px");
+        fbBox.style.setProperty("--fb-height", r.height + "px");
+        set(r.top, r.left);
+        // An ancestor may be the containing block of "fixed" (transform
+        // on the tab panel): correct by the measured offset.
+        const a = fbBox.getBoundingClientRect();
+        if (Math.abs(a.top - r.top) > 0.5 || Math.abs(a.left - r.left) > 0.5) {
+          set(2 * r.top - a.top, 2 * r.left - a.left);
+        }
+      };
+      _fbApi = {
+        showInStrip(strip) {
+          if (!fbBox || !fbIframe) return;
+          stripEl = strip;
+          ensureFbSrc();
+          fbBox.classList.remove("fb-preload", "maximized");
+          if (fbMax) fbMax.textContent = "⤢";
+          fbBox.classList.add("in-strip");
+          fbBox.hidden = false;
+          placeInStrip();
+          if (!stripRO && typeof ResizeObserver === "function") {
+            stripRO = new ResizeObserver(placeInStrip);
+            stripRO.observe(strip);
+            const tc = document.getElementById("tab-control");
+            if (tc) stripRO.observe(tc);
+          }
+          // The strip also moves without resizing (tab bar shown /
+          // hidden, rose resizing): follow it at 2 Hz while shown.
+          if (!stripTimer) stripTimer = setInterval(placeInStrip, 500);
+        },
+        leaveStrip() {
+          if (!stripEl) return;
+          stripEl = null;
+          if (stripTimer) { clearInterval(stripTimer); stripTimer = null; }
+          if (stripRO) { stripRO.disconnect(); stripRO = null; }
+          if (fbBox) fbBox.classList.remove("in-strip");
+          closeFb();
+        },
+        inStrip: () => !!stripEl,
+      };
+      // The strip may have booted in the Freeboard view before this ran.
+      if (_helmView() === "fb") setTimeout(_helmApplyView, 0);
+      if (fbClose) fbClose.addEventListener("click", () => {
+        if (stripEl) { _helmSetView(_helmNextView("fb", true)); return; }
+        closeFb();
+      });
       if (fbMax) fbMax.addEventListener("click", toggleMax);
     } catch (e) { console.warn("[rose] dblclick + freeboard wire:", e); }
 
@@ -19569,9 +19635,32 @@
       }));
     } catch { /* silent */ }
   }
+  // Rev591 (Carlos): views of the strip and which ones the double tap
+  // cycles through (chosen in the corner-config popup).
+  const _HELM_VIEWS = ["bar", "chart", "fb"];
+  const _HELM_VIEWS_LS_KEY = "pypilotnewui.helmViews";
+  let _fbApi = null;   // set by the Freeboard wiring
   function _helmView() {
-    try { return localStorage.getItem(_HELM_VIEW_LS_KEY) === "chart" ? "chart" : "bar"; }
-    catch { return "bar"; }
+    try {
+      const v = localStorage.getItem(_HELM_VIEW_LS_KEY);
+      return _HELM_VIEWS.includes(v) ? v : "bar";
+    } catch { return "bar"; }
+  }
+  function _helmViewsChosen() {
+    try {
+      const a = JSON.parse(localStorage.getItem(_HELM_VIEWS_LS_KEY) || "null");
+      const ok = Array.isArray(a) ? _HELM_VIEWS.filter((v) => a.includes(v)) : [];
+      return ok.length > 0 ? ok : _HELM_VIEWS.slice();
+    } catch { return _HELM_VIEWS.slice(); }
+  }
+  // Next chosen view after `cur`. `skipCur` makes sure the result is a
+  // different view (leaving Freeboard with its ×).
+  function _helmNextView(cur, skipCur) {
+    const list = _helmViewsChosen();
+    const order = _HELM_VIEWS.filter((v) => list.includes(v) || (!skipCur && v === cur));
+    const i = order.indexOf(cur);
+    const next = order[(i + 1) % order.length];
+    return next === cur && skipCur ? (cur === "bar" ? "chart" : "bar") : next;
   }
   function _helmChartVisible() {
     if (_helmView() !== "chart" || document.visibilityState !== "visible") return false;
@@ -19584,12 +19673,18 @@
   function _helmApplyView() {
     const strip = document.getElementById("swipe-hint");
     if (!strip) return;
-    const chart = _helmView() === "chart";
+    const view = _helmView();
+    const chart = view === "chart";
     strip.classList.toggle("view-chart", chart);
+    strip.classList.toggle("view-fb", view === "fb");
     if (chart) { chartDraw(_helmChart); chartFetchAndDraw(_helmChart); }
+    if (_fbApi) {
+      if (view === "fb") _fbApi.showInStrip(strip);
+      else _fbApi.leaveStrip();
+    }
   }
   function _helmSetView(v) {
-    try { localStorage.setItem(_HELM_VIEW_LS_KEY, v === "chart" ? "chart" : "bar"); } catch { /* silent */ }
+    try { localStorage.setItem(_HELM_VIEW_LS_KEY, _HELM_VIEWS.includes(v) ? v : "bar"); } catch { /* silent */ }
     _helmApplyView();
   }
   function _helmOpenSettings() {
@@ -19614,7 +19709,7 @@
       const near = Math.abs(ev.clientX - lastX) < 40 && Math.abs(ev.clientY - lastY) < 40;
       if (now - lastTap < 400 && near) {
         lastTap = 0;
-        _helmSetView(_helmView() === "chart" ? "bar" : "chart");
+        _helmSetView(_helmNextView(_helmView(), false));
         return;
       }
       lastTap = now; lastX = ev.clientX; lastY = ev.clientY;
@@ -19645,6 +19740,17 @@
     strip.addEventListener("pointercancel", lpCancel);
     strip.addEventListener("contextmenu", (ev) => ev.preventDefault());
     // Popup controls (corner-config popup).
+    const viewCbs = document.querySelectorAll("#helm-views input[type=checkbox]");
+    const chosen = _helmViewsChosen();
+    viewCbs.forEach((cb) => {
+      cb.checked = chosen.includes(cb.dataset.hview);
+      cb.addEventListener("change", () => {
+        const list = [...viewCbs].filter((x) => x.checked).map((x) => x.dataset.hview);
+        if (list.length === 0) { cb.checked = true; return; }   // keep at least one
+        try { localStorage.setItem(_HELM_VIEWS_LS_KEY, JSON.stringify(list)); } catch { /* silent */ }
+        if (!list.includes(_helmView())) _helmSetView(list[0]);
+      });
+    });
     const winBtns = document.querySelectorAll("#helm-chart-windows .chart-window-btn");
     winBtns.forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.hwindow === _helmChart.window);

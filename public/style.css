@@ -1309,10 +1309,12 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
     grid-column: 2;
     grid-row: 1;
     display: grid;
-    /* Row 1 (tack+mode) and Row 2 (nudge+AP) grow up to 22vh each;
-       Rev584 (Carlos): the bottom strip (heel bar / chart) takes all the
-       height that is left, also when the tab bar is hidden. */
-    grid-template-rows: minmax(56px, 22vh) minmax(56px, 22vh) minmax(48px, 1fr);
+    /* Rev591 (Carlos): the buttons take the spare height. The strip is a
+       share of the column: chart / Freeboard 80 % of what Rev590 gave
+       (~40 % of the column), heel bar half of that. The share animates
+       when the view changes. */
+    grid-template-rows: minmax(56px, 1fr) minmax(56px, 1fr) minmax(48px, var(--strip-fr, 0.5fr));
+    transition: grid-template-rows 250ms ease;
     gap: 8px;
     height: 100%;
     max-width: none;
@@ -1351,6 +1353,8 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
     font-size: clamp(16px, min(2.8vw, 4vh), 26px);
   }
   #tab-control .controls .swipe-hint { min-height: 48px; }
+  #tab-control .controls:has(.swipe-hint.view-chart),
+  #tab-control .controls:has(.swipe-hint.view-fb) { --strip-fr: 1.33fr; }
 }
 
 /* Rev56: horizontal scroll wrapper for the paths tables. On portrait
@@ -2376,7 +2380,11 @@ main { touch-action: pan-y; overflow-x: hidden; }
 /* Rev584 (Carlos): "ganar toda la altura posible para la barra de
    escora". The strip grows into the space left under the buttons and
    its contents scale with its height (container query units). */
+/* Rev591 (Carlos): no arrow buttons on the heel bar, tabs change by
+   swipe only; the triangle toggle stays centred. */
+#tab-control .swipe-hint .swipe-hint-arrow { display: none; }
 #tab-control .controls .swipe-hint {
+  justify-content: center;
   flex: 1 1 auto;
   min-height: 44px;
   container-type: size;
@@ -2387,15 +2395,35 @@ main { touch-action: pan-y; overflow-x: hidden; }
      between the rows and the strip, rows sized to the screen height,
      and the strip never below 20 % of it. */
   #tab-control .controls .row-tack-mode { margin-bottom: 0; }
-  #tab-control .controls .swipe-hint { margin-top: 0; min-height: clamp(44px, 20vh, 320px); }
+  /* Rev591 (Carlos): the button rows share all the spare height; the
+     strip has a set height - chart / Freeboard 80 % of what Rev590 gave
+     (16 % of the screen, also in full screen), heel bar half of that.
+     The height animates when the view changes. */
+  #tab-control {
+    --strip-chart-h: max(96px, 16vh);
+    --strip-heel-h: max(48px, 8vh);
+  }
+  #tab-control .controls .row-tack-mode,
+  #tab-control .controls .row-nudge-ap { flex: 1 1 0; min-height: clamp(60px, 15vw, 96px); }
   #tab-control .controls .row-tack-mode > *,
   #tab-control .controls .row-nudge-ap > *,
-  #tab-control .controls .engage-toggle { height: clamp(60px, 15vw, 96px); min-height: 60px; }
-  /* Rev590 (Carlos): button height follows the width, not the height -
-     in full screen the extra height went to the buttons (vh grows) instead
-     of the rose and the chart. */
-  /* The rose keeps its shape instead of absorbing the spare height. */
-  #tab-control .dash-rose { flex: 0 1 auto; }
+  #tab-control .controls .engage-toggle { height: auto; min-height: 0; }
+  #tab-control .controls .swipe-hint {
+    margin-top: 0;
+    flex: 0 0 auto;
+    min-height: 0;
+    height: var(--strip-heel-h);
+    transition: height 250ms ease;
+  }
+  #tab-control .controls .swipe-hint.view-chart,
+  #tab-control .controls .swipe-hint.view-fb { height: var(--strip-chart-h); }
+  /* The rose keeps its shape instead of absorbing the spare height.
+     Rev591: and its height is capped as if the strip were at chart size,
+     so a shorter heel bar gives its height to the buttons, not the rose. */
+  #tab-control .dash-rose {
+    flex: 0 1 auto;
+    max-height: calc(100% - 26px - 2 * clamp(60px, 15vw, 96px) - var(--strip-chart-h));
+  }
 }
 @media (orientation: portrait) and (max-width: 600px) {
   /* Phones: "<< 10" / "10 >>" on one line in the narrow buttons. */
@@ -2443,6 +2471,19 @@ main { touch-action: pan-y; overflow-x: hidden; }
 .swipe-hint .helm-chart,
 .swipe-hint .helm-chart-empty { display: none; }
 .swipe-hint.view-chart > :not(.helm-chart):not(.helm-chart-empty):not(.nav-toggle) { display: none; }
+/* Rev591 (Carlos): third view, Freeboard at chart size. The warm,
+   preloaded Freeboard frame is laid over the strip (position fixed at
+   the strip's rect, set by JS) instead of moved, so it never reloads. */
+.swipe-hint.view-fb > :not(.nav-toggle) { display: none; }
+.freeboard-embed.in-strip:not(.maximized) {
+  position: fixed;
+  inset: auto;
+  top: var(--fb-top, 0);
+  left: var(--fb-left, 0);
+  width: var(--fb-width, 0);
+  height: var(--fb-height, 0);
+  z-index: 30;
+}
 .swipe-hint.view-chart .helm-chart {
   display: block;
   letter-spacing: 0;
