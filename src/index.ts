@@ -48,6 +48,7 @@ import { ProfileAdvisor, type AdvisoryEvent } from "./profile-advisor";
 import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log";
 import { GainChangeLog, GAIN_PATH_RE } from "./gain-change-log";
 import { NavDb } from "./nav-db";
+import { wrapPi } from "./angles";
 import { GainGuard } from "./gain-guard";
 import { ShadowTuner } from "./shadow-tuner";
 import { isCompleteEpisode } from "./episodes";
@@ -79,7 +80,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev574";
+const PLUGIN_REVISION = "Rev575";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -5205,11 +5206,9 @@ module.exports = function (app: any) {
     } catch (e: any) { app.debug?.(`[notify:${id}] ${e?.message || e}`); }
   }
 
-  function _wrapPi(a: number): number {
-    while (a > Math.PI)  a -= 2 * Math.PI;
-    while (a < -Math.PI) a += 2 * Math.PI;
-    return a;
-  }
+  // Rev575 (GPT audit A07): constant-time wrap (./angles); the while
+  // loops never ended on Infinity or a huge value.
+  function _wrapPi(a: number): number { return wrapPi(a); }
 
   function collectSample(): Sample {
     const pv = (client && client.connected) ? client.getValues() : {};

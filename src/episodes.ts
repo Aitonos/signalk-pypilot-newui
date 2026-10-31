@@ -33,6 +33,7 @@
 
 import { Sample } from "./historian";
 import { errorRad } from "./kpis";
+import { wrapPi } from "./angles";
 
 /** Immutable summary of a closed episode. */
 export interface EpisodeSummary {
@@ -158,7 +159,7 @@ export class EpisodeDetector {
       return;
     }
 
-    if (typeof s.headingCmd !== "number") {
+    if (typeof s.headingCmd !== "number" || !Number.isFinite(s.headingCmd)) {
       // Engaged but no target yet — nothing to do.
       return;
     }
@@ -336,12 +337,7 @@ export class EpisodeDetector {
   }
 }
 
-function wrapPi(a: number): number {
-  let x = a;
-  while (x > Math.PI) x -= 2 * Math.PI;
-  while (x < -Math.PI) x += 2 * Math.PI;
-  return x;
-}
+// Rev575 (GPT audit A07): constant-time wrap from ./angles.
 
 /** Bucket an episode's numbers into a coarse quality band for the UI.
  *  Thresholds are conservative defaults — they can be tuned once we

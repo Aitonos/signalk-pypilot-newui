@@ -21,6 +21,7 @@
 // preference (auto / steerTo / bearing), it returns the value to use
 // plus what source it came from. Nothing here writes to pypilot.
 
+import { wrapPi } from "./angles";
 export type ApbSource = "auto" | "steerTo" | "bearing";
 
 /** Subset of the Signal K API v2 course data shape we care about.
@@ -91,9 +92,9 @@ export function apbDivergence(course: CourseData | null | undefined): {
   if (typeof s !== "number" || typeof b !== "number") {
     return { bothPresent: false, divergenceRad: null };
   }
-  let d = s - b;
-  while (d > Math.PI) d -= 2 * Math.PI;
-  while (d < -Math.PI) d += 2 * Math.PI;
+  // Rev575 (GPT audit A07): constant-time wrap; non-finite = absent.
+  const d = wrapPi(s - b);
+  if (!Number.isFinite(d)) return { bothPresent: false, divergenceRad: null };
   return { bothPresent: true, divergenceRad: d };
 }
 

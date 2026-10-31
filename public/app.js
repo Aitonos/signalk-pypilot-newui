@@ -2564,6 +2564,15 @@
     // helps and Aproado HUD keep the language they had at last fill.
     if (typeof _relabelDynamicUI === "function") _relabelDynamicUI();
   }
+  // Rev575 (GPT audit A07): wrap degrees to [-180, 180] in constant time.
+  // The old while loops never ended for Infinity or a huge value and
+  // would freeze the visor. NaN for non-finite input.
+  function _wrap180(d) {
+    if (!Number.isFinite(d)) return NaN;
+    let r = ((d + 180) % 360 + 360) % 360 - 180;
+    if (r === -180 && d > 0) r = 180;
+    return r;
+  }
   function t(key) {
     const d = I18N[currentLang()] || I18N.en;
     return d[key] ?? I18N.en[key] ?? key;
@@ -3842,9 +3851,7 @@
     // Sign convention Carlos: how much the pilot still has to correct.
     // target - current → +ve = pilot must go starboard; -ve = pilot
     // must go port.
-    let errRad = targetRad - currentRad;
-    while (errRad >  Math.PI) errRad -= 2 * Math.PI;
-    while (errRad < -Math.PI) errRad += 2 * Math.PI;
+    const errRad = _wrap180(targetRad * RAD2DEG - currentRad * RAD2DEG) / RAD2DEG;
     const errDeg = errRad * RAD2DEG;
     const abs = Math.abs(errDeg);
     const col = abs < 3 ? "#2ecc71" : (abs < 10 ? "#f5a623" : "#ff3b30");
@@ -5477,10 +5484,7 @@
     const absBrg = _aisBearingDeg(selfPos, targetPos);
     if (absBrg == null) return null;
     const headDeg = (selfHeadingRad != null) ? (selfHeadingRad * RAD2DEG) : 0;
-    let rel = absBrg - headDeg;
-    while (rel < -180) rel += 360;
-    while (rel > 180) rel -= 360;
-    return rel;
+    return _wrap180(absBrg - headDeg);
   }
   function renderAisAlarms() {
     const layer = document.getElementById("ais-alarm-layer");
@@ -5613,10 +5617,7 @@
       //    else fall back to pointing at us. The projected track is
       //    drawn only when moving, and always along COG.
       const relToBoat = (absRad) => {
-        let d = (absRad - state.heading) * RAD2DEG;
-        while (d >  180) d -= 360;
-        while (d < -180) d += 360;
-        return d;
+        return _wrap180((absRad - state.heading) * RAD2DEG);
       };
       const haveOwnHdg = typeof state.heading === "number";
       const effSog = _aisEffectiveSog(cached);
@@ -6012,10 +6013,9 @@
     if (isWindMode) {
       deg = targetRad * RAD2DEG;
     } else if (state.heading != null) {
-      let d = (targetRad - state.heading) * RAD2DEG;
       // Normalise to (-180, 180] so the diamond takes the short way round.
-      while (d >  180) d -= 360;
-      while (d <= -180) d += 360;
+      let d = _wrap180((targetRad - state.heading) * RAD2DEG);
+      if (d === -180) d = 180;
       deg = d;
     } else {
       // No heading yet - cannot resolve; hide.
@@ -6609,9 +6609,7 @@
         : state.heading;
       let arrived = false;
       if (typeof cur === "number" && typeof state.target === "number") {
-        let e = (cur - state.target) * RAD2DEG;
-        while (e > 180) e -= 360;
-        while (e < -180) e += 360;
+        const e = _wrap180((cur - state.target) * RAD2DEG);
         arrived = Math.abs(e) < 10;
       }
       if (arrived || Date.now() - t0 > 15000 || !_externalManeuver) {

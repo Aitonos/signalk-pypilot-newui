@@ -14,6 +14,7 @@
 //   - Error is computed relative to the AP's target based on the active
 //     mode: heading in compass/gps modes, AWA in wind modes.
 
+import { wrapPi } from "./angles";
 import { Historian, Sample } from "./historian";
 import { SERVO_ON_MIN_A } from "./constants";
 
@@ -272,8 +273,8 @@ export function errorRad(s: Sample): number | null {
     actual = s.headingActual;
   }
   if (actual == null) return null;
-  let e = s.headingCmd - actual;
-  while (e > Math.PI) e -= 2 * Math.PI;
-  while (e < -Math.PI) e += 2 * Math.PI;
-  return e;
+  // Rev575 (GPT audit A07): constant-time wrap; a non-finite input is
+  // "no error" instead of an endless loop on Signal K's thread.
+  const e = wrapPi(s.headingCmd - actual);
+  return Number.isFinite(e) ? e : null;
 }
