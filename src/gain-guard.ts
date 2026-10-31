@@ -55,15 +55,28 @@ export class GainGuard {
     return true;
   }
 
-  begin(t: { restoreProfile: string; testProfile: string | null; reason?: string }): void {
-    this.write({
+  /** Rev578 (GPT audit B02): arms the protection and says whether it is
+   *  really in place - the lease is on disk and the watchdog process is
+   *  running (waits up to 3 s for it). Callers must not start a trial when
+   *  ok is false. */
+  async begin(t: { restoreProfile: string; testProfile: string | null; reason?: string }): Promise<{ ok: boolean; error?: string }> {
+    const written = this.write({
       active: true, restoreProfile: t.restoreProfile, testProfile: t.testProfile,
       host: this.opts.host, port: this.opts.port ?? 23322,
       renewedTs: Date.now(), ttlMs: this.ttlMs, reason: t.reason,
     });
-    this.ensureWatchdog();
+    if (!written) return { ok: false, error: "could not write the lease" };
     if (this.timer) clearInterval(this.timer);
     this.timer = setInterval(() => this.renew(), this.renewMs);
+    this.ensureWatchdog();
+    const t0 = Date.now();
+    while (Date.now() - t0 < 3000) {
+      const pid = this.watchdogPid();
+      if (pid != null && alive(pid)) return { ok: true };
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    this.end();
+    return { ok: false, error: "the watchdog did not start" };
   }
 
   /** Trial over (kept or undone by the caller itself). */
@@ -96,6 +109,7 @@ export class GainGuard {
     const script = this.opts.scriptPath ?? path.join(__dirname, "gain-watchdog.js");
     try {
       const child = spawn(process.execPath, [script, this.opts.dir], { detached: true, stdio: "ignore" });
+      child.on("error", (e) => this.opts.log?.("error", `[gain-guard] watchdog process error: ${e?.message || e}`));
       child.unref();
       this.opts.log?.("info", `[gain-guard] watchdog started (pid ${child.pid})`);
     } catch (e: any) {
@@ -116,13 +130,15 @@ export class GainGuard {
 
   /** Small file, written atomically (temp + rename): the watchdog never
    *  reads half a lease. */
-  private write(l: GainLease): void {
+  private write(l: GainLease): boolean {
     try {
       const tmp = `${this.leaseFile}.${process.pid}.tmp`;
       fs.writeFileSync(tmp, JSON.stringify(l));
       fs.renameSync(tmp, this.leaseFile);
+      return true;
     } catch (e: any) {
       this.opts.log?.("error", `[gain-guard] lease write failed: ${e?.message || e}`);
+      return false;
     }
   }
 }

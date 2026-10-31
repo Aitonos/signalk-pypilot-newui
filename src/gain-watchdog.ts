@@ -37,13 +37,22 @@ export interface GainLease {
   reason?: string;
   restoredTs?: number;
   restoredBy?: string;
+  /** Definitive failure only ("missing": the profile no longer exists). */
   restoreError?: string;
+  /** Rev578 (GPT audit B03): not restored because the sailor picked
+   *  another profile meanwhile. */
+  restoreSkipped?: string;
+  /** Rev578 (GPT audit A10): last transient failure, still retrying. */
+  lastAttemptError?: string;
 }
 
 const TICK_MS = 1000;
 const IDLE_EXIT_MS = 10 * 60 * 1000;
-const RETRY_MS = 5000;
-const MAX_ATTEMPTS = 6;
+// Rev578 (GPT audit A10): transient failures (WiFi to the TinyPilot
+// down, pypilot restarting) are retried for as long as the lease stays
+// expired, waiting 5 s, 10 s, 20 s... up to 60 s between attempts.
+const RETRY_BASE_MS = 5000;
+const RETRY_MAX_MS = 60_000;
 const LOG_CAP_BYTES = 256 * 1024;
 
 /** JSON with every non-ASCII char escaped, so pypilot reads the same
@@ -54,15 +63,19 @@ export function jsonAscii(v: unknown): string {
 
 /** Ask pypilot to switch profile and wait until it reports it.
  *  Refuses when the profile no longer exists (pypilot would create it
- *  as a copy of the active one). */
-export function setProfile(host: string, port: number, profile: string, timeoutMs = 5000): Promise<"ok" | "missing" | "timeout" | "error"> {
+ *  as a copy of the active one). Rev578 (GPT audit B03): with `onlyFrom`
+ *  it only switches if the active profile is still that one (the trial
+ *  profile); anything else means the sailor chose, and wins ("manual").
+ *  "ok" also when the profile is already the wanted one. */
+export function setProfile(host: string, port: number, profile: string, timeoutMs = 5000, onlyFrom?: string | null): Promise<"ok" | "missing" | "manual" | "timeout" | "error"> {
   return new Promise((resolve) => {
     let done = false;
     let buf = "";
     let profiles: string[] | null = null;
+    let active: string | null = null;
     let sent = false;
     const sock = net.createConnection({ host, port });
-    const finish = (r: "ok" | "missing" | "timeout" | "error") => {
+    const finish = (r: "ok" | "missing" | "manual" | "timeout" | "error") => {
       if (done) return;
       done = true;
       clearTimeout(timer);
@@ -84,13 +97,19 @@ export function setProfile(host: string, port: number, profile: string, timeoutM
         const key = line.slice(0, eq);
         let val: unknown;
         try { val = JSON.parse(line.slice(eq + 1)); } catch { continue; }
-        if (key === "profiles" && Array.isArray(val)) {
-          profiles = val.map(String);
-          if (!profiles.includes(profile)) return finish("missing");
-          if (!sent) { sent = true; sock.write(`profile=${jsonAscii(profile)}\n`); }
-        } else if (key === "profile" && sent && val === profile) {
-          return finish("ok");
+        if (key === "profiles" && Array.isArray(val)) profiles = val.map(String);
+        else if (key === "profile" && typeof val === "string") active = val;
+        else continue;
+        if (sent) {
+          if (active === profile) return finish("ok");
+          continue;
         }
+        if (profiles == null || active == null) continue;   // need both first
+        if (active === profile) return finish("ok");
+        if (!profiles.includes(profile)) return finish("missing");
+        if (onlyFrom != null && active !== onlyFrom) return finish("manual");
+        sent = true;
+        sock.write(`profile=${jsonAscii(profile)}\n`);
       }
     });
   });
@@ -133,27 +152,34 @@ export function runWatchdog(dir: string): void {
   const restore = async (lease: GainLease) => {
     restoring = true;
     log(`lease expired (${Math.round((Date.now() - lease.renewedTs) / 1000)} s without renewal) during trial of "${lease.testProfile}"; restoring "${lease.restoreProfile}"`);
-    let last = "error";
-    for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
+    for (let i = 0; ; i += 1) {
       const now = readLease(leaseFile);
       // The plugin came back and renewed, or ended the trial itself.
       if (!now || !now.active || Date.now() - now.renewedTs <= now.ttlMs) {
         log("plugin renewed or ended the trial meanwhile; nothing to do");
-        restoring = false;
-        return;
+        break;
       }
-      last = await setProfile(lease.host, lease.port, lease.restoreProfile);
-      if (last === "ok" || last === "missing") break;
-      log(`attempt ${i + 1}: ${last}`);
-      await new Promise((r) => setTimeout(r, RETRY_MS));
-    }
-    const cur = readLease(leaseFile) ?? lease;
-    if (last === "ok") {
-      writeLease(leaseFile, { ...cur, active: false, restoredTs: Date.now(), restoredBy: "watchdog" });
-      log(`restored "${lease.restoreProfile}"`);
-    } else {
-      writeLease(leaseFile, { ...cur, restoreError: last });
-      log(`could not restore "${lease.restoreProfile}": ${last}${last === "missing" ? " (profile no longer exists)" : ""}`);
+      const r = await setProfile(lease.host, lease.port, lease.restoreProfile, 5000, lease.testProfile);
+      const cur = readLease(leaseFile) ?? lease;
+      if (r === "ok") {
+        writeLease(leaseFile, { ...cur, active: false, restoredTs: Date.now(), restoredBy: "watchdog", lastAttemptError: undefined });
+        log(`restored "${lease.restoreProfile}"`);
+        break;
+      }
+      if (r === "manual") {
+        writeLease(leaseFile, { ...cur, active: false, restoreSkipped: "sailor chose another profile" });
+        log(`not restoring "${lease.restoreProfile}": the active profile is no longer "${lease.testProfile}" (sailor's choice wins)`);
+        break;
+      }
+      if (r === "missing") {
+        writeLease(leaseFile, { ...cur, active: false, restoreError: "missing" });
+        log(`could not restore "${lease.restoreProfile}": the profile no longer exists`);
+        break;
+      }
+      const wait = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** Math.min(i, 4));
+      writeLease(leaseFile, { ...cur, lastAttemptError: r });
+      log(`attempt ${i + 1}: ${r}; retrying in ${wait / 1000} s`);
+      await new Promise((res) => setTimeout(res, wait));
     }
     restoring = false;
   };
@@ -162,7 +188,7 @@ export function runWatchdog(dir: string): void {
     if (restoring) return;
     const lease = readLease(leaseFile);
     const now = Date.now();
-    if (lease && lease.active && !lease.restoreError) {
+    if (lease && lease.active) {
       idleSince = null;
       if (now - lease.renewedTs > lease.ttlMs) void restore(lease);
       return;

@@ -70,7 +70,7 @@ describe("gain watchdog (Rev571)", () => {
     const pp = await fakePypilot(["Ceñida fondo", "tune-x"], "tune-x");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
     const g = new GainGuard({ dir, host: "127.0.0.1", port: pp.port, ttlMs: 1500, renewMs: 300, scriptPath: SCRIPT });
-    g.begin({ restoreProfile: "Ceñida fondo", testProfile: "tune-x", reason: "test" });
+    await g.begin({ restoreProfile: "Ceñida fondo", testProfile: "tune-x", reason: "test" });
     await wait(2500);
     assert.deepEqual(pp.state.sets, [], "renewing: nothing restored");
     g.stop();   // plugin frozen
@@ -85,7 +85,7 @@ describe("gain watchdog (Rev571)", () => {
     const pp = await fakePypilot(["tune-x"], "tune-x");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
     const g = new GainGuard({ dir, host: "127.0.0.1", port: pp.port, ttlMs: 1000, renewMs: 300, scriptPath: SCRIPT });
-    g.begin({ restoreProfile: "gone", testProfile: "tune-x" });
+    await g.begin({ restoreProfile: "gone", testProfile: "tune-x" });
     g.stop();
     assert.ok(await until(() => g.status().lease?.restoreError === "missing", 8000));
     assert.deepEqual(pp.state.sets, []);
@@ -103,5 +103,51 @@ describe("gain watchdog (Rev571)", () => {
     assert.equal(g.recoverOnStart(), true);
     assert.ok(await until(() => pp.state.active === "base", 8000));
     pp.close();
+  });
+  it("B03: does not override a profile the sailor chose during the outage", async () => {
+    const pp = await fakePypilot(["base", "tune-z", "Mi elección"], "Mi elección");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
+    fs.writeFileSync(path.join(dir, "lease.json"), JSON.stringify({
+      active: true, restoreProfile: "base", testProfile: "tune-z", host: "127.0.0.1", port: pp.port,
+      renewedTs: Date.now() - 60_000, ttlMs: 1000,
+    }));
+    const g = new GainGuard({ dir, host: "127.0.0.1", port: pp.port, scriptPath: SCRIPT });
+    g.recoverOnStart();
+    assert.ok(await until(() => !!g.status().lease?.restoreSkipped, 8000));
+    assert.deepEqual(pp.state.sets, []);
+    assert.equal(g.status().lease?.active, false);
+    pp.close();
+  });
+
+  it("A10: keeps retrying after connection failures and restores once pypilot is back", async () => {
+    // Reserve a port, close it: the first attempts are refused.
+    const probe = net.createServer(); await new Promise<void>((r) => probe.listen(0, "127.0.0.1", () => r()));
+    const port = (probe.address() as net.AddressInfo).port; await new Promise<void>((r) => probe.close(() => r()));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
+    fs.writeFileSync(path.join(dir, "lease.json"), JSON.stringify({
+      active: true, restoreProfile: "base", testProfile: "tune-w", host: "127.0.0.1", port,
+      renewedTs: Date.now() - 60_000, ttlMs: 1000,
+    }));
+    const g = new GainGuard({ dir, host: "127.0.0.1", port, scriptPath: SCRIPT });
+    g.recoverOnStart();
+    assert.ok(await until(() => !!g.status().lease?.lastAttemptError, 8000), "a failed attempt recorded");
+    assert.equal(g.status().lease?.active, true, "still pending, not given up");
+    // pypilot comes back on the same port.
+    const state = { active: "tune-w", sets: [] as string[] };
+    const srv = net.createServer((sock) => {
+      sock.setEncoding("utf8"); let buf = "";
+      sock.on("error", () => { /* */ });
+      sock.on("data", (d: string) => {
+        buf += d; let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl); buf = buf.slice(nl + 1);
+          if (line.startsWith("watch=")) { sock.write(`profiles=${JSON.stringify(["base", "tune-w"])}\n`); sock.write(`profile=${JSON.stringify(state.active)}\n`); }
+          else if (line.startsWith("profile=")) { state.active = JSON.parse(line.slice(8)); state.sets.push(state.active); sock.write(`profile=${JSON.stringify(state.active)}\n`); }
+        }
+      });
+    });
+    await new Promise<void>((r) => srv.listen(port, "127.0.0.1", () => r()));
+    assert.ok(await until(() => state.active === "base", 25_000), "restored after the outage");
+    srv.close();
   });
 });
