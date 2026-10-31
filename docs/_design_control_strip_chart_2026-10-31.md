@@ -149,6 +149,17 @@ normal y contra los botones en pantalla completa.
   que lo pagan los botones. Si los botones ya están en su mínimo (60 px o
   15 % del ancho), no pueden ceder y lo cede la rosa.
 
+## Octava ronda (Rev595)
+
+Carlos: en pantalla completa con la barra de pestañas visible no se usaba
+toda la pantalla (plegada sí); y en vertical normal la barra de pestañas
+tenía demasiado aire.
+
+- Pantalla completa: el `body` deja de reservar la zona segura de arriba
+  (muesca) también con la barra visible; antes solo al plegarla.
+- Barra de pestañas en vertical: relleno 12 -> 7 px y letra 14 -> 13 px:
+  44 -> 32 px de alto.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -160,7 +171,7 @@ normal y contra los botones en pantalla completa.
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev594)
+## QA en el barco (QA Rev595)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.

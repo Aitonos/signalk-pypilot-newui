@@ -193,6 +193,9 @@ nav#tabbar {
    notch / status-bar strip at the top (the full-screen button already
    sits there). */
 body.nav-hidden { padding-top: 0; }
+/* Rev595 (Carlos): in full screen the whole screen is used also with
+   the tab bar showing (the notch strip was left empty above it). */
+body.is-fullscreen { padding-top: 0; }
 body.nav-hidden nav#tabbar {
   transform: translateY(-100%);
   max-height: 0;
@@ -224,6 +227,15 @@ body.nav-hidden nav#tabbar {
     padding: 4px 4px;
     font-size: 12px;
     letter-spacing: 0.2px;
+    border-bottom-width: 2px;
+  }
+}
+/* Rev595 (Carlos: "quita aire al menú de arriba, ocupa muchos
+   píxeles"): slimmer tab bar in portrait too. */
+@media (orientation: portrait) {
+  .tab-btn {
+    padding: 7px 3px;
+    font-size: 13px;
     border-bottom-width: 2px;
   }
 }

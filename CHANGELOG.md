@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev594)
+## Unreleased (Rev584 → Rev595)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -32,6 +32,8 @@
   views chosen in the corner-config popup (heel bar, chart, Freeboard);
   × on Freeboard leaves that view.
 - No arrow buttons on the heel bar: tabs change by swipe.
+- Slimmer tab bar in portrait (44 -> 32 px); in full screen the notch
+  strip above it is used too.
 - Heel / rudder pointer: thick glowing line from the top and bottom edges
   of the bar to the number.
 - A finger on a chart (bottom bar in chart view, Chart tab) no longer
