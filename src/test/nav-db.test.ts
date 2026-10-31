@@ -75,3 +75,27 @@ describe("NavDb (Rev570)", () => {
     assert.equal(JSON.parse(lines[0]).type, "window");
   });
 });
+
+describe("NavDb steady samples (Rev574, audit #B/#D)", () => {
+  it("a +10 correction does not count as a sustained offset", () => {
+    const d = db();
+    let row = null;
+    // 20 s of correcting a 10° step (not steady), then on course.
+    for (let i = 0; i <= 90 && !row; i += 1) {
+      row = d.onSample(smp(i, i < 20
+        ? { hdgErr: (10 - i * 0.5) * DEG, steady: false }
+        : { hdgErr: (i % 2 ? 0.5 : -0.5) * DEG, steady: true }));
+    }
+    assert.ok(row);
+    assert.ok(Math.abs(row!.res.errMeanDeg!) < 1, `mean ${row!.res.errMeanDeg}`);
+    assert.equal(row!.res.steadyPct, 78);
+    assert.equal(row!.valid, true);
+  });
+
+  it("a window that is mostly corrections is marked 'steps'", () => {
+    const d = db();
+    let row = null;
+    for (let i = 0; i <= 90 && !row; i += 1) row = d.onSample(smp(i, { steady: i > 60 }));
+    assert.ok(row!.why.includes("steps"));
+  });
+});

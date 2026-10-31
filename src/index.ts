@@ -79,7 +79,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev573";
+const PLUGIN_REVISION = "Rev574";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -510,6 +510,9 @@ module.exports = function (app: any) {
   let gainGuard: GainGuard | null = null;
   // Rev572: shadow mode (auto-Doctor phase 5).
   let shadowTuner: ShadowTuner | null = null;
+  // Rev574: nav-db steadiness and gust inputs.
+  let _navDbEngagedSince: number | null = null;
+  let _lastGustDetectTs: number | null = null;
   // Rev178 (Carlos): trip recorder. Fires on autostate transitions
   // (moored <-> underway/sailing/anchored...) instead of on AP engage,
   // so it also covers motor legs and tender rides. Independent of the
@@ -3441,6 +3444,14 @@ module.exports = function (app: any) {
         gainGuard.begin({ restoreProfile: from, testProfile: test, reason: "dock test" });
         try { profileChangeLog.markPlannedWrite(test, "user", "watchdog dock test"); } catch { /* silent */ }
         client.set("profile", test);
+        // Rev574 (audit #H): a test nobody finishes ends by itself.
+        setTimeout(() => {
+          const l = gainGuard?.status().lease;
+          if (!gainGuard || !client || !l || !l.active || l.reason !== "dock test" || l.testProfile !== test) return;
+          try { profileChangeLog.markPlannedWrite(from, "user", "watchdog dock test timeout"); } catch { /* silent */ }
+          client.set("profile", from);
+          gainGuard.end();
+        }, 120_000);
         res.json({ ok: true, restoreProfile: from, testProfile: test });
       });
       router.post("/gain-guard/end", (_req: any, res: any) => {
@@ -4392,6 +4403,47 @@ module.exports = function (app: any) {
       }
     }
     const engagedNow = _engagedStable;
+    // Rev570: feed the navigation database every tick (a disengage
+    // closes its window). Records only; never writes to pypilot.
+    // Rev574 (audit 3.8.0 #F): before the session handling, so the last
+    // window closes while the session is still open.
+    if (engagedNow && _navDbEngagedSince == null) _navDbEngagedSince = s.ts;
+    if (!engagedNow) _navDbEngagedSince = null;
+    if (navDb) {
+      try {
+        const pv = (client && client.connected) ? client.getValues() : {};
+        const pilot = typeof pv["ap.pilot"] === "string" ? pv["ap.pilot"] as string : null;
+        const gains: Record<string, number> = {};
+        const terms: Record<string, number> = {};
+        if (pilot) {
+          for (const k of ["P", "I", "D", "DD", "PR", "FF"]) {
+            const g = pv[`ap.pilot.${pilot}.${k}`];
+            if (typeof g === "number") gains[k] = g;
+            const c = pv[`ap.pilot.${pilot}.${k}gain`];
+            if (typeof c === "number") terms[k] = c;
+          }
+        }
+        const twa = (app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null);
+        const twaRad = typeof twa === "number" ? twa : null;
+        navDb.onSample({
+          ts: s.ts, engaged: engagedNow, mode: s.mode, pilot,
+          profile: typeof pv["profile"] === "string" ? pv["profile"] as string : null,
+          gains, terms,
+          hdgErr: _modeAwareErrRad(s, twaRad),
+          hdgRate: typeof pv["imu.headingrate"] === "number" ? pv["imu.headingrate"] as number : null,
+          servoCur: s.servoCurrent,
+          servoFlags: typeof pv["servo.flags"] === "string" ? pv["servo.flags"] as string : null,
+          tws: s.tws, twa: twaRad, aws: s.aws, awa: s.awa, sog: s.sog, heel: s.heel, pitch: s.pitch,
+          tackState: typeof pv["ap.tack.state"] === "string" ? pv["ap.tack.state"] as string : null,
+          gustActive: _gustBoostUntilMs != null || _gustHeavyUntilMs != null
+            || (_lastGustDetectTs != null && s.ts - _lastGustDetectTs < 30_000),
+          // Rev574 (audit 3.8.0 #B/#D): steady = no correction to a new
+          // target in progress and 30 s past engaging.
+          steady: engagedNow && !(episodes && episodes.current())
+            && _navDbEngagedSince != null && s.ts - _navDbEngagedSince >= 30_000,
+        });
+      } catch { /* silent */ }
+    }
     if (engagedNow && !lastEngagedState) {
       // Engaging: start a new session with the pilot / profile / gains
       // snapshot the visor is currently using.
@@ -4419,38 +4471,6 @@ module.exports = function (app: any) {
       sessionRecorder.stop();
     }
     lastEngagedState = engagedNow;
-    // Rev570: feed the navigation database every tick (a disengage
-    // closes its window). Records only; never writes to pypilot.
-    if (navDb) {
-      try {
-        const pv = (client && client.connected) ? client.getValues() : {};
-        const pilot = typeof pv["ap.pilot"] === "string" ? pv["ap.pilot"] as string : null;
-        const gains: Record<string, number> = {};
-        const terms: Record<string, number> = {};
-        if (pilot) {
-          for (const k of ["P", "I", "D", "DD", "PR", "FF"]) {
-            const g = pv[`ap.pilot.${pilot}.${k}`];
-            if (typeof g === "number") gains[k] = g;
-            const c = pv[`ap.pilot.${pilot}.${k}gain`];
-            if (typeof c === "number") terms[k] = c;
-          }
-        }
-        const twa = (app.getSelfPath ? app.getSelfPath("environment.wind.angleTrueWater.value") : null);
-        const twaRad = typeof twa === "number" ? twa : null;
-        navDb.onSample({
-          ts: s.ts, engaged: engagedNow, mode: s.mode, pilot,
-          profile: typeof pv["profile"] === "string" ? pv["profile"] as string : null,
-          gains, terms,
-          hdgErr: _modeAwareErrRad(s, twaRad),
-          hdgRate: typeof pv["imu.headingrate"] === "number" ? pv["imu.headingrate"] as number : null,
-          servoCur: s.servoCurrent,
-          servoFlags: typeof pv["servo.flags"] === "string" ? pv["servo.flags"] as string : null,
-          tws: s.tws, twa: twaRad, aws: s.aws, awa: s.awa, sog: s.sog, heel: s.heel, pitch: s.pitch,
-          tackState: typeof pv["ap.tack.state"] === "string" ? pv["ap.tack.state"] as string : null,
-          gustActive: _gustBoostUntilMs != null || _gustHeavyUntilMs != null,
-        });
-      } catch { /* silent */ }
-    }
     if (engagedNow && sessionRecorder.isRecording()) {
       const pv = (client && client.connected) ? client.getValues() : {};
       // Rev146: TWA comes from angleTrueWater in most SK setups
@@ -5054,6 +5074,7 @@ module.exports = function (app: any) {
   }
   // Rev167: gust strategy dispatcher. Called once per detected gust.
   function _applyGustStrategy(strat: string, minKn: number, maxKn: number, s: Sample, now: number): void {
+    _lastGustDetectTs = now;   // Rev574 (audit #E): nav-db marks the window whatever the strategy
     const summary = `AWS ${minKn.toFixed(0)}->${maxKn.toFixed(0)} kn in ${(GUST_WINDOW_MS / 1000).toFixed(0)} s`;
     if (strat === "warn") {
       _emitAdvisoryNotification("gust-detected", `Gust detected: ${summary}`);

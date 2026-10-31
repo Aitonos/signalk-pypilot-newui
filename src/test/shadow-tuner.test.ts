@@ -6,14 +6,14 @@ import type { NavDbRow } from "../nav-db";
 
 function row(o: { res?: Partial<NavDbRow["res"]>; ctx?: Partial<NavDbRow["ctx"]>; ep?: Partial<NavDbRow["ep"]>; valid?: boolean; t0?: number } = {}): NavDbRow {
   return {
-    type: "window", format: 1, rev: "T", t0: o.t0 ?? 0, t1: 89_000, n: 90, valid: o.valid ?? true, why: [],
+    type: "window", format: 1, rev: "T", t0: o.t0 ?? 0, t1: (o.t0 ?? 0) + 89_000, n: 90, valid: o.valid ?? true, why: [],
     ctx: {
       mode: "compass", pilot: "basic", profile: "default", gains: { P: 0.0165, D: 0.15, PR: 0.005 }, tack: "port",
       twsKn: 10, twsSdKn: 1, twaDeg: 140, awaDeg: -120, awsKn: 8, sogKn: 5,
       heelDeg: 8, rollSdDeg: 3, pitchSdDeg: 2, yawRateRmsDps: 2, ...(o.ctx || {}),
     },
     res: {
-      errMeanDeg: 0, errRmsDeg: 2, errP95Deg: 4, crossings: 2, servoDutyPct: 30, servoCoveragePct: 100,
+      errMeanDeg: 0, errRmsDeg: 2, errP95Deg: 4, crossings: 2, steadyPct: 100, servoDutyPct: 30, servoCoveragePct: 100,
       servoCurMeanA: 1, overcurrent: false, termsRms: {}, ...(o.res || {}),
     },
     ep: { n: 0, complete: 0, overshootMean: null, riseMeanSec: null, ...(o.ep || {}) },
@@ -79,5 +79,16 @@ describe("ShadowTuner (Rev572)", () => {
   it("calm sea is not a sea-state change", () => {
     assert.deepEqual(incomparable(row({ ctx: { rollSdDeg: 0.2 } }), row({ ctx: { rollSdDeg: 0.6 } })), []);
     assert.deepEqual(incomparable(row({ ctx: { rollSdDeg: 3 } }), row({ ctx: { rollSdDeg: 6 } })), ["sea"]);
+  });
+});
+
+describe("ShadowTuner contiguity (Rev574, audit #C)", () => {
+  it("windows far apart in time are not comparable nor an A/B/A", () => {
+    const t = new ShadowTuner();
+    t.decide(row({ t0: 0 }));
+    const later = { ...row({ t0: 3_600_000 }), t1: 3_689_000 };
+    assert.equal(t.decide(later).comparablePrev, null);
+    const next = { ...row({ t0: 3_690_000 }), t1: 3_779_000 };
+    assert.equal(t.decide(next).abaFeasible, false, "the first of the three is an hour earlier");
   });
 });

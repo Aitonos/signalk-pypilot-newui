@@ -45,13 +45,16 @@ export interface NavDbSample {
   pitch: number | null;
   /** pypilot ap.tack.state ("none" when no tack). */
   tackState: string | null;
-  /** A gust strategy (more D / heavy profile) is acting. */
+  /** A gust was detected in the last 30 s or a gust strategy is acting. */
   gustActive: boolean;
+  /** Rev574: no correction to a new target in progress and well past
+   *  engaging. Only these samples count for the heading-error numbers. */
+  steady?: boolean;
 }
 
 export interface NavDbEpisode { startedTs: number; endedTs: number; overshoot: number | null; riseSec: number | null; complete: boolean }
 
-export type ExcludeReason = "mode" | "profile" | "gains" | "tack" | "gust" | "coverage" | "short";
+export type ExcludeReason = "mode" | "profile" | "gains" | "tack" | "gust" | "coverage" | "short" | "steps";
 
 export interface NavDbRow {
   type: "window";
@@ -77,6 +80,8 @@ export interface NavDbRow {
   res: {
     errMeanDeg: number | null; errRmsDeg: number | null; errP95Deg: number | null;
     crossings: number;
+    /** Rev574: % of samples that were steady (error numbers use only those). */
+    steadyPct: number;
     servoDutyPct: number | null; servoCoveragePct: number; servoCurMeanA: number | null;
     overcurrent: boolean;
     /** RMS of each term's contribution to the servo command. */
@@ -126,6 +131,7 @@ export class NavDbWindow {
   private absErr: number[] = [];
   private crossings = 0;
   private lastErrSign = 0;
+  private steadyN = 0;
   private curN = 0; private curOn = 0; private cur = new Stat();
   private overcurrent = false;
   private tws = new Stat(); private sog = new Stat(); private aws = new Stat();
@@ -152,7 +158,13 @@ export class NavDbWindow {
     }
     if (s.tackState && s.tackState !== "none") this.why.add("tack");
     if (s.gustActive) this.why.add("gust");
-    if (typeof s.hdgErr === "number" && isFinite(s.hdgErr)) {
+    // Rev574 (audit 3.8.0 #B/#D): heading-error numbers from steady
+    // samples only. A +10 or the first turn after engaging is a step
+    // response, not a sustained offset or an oscillation.
+    const steady = s.steady !== false;
+    if (steady) this.steadyN += 1;
+    else this.lastErrSign = 0;
+    if (steady && typeof s.hdgErr === "number" && isFinite(s.hdgErr)) {
       this.err.add(s.hdgErr);
       if (this.absErr.length < 600) this.absErr.push(Math.abs(s.hdgErr));
       const sg = Math.sign(s.hdgErr);
@@ -182,7 +194,8 @@ export class NavDbWindow {
   close(rev: string, episodes: NavDbEpisode[], minSec: number): NavDbRow {
     const why = new Set(this.why);
     if (this.durationSec() < minSec) why.add("short");
-    if (this.n > 0 && this.err.n / this.n < 0.8) why.add("coverage");
+    if (this.n > 0 && this.steadyN / this.n < 0.5) why.add("steps");
+    else if (this.steadyN > 0 && this.err.n / this.steadyN < 0.8) why.add("coverage");
     const sorted = this.absErr.slice().sort((a, b) => a - b);
     const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : null;
     const awa = this.awa.mean();
@@ -213,6 +226,7 @@ export class NavDbWindow {
       res: {
         errMeanDeg: r1(deg(this.err.mean())), errRmsDeg: r1(deg(this.err.rms())), errP95Deg: r1(deg(p95)),
         crossings: this.crossings,
+        steadyPct: this.n ? Math.round(100 * this.steadyN / this.n) : 0,
         servoDutyPct: this.curN ? Math.round(100 * this.curOn / this.curN) : null,
         servoCoveragePct: this.n ? Math.round(100 * this.curN / this.n) : 0,
         servoCurMeanA: r1(this.cur.mean()),

@@ -44,6 +44,9 @@ export interface ShadowTunerOptions {
 }
 
 const SEA_REL = 0.25;
+/** Rev574 (audit #C): windows further apart than this are not "in a row". */
+const CONTIGUOUS_MS = 5000;
+const contiguous = (a: NavDbRow, b: NavDbRow) => b.t0 - a.t1 <= CONTIGUOUS_MS && b.t0 >= a.t0;
 const TWS_KN = 2.5;
 
 function seaClose(a: number | null, b: number | null, floor: number): boolean {
@@ -82,7 +85,7 @@ export class ShadowTuner {
     const prev = this.recent[this.recent.length - 1] ?? null;
     let comparablePrev: boolean | null = null;
     let notComparableWhy: string[] = [];
-    if (prev && prev.valid && row.valid) {
+    if (prev && prev.valid && row.valid && contiguous(prev, row)) {
       notComparableWhy = incomparable(prev, row);
       comparablePrev = notComparableWhy.length === 0;
     }
@@ -90,6 +93,7 @@ export class ShadowTuner {
     if (this.recent.length > 3) this.recent.shift();
     const r = this.recent;
     const abaFeasible = r.length === 3
+      && contiguous(r[0], r[1]) && contiguous(r[1], r[2])
       && incomparable(r[0], r[1]).length === 0
       && incomparable(r[1], r[2]).length === 0
       && incomparable(r[0], r[2]).length === 0;
