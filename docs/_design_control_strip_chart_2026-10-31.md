@@ -160,6 +160,16 @@ tenía demasiado aire.
 - Barra de pestañas en vertical: relleno 12 -> 7 px y letra 14 -> 13 px:
   44 -> 32 px de alto.
 
+## Novena ronda (Rev596)
+
+Carlos: en vertical normal con la barra de escora, quitar un 20 % de alto a
+los botones y dárselo a la rosa (con gráfica o Freeboard está bien).
+
+- El tope de alto de la rosa en esa vista se calcula para que cada fila de
+  botones quede al 80 % de lo que tendría; la rosa crece con animación.
+- Móvil 412 x 660: botones 116 -> 91 px, rosa 292 -> 343 px. Gráfica,
+  Freeboard y pantalla completa sin cambios.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -171,7 +181,7 @@ tenía demasiado aire.
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev595)
+## QA en el barco (QA Rev596)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.

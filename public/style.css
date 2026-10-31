@@ -2450,6 +2450,14 @@ main { touch-action: pan-y; overflow-x: hidden; }
   #tab-control .dash-rose {
     flex: 0 1 auto;
     max-height: calc(100% - 26px - 2 * clamp(60px, 15vw, 96px) - var(--rose-strip-h));
+    transition: max-height 250ms ease;
+  }
+  /* Rev596 (Carlos): normal view with the heel bar - the buttons give
+     20 % of the height they had to the rose (chart / Freeboard views and
+     full screen unchanged). */
+  body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) .dash-rose {
+    max-height: calc(100% - 26px - var(--strip-heel-h)
+      - 1.6 * (clamp(60px, 15vw, 96px) + (var(--strip-chart-h) - var(--strip-heel-h)) / 2));
   }
 }
 @media (orientation: portrait) and (max-width: 600px) {
