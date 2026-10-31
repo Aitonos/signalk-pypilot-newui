@@ -35,6 +35,10 @@ export interface Sample {
   twa:           number | null;  // rad - environment.wind.angleTrue
   tws:           number | null;  // m/s - environment.wind.speedTrue
   sog:           number | null;  // m/s
+  // Rev584 (Carlos): polar target speed (performance.polarSpeed) so the
+  // Control strip chart can draw SOG against it. Optional: only set
+  // when a polar plugin publishes it.
+  polarSpeed?:   number | null;  // m/s
   heel:          number | null;  // rad - navigation.attitude.roll (positive stbd)
   // Rev299 (I1): pitch/trim angle. Positive = bow up. Consumed by the
   // attitude-pitch-extreme alarm rule and any future wave/burial

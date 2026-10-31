@@ -749,6 +749,9 @@
       "dash.custom.add": "Add",
       "dash.helmBar.title":  "BOTTOM BAR (indicator)",
       "dash.helmBar.hint":   "Pick what the big bar at the bottom shows: rudder angle or boat heel.",
+      "dash.helmChart.title": "CHART IN THE BOTTOM BAR",
+      "dash.helmChart.hint":  "Double tap the bottom bar to switch between the bar and this chart.",
+      "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
       "dash.helmBar.rudder": "Rudder angle",
       "dash.overlay.gust.title": "Gust marker",
@@ -1804,6 +1807,9 @@
       "dash.custom.add": "Añadir",
       "dash.helmBar.title":  "BARRA INFERIOR (indicador)",
       "dash.helmBar.hint":   "Elige que se muestra en la barra de abajo: el ángulo del timón o la escora del barco.",
+      "dash.helmChart.title": "GRÁFICA EN LA BARRA DE ABAJO",
+      "dash.helmChart.hint":  "Doble toque en la barra de abajo para alternar entre la barra y esta gráfica.",
+      "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
       "dash.helmBar.rudder": "Ángulo del timón",
       "dash.overlay.gust.title": "Marca de ráfagas",
@@ -4863,6 +4869,7 @@
     "pypilot-newui.roseBottomChipPaths", "pypilot-newui.windCornerShow", "pypilot-newui.windCornerPinned",
     "pypilot-newui.windArrow.awa", "pypilot-newui.windArrow.twa", "pypilot-newui.showCog",
     "pypilot-newui.showCurrent", "pypilotnewui.helmBar",
+    "pypilotnewui.helmView", "pypilotnewui.helmChart",
   ];
   const DISPLAY_PRESETS_LOCAL_KEY = "pypilot-newui.displayPresets";
   let _dashPresetsServer = [];
@@ -19029,6 +19036,8 @@
     tws:           "#5ce8c0",   // teal
     heel:          "#b58cff",   // purple
     sog:           "#ff8c1a",   // orange
+    polarSpeed:    "#ffffff",   // white, dashed (Rev584)
+    twa:           "#5ab0ff",   // blue (Rev584)
   };
   const CHART_LABELS = {
     headingCmd:    "HDG cmd",
@@ -19039,23 +19048,34 @@
     tws:           "TWS",
     heel:          "Heel",
     sog:           "SOG",
+    polarSpeed:    "Polar",
+    twa:           "TWA",
   };
+  // Rev584 (Carlos): a series listed here shares the band (and the
+  // scale) of its partner when both are on, so SOG is read against the
+  // polar target and AWA against TWA instead of in separate bands.
+  const CHART_PAIRS = { polarSpeed: "sog", twa: "awa" };
+  const CHART_DASHED = new Set(["polarSpeed"]);
   // A short formatter per path for the value label at the end of each
   // trace. Rad-valued angles go to degrees; speeds go to knots.
   function _fmtSampleValue(key, v) {
     if (v == null || typeof v !== "number") return "--";
-    if (key === "headingCmd" || key === "headingActual" || key === "awa" || key === "heel" || key === "rudder") {
+    if (key === "headingCmd" || key === "headingActual" || key === "awa" || key === "twa" || key === "heel" || key === "rudder") {
       return `${(v * RAD2DEG).toFixed(1)}°`;
     }
-    if (key === "tws" || key === "sog") {
+    if (key === "tws" || key === "sog" || key === "polarSpeed") {
       return `${(v * 1.94384).toFixed(1)} kn`;
     }
     if (key === "servoCurrent") return `${v.toFixed(2)} A`;
     return v.toFixed(2);
   }
 
-  const CHART_WINDOWS = { "30s": 30000, "2m": 120000, "10m": 600000 };
+  const CHART_WINDOWS = { "30s": 30000, "2m": 120000, "10m": 600000, "30m": 1800000 };
+  // Rev584: the renderer below draws any chart state shaped like this
+  // one; the Control strip keeps its own (_helmChart) on another canvas.
   const _chart = {
+    canvasId: "chart-canvas",
+    hintId: "chart-empty-hint",
     window: "30s",
     enabled: new Set(["headingCmd", "headingActual", "awa"]),
     lastSamples: [],
@@ -19064,30 +19084,34 @@
     canvas: null,
   };
 
-  async function chartFetchAndDraw() {
-    if (!_chart.canvas) _chart.canvas = document.getElementById("chart-canvas");
-    if (!_chart.canvas) return;
+  async function chartFetchAndDraw(c = _chart) {
+    if (!c.canvas) c.canvas = document.getElementById(c.canvasId);
+    if (!c.canvas) return;
     // Rev129 (Carlos): freeze auto-refresh while the user is hovering
     // a point. They are inspecting a specific instant and a redraw
     // would move the tooltip out from under the cursor.
-    if (_chart.hoverActive) return;
-    const wnd = _chart.window;
-    const enabledArr = [..._chart.enabled];
+    if (c.hoverActive) return;
+    const wnd = c.window;
+    const enabledArr = [...c.enabled];
     const pathsQ = enabledArr.length > 0 ? `&paths=${enabledArr.join(",")}` : "";
     try {
       const res = await fetch(`/plugins/${PLUGIN_ID}/history?window=${wnd}${pathsQ}`);
       if (!res.ok) return;
       const json = await res.json();
-      _chart.lastSamples = json.samples || [];
-      _chart.lastFetchTs = Date.now();
-      const footer = document.getElementById("chart-footer-count");
-      if (footer) footer.textContent = `${_chart.lastSamples.length} samples (window ${wnd})`;
-      chartDraw();
+      // The window or the series may have changed while we waited.
+      if (wnd !== c.window) return;
+      c.lastSamples = json.samples || [];
+      c.lastFetchTs = Date.now();
+      if (c === _chart) {
+        const footer = document.getElementById("chart-footer-count");
+        if (footer) footer.textContent = `${c.lastSamples.length} samples (window ${wnd})`;
+      }
+      chartDraw(c);
     } catch { /* silent - a failed poll should not spam the console */ }
   }
 
-  function chartDraw() {
-    const canvas = _chart.canvas || document.getElementById("chart-canvas");
+  function chartDraw(c = _chart) {
+    const canvas = c.canvas || document.getElementById(c.canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -19104,24 +19128,37 @@
     ctx.fillStyle = "#0e141b";
     ctx.fillRect(0, 0, cssW, cssH);
     // Enabled paths with at least one non-null value in the window.
-    const enabled = [..._chart.enabled].filter((k) => {
-      return _chart.lastSamples.some((s) => typeof s[k] === "number" && isFinite(s[k]));
+    const enabled = [...c.enabled].filter((k) => {
+      return c.lastSamples.some((s) => typeof s[k] === "number" && isFinite(s[k]));
     });
-    const hint = document.getElementById("chart-empty-hint");
-    if (enabled.length === 0 || _chart.lastSamples.length === 0) {
-      if (hint) { hint.textContent = t("chart.empty"); hint.hidden = false; }
+    const hint = document.getElementById(c.hintId);
+    if (enabled.length === 0 || c.lastSamples.length === 0) {
+      if (hint) { hint.textContent = t(c.emptyKey || "chart.empty"); hint.hidden = false; }
       return;
     }
     if (hint) hint.hidden = true;
 
-    const nowTs = _chart.lastFetchTs || Date.now();
-    const windowMs = CHART_WINDOWS[_chart.window] || 30000;
+    const nowTs = c.lastFetchTs || Date.now();
+    const windowMs = CHART_WINDOWS[c.window] || 30000;
     const tMin = nowTs - windowMs;
     const tMax = nowTs;
     const marginL = 8, marginR = 60, marginT = 4, marginB = 20;
     const plotW = cssW - marginL - marginR;
     const plotH = cssH - marginT - marginB;
-    const bandH = plotH / enabled.length;
+    // Rev584: group paired series into one band (see CHART_PAIRS).
+    const groups = [];
+    for (const key of enabled) {
+      const partner = CHART_PAIRS[key];
+      if (partner && enabled.includes(partner)) continue;
+      groups.push([key]);
+    }
+    for (const key of enabled) {
+      const partner = CHART_PAIRS[key];
+      if (!partner || !enabled.includes(partner)) continue;
+      const g = groups.find((gr) => gr[0] === partner);
+      if (g) g.push(key);
+    }
+    const bandH = plotH / groups.length;
 
     // X-axis time ticks at 0%, 50%, 100% of window.
     ctx.strokeStyle = "#4a5a6e";
@@ -19129,8 +19166,8 @@
     ctx.fillStyle = "#b8c4d0";
     ctx.font = "10px ui-monospace, monospace";
     const timeLabels = [
-      { frac: 0.0, txt: `-${_chart.window}` },
-      { frac: 0.5, txt: `-${_halfLabel(_chart.window)}` },
+      { frac: 0.0, txt: `-${c.window}` },
+      { frac: 0.5, txt: `-${_halfLabel(c.window)}` },
       { frac: 1.0, txt: "NOW" },
     ];
     for (const tk of timeLabels) {
@@ -19143,25 +19180,28 @@
       ctx.fillText(tk.txt, x, cssH - 6);
     }
 
-    // Per-band trace + Y scale ticks (Rev129).
-    // Snapshot the band geometry so the hover handler can hit-test
-    // without re-computing.
-    _chart.bands = [];
-    for (let bi = 0; bi < enabled.length; bi += 1) {
-      const key = enabled[bi];
+    // Per-band traces + Y scale ticks (Rev129). Series in one band share
+    // the scale. Snapshot the band geometry so the hover handler can
+    // hit-test without re-computing.
+    c.bands = [];
+    for (let bi = 0; bi < groups.length; bi += 1) {
+      const keys = groups[bi];
+      const key = keys[0];
       const bandTop = marginT + bi * bandH;
       const bandBot = bandTop + bandH - 2;
       let vmin = Infinity, vmax = -Infinity;
-      for (const s of _chart.lastSamples) {
-        const v = s[key];
-        if (typeof v === "number" && isFinite(v)) {
-          if (v < vmin) vmin = v;
-          if (v > vmax) vmax = v;
+      for (const s of c.lastSamples) {
+        for (const k of keys) {
+          const v = s[k];
+          if (typeof v === "number" && isFinite(v)) {
+            if (v < vmin) vmin = v;
+            if (v > vmax) vmax = v;
+          }
         }
       }
       if (vmin === Infinity) continue;
       if (vmax - vmin < 1e-9) { vmin -= 0.5; vmax += 0.5; }
-      _chart.bands.push({ key, bandTop, bandBot, vmin, vmax });
+      c.bands.push({ key, keys, bandTop, bandBot, vmin, vmax });
       // Band separator line.
       if (bi > 0) {
         ctx.strokeStyle = "#1c2632";
@@ -19170,20 +19210,24 @@
         ctx.lineTo(marginL + plotW, bandTop);
         ctx.stroke();
       }
-      // Trace.
-      ctx.strokeStyle = CHART_COLORS[key] || "#e6edf3";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      let started = false;
-      for (const s of _chart.lastSamples) {
-        const v = s[key];
-        if (typeof v !== "number" || !isFinite(v)) { started = false; continue; }
-        const x = marginL + ((s.ts - tMin) / (tMax - tMin)) * plotW;
-        const y = bandBot - ((v - vmin) / (vmax - vmin)) * (bandBot - bandTop);
-        if (!started) { ctx.moveTo(x, y); started = true; }
-        else ctx.lineTo(x, y);
+      // Traces.
+      for (const k of keys) {
+        ctx.strokeStyle = CHART_COLORS[k] || "#e6edf3";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash(CHART_DASHED.has(k) ? [6, 4] : []);
+        ctx.beginPath();
+        let started = false;
+        for (const s of c.lastSamples) {
+          const v = s[k];
+          if (typeof v !== "number" || !isFinite(v)) { started = false; continue; }
+          const x = marginL + ((s.ts - tMin) / (tMax - tMin)) * plotW;
+          const y = bandBot - ((v - vmin) / (vmax - vmin)) * (bandBot - bandTop);
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
+      ctx.setLineDash([]);
       // Rev129 (Carlos): Y-scale ticks (min / mid / max) inside the
       // right-side gutter so the user reads absolute values, not
       // just a shape.
@@ -19191,45 +19235,53 @@
       ctx.textAlign = "left";
       ctx.font = "9px ui-monospace, monospace";
       const mid = (vmin + vmax) / 2;
-      ctx.textBaseline = "top";
-      ctx.fillText(_fmtSampleValue(key, vmax), marginL + plotW + 4, bandTop + 22);
-      ctx.textBaseline = "middle";
-      ctx.fillText(_fmtSampleValue(key, mid), marginL + plotW + 4, (bandTop + bandBot) / 2 + 2);
+      const labelsH = keys.length * 12;
+      // Short bands (the Control strip on a phone) only fit some of the
+      // scale labels under the series names.
+      const room = (bandBot - bandTop) - labelsH - 8;
+      if (room >= 36) {
+        ctx.textBaseline = "top";
+        ctx.fillText(_fmtSampleValue(key, vmax), marginL + plotW + 4, bandTop + 10 + labelsH);
+      }
+      if (room >= 60) {
+        ctx.textBaseline = "middle";
+        ctx.fillText(_fmtSampleValue(key, mid), marginL + plotW + 4, (bandTop + bandBot) / 2 + 2);
+      }
       ctx.textBaseline = "bottom";
       ctx.fillText(_fmtSampleValue(key, vmin), marginL + plotW + 4, bandBot - 2);
-      // Label on the right side: name + last value.
-      const last = [..._chart.lastSamples].reverse().find((s) => typeof s[key] === "number" && isFinite(s[key]));
-      const lastV = last ? last[key] : null;
-      ctx.fillStyle = CHART_COLORS[key] || "#e6edf3";
+      // Names on the right side, one line per series, in its colour.
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.font = "10px ui-monospace, monospace";
-      ctx.fillText(CHART_LABELS[key], marginL + plotW + 4, bandTop + 8);
+      keys.forEach((k, i) => {
+        ctx.fillStyle = CHART_COLORS[k] || "#e6edf3";
+        ctx.fillText(CHART_LABELS[k] || k, marginL + plotW + 4, bandTop + 8 + i * 12);
+      });
     }
     // Cache geometry for hover.
-    _chart.geom = { marginL, marginR, marginT, marginB, plotW, plotH, tMin, tMax, cssW, cssH };
+    c.geom = { marginL, marginR, marginT, marginB, plotW, plotH, tMin, tMax, cssW, cssH };
 
     // Rev129: if hover is active, draw crosshair + tooltip on top.
-    if (_chart.hoverActive && _chart.hoverTs != null) {
-      _chartDrawHover(ctx, cssW, cssH);
+    if (c.hoverActive && c.hoverTs != null) {
+      _chartDrawHover(c, ctx, cssW, cssH);
     }
   }
 
   // Rev129 (Carlos): hover crosshair + tooltip. Snaps the vertical
   // line to the closest sample timestamp so the user reads exact
   // recorded values, not interpolated ones.
-  function _chartDrawHover(ctx, cssW, cssH) {
-    const g = _chart.geom;
-    if (!g || _chart.hoverTs == null) return;
-    // Find nearest sample to _chart.hoverTs.
+  function _chartDrawHover(c, ctx, cssW, cssH) {
+    const g = c.geom;
+    if (!g || c.hoverTs == null) return;
+    // Find nearest sample to c.hoverTs.
     let nearestIdx = -1;
     let nearestDt = Infinity;
-    for (let i = 0; i < _chart.lastSamples.length; i += 1) {
-      const dt = Math.abs(_chart.lastSamples[i].ts - _chart.hoverTs);
+    for (let i = 0; i < c.lastSamples.length; i += 1) {
+      const dt = Math.abs(c.lastSamples[i].ts - c.hoverTs);
       if (dt < nearestDt) { nearestDt = dt; nearestIdx = i; }
     }
     if (nearestIdx < 0) return;
-    const sample = _chart.lastSamples[nearestIdx];
+    const sample = c.lastSamples[nearestIdx];
     const x = g.marginL + ((sample.ts - g.tMin) / (g.tMax - g.tMin)) * g.plotW;
     // Vertical crosshair.
     ctx.strokeStyle = "#4dd4ff";
@@ -19244,10 +19296,12 @@
     const lines = [];
     const ageS = Math.max(0, (Date.now() - sample.ts) / 1000);
     lines.push(`-${ageS.toFixed(1)} s`);
-    for (const b of (_chart.bands || [])) {
-      const v = sample[b.key];
-      if (typeof v === "number" && isFinite(v)) {
-        lines.push(`${CHART_LABELS[b.key] || b.key}: ${_fmtSampleValue(b.key, v)}`);
+    for (const b of (c.bands || [])) {
+      for (const k of b.keys) {
+        const v = sample[k];
+        if (typeof v === "number" && isFinite(v)) {
+          lines.push(`${CHART_LABELS[k] || k}: ${_fmtSampleValue(k, v)}`);
+        }
       }
     }
     ctx.font = "11px ui-monospace, monospace";
@@ -19276,6 +19330,7 @@
     if (w === "30s") return "15s";
     if (w === "2m") return "1m";
     if (w === "10m") return "5m";
+    if (w === "30m") return "15m";
     return "";
   }
 
@@ -19298,16 +19353,16 @@
 
   function wireChart() {
     // Window buttons (30s / 2m / 10m).
-    document.querySelectorAll(".chart-window-btn").forEach((btn) => {
+    document.querySelectorAll("#tab-chart .chart-window-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".chart-window-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll("#tab-chart .chart-window-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         _chart.window = btn.dataset.window || "30s";
         chartFetchAndDraw();
       });
     });
     // Path chips.
-    document.querySelectorAll(".chart-path-chip input[type=checkbox]").forEach((cb) => {
+    document.querySelectorAll("#tab-chart .chart-path-chip input[type=checkbox]").forEach((cb) => {
       cb.addEventListener("change", () => {
         const key = cb.dataset.path;
         if (!key) return;
@@ -19326,7 +19381,7 @@
     let _resizeTimer = null;
     window.addEventListener("resize", () => {
       if (_resizeTimer) clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(() => chartDraw(), 250);
+      _resizeTimer = setTimeout(() => { chartDraw(); _helmChartRedraw(); }, 250);
     });
     // Rev129 (Carlos): hover / touch on the canvas snaps a vertical
     // crosshair to the closest sample and shows all values in a
@@ -19385,6 +19440,114 @@
   }
   function chartOnTabLeave() {
     if (_chart.autoTimer) { clearInterval(_chart.autoTimer); _chart.autoTimer = null; }
+  }
+
+  // Rev584 (Carlos): chart view of the Control bottom strip. Same
+  // renderer and /history data as the Chart tab, own series + window.
+  // View, series and window are display settings of this device
+  // (like helmBar), so they live in localStorage and in the presets.
+  const _HELM_VIEW_LS_KEY = "pypilotnewui.helmView";
+  const _HELM_CHART_LS_KEY = "pypilotnewui.helmChart";
+  const _HELM_CHART_PATHS = ["sog", "polarSpeed", "awa", "twa", "tws", "heel", "rudder", "servoCurrent"];
+  const _HELM_CHART_WINDOWS = ["2m", "10m", "30m"];
+  const _helmChart = {
+    canvasId: "helm-chart",
+    hintId: "helm-chart-empty",
+    emptyKey: "helmChart.empty",
+    window: "10m",
+    enabled: new Set(["sog", "polarSpeed", "awa", "twa"]),
+    lastSamples: [],
+    lastFetchTs: 0,
+    canvas: null,
+  };
+  (function _helmChartLoad() {
+    try {
+      const cfg = JSON.parse(localStorage.getItem(_HELM_CHART_LS_KEY) || "null");
+      if (cfg && _HELM_CHART_WINDOWS.includes(cfg.window)) _helmChart.window = cfg.window;
+      if (cfg && Array.isArray(cfg.series)) {
+        const ok = cfg.series.filter((k) => _HELM_CHART_PATHS.includes(k));
+        if (ok.length > 0) _helmChart.enabled = new Set(ok);
+      }
+    } catch { /* defaults */ }
+  })();
+  function _helmChartSave() {
+    try {
+      localStorage.setItem(_HELM_CHART_LS_KEY, JSON.stringify({
+        window: _helmChart.window, series: [..._helmChart.enabled],
+      }));
+    } catch { /* silent */ }
+  }
+  function _helmView() {
+    try { return localStorage.getItem(_HELM_VIEW_LS_KEY) === "chart" ? "chart" : "bar"; }
+    catch { return "bar"; }
+  }
+  function _helmChartVisible() {
+    if (_helmView() !== "chart" || document.visibilityState !== "visible") return false;
+    const cur = document.querySelector(".tab-btn.active");
+    return !cur || cur.dataset.tab === "control";
+  }
+  function _helmChartRedraw() {
+    if (_helmView() === "chart") chartDraw(_helmChart);
+  }
+  function _helmApplyView() {
+    const strip = document.getElementById("swipe-hint");
+    if (!strip) return;
+    const chart = _helmView() === "chart";
+    strip.classList.toggle("view-chart", chart);
+    if (chart) { chartDraw(_helmChart); chartFetchAndDraw(_helmChart); }
+  }
+  function _helmSetView(v) {
+    try { localStorage.setItem(_HELM_VIEW_LS_KEY, v === "chart" ? "chart" : "bar"); } catch { /* silent */ }
+    _helmApplyView();
+  }
+  function wireHelmChart() {
+    const strip = document.getElementById("swipe-hint");
+    if (!strip) return;
+    // Double tap anywhere on the strip except its own buttons (marker
+    // and triangle toggle the tab bar, arrows change tab).
+    let lastTap = 0, lastX = 0, lastY = 0;
+    strip.addEventListener("pointerup", (ev) => {
+      if (ev.target.closest(".rudder-marker, .nav-toggle, .swipe-hint-arrow")) return;
+      const now = Date.now();
+      const near = Math.abs(ev.clientX - lastX) < 40 && Math.abs(ev.clientY - lastY) < 40;
+      if (now - lastTap < 400 && near) {
+        lastTap = 0;
+        _helmSetView(_helmView() === "chart" ? "bar" : "chart");
+        return;
+      }
+      lastTap = now; lastX = ev.clientX; lastY = ev.clientY;
+    });
+    strip.addEventListener("dblclick", (ev) => ev.preventDefault());
+    // Popup controls (corner-config popup).
+    const winBtns = document.querySelectorAll("#helm-chart-windows .chart-window-btn");
+    winBtns.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.hwindow === _helmChart.window);
+      btn.addEventListener("click", () => {
+        winBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        _helmChart.window = btn.dataset.hwindow || "10m";
+        _helmChart.lastSamples = [];
+        _helmChartSave();
+        _helmApplyView();
+      });
+    });
+    document.querySelectorAll("#helm-chart-paths input[type=checkbox]").forEach((cb) => {
+      cb.checked = _helmChart.enabled.has(cb.dataset.hpath);
+      cb.addEventListener("change", () => {
+        const key = cb.dataset.hpath;
+        if (!key) return;
+        if (cb.checked) _helmChart.enabled.add(key);
+        else _helmChart.enabled.delete(key);
+        _helmChartSave();
+        _helmApplyView();
+      });
+    });
+    // Redraw when the strip changes size (rotation, tab bar hidden).
+    if (typeof ResizeObserver === "function") {
+      new ResizeObserver(() => _helmChartRedraw()).observe(strip);
+    }
+    setInterval(() => { if (_helmChartVisible()) chartFetchAndDraw(_helmChart); }, 2000);
+    _helmApplyView();
   }
 
   // ============================================================
@@ -19592,6 +19755,7 @@
     reorderSetupBlocks();
     initSetupTiles();
     wireChart();
+    wireHelmChart();
     // Rev101: kick off the alarm poll (banner + config panel + audio).
     alarmsStart();
     // Rev102: wire the pre-departure check refresh button. Poll starts

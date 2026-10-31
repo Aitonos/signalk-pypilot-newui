@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev583" />
+  <link rel="stylesheet" href="style.css?v=Rev585" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1029,6 +1029,23 @@
                 <span data-i18n="dash.helmBar.rudder">Rudder angle</span>
               </label>
             </div>
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px;margin-top:10px" data-i18n="dash.helmChart.title">CHART IN THE BOTTOM BAR</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmChart.hint">Double tap the bottom bar to switch between the bar and this chart.</div>
+            <div class="chart-window-row" id="helm-chart-windows">
+              <button class="chart-window-btn" data-hwindow="2m">2 min</button>
+              <button class="chart-window-btn" data-hwindow="10m">10 min</button>
+              <button class="chart-window-btn" data-hwindow="30m">30 min</button>
+            </div>
+            <div class="chart-paths-row" id="helm-chart-paths">
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="sog"><span>SOG</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="polarSpeed"><span>Polar</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="awa"><span>AWA</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="twa"><span>TWA</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="tws"><span>TWS</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="heel"><span>Heel</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="rudder"><span>Rudder</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="servoCurrent"><span>Servo A</span></label>
+            </div>
           </div>
           <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
           <div class="dash-corner-cfg" style="gap:6px">
@@ -1144,6 +1161,11 @@
                (same as the yellow #nav-toggle triangle); the source
                picker (Escora / Timón) lives in the dash-help-pop
                corner-config popup, not here. -->
+          <!-- Rev584 (Carlos): chart view of the strip. Double tap on the
+               strip alternates bar / chart; series and window are picked
+               in the corner-config popup. Drawn by the Chart tab renderer. -->
+          <canvas class="helm-chart" id="helm-chart"></canvas>
+          <div class="helm-chart-empty" id="helm-chart-empty" hidden></div>
           <div class="rudder-marker" id="rudder-marker" style="left:50%">
             <div class="rmk-tri rmk-tri-top">&#9660;</div>
             <div class="rmk-num" id="rudder-marker-num">--</div>
@@ -1312,6 +1334,8 @@
         <label class="chart-path-chip"><input type="checkbox" data-path="tws"><span>TWS</span></label>
         <label class="chart-path-chip"><input type="checkbox" data-path="heel"><span>Heel</span></label>
         <label class="chart-path-chip"><input type="checkbox" data-path="sog"><span>SOG</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="polarSpeed"><span>Polar</span></label>
+        <label class="chart-path-chip"><input type="checkbox" data-path="twa"><span>TWA</span></label>
       </div>
 
       <div class="chart-canvas-wrap">
@@ -2731,6 +2755,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev583"></script>
+  <script src="app.js?v=Rev585"></script>
 </body>
 </html>

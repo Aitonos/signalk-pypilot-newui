@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased (Rev584 → Rev585)
+
+### Added
+- **Control tab: the bottom bar uses all the free height.** In portrait the
+  rose keeps its shape and the heel / rudder bar takes the rest; in
+  landscape the button rows stop at 22 % of the screen height and the bar
+  takes the rest, also with the tab bar hidden. The number, ticks and
+  labels grow with the bar.
+- **Chart in the bottom bar.** Double tap the bar to switch between the
+  heel / rudder bar and a chart. Series and window (2 / 10 / 30 min) are
+  chosen in the corner-config popup; default SOG vs polar speed and
+  AWA / TWA. Same renderer and data as the Chart tab.
+- **Chart tab**: new Polar and TWA series. SOG and Polar share one band
+  and one scale (polar dashed), as do AWA and TWA.
+- The plugin history records `performance.polarSpeed` when a polar plugin
+  publishes it.
+
 ## 3.8.2 — 2026-10-31 — Safety fixes from two external audits and a self-audit
 
 Rolls up Rev575 → Rev583 on top of 3.8.1. Patch: fixes only. Details in

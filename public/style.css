@@ -1305,9 +1305,10 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
     grid-column: 2;
     grid-row: 1;
     display: grid;
-    /* Row 1 (tack+mode) and Row 2 (nudge+AP) share the vertical space
-       equally; the swipe-hint sits at the bottom on its own auto row. */
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto;
+    /* Row 1 (tack+mode) and Row 2 (nudge+AP) grow up to 22vh each;
+       Rev584 (Carlos): the bottom strip (heel bar / chart) takes all the
+       height that is left, also when the tab bar is hidden. */
+    grid-template-rows: minmax(56px, 22vh) minmax(56px, 22vh) minmax(48px, 1fr);
     gap: 8px;
     height: 100%;
     max-width: none;
@@ -1345,8 +1346,7 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   #tab-control .controls .steer-btn {
     font-size: clamp(16px, min(2.8vw, 4vh), 26px);
   }
-  /* The swipe-hint at the bottom stays compact regardless. */
-  #tab-control .controls .swipe-hint { min-height: 32px; }
+  #tab-control .controls .swipe-hint { min-height: 48px; }
 }
 
 /* Rev56: horizontal scroll wrapper for the paths tables. On portrait
@@ -2368,6 +2368,66 @@ main { touch-action: pan-y; overflow-x: hidden; }
 .swipe-hint-arrow:active { transform: scale(1.25); opacity: 1; }
 .swipe-hint-arrow + .swipe-hint-arrow { padding-left: 0; opacity: 0.35; }
 .swipe-hint-spacer { flex: 1; }
+
+/* Rev584 (Carlos): "ganar toda la altura posible para la barra de
+   escora". The strip grows into the space left under the buttons and
+   its contents scale with its height (container query units). */
+#tab-control .controls .swipe-hint {
+  flex: 1 1 auto;
+  min-height: 44px;
+  container-type: size;
+  touch-action: manipulation;   /* no double-tap zoom: double tap = view */
+}
+@media (orientation: portrait) {
+  /* The rose keeps its shape instead of absorbing the spare height. */
+  #tab-control .dash-rose { flex: 0 1 auto; }
+  #tab-control .dash-rose .rose-wrap {
+    height: auto;
+    aspect-ratio: 1 / 1.15;
+    max-height: 100%;
+  }
+  #tab-control .controls { flex: 1 0 auto; }
+}
+.swipe-hint .rudder-marker { margin-left: 0; transform: translateX(-50%); }
+.swipe-hint .rudder-marker .rmk-num { font-size: clamp(26px, 42cqh, 120px); }
+.swipe-hint .rudder-marker .rmk-tri { font-size: clamp(12px, 9cqh, 30px); }
+.swipe-hint .rudder-label { font-size: clamp(17px, 13cqh, 40px); }
+/* Bigger end labels need a wider inset so "30" / "70" are not clipped. */
+#tab-control .swipe-hint .rudder-track,
+#tab-control .swipe-hint .rudder-ticks { inset: 4px clamp(12px, calc(8cqh + 6px), 32px); }
+#tab-control .swipe-hint .rudder-label-left  { left:  clamp(12px, calc(8cqh + 6px), 32px); }
+#tab-control .swipe-hint .rudder-label-right { right: clamp(12px, calc(8cqh + 6px), 32px); }
+.swipe-hint .rudder-ticks .rl-major { font-size: clamp(15px, 11cqh, 34px); }
+.swipe-hint .rudder-ticks .rl-minor { font-size: clamp(11px, 7cqh, 22px); }
+/* Chart view (double tap): hide the bar, keep the tab-bar toggle. */
+.swipe-hint .helm-chart,
+.swipe-hint .helm-chart-empty { display: none; }
+.swipe-hint.view-chart > :not(.helm-chart):not(.helm-chart-empty):not(.nav-toggle) { display: none; }
+.swipe-hint.view-chart .helm-chart {
+  display: block;
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  z-index: 1;
+}
+.swipe-hint.view-chart .helm-chart-empty:not([hidden]) {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 2;
+  pointer-events: none;
+}
+.swipe-hint.view-chart .nav-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%) scale(0.65);
+  z-index: 3;
+}
 
 /* Rev41: slide animations for tab transitions live on .tab-panel plus
    the entering-<phase> and leaving-<phase> classes above. */
