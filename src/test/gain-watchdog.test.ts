@@ -151,3 +151,63 @@ describe("gain watchdog (Rev571)", () => {
     srv.close();
   });
 });
+
+describe("gain watchdog (Rev580, GPT re-audit R02/R04)", () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) killWatchdog(d); });
+
+  it("R02: a restore of an old trial never disarms a newer one", async () => {
+    // pypilot answers slowly, so a new trial starts while the old restore waits.
+    const state = { active: "tune-old" };
+    const srv = net.createServer((sock) => {
+      sock.setEncoding("utf8"); let buf = "";
+      sock.on("error", () => { /* */ });
+      sock.on("data", (d: string) => {
+        buf += d; let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl); buf = buf.slice(nl + 1);
+          if (line.startsWith("watch=")) setTimeout(() => {
+            sock.write(`profiles=${JSON.stringify(["A", "tune-old", "B", "tune-new"])}\n`);
+            sock.write(`profile=${JSON.stringify(state.active)}\n`);
+          }, 1500);
+          else if (line.startsWith("profile=")) { state.active = JSON.parse(line.slice(8)); sock.write(`profile=${JSON.stringify(state.active)}\n`); }
+        }
+      });
+    });
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", () => r()));
+    const port = (srv.address() as net.AddressInfo).port;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
+    const leaseFile = path.join(dir, "lease.json");
+    fs.writeFileSync(leaseFile, JSON.stringify({
+      id: "old", active: true, restoreProfile: "A", testProfile: "tune-old", host: "127.0.0.1", port,
+      renewedTs: Date.now() - 60_000, ttlMs: 1000,
+    }));
+    const g = new GainGuard({ dir, host: "127.0.0.1", port, scriptPath: SCRIPT });
+    g.recoverOnStart();
+    // the watchdog has started the old restore; a new trial takes the lease
+    assert.ok(await until(() => fs.existsSync(path.join(dir, "watchdog.log"))
+      && fs.readFileSync(path.join(dir, "watchdog.log"), "utf8").includes("restoring"), 6000));
+    fs.writeFileSync(leaseFile, JSON.stringify({
+      id: "new", active: true, restoreProfile: "B", testProfile: "tune-new", host: "127.0.0.1", port,
+      renewedTs: Date.now() + 60_000, ttlMs: 60_000,
+    }));
+    await wait(3000);
+    const l = JSON.parse(fs.readFileSync(leaseFile, "utf8"));
+    assert.equal(l.id, "new");
+    assert.equal(l.active, true, "the new trial is still protected");
+    srv.close();
+  });
+
+  it("R04: a watchdog that dies during a trial is started again", async () => {
+    const pp = await fakePypilot(["A", "T"], "T");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
+    const g = new GainGuard({ dir, host: "127.0.0.1", port: pp.port, ttlMs: 30_000, renewMs: 300, scriptPath: SCRIPT });
+    const armed = await g.begin({ restoreProfile: "A", testProfile: "T" });
+    assert.equal(armed.ok, true);
+    const pid1 = g.status().watchdogPid!;
+    process.kill(pid1, "SIGTERM");
+    assert.ok(await until(() => { const s = g.status(); return s.watchdogAlive && s.watchdogPid !== pid1; }, 8000), "restarted");
+    g.end();
+    pp.close();
+  });
+});

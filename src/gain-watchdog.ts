@@ -23,6 +23,9 @@ import * as net from "net";
 import * as path from "path";
 
 export interface GainLease {
+  /** Rev580 (GPT re-audit R02): one id per trial. Every write checks it,
+   *  so a restore of an old trial never touches a newer one. */
+  id?: string;
   active: boolean;
   /** Profile to go back to. */
   restoreProfile: string;
@@ -128,6 +131,9 @@ function writeLease(file: string, lease: GainLease): void {
 export function runWatchdog(dir: string): void {
   const leaseFile = path.join(dir, "lease.json");
   const pidFile = path.join(dir, "watchdog.pid");
+  // Rev580 (GPT re-audit R04): heartbeat, so the plugin can tell a live
+  // watchdog from a stuck one (a pid alone does not show progress).
+  const beatFile = path.join(dir, "watchdog.beat");
   const logFile = path.join(dir, "watchdog.log");
   const log = (msg: string) => {
     try {
@@ -149,35 +155,47 @@ export function runWatchdog(dir: string): void {
   process.on("SIGTERM", () => quit("SIGTERM"));
   process.on("SIGINT", () => quit("SIGINT"));
 
+  // Rev580 (GPT re-audit R02): only update the lease if it is still the
+  // trial this restore belongs to.
+  const writeIfSame = (id: string | undefined, patch: Partial<GainLease>): boolean => {
+    const cur = readLease(leaseFile);
+    if (!cur || cur.id !== id) return false;
+    writeLease(leaseFile, { ...cur, ...patch });
+    return true;
+  };
+
   const restore = async (lease: GainLease) => {
     restoring = true;
     log(`lease expired (${Math.round((Date.now() - lease.renewedTs) / 1000)} s without renewal) during trial of "${lease.testProfile}"; restoring "${lease.restoreProfile}"`);
     for (let i = 0; ; i += 1) {
       const now = readLease(leaseFile);
+      if (!now || now.id !== lease.id) {
+        log("a newer trial replaced this one; leaving it to its own lease");
+        break;
+      }
       // The plugin came back and renewed, or ended the trial itself.
-      if (!now || !now.active || Date.now() - now.renewedTs <= now.ttlMs) {
+      if (!now.active || Date.now() - now.renewedTs <= now.ttlMs) {
         log("plugin renewed or ended the trial meanwhile; nothing to do");
         break;
       }
       const r = await setProfile(lease.host, lease.port, lease.restoreProfile, 5000, lease.testProfile);
-      const cur = readLease(leaseFile) ?? lease;
       if (r === "ok") {
-        writeLease(leaseFile, { ...cur, active: false, restoredTs: Date.now(), restoredBy: "watchdog", lastAttemptError: undefined });
-        log(`restored "${lease.restoreProfile}"`);
+        if (writeIfSame(lease.id, { active: false, restoredTs: Date.now(), restoredBy: "watchdog", lastAttemptError: undefined })) log(`restored "${lease.restoreProfile}"`);
+        else log(`restored "${lease.restoreProfile}"; a newer trial now owns the lease, left untouched`);
         break;
       }
       if (r === "manual") {
-        writeLease(leaseFile, { ...cur, active: false, restoreSkipped: "sailor chose another profile" });
+        writeIfSame(lease.id, { active: false, restoreSkipped: "sailor chose another profile" });
         log(`not restoring "${lease.restoreProfile}": the active profile is no longer "${lease.testProfile}" (sailor's choice wins)`);
         break;
       }
       if (r === "missing") {
-        writeLease(leaseFile, { ...cur, active: false, restoreError: "missing" });
+        writeIfSame(lease.id, { active: false, restoreError: "missing" });
         log(`could not restore "${lease.restoreProfile}": the profile no longer exists`);
         break;
       }
       const wait = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** Math.min(i, 4));
-      writeLease(leaseFile, { ...cur, lastAttemptError: r });
+      if (!writeIfSame(lease.id, { lastAttemptError: r })) { log("a newer trial replaced this one during the retry"); break; }
       log(`attempt ${i + 1}: ${r}; retrying in ${wait / 1000} s`);
       await new Promise((res) => setTimeout(res, wait));
     }
@@ -185,6 +203,7 @@ export function runWatchdog(dir: string): void {
   };
 
   setInterval(() => {
+    try { fs.writeFileSync(beatFile, String(Date.now())); } catch { /* silent */ }
     if (restoring) return;
     const lease = readLease(leaseFile);
     const now = Date.now();

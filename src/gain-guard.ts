@@ -13,6 +13,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
+import { randomUUID } from "crypto";
 import type { GainLease } from "./gain-watchdog";
 
 export interface GainGuardOptions {
@@ -35,10 +36,15 @@ export class GainGuard {
   private readonly ttlMs: number;
   private readonly renewMs: number;
   private timer: NodeJS.Timeout | null = null;
+  /** Rev580 (GPT re-audit R02): the trial this plugin instance runs. A
+   *  lease left by a previous run is never renewed or ended by it. */
+  private currentId: string | null = null;
+  private readonly beatFile: string;
 
   constructor(private readonly opts: GainGuardOptions) {
     this.leaseFile = path.join(opts.dir, "lease.json");
     this.pidFile = path.join(opts.dir, "watchdog.pid");
+    this.beatFile = path.join(opts.dir, "watchdog.beat");
     this.ttlMs = opts.ttlMs ?? 15_000;
     this.renewMs = opts.renewMs ?? 3_000;
     try { fs.mkdirSync(opts.dir, { recursive: true }); } catch { /* silent */ }
@@ -59,9 +65,11 @@ export class GainGuard {
    *  really in place - the lease is on disk and the watchdog process is
    *  running (waits up to 3 s for it). Callers must not start a trial when
    *  ok is false. */
-  async begin(t: { restoreProfile: string; testProfile: string | null; reason?: string }): Promise<{ ok: boolean; error?: string }> {
+  async begin(t: { restoreProfile: string; testProfile: string | null; reason?: string }): Promise<{ ok: boolean; id?: string; error?: string }> {
+    const id = randomUUID();
+    this.currentId = id;
     const written = this.write({
-      active: true, restoreProfile: t.restoreProfile, testProfile: t.testProfile,
+      id, active: true, restoreProfile: t.restoreProfile, testProfile: t.testProfile,
       host: this.opts.host, port: this.opts.port ?? 23322,
       renewedTs: Date.now(), ttlMs: this.ttlMs, reason: t.reason,
     });
@@ -71,19 +79,23 @@ export class GainGuard {
     this.ensureWatchdog();
     const t0 = Date.now();
     while (Date.now() - t0 < 3000) {
-      const pid = this.watchdogPid();
-      if (pid != null && alive(pid)) return { ok: true };
+      if (this.watchdogHealthy()) return { ok: true, id };
       await new Promise((r) => setTimeout(r, 100));
     }
-    this.end();
+    this.end(id);
     return { ok: false, error: "the watchdog did not start" };
   }
 
-  /** Trial over (kept or undone by the caller itself). */
-  end(): void {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  /** Trial over (kept or undone by the caller itself). Rev580: only the
+   *  given trial (default: the current one) is closed. */
+  end(id?: string): void {
+    const which = id ?? this.currentId;
+    if (which === this.currentId) {
+      if (this.timer) { clearInterval(this.timer); this.timer = null; }
+      this.currentId = null;
+    }
     const l = this.read();
-    if (l && l.active) this.write({ ...l, active: false });
+    if (l && l.active && l.id === which) this.write({ ...l, active: false });
   }
 
   /** Plugin stopping: stop renewing but leave the lease, so a trial still
@@ -92,15 +104,30 @@ export class GainGuard {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 
-  status(): { lease: GainLease | null; watchdogPid: number | null; watchdogAlive: boolean } {
+  status(): { lease: GainLease | null; watchdogPid: number | null; watchdogAlive: boolean; currentId: string | null } {
+    return { lease: this.read(), watchdogPid: this.watchdogPid(), watchdogAlive: this.watchdogHealthy(), currentId: this.currentId };
+  }
+
+  /** Rev580 (GPT re-audit R04): running and making progress (heartbeat
+   *  under 5 s old), not just a pid. */
+  watchdogHealthy(): boolean {
     const pid = this.watchdogPid();
-    return { lease: this.read(), watchdogPid: pid, watchdogAlive: pid != null && alive(pid) };
+    if (pid == null || !alive(pid)) return false;
+    try { return Date.now() - Number(fs.readFileSync(this.beatFile, "utf8")) < 5000; } catch { return false; }
   }
 
   private renew(): void {
     const l = this.read();
-    if (!l || !l.active) { this.stop(); return; }
+    // Rev580: only our own trial; a newer or older lease is not ours.
+    if (!l || !l.active || l.id !== this.currentId) { this.stop(); return; }
     this.write({ ...l, renewedTs: Date.now() });
+    // Rev580 (GPT re-audit R04): if the watchdog died, start it again so
+    // the independent recovery is still there if the plugin fails next.
+    if (!this.watchdogHealthy()) {
+      const pid = this.watchdogPid();
+      if (pid != null && alive(pid)) this.opts.log?.("warn", "[gain-guard] watchdog not responding (no heartbeat)");
+      else { this.opts.log?.("warn", "[gain-guard] watchdog gone during a trial; starting it again"); this.ensureWatchdog(); }
+    }
   }
 
   private ensureWatchdog(): void {

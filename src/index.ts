@@ -81,7 +81,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev579";
+const PLUGIN_REVISION = "Rev580";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -528,13 +528,21 @@ module.exports = function (app: any) {
   // Rev578 (GPT audit B01): end a gain trial only once pypilot shows the
   // original profile again. If it does not within 5 s, stop renewing the
   // lease instead, so the watchdog takes over and restores it.
-  async function _gainTrialFinish(restore: string, reason: string): Promise<boolean> {
+  // Rev580 (GPT re-audit R03): `onlyIfActive` = automatic end: switch
+  // back only if that (test) profile is still active, otherwise the
+  // sailor chose and the trial just closes. An explicit end by the user
+  // switches back regardless. `id` = which trial.
+  async function _gainTrialFinish(restore: string, reason: string, opts: { id?: string; onlyIfActive?: string } = {}): Promise<boolean> {
     if (!gainGuard || !client) return false;
+    if (opts.onlyIfActive != null && client.getValues()["profile"] !== opts.onlyIfActive) {
+      gainGuard.end(opts.id);
+      return true;
+    }
     try { profileChangeLog.markPlannedWrite(restore, "user", reason); } catch { /* silent */ }
     const sent = client.set("profile", restore);
     const t0 = Date.now();
     while (sent && Date.now() - t0 < 5000) {
-      if (client.getValues()["profile"] === restore) { gainGuard.end(); return true; }
+      if (client.getValues()["profile"] === restore) { gainGuard.end(opts.id); return true; }
       await new Promise((r) => setTimeout(r, 100));
     }
     gainGuard.stop();
@@ -3490,13 +3498,17 @@ module.exports = function (app: any) {
         void (async () => {
           const armed = await gainGuard!.begin({ restoreProfile: from, testProfile: test, reason: "dock test" });
           if (!armed.ok) return res.status(500).json({ error: `watchdog not armed: ${armed.error}` });
+          const trialId = armed.id!;
           try { profileChangeLog.markPlannedWrite(test, "user", "watchdog dock test"); } catch { /* silent */ }
           client!.set("profile", test);
           // Rev574 (audit #H): a test nobody finishes ends by itself.
+          // Rev580 (GPT re-audit R03): only this trial, and only switching
+          // back if the test profile is still active (a profile the sailor
+          // picked meanwhile wins, as in the watchdog).
           setTimeout(() => {
             const l = gainGuard?.status().lease;
-            if (!l || !l.active || l.reason !== "dock test" || l.testProfile !== test) return;
-            void _gainTrialFinish(from, "watchdog dock test timeout");
+            if (!l || !l.active || l.id !== trialId) return;
+            void _gainTrialFinish(from, "watchdog dock test timeout", { id: trialId, onlyIfActive: test });
           }, 120_000);
           res.json({ ok: true, restoreProfile: from, testProfile: test });
         })();
@@ -3506,7 +3518,7 @@ module.exports = function (app: any) {
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const l = gainGuard.status().lease;
         if (!l || !l.active) { gainGuard.end(); return res.json({ ok: true, restored: null }); }
-        void _gainTrialFinish(l.restoreProfile, "watchdog test end").then((ok) => res.json({
+        void _gainTrialFinish(l.restoreProfile, "watchdog test end", { id: l.id }).then((ok) => res.json({
           ok, restored: ok ? l.restoreProfile : null,
           ...(ok ? {} : { note: "not confirmed: renewals stopped, the watchdog restores it" }),
         }));
