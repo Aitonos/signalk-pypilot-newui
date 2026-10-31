@@ -183,6 +183,19 @@ y perfil; el nombre del perfil se cortaba (completo solo en la lista).
 - Botón de perfil: nombre completo en las líneas que haga falta (antes
   cortado a 2 líneas), en vertical y apaisado.
 
+## Undécima ronda (Rev599-600)
+
+Carlos: en vertical normal con escora no se aprovecha todo el alto para la
+rosa; y bajar un 5 % la barra de escora para dárselo a la rosa.
+
+- La rosa tenía un tope de forma 1 : 1,15; en pantallas altas el sobrante
+  iba a los botones. En esta vista ahora los botones tienen alto fijo (el
+  72 % de antes, calculado sin depender de la escora) y la rosa ocupa todo
+  lo demás.
+- Barra de escora 8 % -> 7,6 % del alto.
+- 412 x 660: rosa 360 px, botones 84, escora 50. 412 x 800: rosa 473 px
+  (antes topaba en ~450), botones 92, escora 61.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -194,7 +207,7 @@ y perfil; el nombre del perfil se cortaba (completo solo en la lista).
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev598)
+## QA en el barco (QA Rev600)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.

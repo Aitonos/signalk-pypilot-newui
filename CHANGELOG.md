@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev598)
+## Unreleased (Rev584 → Rev600)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -33,7 +33,8 @@
   × on Freeboard leaves that view.
 - No arrow buttons on the heel bar: tabs change by swipe.
 - Portrait normal view with the heel bar: the buttons keep 72 % of their
-  height, the rest goes to the rose (animated).
+  height and the rose takes all the rest of the screen; heel bar 7.6 % of
+  the height.
 - Mode picker: in landscape, mode on the left and profile on the right
   (no scrolling; the profile list opens downwards). The profile button
   shows the whole name instead of cutting it at two lines.

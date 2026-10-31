@@ -2457,7 +2457,7 @@ main { touch-action: pan-y; overflow-x: hidden; }
      buttons in full screen (the rose cap keeps the Rev593 strip height). */
   #tab-control {
     --strip-chart-h: max(96px, 24.6vh);
-    --strip-heel-h: max(48px, 8vh);
+    --strip-heel-h: max(46px, 7.6vh);   /* Rev599: -5 % */
     --rose-strip-h: var(--strip-chart-h);
   }
   body.is-fullscreen #tab-control {
@@ -2489,9 +2489,25 @@ main { touch-action: pan-y; overflow-x: hidden; }
   /* Rev596-597 (Carlos): normal view with the heel bar - the buttons
      keep 72 % of the height they had (-20 %, then -10 %), the rest goes
      to the rose (chart / Freeboard views and full screen unchanged). */
+  /* Rev599 (Carlos: "no estamos aprovechando todo el alto"): in this
+     view the button rows are fixed at that 72 % and the rose takes ALL
+     the rest (no 1 : 1.15 shape cap). */
+  body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) {
+    --heel-row-h: calc(0.72 * (clamp(60px, 15vw, 96px) + (var(--strip-chart-h) - max(48px, 8vh)) / 2));
+  }
   body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) .dash-rose {
-    max-height: calc(100% - 26px - var(--strip-heel-h)
-      - 1.44 * (clamp(60px, 15vw, 96px) + (var(--strip-chart-h) - var(--strip-heel-h)) / 2));
+    flex: 1 1 0;
+    max-height: none;
+  }
+  body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) .dash-rose .rose-wrap {
+    aspect-ratio: auto;
+    height: 100%;
+  }
+  body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) .controls { flex: 0 0 auto; }
+  body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) .controls .row-tack-mode,
+  body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) .controls .row-nudge-ap {
+    flex: 0 0 auto;
+    height: max(clamp(60px, 15vw, 96px), var(--heel-row-h));
   }
 }
 @media (orientation: portrait) and (max-width: 600px) {
