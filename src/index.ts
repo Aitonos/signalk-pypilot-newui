@@ -81,7 +81,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev580";
+const PLUGIN_REVISION = "Rev581";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -479,6 +479,7 @@ module.exports = function (app: any) {
   // Rev577 (GPT audit B04): profile switches seen, for the Doctor's
   // "did the setup change during the session" check.
   let _profileChangeCount = 0;
+  let _lastProfileChangeTs: number | null = null;
 
   // Rev569: profile history. pypilot reports the new name in `profiles`
   // and the switch in `profile` in either order, so a creation is
@@ -1175,6 +1176,7 @@ module.exports = function (app: any) {
         log: (level, msg) => { try { (level === "info" ? (app as any).debug : app.error)?.(msg); } catch {} },
       });
       try { gainGuard.recoverOnStart(); } catch { /* silent */ }
+      _gustLoad();
       shadowTuner = new ShadowTuner({
         range: (pilot, gain) => {
           const meta = client ? (client.getCatalog() as any)[`ap.pilot.${pilot}.${gain}`] : null;
@@ -5168,17 +5170,21 @@ module.exports = function (app: any) {
       // profile would stack (1.2 x 1.2) and restore to the boosted value.
       if (_gustBoostUntilMs != null || _gustPendingRestores.some((r) => r.path === key && r.profile === profile)) return;
       const boostedD = currentD * 1.20;
+      // Rev581 (R05): the obligation is on disk before the boost goes out.
+      _gustBoostRestoreGain = { pilot, key: "D", value: currentD, boosted: boostedD, profile };
+      _gustSave();
       let sent = false;
       try {
         gainChangeLog.markPlannedWrite(key, boostedD, "gust-boost", `Gust ${summary}: D +20 % for ${GUST_BOOST_SEC} s`);
         sent = client.set(key, boostedD);
       } catch { /* silent */ }
       if (!sent) {
+        _gustBoostRestoreGain = null;
+        _gustSave();
         _emitAdvisoryNotification("gust-boost-d", `Gust ${summary}: D boost not sent (pypilot unavailable)`);
         return;
       }
       _gustBoostUntilMs = now + GUST_BOOST_SEC * 1000;
-      _gustBoostRestoreGain = { pilot, key: "D", value: currentD, boosted: boostedD, profile };
       _emitAdvisoryNotification("gust-boost-d",
         `Gust ${summary}: D boosted ${currentD.toFixed(4)} -> ${boostedD.toFixed(4)} for ${GUST_BOOST_SEC} s`);
       return;
@@ -5196,17 +5202,21 @@ module.exports = function (app: any) {
       if (currentProfile === heavy) return;   // already there
       if (_gustHeavyUntilMs != null || _gustHeavyPending) return;   // Rev577: one at a time
       const gustReason = `Gust ${summary}: profile ${currentProfile ?? "?"} -> ${heavy} for ${GUST_HEAVY_SEC} s`;
+      _gustHeavyUntilMs = now + GUST_HEAVY_SEC * 1000;
+      _gustHeavyRestoreProfile = currentProfile;
+      _gustSave();   // Rev581 (R05): on disk before switching
       let sent = false;
       try {
         profileChangeLog.markPlannedWrite(heavy, "gust-heavy", gustReason);
         sent = client.set("profile", heavy);
       } catch { /* silent */ }
       if (!sent) {
+        _gustHeavyUntilMs = null;
+        _gustHeavyRestoreProfile = null;
+        _gustSave();
         _emitAdvisoryNotification("gust-heavy-profile", `Gust ${summary}: heavy profile not sent (pypilot unavailable)`);
         return;
       }
-      _gustHeavyUntilMs = now + GUST_HEAVY_SEC * 1000;
-      _gustHeavyRestoreProfile = currentProfile;
       _emitAdvisoryNotification("gust-heavy-profile", gustReason);
       return;
     }
@@ -5228,12 +5238,14 @@ module.exports = function (app: any) {
         });
         if (_gustPendingRestores.length > 10) _gustPendingRestores.splice(0, _gustPendingRestores.length - 10);
       }
+      _gustSave();   // Rev581: the boost becomes a pending restore on disk
     }
     if (_gustHeavyUntilMs != null && now >= _gustHeavyUntilMs) {
       const restore = _gustHeavyRestoreProfile;
       _gustHeavyUntilMs = null;
       _gustHeavyRestoreProfile = null;
       if (restore != null) _gustHeavyPending = { restore, heavy: props.autoProfileHeavy || "", lastSendTs: 0 };
+      _gustSave();
     }
     _processGustRestores(now);
   }
@@ -5243,15 +5255,58 @@ module.exports = function (app: any) {
   function _processGustRestores(now: number): void {
     if (!client) return;
     const c = client;
+    const before = JSON.stringify([_gustPendingRestores, _gustHeavyPending]);
     const out = processGustRestores(_gustPendingRestores, _gustHeavyPending, c.getValues(), now, {
       set: (path, value) => c.set(path, value),
       markGain: (path, value) => gainChangeLog.markPlannedWrite(path, value, "gust-boost-restore", "gust window expired"),
       markProfile: (name) => profileChangeLog.markPlannedWrite(name, "gust-heavy-restore", "gust window expired"),
       notify: (id, msg) => _emitAdvisoryNotification(id, msg),
       debug: (msg) => app.debug?.(msg),
-    });
+    }, _lastProfileChangeTs == null ? Infinity : now - _lastProfileChangeTs);
     _gustPendingRestores = out.pending;
     _gustHeavyPending = out.heavy;
+    if (JSON.stringify([_gustPendingRestores, _gustHeavyPending]) !== before) _gustSave();
+  }
+
+  // Rev581 (GPT re-audit R05): what must be undone after a gust is kept
+  // on disk, written BEFORE the boost is sent, so a Signal K restart in
+  // the middle of a gust still restores D (or the profile) afterwards.
+  function _gustFile(): string {
+    return require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "gust-restore.json");
+  }
+  function _gustSave(): void {
+    try {
+      const fs = require("fs");
+      const data = {
+        boost: _gustBoostRestoreGain, heavyRestoreProfile: _gustHeavyRestoreProfile,
+        heavyProfile: _gustHeavyUntilMs != null ? (props.autoProfileHeavy || "") : null,
+        pending: _gustPendingRestores, heavyPending: _gustHeavyPending,
+      };
+      const f = _gustFile();
+      fs.writeFileSync(`${f}.tmp`, JSON.stringify(data));
+      fs.renameSync(`${f}.tmp`, f);
+    } catch (e: any) { app.debug?.(`[gust] could not save restore state: ${e?.message || e}`); }
+  }
+  /** At start: whatever was boosted or switched before the restart is now
+   *  owed back (its window is over). */
+  function _gustLoad(): void {
+    try {
+      const d = JSON.parse(require("fs").readFileSync(_gustFile(), "utf8"));
+      const pend: GustRestore[] = Array.isArray(d.pending) ? d.pending : [];
+      const b = d.boost;
+      if (b && typeof b.value === "number" && typeof b.boosted === "number" && typeof b.pilot === "string") {
+        pend.push({ pilot: b.pilot, profile: b.profile ?? null, path: `ap.pilot.${b.pilot}.${b.key || "D"}`, value: b.value, boosted: b.boosted, lastSendTs: 0, awayNotified: false });
+      }
+      _gustPendingRestores = pend.slice(-10);
+      if (d.heavyPending && typeof d.heavyPending.restore === "string") _gustHeavyPending = { ...d.heavyPending, lastSendTs: 0 };
+      else if (typeof d.heavyRestoreProfile === "string" && typeof d.heavyProfile === "string") {
+        _gustHeavyPending = { restore: d.heavyRestoreProfile, heavy: d.heavyProfile, lastSendTs: 0 };
+      }
+      if (_gustPendingRestores.length || _gustHeavyPending) {
+        app.debug?.(`[gust] ${_gustPendingRestores.length} D restore(s)${_gustHeavyPending ? " + profile restore" : ""} carried over from before the restart`);
+      }
+      _gustSave();
+    } catch { /* no file: nothing owed */ }
   }
 
   function _emitAdvisoryNotification(id: string, message: string): void {
@@ -6758,6 +6813,7 @@ module.exports = function (app: any) {
           // switch belong to it, not to separate changes.
           if (entry) {
             _profileChangeCount += 1;
+            _lastProfileChangeTs = entry.ts;
             gainChangeLog.noteProfileChange(entry.ts);
             if (sessionRecorder) {
               sessionRecorder.recordChange({ ts: entry.ts, kind: "profile", key: "profile", from: entry.from, to: entry.to, source: entry.source, reason: entry.reason });

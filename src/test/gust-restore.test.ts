@@ -70,3 +70,25 @@ describe("gust restore (Rev577, GPT audit A01/A02)", () => {
     assert.equal(t.writes.length, 1);
   });
 });
+
+describe("gust restore (Rev581, GPT re-audit R01)", () => {
+  it("a missing or non-numeric D keeps the restore pending, nothing written or reported", () => {
+    for (const d of [undefined, null, "x", NaN, Infinity]) {
+      const t = io();
+      const out = processGustRestores([pend()], null, { "ap.pilot": "basic", profile: "A", [D]: d as any }, 10_000, t.x);
+      assert.equal(out.pending.length, 1, String(d));
+      assert.deepEqual(t.writes, []);
+      assert.deepEqual(t.notes, []);
+    }
+  });
+
+  it("right after a profile switch D is not judged (it may still be the old profile's)", () => {
+    const t = io();
+    const out = processGustRestores([pend()], null, { "ap.pilot": "basic", profile: "A", [D]: 0.15 }, 10_000, t.x, 800);
+    assert.equal(out.pending.length, 1, "not taken as a manual change");
+    assert.deepEqual(t.writes, []);
+    const later = processGustRestores(out.pending, null, { "ap.pilot": "basic", profile: "A", [D]: 0.12 }, 14_000, t.x, 4000);
+    assert.deepEqual(t.writes, [[D, 0.10]], "judged once settled");
+    assert.equal(later.pending.length, 1);
+  });
+});

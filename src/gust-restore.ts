@@ -33,6 +33,10 @@ export interface GustIo {
 }
 
 export const GUST_RESEND_MS = 5000;
+/** Rev581 (GPT re-audit R01): after a profile switch pypilot sends the new
+ *  profile's gains a moment later; until then the cached D may still be
+ *  the previous profile's. Do not judge D in that window. */
+export const GUST_PROFILE_SETTLE_MS = 3000;
 
 /** pypilot may round what it stores. */
 export function gustSame(a: unknown, b: number): boolean {
@@ -42,6 +46,8 @@ export function gustSame(a: unknown, b: number): boolean {
 export function processGustRestores(
   pending: GustRestore[], heavy: HeavyRestore | null,
   vals: Record<string, unknown>, now: number, io: GustIo,
+  /** ms since the active profile last changed (Infinity if unknown/long). */
+  profileSinceMs = Infinity,
 ): { pending: GustRestore[]; heavy: HeavyRestore | null } {
   const keep = pending.filter((r) => {
     if (vals["ap.pilot"] !== r.pilot || (r.profile != null && vals["profile"] !== r.profile)) {
@@ -52,6 +58,10 @@ export function processGustRestores(
       return true;
     }
     const d = vals[r.path];
+    // Rev581 (GPT re-audit R01): unknown D (missing, not a number) or a
+    // profile switched moments ago is no evidence of anything: keep the
+    // obligation and look again on the next tick.
+    if (typeof d !== "number" || !Number.isFinite(d) || profileSinceMs < GUST_PROFILE_SETTLE_MS) return true;
     if (gustSame(d, r.value)) {
       io.notify("gust-boost-d", "D restored to pre-gust value");
       return false;
