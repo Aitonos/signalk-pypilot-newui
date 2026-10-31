@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev587)
+## Unreleased (Rev584 → Rev589)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -16,8 +16,14 @@
   renderer and data as the Chart tab.
 - **Charts group series by kind**: all speeds share one knots band that
   starts at 0, with grid lines and a labelled scale; angles share another.
-  A legend shows each chosen series with its current value ("--" = no data
-  yet; the polar speed is only published while sailing). Chart tab gains
+  The legend shows each chosen series with its **average over the chosen
+  window** (circular mean for angles; "--" = no data yet, the polar speed
+  is only published while sailing) and wraps to more lines when needed.
+  Scale labels carry only the number, so the right margin is narrow.
+- Heel / rudder pointer: thick glowing line from the top and bottom edges
+  of the bar to the number.
+- A finger on a chart (bottom bar in chart view, Chart tab) no longer
+  flips the tab by sideways swipe. Chart tab gains
   Polar, STW, VMG, AWS and TWA.
 - Portrait: even 8 px gaps, button rows sized to the screen, the bar never
   below 20 % of the height.

@@ -2402,7 +2402,28 @@ main { touch-action: pan-y; overflow-x: hidden; }
 }
 .swipe-hint .rudder-marker { margin-left: 0; transform: translateX(-50%); }
 .swipe-hint .rudder-marker .rmk-num { font-size: clamp(26px, 42cqh, 120px); }
-.swipe-hint .rudder-marker .rmk-tri { font-size: clamp(12px, 9cqh, 30px); }
+/* Rev588 (Carlos): the pointer runs from the top and bottom edges of
+   the strip to the number - triangle at the edge, thick glowing line to
+   the box - so the position reads at a glance. */
+#tab-control .swipe-hint .rudder-marker { top: 0; bottom: 0; }
+#tab-control .swipe-hint .rudder-marker .rmk-tri {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: clamp(14px, 11cqh, 34px);
+  line-height: 0.8;
+}
+#tab-control .swipe-hint .rudder-marker .rmk-tri-bot { flex-direction: column-reverse; }
+#tab-control .swipe-hint .rudder-marker .rmk-tri::after {
+  content: "";
+  flex: 1 1 auto;
+  width: clamp(3px, 2.5cqh, 6px);
+  background: #ffcf47;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(255, 207, 71, 0.8);
+}
 .swipe-hint .rudder-label { font-size: clamp(17px, 13cqh, 40px); }
 /* Bigger end labels need a wider inset so "30" / "70" are not clipped. */
 #tab-control .swipe-hint .rudder-track,

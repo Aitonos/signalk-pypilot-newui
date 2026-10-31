@@ -66,6 +66,24 @@ había); tap largo abre configuración de la gráfica".
 | Texto espaciado en Firefox | el lienzo heredaba el espaciado de letras de la barra; anulado |
 | "« 10" partido en móvil | botones de nudge en una línea con letra a la medida |
 
+## Tercera ronda (Rev588-589)
+
+Carlos: "que los datos de arriba sean averages del periodo seleccionado, no
+los actuales; que las flechas de escora sean más visibles y vayan de los
+límites superior e inferior hasta el número central; el lateral de la
+gráfica desperdicia sitio a la derecha"; y "que en modo gráfica no funcione
+el deslizar lateral".
+
+- Leyenda: "media 10m" + media de cada serie en la ventana (media circular
+  en ángulos para que ±179° no dé 0°). Pasa a varias líneas si no cabe.
+- Escala: solo números (la unidad está en la leyenda); margen derecho
+  medido al ancho de "-888°". Con todo a 0, la escala de velocidad va de 0
+  a 1, no de -1 a 1.
+- Marcador: triángulo en el borde y línea gruesa amarilla hasta el número,
+  arriba y abajo.
+- El gesto de cambiar de pestaña deslizando se ignora sobre la barra en
+  modo gráfica y sobre la gráfica de la pestaña Gráfica.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -77,7 +95,7 @@ había); tap largo abre configuración de la gráfica".
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev587)
+## QA en el barco (QA Rev589)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.
@@ -89,6 +107,9 @@ había); tap largo abre configuración de la gráfica".
    leyenda.
 7. Dedo sobre la gráfica y deslizar: se ven los valores de cada instante.
 8. Pulsación larga en la barra: abre la configuración en su sección.
+9. Leyenda: "media 10m" y valores que cambian despacio (media), no al
+   segundo.
+10. Deslizar el dedo de lado sobre la gráfica no cambia de pestaña.
 5. Cambiar series y ventana en la ventana de configuración; recargar el
    visor: se conservan.
 6. Pestaña Gráfica: Polar y TWA disponibles; el resto igual que antes.

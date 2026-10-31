@@ -752,6 +752,7 @@
       "dash.helmChart.title": "CHART IN THE BOTTOM BAR",
       "dash.helmChart.hint":  "Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.",
       "helmChart.polar":      "Polar max speed",
+      "chart.avg":            "avg",
       "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
       "dash.helmBar.rudder": "Rudder angle",
@@ -1811,6 +1812,7 @@
       "dash.helmChart.title": "GRÁFICA EN LA BARRA DE ABAJO",
       "dash.helmChart.hint":  "Doble toque en la barra de abajo para alternar entre la barra y esta gráfica. Pulsación larga abre estos ajustes; con el dedo sobre la gráfica ves los valores de ese momento.",
       "helmChart.polar":      "Polar vel. máx.",
+      "chart.avg":            "media",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
       "dash.helmBar.rudder": "Ángulo del timón",
@@ -17361,6 +17363,9 @@
           // Rev57: the horizontally-scrollable table wrappers own the
           // gesture entirely; the tab swipe must not steal it.
           if (t.closest(".paths-scroll")) { tracking = false; return; }
+          // Rev588 (Carlos): a finger reading a chart (strip in chart
+          // view, Chart tab canvas) must not flip the tab.
+          if (t.closest("#swipe-hint.view-chart, .chart-canvas-wrap")) { tracking = false; return; }
         }
         sx = e.touches[0].clientX;
         sy = e.touches[0].clientY;
@@ -19072,8 +19077,27 @@
     speed: (v) => v * 1.94384, wangle: (v) => v * RAD2DEG, hdg: (v) => v * RAD2DEG,
     heel: (v) => v * RAD2DEG, rudder: (v) => v * RAD2DEG,
   };
-  const CHART_UNIT_SUFFIX = { speed: " kn", amp: " A" };
+  // Scale labels carry only the number (the unit is in the legend), so
+  // the right gutter stays narrow. Angles keep the degree sign.
+  const CHART_UNIT_SUFFIX = { speed: "", amp: "" };
   const CHART_DASHED = new Set(["polarSpeed"]);
+  // Rev588 (Carlos): the legend shows the average over the window, not
+  // the last value. Angles use the circular mean so -179 and +179 average
+  // to 180, not 0.
+  function _chartAverage(samples, k, unit) {
+    const circ = unit === "wangle" || unit === "hdg";
+    let n = 0, sum = 0, sx = 0, sy = 0;
+    for (const s of samples) {
+      const v = s[k];
+      if (typeof v !== "number" || !isFinite(v)) continue;
+      n += 1;
+      if (circ) { sx += Math.cos(v); sy += Math.sin(v); } else sum += v;
+    }
+    if (n === 0) return null;
+    if (!circ) return sum / n;
+    const a = Math.atan2(sy, sx);
+    return unit === "hdg" && a < 0 ? a + 2 * Math.PI : a;
+  }
   function _chartNiceStep(raw) {
     const p = Math.pow(10, Math.floor(Math.log10(raw)));
     for (const m of [1, 2, 5, 10]) if (m * p >= raw) return m * p;
@@ -19167,7 +19191,8 @@
     const windowMs = CHART_WINDOWS[c.window] || 30000;
     const tMin = nowTs - windowMs;
     const tMax = nowTs;
-    const marginL = 8, marginR = Math.round(fs * 4.8), marginT = 4, marginB = fs + 8;
+    ctx.font = `${fs}px ui-monospace, monospace`;
+    const marginL = 8, marginR = Math.ceil(ctx.measureText("-888°").width) + 8, marginT = 4, marginB = fs + 8;
     const plotW = cssW - marginL - marginR;
     const plotH = cssH - marginT - marginB;
     // One band per kind of value (see CHART_UNIT), in the order chosen.
@@ -19210,7 +19235,27 @@
       const conv = CHART_UNIT_CONV[unit] || ((v) => v);
       const bandTop = marginT + bi * bandH;
       const bandBot = bandTop + bandH - 2;
-      const legendH = fs + 6;
+      // Legend: average of each chosen series over the window ("--" = no
+      // data; the polar speed is only published while sailing). Wraps to
+      // more lines when it does not fit.
+      ctx.font = `bold ${fs}px ui-monospace, monospace`;
+      const legend = [];
+      if (bi === 0) legend.push({ txt: `${t("chart.avg")} ${c.window}`, color: "#8a97a6" });
+      for (const k of keys) {
+        const avg = _chartAverage(c.lastSamples, k, unit);
+        legend.push({
+          txt: `${CHART_LABELS[k] || k} ${avg == null ? "--" : _fmtSampleValue(k, avg)}`,
+          color: CHART_COLORS[k] || "#e6edf3",
+        });
+      }
+      let lx = marginL + 4, ly = bandTop + 3;
+      for (const it of legend) {
+        it.w = ctx.measureText(it.txt).width;
+        if (lx > marginL + 4 && lx + it.w > marginL + plotW) { lx = marginL + 4; ly += fs + 5; }
+        it.x = lx; it.y = ly;
+        lx += it.w + fs;
+      }
+      const legendH = ly - bandTop + fs + 4;
       const plotTop = Math.min(bandBot - 4, bandTop + legendH + 2);
       if (bi > 0) {
         ctx.strokeStyle = "#4a5a6e";
@@ -19230,7 +19275,10 @@
       }
       if (vmin !== Infinity) {
         if (unit === "speed") vmin = Math.min(0, vmin);
-        if (vmax - vmin < 1e-6) { vmin -= 1; vmax += 1; }
+        if (vmax - vmin < 1e-6) {
+          if (unit === "speed") vmax = vmin + 1;   // all zero: 0..1, not -1..1
+          else { vmin -= 1; vmax += 1; }
+        }
         const rows = Math.max(1, Math.floor((bandBot - plotTop) / (fs * 2.4)));
         const step = _chartNiceStep((vmax - vmin) / rows);
         const lo = Math.floor(vmin / step) * step;
@@ -19238,7 +19286,7 @@
         const yOf = (v) => bandBot - ((v - lo) / (hi - lo)) * (bandBot - plotTop);
         // Grid lines + scale labels in the right gutter.
         const dec = step < 1 ? 1 : 0;
-        const suffix = CHART_UNIT_SUFFIX[unit] || "°";
+        const suffix = unit in CHART_UNIT_SUFFIX ? CHART_UNIT_SUFFIX[unit] : "°";
         ctx.font = `${fs}px ui-monospace, monospace`;
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
@@ -19273,21 +19321,14 @@
       } else {
         c.bands.push({ key: keys[0], keys, bandTop, bandBot, lo: null, hi: null });
       }
-      // Legend: every chosen series with its last value ("--" = no data
-      // yet, e.g. the polar speed is only published while sailing).
       ctx.font = `bold ${fs}px ui-monospace, monospace`;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      let lx = marginL + 4;
-      for (const k of keys) {
-        const last = [...c.lastSamples].reverse().find((s) => isNum(s[k]));
-        const txt = `${CHART_LABELS[k] || k} ${last ? _fmtSampleValue(k, last[k]) : "--"}`;
-        const w = ctx.measureText(txt).width;
+      for (const it of legend) {
         ctx.fillStyle = "rgba(14,20,27,0.85)";
-        ctx.fillRect(lx - 2, bandTop + 1, w + 4, fs + 4);
-        ctx.fillStyle = CHART_COLORS[k] || "#e6edf3";
-        ctx.fillText(txt, lx, bandTop + 3);
-        lx += w + fs;
+        ctx.fillRect(it.x - 2, it.y - 2, it.w + 4, fs + 4);
+        ctx.fillStyle = it.color;
+        ctx.fillText(it.txt, it.x, it.y);
       }
     }
     // Cache geometry for hover.
