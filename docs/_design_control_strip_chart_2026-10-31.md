@@ -170,6 +170,19 @@ los botones y dárselo a la rosa (con gráfica o Freeboard está bien).
 - Móvil 412 x 660: botones 116 -> 91 px, rosa 292 -> 343 px. Gráfica,
   Freeboard y pantalla completa sin cambios.
 
+## Décima ronda (Rev597-598)
+
+Carlos: escora en vertical normal, otro 10 % de los botones a la rosa; en
+apaisado, al abrir el modo el perfil debe salir a la derecha para ver modo
+y perfil; el nombre del perfil se cortaba (completo solo en la lista).
+
+- Escora vertical normal: botones al 72 % (116 -> 82 px), rosa 361 px.
+- Selector de modo en apaisado: dos columnas (modo | perfil), sin
+  desplazamiento; la lista de perfiles abre hacia abajo (máx. 44 % del
+  alto). Ver en 915 x 412: los 7 modos y los dos perfiles de auto viento.
+- Botón de perfil: nombre completo en las líneas que haga falta (antes
+  cortado a 2 líneas), en vertical y apaisado.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -181,7 +194,7 @@ los botones y dárselo a la rosa (con gráfica o Freeboard está bien).
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev596)
+## QA en el barco (QA Rev598)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.

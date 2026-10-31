@@ -1169,6 +1169,40 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   z-index: 2;
 }
 .mode-popup-profile-list[hidden] { display: none; }
+/* Rev597 (Carlos): the profile button shows the whole name (it was cut
+   at 2 lines while the open list showed it in full). */
+.mode-popup-profile-btn {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+/* Rev597 (Carlos): landscape - mode on the left, profile on the right,
+   both visible without scrolling; the profile list opens downwards. */
+@media (orientation: landscape) {
+  .mode-select-modal-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 18px;
+    align-items: start;
+    max-width: 920px;
+    width: 92%;
+    overflow: visible;
+  }
+  .mode-popup-group + .mode-popup-group {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 4px;
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+  }
+  .mode-popup-item { padding: 8px 12px; font-size: 17px; }
+  .mode-popup-profile-list {
+    bottom: auto;
+    top: calc(100% + 6px);
+    max-height: 44vh;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.55);
+  }
+}
 
 .tack-btn {
   min-height: 100px;
@@ -2452,12 +2486,12 @@ main { touch-action: pan-y; overflow-x: hidden; }
     max-height: calc(100% - 26px - 2 * clamp(60px, 15vw, 96px) - var(--rose-strip-h));
     transition: max-height 250ms ease;
   }
-  /* Rev596 (Carlos): normal view with the heel bar - the buttons give
-     20 % of the height they had to the rose (chart / Freeboard views and
-     full screen unchanged). */
+  /* Rev596-597 (Carlos): normal view with the heel bar - the buttons
+     keep 72 % of the height they had (-20 %, then -10 %), the rest goes
+     to the rose (chart / Freeboard views and full screen unchanged). */
   body:not(.is-fullscreen) #tab-control:has(.swipe-hint:not(.view-chart):not(.view-fb)) .dash-rose {
     max-height: calc(100% - 26px - var(--strip-heel-h)
-      - 1.6 * (clamp(60px, 15vw, 96px) + (var(--strip-chart-h) - var(--strip-heel-h)) / 2));
+      - 1.44 * (clamp(60px, 15vw, 96px) + (var(--strip-chart-h) - var(--strip-heel-h)) / 2));
   }
 }
 @media (orientation: portrait) and (max-width: 600px) {
