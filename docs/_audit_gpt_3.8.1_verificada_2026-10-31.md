@@ -44,3 +44,28 @@ que arrancan un proceso real; no se repitió en 4 ejecuciones).
 Restaurar tras rachas sigue siendo en memoria: si Signal K se reinicia en
 plena racha, la D subida se queda; propuesta futura, pasarlo por el
 vigilante.
+
+## Reauditoría de GPT (Rev579) — verificada y corregida
+
+| # | GPT | Verificado | Arreglo |
+|---|---|---|---|
+| R02 | Una restauración antigua puede desarmar una prueba nueva | Sí | Rev580: cada prueba tiene un identificador; el vigilante solo toca la autorización de la prueba que restaura; el plugin solo renueva y cierra la suya |
+| R04 | Protección comprobada solo al arrancar | Sí | Rev580: latido del vigilante; si muere durante una prueba, el plugin lo vuelve a arrancar |
+| R03 | El fin automático de la prueba del amarre pisa la elección manual | Sí | Rev580: el fin automático solo vuelve atrás si sigue el perfil de prueba; el fin pedido por el usuario sí vuelve siempre |
+| R01 | Un D desconocido cancela la restauración como si fuera manual | Sí | Rev581: D ausente / no numérico o perfil cambiado hace < 3 s = mantener pendiente |
+| R05 | Restauración de racha solo en memoria | Sí | Rev581: `gust-restore.json`, escrito antes de enviar la subida o el cambio de perfil, recargado al arrancar |
+| A06 | Sin marca de tiempo = siempre "bueno" | Sí | Rev582: solo un valor que cambia cuenta como lectura nueva; si no cambia, nivel "DESCONOCIDO" (ni bueno ni perdido) |
+
+Prueba que "no termina": localizada, `virtual-tack-sailor.test.js`
+(24 pruebas con simulación en tiempo real) tarda 78 s y termina limpia;
+en este equipo `npm test` termina sin `--test-force-exit`.
+
+Límites honestos:
+- La escritura/lectura de la autorización entre plugin y vigilante sigue
+  siendo leer-comprobar-escribir sobre un fichero, no una operación
+  atómica: el identificador reduce la ventana a milisegundos, no a cero.
+- R05 (guardado en disco de las rachas) está dentro del plugin y no tiene
+  prueba unitaria; R03 tampoco (`_gainTrialFinish` vive en el plugin).
+
+436 tests en verde (exit 0), desplegado en la Pi (Rev582), Signal K
+activo y sin errores.
