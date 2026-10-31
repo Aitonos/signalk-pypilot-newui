@@ -49,6 +49,7 @@ import { ProfileChangeLog, type ProfileChangeSource } from "./profile-change-log
 import { GainChangeLog, GAIN_PATH_RE } from "./gain-change-log";
 import { NavDb } from "./nav-db";
 import { wrapPi } from "./angles";
+import { processGustRestores, type GustRestore, type HeavyRestore } from "./gust-restore";
 import { GainGuard } from "./gain-guard";
 import { ShadowTuner } from "./shadow-tuner";
 import { isCompleteEpisode } from "./episodes";
@@ -80,7 +81,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev575";
+const PLUGIN_REVISION = "Rev576";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -374,7 +375,15 @@ module.exports = function (app: any) {
   let _gustLastSuppressReason: string | null = null;
   // "boost-D" bookkeeping: original D per pilot so we can restore.
   let _gustBoostUntilMs: number | null = null;
-  let _gustBoostRestoreGain: { pilot: string; key: "D"; value: number; boosted?: number } | null = null;
+  let _gustBoostRestoreGain: { pilot: string; key: "D"; value: number; boosted?: number; profile?: string | null } | null = null;
+  // Rev577 (GPT audit A01/A02): D restorations after a boost-D gust,
+  // done only on the profile that was boosted and only reported once
+  // pypilot shows the restored value. Kept while that profile is not
+  // active (it is restored when it comes back) and retried every 5 s if a
+  // write is refused.
+  let _gustPendingRestores: GustRestore[] = [];
+  // Same for the temp-heavy profile switch-back.
+  let _gustHeavyPending: HeavyRestore | null = null;
   // "temp-heavy" bookkeeping: original profile so we can restore.
   let _gustHeavyUntilMs: number | null = null;
   let _gustHeavyRestoreProfile: string | null = null;
@@ -4724,12 +4733,16 @@ module.exports = function (app: any) {
       if (!leg.arrived && !leg.perpendicularPassed) _routeArmedFor = key;
       const name = wpLabel(course?.nextPoint?.name, idx);
       const finished = _routeFinishedFor === key;
+      // Rev576 (GPT audit A09): APB is a steering command for pypilot and
+      // advancing a waypoint changes the course, so both need allowWrites
+      // like every other write; without it the route is only shown.
+      const act = !!props.allowWrites;
       // APB 1 Hz (pypilot takes <= 2/s); none once this destination is done.
-      if (!finished) {
+      if (act && !finished) {
         try { app.emit("nmea0183out", buildApb(leg, idx != null ? `WP${idx + 1}` : "WP")); } catch { /* silent */ }
       }
       // Arrival: inside the circle or past the perpendicular.
-      if ((leg.arrived || leg.perpendicularPassed) && !finished) {
+      if (act && (leg.arrived || leg.perpendicularPassed) && !finished) {
         const more = ar && idx != null && idx < Number(ar.pointTotal) - 1;
         if (more) {
           if (_routeAdvancedFor !== key) {
@@ -5095,13 +5108,22 @@ module.exports = function (app: any) {
       const key = `ap.pilot.${pilot}.D`;
       const currentD = client.getValues()[key];
       if (typeof currentD !== "number" || currentD <= 0) return;
+      const profile = typeof client.getValues()["profile"] === "string" ? client.getValues()["profile"] as string : null;
+      // Rev577: a boost already running or a restore still pending on this
+      // profile would stack (1.2 x 1.2) and restore to the boosted value.
+      if (_gustBoostUntilMs != null || _gustPendingRestores.some((r) => r.path === key && r.profile === profile)) return;
       const boostedD = currentD * 1.20;
-      _gustBoostUntilMs = now + GUST_BOOST_SEC * 1000;
-      _gustBoostRestoreGain = { pilot, key: "D", value: currentD, boosted: boostedD };
+      let sent = false;
       try {
         gainChangeLog.markPlannedWrite(key, boostedD, "gust-boost", `Gust ${summary}: D +20 % for ${GUST_BOOST_SEC} s`);
-        client.set(key, boostedD);
+        sent = client.set(key, boostedD);
       } catch { /* silent */ }
+      if (!sent) {
+        _emitAdvisoryNotification("gust-boost-d", `Gust ${summary}: D boost not sent (pypilot unavailable)`);
+        return;
+      }
+      _gustBoostUntilMs = now + GUST_BOOST_SEC * 1000;
+      _gustBoostRestoreGain = { pilot, key: "D", value: currentD, boosted: boostedD, profile };
       _emitAdvisoryNotification("gust-boost-d",
         `Gust ${summary}: D boosted ${currentD.toFixed(4)} -> ${boostedD.toFixed(4)} for ${GUST_BOOST_SEC} s`);
       return;
@@ -5117,13 +5139,19 @@ module.exports = function (app: any) {
       const currentProfile = typeof client.getValues()["profile"] === "string"
         ? client.getValues()["profile"] as string : null;
       if (currentProfile === heavy) return;   // already there
-      _gustHeavyUntilMs = now + GUST_HEAVY_SEC * 1000;
-      _gustHeavyRestoreProfile = currentProfile;
+      if (_gustHeavyUntilMs != null || _gustHeavyPending) return;   // Rev577: one at a time
       const gustReason = `Gust ${summary}: profile ${currentProfile ?? "?"} -> ${heavy} for ${GUST_HEAVY_SEC} s`;
+      let sent = false;
       try {
         profileChangeLog.markPlannedWrite(heavy, "gust-heavy", gustReason);
-        client.set("profile", heavy);
+        sent = client.set("profile", heavy);
       } catch { /* silent */ }
+      if (!sent) {
+        _emitAdvisoryNotification("gust-heavy-profile", `Gust ${summary}: heavy profile not sent (pypilot unavailable)`);
+        return;
+      }
+      _gustHeavyUntilMs = now + GUST_HEAVY_SEC * 1000;
+      _gustHeavyRestoreProfile = currentProfile;
       _emitAdvisoryNotification("gust-heavy-profile", gustReason);
       return;
     }
@@ -5136,51 +5164,39 @@ module.exports = function (app: any) {
   function _releaseGustStrategiesIfExpired(now: number): void {
     if (_gustBoostUntilMs != null && now >= _gustBoostUntilMs) {
       const r = _gustBoostRestoreGain;
-      // Rev534 (GPT review 2 #5): restore only if D is still our boosted
-      // value on the same pilot; a manual change in the window wins.
-      const vals = client ? client.getValues() : {};
-      const nowD = r ? vals[`ap.pilot.${r.pilot}.${r.key}`] : null;
-      const untouched = !!r && vals["ap.pilot"] === r.pilot
-        && typeof nowD === "number" && typeof r.boosted === "number"
-        && Math.abs(nowD - r.boosted) <= Math.max(1e-4, Math.abs(r.boosted) * 0.01);   // self-audit Rev540: pypilot may round
-      if (client && r && untouched) {
-        try {
-          gainChangeLog.markPlannedWrite(`ap.pilot.${r.pilot}.${r.key}`, r.value, "gust-boost-restore", "gust window expired");
-          client.set(`ap.pilot.${r.pilot}.${r.key}`, r.value);
-        } catch { /* silent */ }
-      }
       _gustBoostUntilMs = null;
       _gustBoostRestoreGain = null;
-      _emitAdvisoryNotification("gust-boost-d", untouched ? "D restored to pre-gust value" : "D changed during the gust window - not restoring");
+      if (r && typeof r.boosted === "number") {
+        _gustPendingRestores.push({
+          pilot: r.pilot, profile: r.profile ?? null, path: `ap.pilot.${r.pilot}.${r.key}`,
+          value: r.value, boosted: r.boosted, lastSendTs: 0, awayNotified: false,
+        });
+        if (_gustPendingRestores.length > 10) _gustPendingRestores.splice(0, _gustPendingRestores.length - 10);
+      }
     }
     if (_gustHeavyUntilMs != null && now >= _gustHeavyUntilMs) {
-      if (client && _gustHeavyRestoreProfile != null) {
-        // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
-        // respect a manual profile change the sailor made DURING the
-        // temp-heavy window. If the currently-active profile is
-        // neither the heavy target nor the pre-gust one, someone
-        // (sailor, KIP, another visor) picked a third option and we
-        // must not stomp on that decision.
-        const heavy = props.autoProfileHeavy || "";
-        const currentNow = typeof client.getValues()["profile"] === "string"
-          ? client.getValues()["profile"] as string : null;
-        const sailorOverrode = currentNow != null
-          && currentNow !== heavy
-          && currentNow !== _gustHeavyRestoreProfile;
-        if (sailorOverrode) {
-          _emitAdvisoryNotification("gust-heavy-profile",
-            `Manual profile change (${currentNow}) detected during gust heavy - not restoring`);
-        } else {
-          try {
-            profileChangeLog.markPlannedWrite(_gustHeavyRestoreProfile, "gust-heavy-restore", "gust window expired");
-            client.set("profile", _gustHeavyRestoreProfile);
-          } catch { /* silent */ }
-          _emitAdvisoryNotification("gust-heavy-profile", "Profile restored to pre-gust value");
-        }
-      }
+      const restore = _gustHeavyRestoreProfile;
       _gustHeavyUntilMs = null;
       _gustHeavyRestoreProfile = null;
+      if (restore != null) _gustHeavyPending = { restore, heavy: props.autoProfileHeavy || "", lastSendTs: 0 };
     }
+    _processGustRestores(now);
+  }
+
+  // Rev577 (GPT audit A01/A02): the restore state machine lives in
+  // ./gust-restore (pure, tested).
+  function _processGustRestores(now: number): void {
+    if (!client) return;
+    const c = client;
+    const out = processGustRestores(_gustPendingRestores, _gustHeavyPending, c.getValues(), now, {
+      set: (path, value) => c.set(path, value),
+      markGain: (path, value) => gainChangeLog.markPlannedWrite(path, value, "gust-boost-restore", "gust window expired"),
+      markProfile: (name) => profileChangeLog.markPlannedWrite(name, "gust-heavy-restore", "gust window expired"),
+      notify: (id, msg) => _emitAdvisoryNotification(id, msg),
+      debug: (msg) => app.debug?.(msg),
+    });
+    _gustPendingRestores = out.pending;
+    _gustHeavyPending = out.heavy;
   }
 
   function _emitAdvisoryNotification(id: string, message: string): void {
