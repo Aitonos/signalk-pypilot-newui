@@ -211,3 +211,15 @@ describe("gain watchdog (Rev580, GPT re-audit R02/R04)", () => {
     pp.close();
   });
 });
+
+describe("gain guard (Rev583, self-audit)", () => {
+  it("with allowWrites off an unfinished trial is reported, not restored", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-"));
+    fs.writeFileSync(path.join(dir, "lease.json"), JSON.stringify({
+      id: "x", active: true, restoreProfile: "A", testProfile: "T", host: "127.0.0.1", port: 1, renewedTs: 0, ttlMs: 1000,
+    }));
+    const g = new GainGuard({ dir, host: "127.0.0.1", port: 1, scriptPath: SCRIPT });
+    assert.equal(g.recoverOnStart(false), false);
+    assert.equal(g.status().watchdogPid, null, "no watchdog started");
+  });
+});

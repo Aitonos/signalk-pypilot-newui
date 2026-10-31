@@ -50,6 +50,9 @@ export function processGustRestores(
   profileSinceMs = Infinity,
 ): { pending: GustRestore[]; heavy: HeavyRestore | null } {
   const keep = pending.filter((r) => {
+    // Rev583 (self-audit): pilot / profile not reported yet (just after a
+    // start, before pypilot sent its values) is not "the profile changed".
+    if (typeof vals["ap.pilot"] !== "string" || (r.profile != null && typeof vals["profile"] !== "string")) return true;
     if (vals["ap.pilot"] !== r.pilot || (r.profile != null && vals["profile"] !== r.profile)) {
       if (!r.awayNotified) {
         r.awayNotified = true;

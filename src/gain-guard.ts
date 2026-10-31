@@ -53,9 +53,15 @@ export class GainGuard {
   /** At plugin start: an active lease left behind means a trial did not
    *  finish (crash, power cut). The watchdog will find it expired and
    *  restore the original profile. Returns true when one was found. */
-  recoverOnStart(): boolean {
+  recoverOnStart(allowWrites = true): boolean {
     const l = this.read();
     if (!l || !l.active) return false;
+    // Rev583 (self-audit): allowWrites gates every write to pypilot, the
+    // watchdog's restore included. With writes off, report and leave it.
+    if (!allowWrites) {
+      this.opts.log?.("warn", `[gain-guard] unfinished trial of "${l.testProfile}" found but allowWrites is off: not restoring "${l.restoreProfile}" - switch it back by hand`);
+      return false;
+    }
     this.opts.log?.("warn", `[gain-guard] unfinished trial of "${l.testProfile}" found; watchdog restores "${l.restoreProfile}"`);
     this.ensureWatchdog();
     return true;

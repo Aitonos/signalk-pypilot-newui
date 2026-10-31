@@ -92,3 +92,14 @@ describe("gust restore (Rev581, GPT re-audit R01)", () => {
     assert.equal(later.pending.length, 1);
   });
 });
+
+describe("gust restore (Rev583, self-audit)", () => {
+  it("before pypilot reports pilot / profile (just after start) nothing is judged or announced", () => {
+    const t = io();
+    const out = processGustRestores([pend()], null, {}, 10_000, t.x);
+    assert.equal(out.pending.length, 1);
+    assert.deepEqual(t.notes, []);
+    assert.deepEqual(t.writes, []);
+    assert.equal(out.pending[0].awayNotified, false);
+  });
+});

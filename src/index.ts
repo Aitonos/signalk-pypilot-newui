@@ -81,7 +81,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev582";
+const PLUGIN_REVISION = "Rev583";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1175,7 +1175,7 @@ module.exports = function (app: any) {
         host: props.host || "localhost",
         log: (level, msg) => { try { (level === "info" ? (app as any).debug : app.error)?.(msg); } catch {} },
       });
-      try { gainGuard.recoverOnStart(); } catch { /* silent */ }
+      try { gainGuard.recoverOnStart(!!props.allowWrites); } catch { /* silent */ }
       _gustLoad();
       shadowTuner = new ShadowTuner({
         range: (pilot, gain) => {
@@ -3498,21 +3498,29 @@ module.exports = function (app: any) {
         }
         // Rev578 (GPT audit B02): only switch once the protection is armed.
         void (async () => {
-          const armed = await gainGuard!.begin({ restoreProfile: from, testProfile: test, reason: "dock test" });
-          if (!armed.ok) return res.status(500).json({ error: `watchdog not armed: ${armed.error}` });
-          const trialId = armed.id!;
-          try { profileChangeLog.markPlannedWrite(test, "user", "watchdog dock test"); } catch { /* silent */ }
-          client!.set("profile", test);
-          // Rev574 (audit #H): a test nobody finishes ends by itself.
-          // Rev580 (GPT re-audit R03): only this trial, and only switching
-          // back if the test profile is still active (a profile the sailor
-          // picked meanwhile wins, as in the watchdog).
-          setTimeout(() => {
-            const l = gainGuard?.status().lease;
-            if (!l || !l.active || l.id !== trialId) return;
-            void _gainTrialFinish(from, "watchdog dock test timeout", { id: trialId, onlyIfActive: test });
-          }, 120_000);
-          res.json({ ok: true, restoreProfile: from, testProfile: test });
+          try {
+            const armed = await gainGuard!.begin({ restoreProfile: from, testProfile: test, reason: "dock test" });
+            if (!armed.ok) return res.status(500).json({ error: `watchdog not armed: ${armed.error}` });
+            const trialId = armed.id!;
+            try { profileChangeLog.markPlannedWrite(test, "user", "watchdog dock test"); } catch { /* silent */ }
+            // Rev583 (self-audit): a refused switch is not a running test.
+            if (!client || !client.set("profile", test)) {
+              gainGuard!.end(trialId);
+              return res.status(502).json({ error: "pypilot did not accept the profile switch; test not started" });
+            }
+            // Rev574 (audit #H): a test nobody finishes ends by itself.
+            // Rev580 (GPT re-audit R03): only this trial, and only switching
+            // back if the test profile is still active (a profile the sailor
+            // picked meanwhile wins, as in the watchdog).
+            setTimeout(() => {
+              const l = gainGuard?.status().lease;
+              if (!l || !l.active || l.id !== trialId) return;
+              void _gainTrialFinish(from, "watchdog dock test timeout", { id: trialId, onlyIfActive: test });
+            }, 120_000);
+            res.json({ ok: true, restoreProfile: from, testProfile: test });
+          } catch (e: any) {
+            if (!res.headersSent) res.status(500).json({ error: String(e?.message || e) });
+          }
         })();
       });
       router.post("/gain-guard/end", (_req: any, res: any) => {
