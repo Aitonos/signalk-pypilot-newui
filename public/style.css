@@ -189,6 +189,10 @@ nav#tabbar {
   max-height: 60px;
   overflow: hidden;
 }
+/* Rev590 (Carlos): with the tab bar hidden, Control also takes the
+   notch / status-bar strip at the top (the full-screen button already
+   sits there). */
+body.nav-hidden { padding-top: 0; }
 body.nav-hidden nav#tabbar {
   transform: translateY(-100%);
   max-height: 0;
@@ -2386,7 +2390,10 @@ main { touch-action: pan-y; overflow-x: hidden; }
   #tab-control .controls .swipe-hint { margin-top: 0; min-height: clamp(44px, 20vh, 320px); }
   #tab-control .controls .row-tack-mode > *,
   #tab-control .controls .row-nudge-ap > *,
-  #tab-control .controls .engage-toggle { height: clamp(60px, 9vh, 96px); min-height: 60px; }
+  #tab-control .controls .engage-toggle { height: clamp(60px, 15vw, 96px); min-height: 60px; }
+  /* Rev590 (Carlos): button height follows the width, not the height -
+     in full screen the extra height went to the buttons (vh grows) instead
+     of the rose and the chart. */
   /* The rose keeps its shape instead of absorbing the spare height. */
   #tab-control .dash-rose { flex: 0 1 auto; }
 }

@@ -84,6 +84,21 @@ el deslizar lateral".
 - El gesto de cambiar de pestaña deslizando se ignora sobre la barra en
   modo gráfica y sobre la gráfica de la pestaña Gráfica.
 
+## Cuarta ronda (Rev590)
+
+Carlos: leyenda en una sola línea a todo el ancho (también sobre el margen
+derecho), sin "media 30m"; el margen derecho seguía siendo demasiado ancho;
+arriba quedaba el hueco de la muesca sin usar; y en pantalla completa
+crecían los botones, no la rosa ni la gráfica.
+
+- Leyenda: una línea de izquierda a derecha; la letra baja hasta que cabe.
+- Margen derecho: se calcula con la etiqueta de escala más ancha real
+  (p. ej. "20"), no con un ancho fijo.
+- Botones en vertical: alto ligado al ancho (`clamp(60px, 15vw, 96px)`); en
+  pantalla completa el `vh` crecía y se lo llevaban los botones.
+- Barra de pestañas oculta: se quita el margen superior de la zona segura
+  (muesca), la rosa empieza arriba del todo.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -95,7 +110,7 @@ el deslizar lateral".
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev589)
+## QA en el barco (QA Rev590)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.
@@ -110,6 +125,8 @@ el deslizar lateral".
 9. Leyenda: "media 10m" y valores que cambian despacio (media), no al
    segundo.
 10. Deslizar el dedo de lado sobre la gráfica no cambia de pestaña.
+11. Pantalla completa en el móvil: los botones no crecen; la rosa sube hasta
+    la muesca y la gráfica se queda con el resto.
 5. Cambiar series y ventana en la ventana de configuración; recargar el
    visor: se conservan.
 6. Pestaña Gráfica: Polar y TWA disponibles; el resto igual que antes.

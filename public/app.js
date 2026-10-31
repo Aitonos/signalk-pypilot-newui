@@ -752,7 +752,6 @@
       "dash.helmChart.title": "CHART IN THE BOTTOM BAR",
       "dash.helmChart.hint":  "Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.",
       "helmChart.polar":      "Polar max speed",
-      "chart.avg":            "avg",
       "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
       "dash.helmBar.rudder": "Rudder angle",
@@ -1812,7 +1811,6 @@
       "dash.helmChart.title": "GRÁFICA EN LA BARRA DE ABAJO",
       "dash.helmChart.hint":  "Doble toque en la barra de abajo para alternar entre la barra y esta gráfica. Pulsación larga abre estos ajustes; con el dedo sobre la gráfica ves los valores de ese momento.",
       "helmChart.polar":      "Polar vel. máx.",
-      "chart.avg":            "media",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
       "dash.helmBar.rudder": "Ángulo del timón",
@@ -19191,9 +19189,7 @@
     const windowMs = CHART_WINDOWS[c.window] || 30000;
     const tMin = nowTs - windowMs;
     const tMax = nowTs;
-    ctx.font = `${fs}px ui-monospace, monospace`;
-    const marginL = 8, marginR = Math.ceil(ctx.measureText("-888°").width) + 8, marginT = 4, marginB = fs + 8;
-    const plotW = cssW - marginL - marginR;
+    const marginL = 8, marginT = 4, marginB = fs + 8;
     const plotH = cssH - marginT - marginB;
     // One band per kind of value (see CHART_UNIT), in the order chosen.
     const groups = [];
@@ -19204,6 +19200,66 @@
       g.keys.push(k);
     }
     const bandH = plotH / groups.length;
+    const legendW = cssW - marginL - 4;   // Rev590: legend spans the gutter too
+
+    // Pass 1 (vertical layout only): legend, scale and labels per band.
+    // The right gutter is then sized to the widest real label.
+    ctx.font = `${fs}px ui-monospace, monospace`;
+    let labelW = 0;
+    for (let bi = 0; bi < groups.length; bi += 1) {
+      const g = groups[bi];
+      const conv = CHART_UNIT_CONV[g.unit] || ((v) => v);
+      g.bandTop = marginT + bi * bandH;
+      g.bandBot = g.bandTop + bandH - 2;
+      // Legend: one line, average of each chosen series over the window
+      // ("--" = no data; the polar speed is only published while
+      // sailing). The font shrinks until the line fits.
+      g.legend = g.keys.map((k) => {
+        const avg = _chartAverage(c.lastSamples, k, g.unit);
+        return {
+          txt: `${CHART_LABELS[k] || k} ${avg == null ? "--" : _fmtSampleValue(k, avg)}`,
+          color: CHART_COLORS[k] || "#e6edf3",
+        };
+      });
+      let lfs = fs;
+      for (; lfs > 8; lfs -= 1) {
+        ctx.font = `bold ${lfs}px ui-monospace, monospace`;
+        const total = g.legend.reduce((a, it) => a + ctx.measureText(it.txt).width, 0) + lfs * (g.legend.length - 1);
+        if (total <= legendW) break;
+      }
+      g.lfs = lfs;
+      g.plotTop = Math.min(g.bandBot - 4, g.bandTop + lfs + 8);
+      let vmin = Infinity, vmax = -Infinity;
+      for (const smp of c.lastSamples) {
+        for (const k of g.keys) {
+          if (!isNum(smp[k])) continue;
+          const v = conv(smp[k]);
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
+        }
+      }
+      g.ticks = [];
+      if (vmin === Infinity) continue;
+      if (g.unit === "speed") vmin = Math.min(0, vmin);
+      if (vmax - vmin < 1e-6) {
+        if (g.unit === "speed") vmax = vmin + 1;   // all zero: 0..1, not -1..1
+        else { vmin -= 1; vmax += 1; }
+      }
+      const rows = Math.max(1, Math.floor((g.bandBot - g.plotTop) / (fs * 2.4)));
+      const step = _chartNiceStep((vmax - vmin) / rows);
+      g.lo = Math.floor(vmin / step) * step;
+      g.hi = Math.max(g.lo + step, Math.ceil(vmax / step) * step);
+      const dec = step < 1 ? 1 : 0;
+      const suffix = g.unit in CHART_UNIT_SUFFIX ? CHART_UNIT_SUFFIX[g.unit] : "°";
+      ctx.font = `${fs}px ui-monospace, monospace`;
+      for (let v = g.lo; v <= g.hi + step / 2; v += step) {
+        const txt = (Math.abs(v) < step / 1e6 ? 0 : v).toFixed(dec) + suffix;
+        g.ticks.push({ v, txt });
+        labelW = Math.max(labelW, ctx.measureText(txt).width);
+      }
+    }
+    const marginR = Math.ceil(labelW) + 6;
+    const plotW = cssW - marginL - marginR;
 
     // X-axis time ticks at 0%, 50%, 100% of window.
     ctx.strokeStyle = "#4a5a6e";
@@ -19226,37 +19282,12 @@
       ctx.fillText(tk.txt, x, cssH - 4);
     }
 
-    // Per band: legend (name + last value), grid + scale, traces.
-    // Snapshot the band geometry so the hover handler can hit-test
-    // without re-computing.
+    // Pass 2: grid, scale labels, traces, legend. Snapshot the band
+    // geometry so the hover handler can hit-test without re-computing.
     c.bands = [];
-    for (let bi = 0; bi < groups.length; bi += 1) {
-      const { unit, keys } = groups[bi];
-      const conv = CHART_UNIT_CONV[unit] || ((v) => v);
-      const bandTop = marginT + bi * bandH;
-      const bandBot = bandTop + bandH - 2;
-      // Legend: average of each chosen series over the window ("--" = no
-      // data; the polar speed is only published while sailing). Wraps to
-      // more lines when it does not fit.
-      ctx.font = `bold ${fs}px ui-monospace, monospace`;
-      const legend = [];
-      if (bi === 0) legend.push({ txt: `${t("chart.avg")} ${c.window}`, color: "#8a97a6" });
-      for (const k of keys) {
-        const avg = _chartAverage(c.lastSamples, k, unit);
-        legend.push({
-          txt: `${CHART_LABELS[k] || k} ${avg == null ? "--" : _fmtSampleValue(k, avg)}`,
-          color: CHART_COLORS[k] || "#e6edf3",
-        });
-      }
-      let lx = marginL + 4, ly = bandTop + 3;
-      for (const it of legend) {
-        it.w = ctx.measureText(it.txt).width;
-        if (lx > marginL + 4 && lx + it.w > marginL + plotW) { lx = marginL + 4; ly += fs + 5; }
-        it.x = lx; it.y = ly;
-        lx += it.w + fs;
-      }
-      const legendH = ly - bandTop + fs + 4;
-      const plotTop = Math.min(bandBot - 4, bandTop + legendH + 2);
+    groups.forEach((g, bi) => {
+      const conv = CHART_UNIT_CONV[g.unit] || ((v) => v);
+      const { bandTop, bandBot, plotTop } = g;
       if (bi > 0) {
         ctx.strokeStyle = "#4a5a6e";
         ctx.beginPath();
@@ -19264,73 +19295,54 @@
         ctx.lineTo(marginL + plotW, bandTop);
         ctx.stroke();
       }
-      let vmin = Infinity, vmax = -Infinity;
-      for (const s of c.lastSamples) {
-        for (const k of keys) {
-          if (!isNum(s[k])) continue;
-          const v = conv(s[k]);
-          if (v < vmin) vmin = v;
-          if (v > vmax) vmax = v;
-        }
-      }
-      if (vmin !== Infinity) {
-        if (unit === "speed") vmin = Math.min(0, vmin);
-        if (vmax - vmin < 1e-6) {
-          if (unit === "speed") vmax = vmin + 1;   // all zero: 0..1, not -1..1
-          else { vmin -= 1; vmax += 1; }
-        }
-        const rows = Math.max(1, Math.floor((bandBot - plotTop) / (fs * 2.4)));
-        const step = _chartNiceStep((vmax - vmin) / rows);
-        const lo = Math.floor(vmin / step) * step;
-        const hi = Math.max(lo + step, Math.ceil(vmax / step) * step);
-        const yOf = (v) => bandBot - ((v - lo) / (hi - lo)) * (bandBot - plotTop);
-        // Grid lines + scale labels in the right gutter.
-        const dec = step < 1 ? 1 : 0;
-        const suffix = unit in CHART_UNIT_SUFFIX ? CHART_UNIT_SUFFIX[unit] : "°";
+      if (g.ticks.length > 0) {
+        const yOf = (v) => bandBot - ((v - g.lo) / (g.hi - g.lo)) * (bandBot - plotTop);
         ctx.font = `${fs}px ui-monospace, monospace`;
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        for (let v = lo; v <= hi + step / 2; v += step) {
-          const y = yOf(v);
+        for (const tk of g.ticks) {
+          const y = yOf(tk.v);
           ctx.strokeStyle = "#1f2b38";
           ctx.beginPath();
           ctx.moveTo(marginL, y);
           ctx.lineTo(marginL + plotW, y);
           ctx.stroke();
           ctx.fillStyle = "#b8c4d0";
-          ctx.fillText(v.toFixed(dec) + suffix, marginL + plotW + 4, Math.max(plotTop + fs / 2, Math.min(bandBot - fs / 2, y)));
+          ctx.fillText(tk.txt, marginL + plotW + 4, Math.max(plotTop + fs / 2, Math.min(bandBot - fs / 2, y)));
         }
-        // Traces.
-        for (const k of keys) {
+        for (const k of g.keys) {
           ctx.strokeStyle = CHART_COLORS[k] || "#e6edf3";
           ctx.lineWidth = fs >= 12 ? 2 : 1.5;
           ctx.setLineDash(CHART_DASHED.has(k) ? [6, 4] : []);
           ctx.beginPath();
           let started = false;
-          for (const s of c.lastSamples) {
-            if (!isNum(s[k])) { started = false; continue; }
-            const x = marginL + ((s.ts - tMin) / (tMax - tMin)) * plotW;
-            const y = yOf(conv(s[k]));
+          for (const smp of c.lastSamples) {
+            if (!isNum(smp[k])) { started = false; continue; }
+            const x = marginL + ((smp.ts - tMin) / (tMax - tMin)) * plotW;
+            const y = yOf(conv(smp[k]));
             if (!started) { ctx.moveTo(x, y); started = true; }
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
         }
         ctx.setLineDash([]);
-        c.bands.push({ key: keys[0], keys, bandTop, bandBot, lo, hi });
+        c.bands.push({ key: g.keys[0], keys: g.keys, bandTop, bandBot, lo: g.lo, hi: g.hi });
       } else {
-        c.bands.push({ key: keys[0], keys, bandTop, bandBot, lo: null, hi: null });
+        c.bands.push({ key: g.keys[0], keys: g.keys, bandTop, bandBot, lo: null, hi: null });
       }
-      ctx.font = `bold ${fs}px ui-monospace, monospace`;
+      ctx.font = `bold ${g.lfs}px ui-monospace, monospace`;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      for (const it of legend) {
+      let lx = marginL + 2;
+      for (const it of g.legend) {
+        const w = ctx.measureText(it.txt).width;
         ctx.fillStyle = "rgba(14,20,27,0.85)";
-        ctx.fillRect(it.x - 2, it.y - 2, it.w + 4, fs + 4);
+        ctx.fillRect(lx - 2, bandTop + 1, w + 4, g.lfs + 4);
         ctx.fillStyle = it.color;
-        ctx.fillText(it.txt, it.x, it.y);
+        ctx.fillText(it.txt, lx, bandTop + 3);
+        lx += w + g.lfs;
       }
-    }
+    });
     // Cache geometry for hover.
     c.geom = { marginL, marginR, marginT, marginB, plotW, plotH, tMin, tMax, cssW, cssH };
 

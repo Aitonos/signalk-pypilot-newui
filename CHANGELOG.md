@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev589)
+## Unreleased (Rev584 → Rev590)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -18,8 +18,12 @@
   starts at 0, with grid lines and a labelled scale; angles share another.
   The legend shows each chosen series with its **average over the chosen
   window** (circular mean for angles; "--" = no data yet, the polar speed
-  is only published while sailing) and wraps to more lines when needed.
-  Scale labels carry only the number, so the right margin is narrow.
+  is only published while sailing) on one line across the full width; the
+  font shrinks if needed. Scale labels carry only the number and the right
+  margin is sized to the widest one.
+- Portrait button height follows the screen width, so in full screen the
+  extra height goes to the rose and the chart; with the tab bar hidden the
+  top notch / status strip is used too.
 - Heel / rudder pointer: thick glowing line from the top and bottom edges
   of the bar to the number.
 - A finger on a chart (bottom bar in chart view, Chart tab) no longer
