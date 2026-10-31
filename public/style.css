@@ -2407,12 +2407,16 @@ main { touch-action: pan-y; overflow-x: hidden; }
      The height animates when the view changes. */
   /* Rev593 (Carlos): chart / Freeboard +40 % (from the rose), and in
      full screen the heel bar +50 % too. */
+  /* Rev594 (Carlos): +10 % more - from the rose in normal view, from the
+     buttons in full screen (the rose cap keeps the Rev593 strip height). */
   #tab-control {
-    --strip-chart-h: max(96px, 22.4vh);
+    --strip-chart-h: max(96px, 24.6vh);
     --strip-heel-h: max(48px, 8vh);
+    --rose-strip-h: var(--strip-chart-h);
   }
   body.is-fullscreen #tab-control {
     --strip-heel-h: max(48px, 12vh);
+    --rose-strip-h: max(96px, 22.4vh);
   }
   #tab-control .controls .row-tack-mode,
   #tab-control .controls .row-nudge-ap { flex: 1 1 0; min-height: clamp(60px, 15vw, 96px); }
@@ -2433,7 +2437,7 @@ main { touch-action: pan-y; overflow-x: hidden; }
      so a shorter heel bar gives its height to the buttons, not the rose. */
   #tab-control .dash-rose {
     flex: 0 1 auto;
-    max-height: calc(100% - 26px - 2 * clamp(60px, 15vw, 96px) - var(--strip-chart-h));
+    max-height: calc(100% - 26px - 2 * clamp(60px, 15vw, 96px) - var(--rose-strip-h));
   }
 }
 @media (orientation: portrait) and (max-width: 600px) {

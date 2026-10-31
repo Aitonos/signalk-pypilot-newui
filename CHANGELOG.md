@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev593)
+## Unreleased (Rev584 → Rev594)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -22,7 +22,7 @@
   font shrinks if needed. Scale labels carry only the number and the right
   margin is sized to the widest one.
 - Bottom bar heights, animated when switching: portrait chart / Freeboard
-  22.4 % of the screen, heel bar 8 % (12 % in full screen); landscape
+  24.6 % of the screen, heel bar 8 % (12 % in full screen); landscape
   chart / Freeboard ~40 % of the column (50 % in full screen), heel bar
   ~20 %, one gap from the buttons. The button rows take all the spare height (bigger buttons in
   the heel view and in full screen). With the tab bar hidden the top notch

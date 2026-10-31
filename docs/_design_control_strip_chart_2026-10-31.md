@@ -138,6 +138,17 @@ apaisado menos separación entre la barra y los botones.
 "Pantalla completa" = la del botón de arriba a la derecha (API del
 navegador), marcada con la clase `is-fullscreen` en el `body`.
 
+## Séptima ronda (Rev594)
+
+Carlos: gráfica / Freeboard en vertical un 10 % más: contra la rosa en
+normal y contra los botones en pantalla completa.
+
+- Alto 24,6 % de la pantalla (148 -> 162 px en el móvil de prueba).
+- Normal: el tope de la rosa usa ese alto, la rosa baja (295 -> 280 px).
+- Pantalla completa: el tope de la rosa sigue con el alto de Rev593, así
+  que lo pagan los botones. Si los botones ya están en su mínimo (60 px o
+  15 % del ancho), no pueden ceder y lo cede la rosa.
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -149,7 +160,7 @@ navegador), marcada con la clase `is-fullscreen` en el `body`.
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev593)
+## QA en el barco (QA Rev594)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.
