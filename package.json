@@ -66,6 +66,9 @@
     ],
     "screenshots": [
       "./public/screenshots/01-control-rose.jpg",
+      "./public/screenshots/09-control-strip-chart.jpg",
+      "./public/screenshots/10-control-strip-freeboard.jpg",
+      "./public/screenshots/11-control-phone-freeboard.jpg",
       "./public/screenshots/05-modes-autowind.jpg",
       "./public/screenshots/02-chartplotter-embedded.jpg",
       "./public/screenshots/07-logbook-trip-detail.jpg",

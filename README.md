@@ -27,6 +27,12 @@ Spend more time sailing and less time guessing which slider to move.
 
 ## Screenshots
 
+| Bottom bar · live chart | Bottom bar · Freeboard-SK |
+|---|---|
+| ![Control tab with the bottom bar as a chart: SOG, polar max speed, AWS and TWS on one knots scale](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/09-control-strip-chart.jpg) | ![Control tab with Freeboard-SK in the bottom bar under the controls](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/10-control-strip-freeboard.jpg) |
+
+<p align="center"><img src="https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/11-control-phone-freeboard.jpg" width="300" alt="Phone in portrait: compass rose, controls and Freeboard-SK in the bottom bar" /></p>
+
 | Chartplotter embedded | AnchorWatch Pro inside the rose |
 |---|---|
 | ![Freeboard-SK embedded in the rose box](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chartplotter-embedded.jpg) | ![Anchor-watch visor of AnchorWatch Pro inside the rose](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-anchorwatch-in-rose.jpg) |
