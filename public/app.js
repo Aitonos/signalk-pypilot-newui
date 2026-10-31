@@ -19445,21 +19445,22 @@
     ctx.stroke();
     ctx.setLineDash([]);
     // Tooltip box.
+    // Rev602 (Carlos): age in whole minutes, each value in its series colour.
     const lines = [];
-    const ageS = Math.max(0, (Date.now() - sample.ts) / 1000);
-    lines.push(`-${ageS.toFixed(1)} s`);
+    const ageMin = Math.round(Math.max(0, Date.now() - sample.ts) / 60000);
+    lines.push({ txt: ageMin === 0 ? "NOW" : `-${ageMin} min`, color: "#b8c4d0" });
     for (const b of (c.bands || [])) {
       for (const k of b.keys) {
         const v = sample[k];
         if (typeof v === "number" && isFinite(v)) {
-          lines.push(`${CHART_LABELS[k] || k}: ${_fmtSampleValue(k, v)}`);
+          lines.push({ txt: `${CHART_LABELS[k] || k}: ${_fmtSampleValue(k, v)}`, color: CHART_COLORS[k] || "#e6edf3" });
         }
       }
     }
     const tfs = (c.fontPx || 10) + 1;
     ctx.font = `${tfs}px ui-monospace, monospace`;
     let w = 0;
-    for (const ln of lines) w = Math.max(w, ctx.measureText(ln).width);
+    for (const ln of lines) w = Math.max(w, ctx.measureText(ln.txt).width);
     const boxW = w + 12;
     const boxH = lines.length * (tfs + 3) + 8;
     let boxX = x + 8;
@@ -19474,8 +19475,8 @@
     ctx.textBaseline = "top";
     let ly = boxY + 4;
     for (let i = 0; i < lines.length; i += 1) {
-      ctx.fillStyle = i === 0 ? "#b8c4d0" : "#e6edf3";
-      ctx.fillText(lines[i], boxX + 6, ly);
+      ctx.fillStyle = lines[i].color;
+      ctx.fillText(lines[i].txt, boxX + 6, ly);
       ly += tfs + 3;
     }
   }
