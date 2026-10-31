@@ -196,3 +196,40 @@ describe("DoctorEngine apply (Rev566)", () => {
     assert.equal([a, b].filter((r) => r.ok).length, 1);
   });
 });
+
+describe("DoctorEngine (Rev577, GPT audit A08/B04)", () => {
+  it("A08: a reset while the profile fork is pending stops cleanly, no TypeError", async () => {
+    const c = fakeClient(GAINS, { echoMs: 300 });
+    const { doc, sug } = diagnosed(c);
+    const p = doc.applySuggestion(sug.id);
+    doc.reset();
+    const res = await p;
+    assert.equal(res.ok, false);
+    assert.match(res.message, /reset/);
+    assert.equal(c.values["ap.pilot.basic.I"], 0.001, "nothing written");
+  });
+
+  it("refuses to start a new diagnostic while a gain is being applied", async () => {
+    const c = fakeClient({ ...GAINS, "ap.enabled": true }, { echoMs: 300 });
+    const { doc, sug } = diagnosed(c);
+    const p = doc.applySuggestion(sug.id);
+    assert.equal(doc.start(60).ok, false);
+    await p;
+  });
+
+  it("B04: a setup changed and changed back during the session is seen", () => {
+    const h = fill(120, () => ({ headingActual: -5 * DEG, servoCurrent: 0.0 }));
+    const c = fakeClient(GAINS);
+    const doc = new DoctorEngine(h, c as any);
+    let gen = 7;
+    doc.setConfigGenerationAccessor(() => gen);
+    const session = {
+      id: "t", startedTs: Date.now() - 180_000, targetDurationSec: 180,
+      pilotId: "basic", initialGains: { P: 0.003, I: 0.001, D: 0.09 }, originalProfile: "default", configGen: 7,
+    };
+    gen = 9;   // A -> B -> A: profile and gains look the same at the end
+    const r = (doc as any).analyze(session) as DoctorResult;
+    assert.ok(r.findings.some((f) => f.category === "config-changed"));
+    assert.equal(r.suggestions.length, 0);
+  });
+});

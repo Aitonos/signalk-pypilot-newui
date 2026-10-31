@@ -81,7 +81,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev576";
+const PLUGIN_REVISION = "Rev577";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -474,6 +474,9 @@ module.exports = function (app: any) {
   // Rev568: same for gains, so each recorded session lists who changed
   // which gain and why.
   const gainChangeLog = new GainChangeLog();
+  // Rev577 (GPT audit B04): profile switches seen, for the Doctor's
+  // "did the setup change during the session" check.
+  let _profileChangeCount = 0;
 
   // Rev569: profile history. pypilot reports the new name in `profiles`
   // and the switch in `profile` in either order, so a creation is
@@ -1094,6 +1097,7 @@ module.exports = function (app: any) {
         try { profileChangeLog.markPlannedWrite(name, "doctor", reason); }
         catch { /* silent */ }
       });
+      doctor.setConfigGenerationAccessor(() => gainChangeLog.changeCount + _profileChangeCount);
       // Rev568: and its gain writes, with the finding behind them.
       doctor.setGainWriteHook((path, value, reason) => {
         try { gainChangeLog.markPlannedWrite(path, value, "doctor", reason); }
@@ -6702,6 +6706,7 @@ module.exports = function (app: any) {
           // Rev568: into the session too; the gains that follow a profile
           // switch belong to it, not to separate changes.
           if (entry) {
+            _profileChangeCount += 1;
             gainChangeLog.noteProfileChange(entry.ts);
             if (sessionRecorder) {
               sessionRecorder.recordChange({ ts: entry.ts, kind: "profile", key: "profile", from: entry.from, to: entry.to, source: entry.source, reason: entry.reason });

@@ -102,6 +102,8 @@ interface Session {
   originalProfile: string | null;
   /** Rev566: AP mode when the session started. */
   mode?: string | null;
+  /** Rev577 (GPT audit B04): config generation at the start. */
+  configGen?: number | null;
 }
 
 const MIN_DURATION_SEC = 30;
@@ -148,6 +150,10 @@ export class DoctorEngine {
   setClient(client: PypilotClient | null): void { this.client = client; }
   setEpisodes(episodes: EpisodeDetector | null): void { this.episodes = episodes; }
   setPluginStateAccessor(fn: (() => { rollFfGain: number }) | null): void { this.getPluginState = fn; }
+  /** Rev577 (GPT audit B04): a counter the plugin bumps on every profile or
+   *  gain change, so A -> B -> A inside a session is still seen. */
+  private getConfigGeneration: (() => number) | null = null;
+  setConfigGenerationAccessor(fn: (() => number) | null): void { this.getConfigGeneration = fn; }
 
   status(): DoctorStatus {
     const now = Date.now();
@@ -188,6 +194,7 @@ export class DoctorEngine {
     if (this.state === "running" || this.state === "analyzing") {
       return { ok: false, message: "A diagnostic session is already in progress." };
     }
+    if (this.applying) return { ok: false, message: "A gain is being applied. Try again in a few seconds." };
     if (!this.client) {
       return { ok: false, message: "pypilot client not initialised." };
     }
@@ -220,6 +227,7 @@ export class DoctorEngine {
       initialGains,
       originalProfile,
       mode: typeof pv["ap.mode"] === "string" ? pv["ap.mode"] as string : null,
+      configGen: this.getConfigGeneration ? this.getConfigGeneration() : null,
     };
     this.result = null;
     this.state = "running";
@@ -586,7 +594,7 @@ export class DoctorEngine {
 
   /** Rev566: "mode" | "profile" | "gains" when the configuration seen
    *  in the window is not the one the session started with, else null. */
-  private configChange(session: Session, engaged: Sample[]): "mode" | "profile" | "gains" | null {
+  private configChange(session: Session, engaged: Sample[]): "mode" | "profile" | "gains" | "setup" | null {
     const modes = new Set(engaged.map((s) => s.mode).filter((m): m is string => typeof m === "string"));
     if (modes.size > 1) return "mode";
     if (!this.client) return null;
@@ -598,6 +606,8 @@ export class DoctorEngine {
       const now = pv[`ap.pilot.${session.pilotId}.${k}`];
       if (typeof now === "number" && !sameGain(now, v)) return "gains";
     }
+    // Rev577 (GPT audit B04): changed and changed back during the session.
+    if (this.getConfigGeneration && session.configGen != null && this.getConfigGeneration() !== session.configGen) return "setup";
     return null;
   }
 
@@ -662,9 +672,8 @@ export class DoctorEngine {
   /** Rev535 (GPT review 3 #2/#5): fork into a uniquely named profile and
    *  WAIT until pypilot reports it active - writing the gain before that
    *  changed the original profile while saying "in new profile". */
-  private async ensureForkedProfile(): Promise<{ name: string | null; error?: string }> {
-    if (!this.result) return { name: null, error: "No result available." };
-    if (this.result.newProfileName) return { name: this.result.newProfileName };
+  private async ensureForkedProfile(res: DoctorResult): Promise<{ name: string | null; error?: string }> {
+    if (res.newProfileName) return { name: res.newProfileName };
     if (!this.client) return { name: null, error: "pypilot client not initialised." };
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -674,13 +683,15 @@ export class DoctorEngine {
     if (Array.isArray(profiles) && profiles.includes(name)) name = `${name}-${Math.random().toString(36).slice(2, 5)}`;
     // pypilot: writing to `profile` with a name that does NOT exist
     // creates it as a copy of the currently-active profile.
-    try { this.profileWriteHook?.(name, `Doctor forked from ${this.result.originalProfile ?? "?"}`); }
+    try { this.profileWriteHook?.(name, `Doctor forked from ${res.originalProfile ?? "?"}`); }
     catch { /* silent */ }
     if (!this.client.set("profile", name)) return { name: null, error: "Could not create the new profile (pypilot did not accept the write)." };
     const t0 = Date.now();
     while (Date.now() - t0 < 3000) {
       if ((this.client.getValues() as any)["profile"] === name) {
-        this.result.newProfileName = name;
+        // Rev577 (GPT audit A08): a reset during the wait drops this result.
+        if (this.result !== res) return { name: null, error: "The diagnostic was reset while applying." };
+        res.newProfileName = name;
         return { name };
       }
       await new Promise((r) => setTimeout(r, 100));
@@ -723,7 +734,7 @@ export class DoctorEngine {
     if (this.applying) return { ok: false, message: "Another change is being applied. Try again in a few seconds." };
     this.applying = true;
     try {
-      return await this.applyChecked(s);
+      return await this.applyChecked(s, this.result);
     } finally {
       this.applying = false;
     }
@@ -731,16 +742,20 @@ export class DoctorEngine {
 
   private applying = false;
 
-  private async applyChecked(s: Suggestion): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
-    if (!this.result || !this.client) return { ok: false, message: "No result available." };
+  // Rev577 (GPT audit A08): works on the result it started with; a reset
+  // or a new diagnostic during any wait makes it stop instead of writing
+  // into (or crashing on) the new state.
+  private async applyChecked(s: Suggestion, res: DoctorResult): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
+    if (!this.client) return { ok: false, message: "pypilot client not initialised." };
     // Fork the profile before the first write so the original stays intact.
-    const fork = await this.ensureForkedProfile();
+    const fork = await this.ensureForkedProfile(res);
+    if (this.result !== res) return { ok: false, message: "The diagnostic was reset while applying - nothing applied." };
     if (!fork.name) return { ok: false, message: fork.error || "Profile fork failed - nothing applied." };
     const forked = fork.name;
     if ((this.client.getValues() as any)["profile"] !== forked) {
       return { ok: false, message: `Active profile is no longer '${forked}'. Run a fresh session.` };
     }
-    if (s.applied || this.result.suggestions.some((x) => x.applied)) {
+    if (s.applied || res.suggestions.some((x) => x.applied)) {
       return { ok: false, message: "Run a fresh Doctor session before applying the next suggestion.", mustRunFreshSession: true };
     }
     if (!sameGain((this.client.getValues() as any)[s.path], s.currentValue)) {
@@ -837,6 +852,7 @@ export class DoctorEngine {
       return { ok: true, applied, failed, mustRunFreshSession: false, remaining: 0 };
     }
     const first = pending[0];
+    const res = this.result;
     const r = await this.applySuggestion(first.id);
     if (r.ok) applied.push(first.id);
     else failed.push({ id: first.id, message: r.message });
@@ -844,10 +860,10 @@ export class DoctorEngine {
     // Forensic Rev542: lock only when something WAS applied; a failed first
     // apply (fork refused, gain at its limit) must be retryable.
     const mustRun = r.ok && remaining > 0;
-    if (mustRun) {
+    if (mustRun && this.result === res) {
       // Lock so a second applyAll call cannot bypass the fresh-session
-      // requirement.
-      (this.result as any).awaitingFreshSession = true;
+      // requirement. Rev577: only the result that was applied to.
+      (res as any).awaitingFreshSession = true;
     }
     return {
       ok: failed.length === 0,

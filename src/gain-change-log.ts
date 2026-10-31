@@ -41,6 +41,8 @@ export const GAIN_PATH_RE = /^ap\.pilot\.[^.]+\.(P|I|D|DD|PR|FF)$/;
 
 export class GainChangeLog {
   private planned: PlannedGainWrite[] = [];
+  /** Rev577: bumped on every gain change seen, whoever made it. */
+  changeCount = 0;
   private readonly last = new Map<string, number>();
   private profileChangedTs = -Infinity;
 
@@ -75,6 +77,7 @@ export class GainChangeLog {
     const prev = this.last.get(path);
     this.last.set(path, value);
     if (prev === undefined || Math.abs(prev - value) <= 1e-9 + 1e-6 * Math.abs(value)) return null;
+    this.changeCount += 1;
     this.gc(now);
     // A planned write is credited even right after a profile switch: the
     // Doctor forks the profile and writes the gain within a second.
