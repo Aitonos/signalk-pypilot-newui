@@ -25,3 +25,22 @@ tocar nada.
 Prueba que se queda abierta sin `--test-force-exit` (GPT): pendiente de
 localizar; probablemente un temporizador o socket de las pruebas del
 vigilante.
+
+## Estado (2026-10-31)
+
+| Rev | Arreglos | Tests nuevos |
+|---|---|---|
+| 575 | A07 normalización de ángulos de coste fijo (backend y visor) | 3 |
+| 576 | A09 APB y avance de waypoint solo con `allowWrites`; A01/A02 restauraciones de racha como máquina de estados probada (`gust-restore.ts`) | 5 |
+| 577 | A08 aplicar del Doctor inmune a reset; B04 contador de cambios de configuración | 3 |
+| 578 | A10 vigilante reintenta sin rendirse; B03 respeta la elección del patrón; B02 `begin` confirma la protección; B01 fin de prueba con confirmación | 2 |
+| 579 | A03 cobertura temporal del tramo; A04 velocidad, ángulo y presencia de viento; A05 sin propuestas que no cambian nada; B05 tope de salida SSH | 3 |
+
+429 tests en verde, desplegado en la Pi (Rev579), Signal K activo y sin
+errores. Sin arreglar a propósito: A06 (ver tabla). Pendiente: localizar la
+prueba que deja abierto el proceso de tests sin `--test-force-exit`, y un
+fallo intermitente visto una vez (probablemente las pruebas del vigilante
+que arrancan un proceso real; no se repitió en 4 ejecuciones).
+Restaurar tras rachas sigue siendo en memoria: si Signal K se reinicia en
+plena racha, la D subida se queda; propuesta futura, pasarlo por el
+vigilante.
