@@ -3251,6 +3251,7 @@ body.setup-fullscreen-active #tabbar {
 .sq-status.degraded { background: var(--warn); color: #221000; }
 .sq-status.lost     { background: var(--err); color: #fff; }
 .sq-status.missing  { background: var(--fg-dim); color: #001622; }
+.sq-status.unknown  { background: var(--fg-dim); color: #001622; }
 
 /* -------- Rev96: Chart tab (Trip Stats + telemetry canvas) -------- */
 #tab-chart {

@@ -14,7 +14,10 @@
 // Faster sources (10 Hz IMU) will get a slightly underestimated Hz but
 // the freshness and jitter classification is still meaningful.
 
-export type QualityLevel = "good" | "degraded" | "lost" | "missing";
+// Rev582 (GPT re-audit A06): "unknown" = the value arrives without a
+// timestamp and has not changed lately, so whether it is still live
+// cannot be told (neither good nor lost).
+export type QualityLevel = "good" | "degraded" | "lost" | "missing" | "unknown";
 
 export interface QualityThreshold {
   /** Above this age -> degraded. */
@@ -120,6 +123,10 @@ interface Slot {
   lastSkTs: number | null;
   lastValue: unknown;
   lastSource: string | null;
+  /** Rev582: the latest observations came without a timestamp. */
+  tsMissing?: boolean;
+  /** Rev582: last value seen, to notice a real new reading without a timestamp. */
+  lastValueJson?: string;
 }
 
 /** Rev535: an SK timestamp older than this is not counted as an arrival. */
@@ -182,13 +189,20 @@ export class SensorQualityMonitor {
     const skTs = normaliseTs(entry.timestamp ?? entry.$source);
     slot.lastValue = entry.value;
     slot.lastSource = pickSource(entry);
+    let vj: string;
+    try { vj = JSON.stringify(entry.value); } catch { vj = String(entry.value); }
     if (skTs == null) {
-      // No timestamp - fall back to counting each observation as fresh,
-      // one per tick. This is worst-case; log-only paths still work.
-      this.pushArrival(slot, nowMs);
-      slot.lastSkTs = nowMs;
+      // Rev582 (GPT re-audit A06): no timestamp. Re-reading the same cached
+      // value proves nothing, so only a CHANGED value counts as a new
+      // reading; when it stays the same the row shows "unknown" rather
+      // than good (or lost: a constant sensor may be perfectly fine).
+      if (slot.count === 0 || slot.lastValueJson !== vj) this.pushArrival(slot, nowMs);
+      slot.tsMissing = true;
+      slot.lastValueJson = vj;
       return;
     }
+    slot.tsMissing = false;
+    slot.lastValueJson = vj;
     if (slot.lastSkTs != null && skTs === slot.lastSkTs) {
       // Same sample as last tick - source did not publish new data.
       return;
@@ -238,7 +252,7 @@ export class SensorQualityMonitor {
   }
 
   private classify(slot: Slot, nowMs: number): PathQuality {
-    if (slot.count === 0 || slot.lastSkTs == null) {
+    if (slot.count === 0 || (slot.lastSkTs == null && !slot.tsMissing)) {
       return {
         path: slot.path,
         label: slot.threshold.label || slot.path,
@@ -276,7 +290,8 @@ export class SensorQualityMonitor {
     } else if (arrivalsChron.length === 1) {
       hz = arrivalsChron[0] > nowMs - this.windowMs ? 1 / (this.windowMs / 1000) : null;
     }
-    const level = this.gradeLevel(slot.threshold, ageMs, hz);
+    let level = this.gradeLevel(slot.threshold, ageMs, hz);
+    if (slot.tsMissing && level !== "good") level = "unknown";   // Rev582
     return {
       path: slot.path,
       label: slot.threshold.label || slot.path,
@@ -302,7 +317,7 @@ export class SensorQualityMonitor {
  *  the "greenest and freshest". Ordering: good beats degraded beats
  *  lost beats missing; within the same level, the smaller ageMs wins. */
 function isBetter(a: PathQuality, b: PathQuality): boolean {
-  const rank = (l: QualityLevel): number => (l === "good" ? 3 : l === "degraded" ? 2 : l === "lost" ? 1 : 0);
+  const rank = (l: QualityLevel): number => (l === "good" ? 3 : l === "degraded" || l === "unknown" ? 2 : l === "lost" ? 1 : 0);
   const ra = rank(a.level);
   const rb = rank(b.level);
   if (ra !== rb) return ra > rb;

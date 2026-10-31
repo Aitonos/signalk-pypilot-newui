@@ -289,6 +289,7 @@
       "setup.quality.level.good":     "GOOD",
       "setup.quality.level.degraded": "DEGRADED",
       "setup.quality.level.lost":     "LOST",
+      "setup.quality.level.unknown":  "UNKNOWN",
       "setup.quality.level.ignored":  "IGNORED",
       "sq.col.sensor":             "Sensor",
       "sq.col.value":              "Value",
@@ -1341,6 +1342,7 @@
       "setup.quality.level.good":     "BUENO",
       "setup.quality.level.degraded": "DEGRADADO",
       "setup.quality.level.lost":     "PERDIDO",
+      "setup.quality.level.unknown":  "DESCONOCIDO",
       "setup.quality.level.ignored":  "IGNORADO",
       "sq.col.sensor":             "Sensor",
       "sq.col.value":              "Valor",
@@ -18796,7 +18798,7 @@
     for (const r of rows) {
       if (_sqIgnored.has(r.path)) { g += 1; continue; }
       if (r.level === "good") g += 1;
-      else if (r.level === "degraded") w += 1;
+      else if (r.level === "degraded" || r.level === "unknown") w += 1;   // Rev582: freshness unknown
       else if (r.level === "lost") l += 1;
       else if (r.level === "missing") m += 1;
     }
@@ -18835,7 +18837,7 @@
       // need to be silenced.
       const actionTd = document.createElement("td");
       actionTd.className = "sq-action";
-      const canIgnore = (r.level === "missing" || r.level === "lost" || r.level === "degraded");
+      const canIgnore = (r.level === "missing" || r.level === "lost" || r.level === "degraded" || r.level === "unknown");
       if (ignored || canIgnore) {
         const btn = document.createElement("button");
         btn.type = "button";
