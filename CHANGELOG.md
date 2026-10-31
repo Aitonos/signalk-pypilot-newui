@@ -1,54 +1,45 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev600)
+## 3.9.0 — 2026-10-31 — Control bottom bar: chart and Freeboard views
+
+Rolls up Rev584 → Rev601 on top of 3.8.2. Details and QA in
+`docs/_design_control_strip_chart_2026-10-31.md`; self-audit in
+`docs/_autoauditoria_pre_3.9.0_2026-10-31.md`.
 
 ### Added
-- **Control tab: the bottom bar uses all the free height.** In portrait the
-  rose keeps its shape and the heel / rudder bar takes the rest; in
-  landscape the button rows stop at 22 % of the screen height and the bar
-  takes the rest, also with the tab bar hidden. The number, ticks and
-  labels grow with the bar.
-- **Chart in the bottom bar.** Double tap the bar to switch between the
-  heel / rudder bar and a chart; long press opens its settings; a finger
-  on the chart shows the values of that moment. Series (SOG, STW, polar
-  max speed, VMG, AWS, TWS, AWA, TWA) and window (2 / 10 / 30 min) are
-  chosen in the corner-config popup; default SOG, polar, AWS, TWS. Same
-  renderer and data as the Chart tab.
-- **Charts group series by kind**: all speeds share one knots band that
-  starts at 0, with grid lines and a labelled scale; angles share another.
-  The legend shows each chosen series with its **average over the chosen
-  window** (circular mean for angles; "--" = no data yet, the polar speed
-  is only published while sailing) on one line across the full width; the
-  font shrinks if needed. Scale labels carry only the number and the right
-  margin is sized to the widest one.
-- Bottom bar heights, animated when switching: portrait chart / Freeboard
-  24.6 % of the screen, heel bar 8 % (12 % in full screen); landscape
-  chart / Freeboard ~40 % of the column (50 % in full screen), heel bar
-  ~20 %, one gap from the buttons. The button rows take all the spare height (bigger buttons in
-  the heel view and in full screen). With the tab bar hidden the top notch
-  / status strip is used too.
-- **Freeboard as a third view of the bottom bar** (the warm preloaded
-  frame, laid over the bar, no reload). The double tap cycles through the
-  views chosen in the corner-config popup (heel bar, chart, Freeboard);
-  × on Freeboard leaves that view.
-- No arrow buttons on the heel bar: tabs change by swipe.
-- Portrait normal view with the heel bar: the buttons keep 72 % of their
-  height and the rose takes all the rest of the screen; heel bar 7.6 % of
-  the height.
-- Mode picker: in landscape, mode on the left and profile on the right
-  (no scrolling; the profile list opens downwards). The profile button
-  shows the whole name instead of cutting it at two lines.
-- Slimmer tab bar in portrait (44 -> 32 px); in full screen the notch
-  strip above it is used too.
-- Heel / rudder pointer: thick glowing line from the top and bottom edges
-  of the bar to the number.
-- A finger on a chart (bottom bar in chart view, Chart tab) no longer
-  flips the tab by sideways swipe. Chart tab gains
-  Polar, STW, VMG, AWS and TWA.
-- Portrait: even 8 px gaps, button rows sized to the screen, the bar never
-  below 20 % of the height.
+- **Bottom bar with three views** on the Control tab: heel / rudder bar,
+  a live chart, and Freeboard-SK at chart size (the warm preloaded frame
+  laid over the bar, no reload; × leaves that view). Double tap cycles
+  through the views chosen in the corner-config popup; long press on the
+  bar opens those settings.
+- **Chart view**: series SOG, STW, polar max speed, VMG, AWS, TWS, AWA,
+  TWA; window 2 / 10 / 30 min; default SOG, polar, AWS, TWS. All speeds
+  share one knots band from 0 with grid and scale (polar dashed), angles
+  another. One-line legend with the **average over the window** (circular
+  mean for angles; "--" = no data, the polar speed is only published while
+  sailing). A finger on the chart shows the values of that moment, and
+  sliding on it never flips the tab. Same renderer and data as the Chart
+  tab, which gains Polar, STW, VMG, AWS and TWA.
 - The plugin history records `performance.polarSpeed`,
   `navigation.speedThroughWater` and `performance.velocityMadeGood`.
+
+### Changed
+- **Control layout heights**, animated when switching views:
+  - portrait: chart / Freeboard 24.6 % of the screen; with the heel bar
+    (7.6 %, 12 % in full screen) the button rows keep 72 % of their size
+    and the rose takes all the rest; in full screen the spare height goes
+    to the buttons;
+  - landscape: chart / Freeboard ~40 % of the control column (50 % in
+    full screen), heel bar ~20 %, the buttons take the rest; the bar sits
+    one gap from the buttons.
+- Heel / rudder bar: no arrow buttons (tabs change by swipe); number,
+  ticks and labels scale with the bar; pointer drawn as a thick glowing
+  line from the top and bottom edges to the number.
+- Slimmer tab bar in portrait (44 -> 32 px). With the tab bar hidden, or in
+  full screen, the notch / status strip at the top is used too.
+- Mode picker in landscape: mode on the left, profile on the right, no
+  scrolling (the profile list opens downwards). The profile button shows
+  the whole name instead of cutting it at two lines.
 
 ### Fixed
 - Chart text drawn letter-spaced in Firefox (inherited from the bar).

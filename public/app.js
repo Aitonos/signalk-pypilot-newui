@@ -19318,7 +19318,8 @@
       const dec = step < 1 ? 1 : 0;
       const suffix = g.unit in CHART_UNIT_SUFFIX ? CHART_UNIT_SUFFIX[g.unit] : "°";
       ctx.font = `${fs}px ui-monospace, monospace`;
-      for (let v = g.lo; v <= g.hi + step / 2; v += step) {
+      // Bounded: a step too small for the magnitude could stop `v` moving.
+      for (let v = g.lo, n = 0; v <= g.hi + step / 2 && n < 60; v += step, n += 1) {
         const txt = (Math.abs(v) < step / 1e6 ? 0 : v).toFixed(dec) + suffix;
         g.ticks.push({ v, txt });
         labelW = Math.max(labelW, ctx.measureText(txt).width);

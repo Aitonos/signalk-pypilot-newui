@@ -199,6 +199,21 @@ la sesión y la traza guardan ese minuto.
 99. Carga alta del servo sostenida (si ocurre): salta "Carga del piloto alta".
 100. Fondeado: un barco que se acerca rápido aparece aunque al principio no se conociera su velocidad.
 
+## M2. Barra inferior de Control (3.9.0, Rev584-600)
+
+Guion completo en `docs/_design_control_strip_chart_2026-10-31.md`
+(QA Rev600, 13 puntos). Lo esencial navegando:
+
+1. Doble toque en la barra: escora -> gráfica -> Freeboard; la × de
+   Freeboard vuelve a escora.
+2. Gráfica: SOG junto a la polar (discontinua) en la banda de nudos, con
+   la polar dejando de salir "--" al navegar.
+3. Dedo sobre la gráfica: valores de ese instante; deslizar de lado no
+   cambia de pestaña.
+4. Pulsación larga en la barra: abre sus ajustes.
+5. Pantalla completa en el móvil: la muesca se usa, el alto extra va a los
+   botones.
+
 ## N. Al volver a puerto
 
 101. Bitácora: al quedar amarrado se cierra el viaje con su resumen; una prueba de menos de 0,1 mn no se guarda (Rev553).
