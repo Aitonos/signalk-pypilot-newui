@@ -81,7 +81,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev585";
+const PLUGIN_REVISION = "Rev587";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -5410,6 +5410,8 @@ module.exports = function (app: any) {
       tws:           skNum("environment.wind.speedTrue") ?? skNum("environment.wind.speedOverGround"),
       sog:           skNum("navigation.speedOverGround"),
       polarSpeed:    skNum("performance.polarSpeed"),
+      stw:           skNum("navigation.speedThroughWater"),
+      vmg:           skNum("performance.velocityMadeGood"),
       heel:          skAttitudeField("roll"),
       pitch:         skAttitudeField("pitch"),
       engaged,
@@ -5956,7 +5958,7 @@ module.exports = function (app: any) {
   // path that does not exist just gets an empty column, no 400.
   const VALID_SAMPLE_PATHS: ReadonlySet<SamplePath> = new Set<SamplePath>([
     "headingCmd", "headingActual", "rudder", "servoCurrent", "servoTemp",
-    "servoVoltage", "awa", "aws", "twa", "tws", "sog", "polarSpeed", "heel", "engaged", "mode",
+    "servoVoltage", "awa", "aws", "twa", "tws", "sog", "polarSpeed", "stw", "vmg", "heel", "engaged", "mode",
   ]);
   function parseSamplePaths(raw: unknown): SamplePath[] | undefined {
     if (typeof raw !== "string" || !raw.trim()) return undefined;

@@ -46,6 +46,26 @@ AWA/TWA". Y después: "las gráficas las tienes ya en chart" (reutilizarlas).
 - Solo pide datos cada 2 s cuando la gráfica se ve (pestaña Control
   activa, vista gráfica, pantalla visible).
 
+## Segunda ronda (Rev586-587, tras la captura de Carlos en el móvil)
+
+Carlos: "seguimos sin llenar bien la vertical y dejando mucho espacio entre
+botones; hay que poner una escala bien clara de lo que es velocidades; no
+es AWA, es AWS y TWS; debemos poder elegir más cosas; no veo polar max
+speed; la gráfica debe ser dinámica (si pongo el dedo me dice lo que
+había); tap largo abre configuración de la gráfica".
+
+| Pedido | Hecho |
+|---|---|
+| Huecos entre botones | huecos de 8 px iguales; filas a `clamp(60px, 9vh, 96px)` en vertical; barra mínimo 20 % del alto |
+| Escala de velocidades | todas las velocidades en una banda en nudos desde 0, con rejilla y etiquetas (2, 4, 6... kn) |
+| AWS y TWS | por defecto SOG, polar, AWS, TWS |
+| Más series | STW y VMG (añadidas al historiador), además de las anteriores |
+| Polar max speed | sale en la leyenda; "--" mientras el plugin de polares no la publica (en puerto solo publica VMG y rumbo de virada) |
+| Dedo = valores | mismo cursor que la pestaña Gráfica, ahora compartido; se queda 3 s al soltar |
+| Pulsación larga | 0,7 s sin mover el dedo abre la configuración en la sección de la barra |
+| Texto espaciado en Firefox | el lienzo heredaba el espaciado de letras de la barra; anulado |
+| "« 10" partido en móvil | botones de nudge en una línea con letra a la medida |
+
 ## Verificado
 
 - Capturas con Edge sin interfaz a 1280 x 800, 800 x 1280 y 412 x 915.
@@ -57,15 +77,18 @@ AWA/TWA". Y después: "las gráficas las tienes ya en chart" (reutilizarlas).
   pestaña Gráfica.
 - 438 tests en verde.
 
-## QA en el barco (QA Rev585)
+## QA en el barco (QA Rev587)
 
 1. Vertical y apaisado, con y sin barra de pestañas: la barra ocupa todo el
    hueco y los "30" de los extremos se leen enteros.
 2. Doble toque en la barra: pasa a gráfica; otro doble toque: vuelve.
 3. Tocar el número amarillo o el triángulo sigue mostrando / ocultando las
    pestañas; las flechas siguen cambiando de pestaña.
-4. Con el plugin de polares activo: la línea discontinua Polar sale en la
-   misma banda que SOG.
+4. Navegando con el plugin de polares activo: la línea discontinua Polar
+   sale en la banda de nudos junto a SOG, AWS y TWS, con su valor en la
+   leyenda.
+7. Dedo sobre la gráfica y deslizar: se ven los valores de cada instante.
+8. Pulsación larga en la barra: abre la configuración en su sección.
 5. Cambiar series y ventana en la ventana de configuración; recargar el
    visor: se conservan.
 6. Pestaña Gráfica: Polar y TWA disponibles; el resto igual que antes.

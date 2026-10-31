@@ -2379,8 +2379,20 @@ main { touch-action: pan-y; overflow-x: hidden; }
   touch-action: manipulation;   /* no double-tap zoom: double tap = view */
 }
 @media (orientation: portrait) {
+  /* Rev586 (Carlos: "mucho espacio entre botones"): one even 8 px gap
+     between the rows and the strip, rows sized to the screen height,
+     and the strip never below 20 % of it. */
+  #tab-control .controls .row-tack-mode { margin-bottom: 0; }
+  #tab-control .controls .swipe-hint { margin-top: 0; min-height: clamp(44px, 20vh, 320px); }
+  #tab-control .controls .row-tack-mode > *,
+  #tab-control .controls .row-nudge-ap > *,
+  #tab-control .controls .engage-toggle { height: clamp(60px, 9vh, 96px); min-height: 60px; }
   /* The rose keeps its shape instead of absorbing the spare height. */
   #tab-control .dash-rose { flex: 0 1 auto; }
+}
+@media (orientation: portrait) and (max-width: 600px) {
+  /* Phones: "<< 10" / "10 >>" on one line in the narrow buttons. */
+  #tab-control .controls .steer-btn { white-space: nowrap; font-size: clamp(15px, 5.4vw, 28px); padding: 0 2px; }
   #tab-control .dash-rose .rose-wrap {
     height: auto;
     aspect-ratio: 1 / 1.15;
@@ -2405,6 +2417,9 @@ main { touch-action: pan-y; overflow-x: hidden; }
 .swipe-hint.view-chart > :not(.helm-chart):not(.helm-chart-empty):not(.nav-toggle) { display: none; }
 .swipe-hint.view-chart .helm-chart {
   display: block;
+  letter-spacing: 0;
+  text-transform: none;
+  touch-action: none;   /* finger slides read the chart, no scroll */
   position: absolute;
   inset: 4px;
   width: calc(100% - 8px);

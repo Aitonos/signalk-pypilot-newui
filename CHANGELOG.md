@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev584 → Rev585)
+## Unreleased (Rev584 → Rev587)
 
 ### Added
 - **Control tab: the bottom bar uses all the free height.** In portrait the
@@ -9,13 +9,23 @@
   takes the rest, also with the tab bar hidden. The number, ticks and
   labels grow with the bar.
 - **Chart in the bottom bar.** Double tap the bar to switch between the
-  heel / rudder bar and a chart. Series and window (2 / 10 / 30 min) are
-  chosen in the corner-config popup; default SOG vs polar speed and
-  AWA / TWA. Same renderer and data as the Chart tab.
-- **Chart tab**: new Polar and TWA series. SOG and Polar share one band
-  and one scale (polar dashed), as do AWA and TWA.
-- The plugin history records `performance.polarSpeed` when a polar plugin
-  publishes it.
+  heel / rudder bar and a chart; long press opens its settings; a finger
+  on the chart shows the values of that moment. Series (SOG, STW, polar
+  max speed, VMG, AWS, TWS, AWA, TWA) and window (2 / 10 / 30 min) are
+  chosen in the corner-config popup; default SOG, polar, AWS, TWS. Same
+  renderer and data as the Chart tab.
+- **Charts group series by kind**: all speeds share one knots band that
+  starts at 0, with grid lines and a labelled scale; angles share another.
+  A legend shows each chosen series with its current value ("--" = no data
+  yet; the polar speed is only published while sailing). Chart tab gains
+  Polar, STW, VMG, AWS and TWA.
+- Portrait: even 8 px gaps, button rows sized to the screen, the bar never
+  below 20 % of the height.
+- The plugin history records `performance.polarSpeed`,
+  `navigation.speedThroughWater` and `performance.velocityMadeGood`.
+
+### Fixed
+- Chart text drawn letter-spaced in Firefox (inherited from the bar).
 
 ## 3.8.2 — 2026-10-31 — Safety fixes from two external audits and a self-audit
 

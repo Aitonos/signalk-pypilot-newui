@@ -750,7 +750,8 @@
       "dash.helmBar.title":  "BOTTOM BAR (indicator)",
       "dash.helmBar.hint":   "Pick what the big bar at the bottom shows: rudder angle or boat heel.",
       "dash.helmChart.title": "CHART IN THE BOTTOM BAR",
-      "dash.helmChart.hint":  "Double tap the bottom bar to switch between the bar and this chart.",
+      "dash.helmChart.hint":  "Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.",
+      "helmChart.polar":      "Polar max speed",
       "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
       "dash.helmBar.rudder": "Rudder angle",
@@ -1808,7 +1809,8 @@
       "dash.helmBar.title":  "BARRA INFERIOR (indicador)",
       "dash.helmBar.hint":   "Elige que se muestra en la barra de abajo: el ángulo del timón o la escora del barco.",
       "dash.helmChart.title": "GRÁFICA EN LA BARRA DE ABAJO",
-      "dash.helmChart.hint":  "Doble toque en la barra de abajo para alternar entre la barra y esta gráfica.",
+      "dash.helmChart.hint":  "Doble toque en la barra de abajo para alternar entre la barra y esta gráfica. Pulsación larga abre estos ajustes; con el dedo sobre la gráfica ves los valores de ese momento.",
+      "helmChart.polar":      "Polar vel. máx.",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
       "dash.helmBar.rudder": "Ángulo del timón",
@@ -19038,6 +19040,9 @@
     sog:           "#ff8c1a",   // orange
     polarSpeed:    "#ffffff",   // white, dashed (Rev584)
     twa:           "#5ab0ff",   // blue (Rev584)
+    aws:           "#ffe066",   // yellow (Rev586)
+    stw:           "#ff4fa3",   // pink (Rev586)
+    vmg:           "#9be15d",   // lime (Rev586)
   };
   const CHART_LABELS = {
     headingCmd:    "HDG cmd",
@@ -19050,12 +19055,30 @@
     sog:           "SOG",
     polarSpeed:    "Polar",
     twa:           "TWA",
+    aws:           "AWS",
+    stw:           "STW",
+    vmg:           "VMG",
   };
-  // Rev584 (Carlos): a series listed here shares the band (and the
-  // scale) of its partner when both are on, so SOG is read against the
-  // polar target and AWA against TWA instead of in separate bands.
-  const CHART_PAIRS = { polarSpeed: "sog", twa: "awa" };
+  // Rev586 (Carlos: "una escala bien clara de lo que es velocidades"):
+  // series of the same kind share one band and one scale. All speeds go
+  // in one knots band that starts at 0, so SOG reads straight against
+  // the polar speed and the wind speeds.
+  const CHART_UNIT = {
+    sog: "speed", polarSpeed: "speed", aws: "speed", tws: "speed", stw: "speed", vmg: "speed",
+    awa: "wangle", twa: "wangle", headingCmd: "hdg", headingActual: "hdg",
+    heel: "heel", rudder: "rudder", servoCurrent: "amp",
+  };
+  const CHART_UNIT_CONV = {
+    speed: (v) => v * 1.94384, wangle: (v) => v * RAD2DEG, hdg: (v) => v * RAD2DEG,
+    heel: (v) => v * RAD2DEG, rudder: (v) => v * RAD2DEG,
+  };
+  const CHART_UNIT_SUFFIX = { speed: " kn", amp: " A" };
   const CHART_DASHED = new Set(["polarSpeed"]);
+  function _chartNiceStep(raw) {
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    for (const m of [1, 2, 5, 10]) if (m * p >= raw) return m * p;
+    return 10 * p;
+  }
   // A short formatter per path for the value label at the end of each
   // trace. Rad-valued angles go to degrees; speeds go to knots.
   function _fmtSampleValue(key, v) {
@@ -19063,7 +19086,7 @@
     if (key === "headingCmd" || key === "headingActual" || key === "awa" || key === "twa" || key === "heel" || key === "rudder") {
       return `${(v * RAD2DEG).toFixed(1)}°`;
     }
-    if (key === "tws" || key === "sog" || key === "polarSpeed") {
+    if (CHART_UNIT[key] === "speed") {
       return `${(v * 1.94384).toFixed(1)} kn`;
     }
     if (key === "servoCurrent") return `${v.toFixed(2)} A`;
@@ -19124,39 +19147,36 @@
       canvas.height = Math.floor(cssH * dpr);
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Firefox carries the CSS letter-spacing of the parent into canvas text.
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
     // Clear.
     ctx.fillStyle = "#0e141b";
     ctx.fillRect(0, 0, cssW, cssH);
-    // Enabled paths with at least one non-null value in the window.
-    const enabled = [...c.enabled].filter((k) => {
-      return c.lastSamples.some((s) => typeof s[k] === "number" && isFinite(s[k]));
-    });
+    const isNum = (v) => typeof v === "number" && isFinite(v);
+    const enabled = [...c.enabled];
     const hint = document.getElementById(c.hintId);
-    if (enabled.length === 0 || c.lastSamples.length === 0) {
+    if (enabled.length === 0 || c.lastSamples.length === 0
+        || !enabled.some((k) => c.lastSamples.some((s) => isNum(s[k])))) {
       if (hint) { hint.textContent = t(c.emptyKey || "chart.empty"); hint.hidden = false; }
       return;
     }
     if (hint) hint.hidden = true;
 
+    const fs = c.fontPx || 10;
     const nowTs = c.lastFetchTs || Date.now();
     const windowMs = CHART_WINDOWS[c.window] || 30000;
     const tMin = nowTs - windowMs;
     const tMax = nowTs;
-    const marginL = 8, marginR = 60, marginT = 4, marginB = 20;
+    const marginL = 8, marginR = Math.round(fs * 4.8), marginT = 4, marginB = fs + 8;
     const plotW = cssW - marginL - marginR;
     const plotH = cssH - marginT - marginB;
-    // Rev584: group paired series into one band (see CHART_PAIRS).
+    // One band per kind of value (see CHART_UNIT), in the order chosen.
     const groups = [];
-    for (const key of enabled) {
-      const partner = CHART_PAIRS[key];
-      if (partner && enabled.includes(partner)) continue;
-      groups.push([key]);
-    }
-    for (const key of enabled) {
-      const partner = CHART_PAIRS[key];
-      if (!partner || !enabled.includes(partner)) continue;
-      const g = groups.find((gr) => gr[0] === partner);
-      if (g) g.push(key);
+    for (const k of enabled) {
+      const unit = CHART_UNIT[k] || k;
+      let g = groups.find((x) => x.unit === unit);
+      if (!g) { g = { unit, keys: [] }; groups.push(g); }
+      g.keys.push(k);
     }
     const bandH = plotH / groups.length;
 
@@ -19164,7 +19184,8 @@
     ctx.strokeStyle = "#4a5a6e";
     ctx.lineWidth = 1;
     ctx.fillStyle = "#b8c4d0";
-    ctx.font = "10px ui-monospace, monospace";
+    ctx.font = `${fs}px ui-monospace, monospace`;
+    ctx.textBaseline = "alphabetic";
     const timeLabels = [
       { frac: 0.0, txt: `-${c.window}` },
       { frac: 0.5, txt: `-${_halfLabel(c.window)}` },
@@ -19177,86 +19198,97 @@
       ctx.lineTo(x, marginT + plotH);
       ctx.stroke();
       ctx.textAlign = tk.frac === 0 ? "left" : tk.frac === 1 ? "right" : "center";
-      ctx.fillText(tk.txt, x, cssH - 6);
+      ctx.fillText(tk.txt, x, cssH - 4);
     }
 
-    // Per-band traces + Y scale ticks (Rev129). Series in one band share
-    // the scale. Snapshot the band geometry so the hover handler can
-    // hit-test without re-computing.
+    // Per band: legend (name + last value), grid + scale, traces.
+    // Snapshot the band geometry so the hover handler can hit-test
+    // without re-computing.
     c.bands = [];
     for (let bi = 0; bi < groups.length; bi += 1) {
-      const keys = groups[bi];
-      const key = keys[0];
+      const { unit, keys } = groups[bi];
+      const conv = CHART_UNIT_CONV[unit] || ((v) => v);
       const bandTop = marginT + bi * bandH;
       const bandBot = bandTop + bandH - 2;
-      let vmin = Infinity, vmax = -Infinity;
-      for (const s of c.lastSamples) {
-        for (const k of keys) {
-          const v = s[k];
-          if (typeof v === "number" && isFinite(v)) {
-            if (v < vmin) vmin = v;
-            if (v > vmax) vmax = v;
-          }
-        }
-      }
-      if (vmin === Infinity) continue;
-      if (vmax - vmin < 1e-9) { vmin -= 0.5; vmax += 0.5; }
-      c.bands.push({ key, keys, bandTop, bandBot, vmin, vmax });
-      // Band separator line.
+      const legendH = fs + 6;
+      const plotTop = Math.min(bandBot - 4, bandTop + legendH + 2);
       if (bi > 0) {
-        ctx.strokeStyle = "#1c2632";
+        ctx.strokeStyle = "#4a5a6e";
         ctx.beginPath();
         ctx.moveTo(marginL, bandTop);
         ctx.lineTo(marginL + plotW, bandTop);
         ctx.stroke();
       }
-      // Traces.
-      for (const k of keys) {
-        ctx.strokeStyle = CHART_COLORS[k] || "#e6edf3";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash(CHART_DASHED.has(k) ? [6, 4] : []);
-        ctx.beginPath();
-        let started = false;
-        for (const s of c.lastSamples) {
-          const v = s[k];
-          if (typeof v !== "number" || !isFinite(v)) { started = false; continue; }
-          const x = marginL + ((s.ts - tMin) / (tMax - tMin)) * plotW;
-          const y = bandBot - ((v - vmin) / (vmax - vmin)) * (bandBot - bandTop);
-          if (!started) { ctx.moveTo(x, y); started = true; }
-          else ctx.lineTo(x, y);
+      let vmin = Infinity, vmax = -Infinity;
+      for (const s of c.lastSamples) {
+        for (const k of keys) {
+          if (!isNum(s[k])) continue;
+          const v = conv(s[k]);
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
         }
-        ctx.stroke();
       }
-      ctx.setLineDash([]);
-      // Rev129 (Carlos): Y-scale ticks (min / mid / max) inside the
-      // right-side gutter so the user reads absolute values, not
-      // just a shape.
-      ctx.fillStyle = "#b8c4d0";
-      ctx.textAlign = "left";
-      ctx.font = "9px ui-monospace, monospace";
-      const mid = (vmin + vmax) / 2;
-      const labelsH = keys.length * 12;
-      // Short bands (the Control strip on a phone) only fit some of the
-      // scale labels under the series names.
-      const room = (bandBot - bandTop) - labelsH - 8;
-      if (room >= 36) {
-        ctx.textBaseline = "top";
-        ctx.fillText(_fmtSampleValue(key, vmax), marginL + plotW + 4, bandTop + 10 + labelsH);
-      }
-      if (room >= 60) {
+      if (vmin !== Infinity) {
+        if (unit === "speed") vmin = Math.min(0, vmin);
+        if (vmax - vmin < 1e-6) { vmin -= 1; vmax += 1; }
+        const rows = Math.max(1, Math.floor((bandBot - plotTop) / (fs * 2.4)));
+        const step = _chartNiceStep((vmax - vmin) / rows);
+        const lo = Math.floor(vmin / step) * step;
+        const hi = Math.max(lo + step, Math.ceil(vmax / step) * step);
+        const yOf = (v) => bandBot - ((v - lo) / (hi - lo)) * (bandBot - plotTop);
+        // Grid lines + scale labels in the right gutter.
+        const dec = step < 1 ? 1 : 0;
+        const suffix = CHART_UNIT_SUFFIX[unit] || "°";
+        ctx.font = `${fs}px ui-monospace, monospace`;
+        ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        ctx.fillText(_fmtSampleValue(key, mid), marginL + plotW + 4, (bandTop + bandBot) / 2 + 2);
+        for (let v = lo; v <= hi + step / 2; v += step) {
+          const y = yOf(v);
+          ctx.strokeStyle = "#1f2b38";
+          ctx.beginPath();
+          ctx.moveTo(marginL, y);
+          ctx.lineTo(marginL + plotW, y);
+          ctx.stroke();
+          ctx.fillStyle = "#b8c4d0";
+          ctx.fillText(v.toFixed(dec) + suffix, marginL + plotW + 4, Math.max(plotTop + fs / 2, Math.min(bandBot - fs / 2, y)));
+        }
+        // Traces.
+        for (const k of keys) {
+          ctx.strokeStyle = CHART_COLORS[k] || "#e6edf3";
+          ctx.lineWidth = fs >= 12 ? 2 : 1.5;
+          ctx.setLineDash(CHART_DASHED.has(k) ? [6, 4] : []);
+          ctx.beginPath();
+          let started = false;
+          for (const s of c.lastSamples) {
+            if (!isNum(s[k])) { started = false; continue; }
+            const x = marginL + ((s.ts - tMin) / (tMax - tMin)) * plotW;
+            const y = yOf(conv(s[k]));
+            if (!started) { ctx.moveTo(x, y); started = true; }
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        c.bands.push({ key: keys[0], keys, bandTop, bandBot, lo, hi });
+      } else {
+        c.bands.push({ key: keys[0], keys, bandTop, bandBot, lo: null, hi: null });
       }
-      ctx.textBaseline = "bottom";
-      ctx.fillText(_fmtSampleValue(key, vmin), marginL + plotW + 4, bandBot - 2);
-      // Names on the right side, one line per series, in its colour.
+      // Legend: every chosen series with its last value ("--" = no data
+      // yet, e.g. the polar speed is only published while sailing).
+      ctx.font = `bold ${fs}px ui-monospace, monospace`;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      ctx.font = "10px ui-monospace, monospace";
-      keys.forEach((k, i) => {
+      let lx = marginL + 4;
+      for (const k of keys) {
+        const last = [...c.lastSamples].reverse().find((s) => isNum(s[k]));
+        const txt = `${CHART_LABELS[k] || k} ${last ? _fmtSampleValue(k, last[k]) : "--"}`;
+        const w = ctx.measureText(txt).width;
+        ctx.fillStyle = "rgba(14,20,27,0.85)";
+        ctx.fillRect(lx - 2, bandTop + 1, w + 4, fs + 4);
         ctx.fillStyle = CHART_COLORS[k] || "#e6edf3";
-        ctx.fillText(CHART_LABELS[k] || k, marginL + plotW + 4, bandTop + 8 + i * 12);
-      });
+        ctx.fillText(txt, lx, bandTop + 3);
+        lx += w + fs;
+      }
     }
     // Cache geometry for hover.
     c.geom = { marginL, marginR, marginT, marginB, plotW, plotH, tMin, tMax, cssW, cssH };
@@ -19304,11 +19336,12 @@
         }
       }
     }
-    ctx.font = "11px ui-monospace, monospace";
+    const tfs = (c.fontPx || 10) + 1;
+    ctx.font = `${tfs}px ui-monospace, monospace`;
     let w = 0;
     for (const ln of lines) w = Math.max(w, ctx.measureText(ln).width);
     const boxW = w + 12;
-    const boxH = lines.length * 14 + 8;
+    const boxH = lines.length * (tfs + 3) + 8;
     let boxX = x + 8;
     if (boxX + boxW > cssW - 4) boxX = x - boxW - 8;
     const boxY = g.marginT + 4;
@@ -19323,7 +19356,7 @@
     for (let i = 0; i < lines.length; i += 1) {
       ctx.fillStyle = i === 0 ? "#b8c4d0" : "#e6edf3";
       ctx.fillText(lines[i], boxX + 6, ly);
-      ly += 14;
+      ly += tfs + 3;
     }
   }
   function _halfLabel(w) {
@@ -19383,51 +19416,56 @@
       if (_resizeTimer) clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(() => { chartDraw(); _helmChartRedraw(); }, 250);
     });
-    // Rev129 (Carlos): hover / touch on the canvas snaps a vertical
-    // crosshair to the closest sample and shows all values in a
-    // tooltip. Auto-refresh freezes while hovering so the user can
-    // read the exact value.
-    const canvas = document.getElementById("chart-canvas");
-    if (canvas) {
-      const _hover = (clientX) => {
-        if (!_chart.geom || _chart.lastSamples.length === 0) return;
-        const rect = canvas.getBoundingClientRect();
-        const relX = clientX - rect.left;
-        const cssW = canvas.clientWidth || rect.width;
-        const g = _chart.geom;
-        // Map pixel X to timestamp inside the plot area.
-        const scale = cssW / (g.cssW || cssW);
-        const x = relX / scale;   // in canvas CSS pixels
-        if (x < g.marginL || x > g.marginL + g.plotW) return;
-        const frac = (x - g.marginL) / g.plotW;
-        _chart.hoverTs = g.tMin + frac * (g.tMax - g.tMin);
-        _chart.hoverActive = true;
-        chartDraw();
-      };
-      canvas.addEventListener("mousemove", (ev) => _hover(ev.clientX));
-      canvas.addEventListener("mouseleave", () => {
-        _chart.hoverActive = false;
-        _chart.hoverTs = null;
-        chartDraw();
-      });
-      canvas.addEventListener("touchstart", (ev) => {
-        const t = ev.touches && ev.touches[0];
-        if (t) _hover(t.clientX);
-      }, { passive: true });
-      canvas.addEventListener("touchmove", (ev) => {
-        const t = ev.touches && ev.touches[0];
-        if (t) _hover(t.clientX);
-      }, { passive: true });
-      canvas.addEventListener("touchend", () => {
-        // Keep the freeze visible for 3 s after touch ends so the
-        // user can read it, then release.
-        setTimeout(() => {
-          _chart.hoverActive = false;
-          _chart.hoverTs = null;
-          chartDraw();
-        }, 3000);
-      }, { passive: true });
-    }
+    _chartAttachHover(_chart, document.getElementById("chart-canvas"));
+  }
+
+  // Rev129 (Carlos): hover / touch on a chart canvas snaps a vertical
+  // crosshair to the closest sample and shows all values in a tooltip.
+  // Auto-refresh freezes while hovering so the user can read the exact
+  // value. Rev586: shared by the Chart tab and the Control strip.
+  function _chartAttachHover(c, canvas) {
+    if (!canvas) return;
+    const _hover = (clientX) => {
+      if (!c.geom || c.lastSamples.length === 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const relX = clientX - rect.left;
+      const cssW = canvas.clientWidth || rect.width;
+      const g = c.geom;
+      // Map pixel X to timestamp inside the plot area.
+      const scale = cssW / (g.cssW || cssW);
+      const x = relX / scale;   // in canvas CSS pixels
+      if (x < g.marginL || x > g.marginL + g.plotW) return;
+      const frac = (x - g.marginL) / g.plotW;
+      c.hoverTs = g.tMin + frac * (g.tMax - g.tMin);
+      c.hoverActive = true;
+      chartDraw(c);
+    };
+    canvas.addEventListener("mousemove", (ev) => _hover(ev.clientX));
+    canvas.addEventListener("mouseleave", () => {
+      c.hoverActive = false;
+      c.hoverTs = null;
+      chartDraw(c);
+    });
+    let releaseTimer = null;
+    canvas.addEventListener("touchstart", (ev) => {
+      if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null; }
+      const t = ev.touches && ev.touches[0];
+      if (t) _hover(t.clientX);
+    }, { passive: true });
+    canvas.addEventListener("touchmove", (ev) => {
+      const t = ev.touches && ev.touches[0];
+      if (t) _hover(t.clientX);
+    }, { passive: true });
+    canvas.addEventListener("touchend", () => {
+      // Keep the freeze visible for 3 s after touch ends so the
+      // user can read it, then release.
+      releaseTimer = setTimeout(() => {
+        releaseTimer = null;
+        c.hoverActive = false;
+        c.hoverTs = null;
+        chartDraw(c);
+      }, 3000);
+    }, { passive: true });
   }
 
   // Called from _tabPostActivate when the user enters/leaves the Chart
@@ -19448,14 +19486,15 @@
   // (like helmBar), so they live in localStorage and in the presets.
   const _HELM_VIEW_LS_KEY = "pypilotnewui.helmView";
   const _HELM_CHART_LS_KEY = "pypilotnewui.helmChart";
-  const _HELM_CHART_PATHS = ["sog", "polarSpeed", "awa", "twa", "tws", "heel", "rudder", "servoCurrent"];
+  const _HELM_CHART_PATHS = ["sog", "stw", "polarSpeed", "vmg", "aws", "tws", "awa", "twa", "heel", "rudder", "servoCurrent"];
   const _HELM_CHART_WINDOWS = ["2m", "10m", "30m"];
   const _helmChart = {
     canvasId: "helm-chart",
     hintId: "helm-chart-empty",
     emptyKey: "helmChart.empty",
+    fontPx: 13,
     window: "10m",
-    enabled: new Set(["sog", "polarSpeed", "awa", "twa"]),
+    enabled: new Set(["sog", "polarSpeed", "aws", "tws"]),
     lastSamples: [],
     lastFetchTs: 0,
     canvas: null,
@@ -19500,6 +19539,14 @@
     try { localStorage.setItem(_HELM_VIEW_LS_KEY, v === "chart" ? "chart" : "bar"); } catch { /* silent */ }
     _helmApplyView();
   }
+  function _helmOpenSettings() {
+    _dashPopulateSelectors();
+    const pop = document.getElementById("dash-help-pop");
+    if (!pop) return;
+    pop.classList.add("open");
+    const sec = document.getElementById("helm-cfg");
+    if (sec) setTimeout(() => sec.scrollIntoView({ block: "start" }), 50);
+  }
   function wireHelmChart() {
     const strip = document.getElementById("swipe-hint");
     if (!strip) return;
@@ -19508,6 +19555,8 @@
     let lastTap = 0, lastX = 0, lastY = 0;
     strip.addEventListener("pointerup", (ev) => {
       if (ev.target.closest(".rudder-marker, .nav-toggle, .swipe-hint-arrow")) return;
+      // A finger that slid (reading the chart) is not a tap.
+      if (Math.abs(ev.clientX - lpX) > 10 || Math.abs(ev.clientY - lpY) > 10) { lastTap = 0; return; }
       const now = Date.now();
       const near = Math.abs(ev.clientX - lastX) < 40 && Math.abs(ev.clientY - lastY) < 40;
       if (now - lastTap < 400 && near) {
@@ -19518,6 +19567,30 @@
       lastTap = now; lastX = ev.clientX; lastY = ev.clientY;
     });
     strip.addEventListener("dblclick", (ev) => ev.preventDefault());
+    // Rev586 (Carlos): finger on the chart reads the values of that
+    // instant; a long press without moving opens its settings.
+    _helmChart.canvas = document.getElementById("helm-chart");
+    _chartAttachHover(_helmChart, _helmChart.canvas);
+    let lpTimer = null, lpX = 0, lpY = 0;
+    const lpCancel = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
+    strip.addEventListener("pointerdown", (ev) => {
+      if (ev.target.closest(".rudder-marker, .nav-toggle, .swipe-hint-arrow")) return;
+      lpCancel();
+      lpX = ev.clientX; lpY = ev.clientY;
+      lpTimer = setTimeout(() => {
+        lpTimer = null;
+        lastTap = 0;
+        _helmChart.hoverActive = false;
+        _helmChart.hoverTs = null;
+        _helmOpenSettings();
+      }, 700);
+    });
+    strip.addEventListener("pointermove", (ev) => {
+      if (lpTimer && (Math.abs(ev.clientX - lpX) > 10 || Math.abs(ev.clientY - lpY) > 10)) lpCancel();
+    });
+    strip.addEventListener("pointerup", lpCancel);
+    strip.addEventListener("pointercancel", lpCancel);
+    strip.addEventListener("contextmenu", (ev) => ev.preventDefault());
     // Popup controls (corner-config popup).
     const winBtns = document.querySelectorAll("#helm-chart-windows .chart-window-btn");
     winBtns.forEach((btn) => {

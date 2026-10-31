@@ -39,6 +39,9 @@ export interface Sample {
   // Control strip chart can draw SOG against it. Optional: only set
   // when a polar plugin publishes it.
   polarSpeed?:   number | null;  // m/s
+  // Rev586: more speeds for the strip chart (optional, like polarSpeed).
+  stw?:          number | null;  // m/s - navigation.speedThroughWater
+  vmg?:          number | null;  // m/s - performance.velocityMadeGood
   heel:          number | null;  // rad - navigation.attitude.roll (positive stbd)
   // Rev299 (I1): pitch/trim angle. Positive = bow up. Consumed by the
   // attitude-pitch-extreme alarm rule and any future wave/burial
