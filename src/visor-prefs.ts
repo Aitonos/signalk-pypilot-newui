@@ -63,6 +63,8 @@ const MAX_ACK_TTL_MS = 24 * 60 * 60 * 1000;
 export class VisorPrefs {
   private data: VisorPrefsData = { ...DEFAULT_VISOR_PREFS, aisAcks: {} };
   private harborActive = false;
+  // Rev612: own ship inside a region marked as a harbour zone.
+  private inHarbourZone = false;
   private slowSince: number | null = null;
   private fastSince: number | null = null;
 
@@ -94,7 +96,7 @@ export class VisorPrefs {
     return {
       ...this.data,
       aisAcks: { ...this.data.aisAcks },
-      harborActive: this.data.aisHarborAuto && this.harborActive,
+      harborActive: this.data.aisHarborAuto && (this.harborActive || this.inHarbourZone),
       now,
     };
   }
@@ -133,6 +135,13 @@ export class VisorPrefs {
     this.data.updatedAt = now;
     this.save();
     return this.snapshot(now);
+  }
+
+  /** Rev612: own ship inside a harbour zone or not. Returns true when it changed. */
+  setInHarbourZone(inside: boolean): boolean {
+    const before = this.inHarbourZone;
+    this.inHarbourZone = !!inside;
+    return before !== this.inHarbourZone;
   }
 
   /** Feed own SOG (m/s). Returns true when the harbour state flipped. */

@@ -666,7 +666,7 @@
       "dash.overlay.ais.mode.underway": "Sailing: all alerts except stopped boats",
       "dash.overlay.ais.config": "Distances and times (plugin)",
       "dash.overlay.ais.voice":  "Voice alert",
-      "dash.overlay.ais.harborAuto": "Switch to Harbour by itself when stopped 2 min",
+      "dash.overlay.ais.harborAuto": "Switch to Harbour by itself: stopped 2 min or inside a harbour zone",
       "zones.title":   "HARBOUR ZONES",
       "cfg.sec.corners": "CORNER DATA",
       "cfg.sec.rose":    "DATA ON THE VISOR",
@@ -1746,7 +1746,7 @@
       "dash.overlay.ais.mode.underway": "Navegando: todos los avisos menos barcos parados",
       "dash.overlay.ais.config": "Distancias y tiempos (plugin)",
       "dash.overlay.ais.voice":  "Aviso de voz",
-      "dash.overlay.ais.harborAuto": "Pasar solo a Puerto al estar parados 2 min",
+      "dash.overlay.ais.harborAuto": "Pasar solo a Puerto: parados 2 min o dentro de una zona de puerto",
       "zones.title":   "ZONAS DE PUERTO",
       "cfg.sec.corners": "DATOS EN ESQUINAS",
       "cfg.sec.rose":    "DATOS SOBRE EL VISOR",
@@ -4280,7 +4280,9 @@
   // is feature.properties.zoneType in the region itself (proposal
   // SignalK/signalk-server#3271), written with the standard resources
   // API, so collision-alerts and any other app read the same thing.
-  const ZONE_TYPES = ["harbour", "berth", "mooringField"];
+  // Rev612 (Carlos): "pantalán" left out of the picker; a region that
+  // already carries it keeps it (shown as an extra option).
+  const ZONE_TYPES = ["harbour", "mooringField"];
   const REGIONS_URL = "/signalk/v2/api/resources/regions";
   let _zonesLoadedAt = 0;
   function _zonesMsg(txt, err) {
@@ -4314,14 +4316,15 @@
       name.textContent = reg.name || id;
       const sel = document.createElement("select");
       sel.style.cssText = "flex:0 0 auto;font-size:13px";
-      for (const v of ["", ...ZONE_TYPES]) {
+      const cur0 = reg.feature?.properties?.zoneType;
+      const extra = typeof cur0 === "string" && cur0 && !ZONE_TYPES.includes(cur0) ? [cur0] : [];
+      for (const v of ["", ...ZONE_TYPES, ...extra]) {
         const o = document.createElement("option");
         o.value = v;
         o.textContent = t(v ? `zones.type.${v}` : "zones.type.none");
         sel.appendChild(o);
       }
-      const cur = reg.feature?.properties?.zoneType;
-      sel.value = ZONE_TYPES.includes(cur) ? cur : "";
+      sel.value = typeof cur0 === "string" ? cur0 : "";
       sel.addEventListener("change", () => _zonesSave(id, sel));
       row.append(name, sel);
       box.appendChild(row);

@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev611" />
+  <link rel="stylesheet" href="style.css?v=Rev612" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1018,7 +1018,7 @@
                   <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;font-size:12px;color:var(--fg-dim);cursor:pointer"
                          onclick="event.stopPropagation();">
                     <input type="checkbox" id="dash-ais-alarm-harbor-auto" checked />
-                    <span data-i18n="dash.overlay.ais.harborAuto">Switch to Harbour by itself when stopped 2 min</span>
+                    <span data-i18n="dash.overlay.ais.harborAuto">Switch to Harbour by itself: stopped 2 min or inside a harbour zone</span>
                   </label>
 
                 </div>
@@ -2800,6 +2800,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev611"></script>
+  <script src="app.js?v=Rev612"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 ﻿import { PypilotClient, PypilotCatalog } from "./pypilot-client";
+import { inAnyPolygon, zonePolygons, type LatLon as ZoneLatLon, type Polygon } from "./harbour-zones";
 import {
   ESSENTIAL_PYPILOT_KEYS,
   RESERVED_PYPILOT_KEYS,
@@ -81,7 +82,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev611";
+const PLUGIN_REVISION = "Rev612";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -326,6 +327,10 @@ module.exports = function (app: any) {
   // before start(). The 1 Hz timer feeds own SOG to the harbour machine.
   let visorPrefs: VisorPrefs | null = null;
   let visorPrefsTimer: NodeJS.Timeout | null = null;
+  // Rev612: harbour zones (regions with zoneType "harbour"), re-read every minute.
+  let harbourZonesTimer: NodeJS.Timeout | null = null;
+  let harbourPolygons: Polygon[] = [];
+  let harbourZonesGen = 0;
   const getVisorPrefs = (): VisorPrefs => {
     if (!visorPrefs) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1059,12 +1064,33 @@ module.exports = function (app: any) {
         try {
           const node = app.getSelfPath ? app.getSelfPath("navigation.speedOverGround") : null;
           const v = node && typeof node === "object" ? (node as any).value : node;
-          const flipped = getVisorPrefs().tickHarbor(typeof v === "number" ? v : null);
+          let flipped = getVisorPrefs().tickHarbor(typeof v === "number" ? v : null);
+          // Rev612: inside a harbour zone counts as harbour at once.
+          const posNode = app.getSelfPath ? app.getSelfPath("navigation.position") : null;
+          const pos = posNode && typeof posNode === "object" ? ((posNode as any).value ?? posNode) : null;
+          if (getVisorPrefs().setInHarbourZone(inAnyPolygon(pos as ZoneLatLon | null, harbourPolygons))) flipped = true;
           if (flipped) app.debug?.(`[visor-prefs] harbour auto ${getVisorPrefs().snapshot().harborActive ? "ON" : "OFF"}`);
         } catch { /* silent */ }
       }, 1000);
       if (typeof (visorPrefsTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
         (visorPrefsTimer as NodeJS.Timeout & { unref: () => void }).unref();
+      }
+      if (harbourZonesTimer) { try { clearInterval(harbourZonesTimer); } catch {} }
+      const refreshHarbourZones = async () => {
+        const gen = harbourZonesGen;
+        try {
+          const res = await (app as any).resourcesApi?.listResources?.("regions", {});
+          if (gen !== harbourZonesGen) return;   // plugin stopped meanwhile
+          harbourPolygons = zonePolygons(res, ["harbour"]);
+        } catch {
+          // No regions provider: no zones (logged nowhere, it is normal).
+          if (gen === harbourZonesGen) harbourPolygons = [];
+        }
+      };
+      void refreshHarbourZones();
+      harbourZonesTimer = setInterval(() => { void refreshHarbourZones(); }, 60_000);
+      if (typeof (harbourZonesTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
+        (harbourZonesTimer as NodeJS.Timeout & { unref: () => void }).unref();
       }
       servoHealthPersistTimer = setInterval(() => {
         try {
@@ -1352,6 +1378,12 @@ module.exports = function (app: any) {
         try { clearInterval(servoHealthPersistTimer); } catch {}
         servoHealthPersistTimer = null;
       }
+      if (harbourZonesTimer) {
+        try { clearInterval(harbourZonesTimer); } catch {}
+        harbourZonesTimer = null;
+      }
+      harbourZonesGen++;
+      harbourPolygons = [];
       if (visorPrefsTimer) {
         try { clearInterval(visorPrefsTimer); } catch {}
         visorPrefsTimer = null;
