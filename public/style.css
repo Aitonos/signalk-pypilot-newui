@@ -4817,3 +4817,16 @@ body.pi-browser .tide-cur-box { background: color-mix(in srgb, var(--bg) 88%, tr
 .tour-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .tour-actions .tour-gap { flex: 1; }
 .tour-actions button[hidden] { display: none; }
+
+.tour-bubble.arrow-left::before,
+.tour-bubble.arrow-right::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--arrow-y, 50%) - 8px);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+.tour-bubble.arrow-left::before { left: -9px; border-right: 9px solid var(--accent); }
+.tour-bubble.arrow-right::before { right: -9px; border-left: 9px solid var(--accent); }
+.tour-text ul { margin: 0; padding-left: 18px; }
+.tour-text li { margin: 4px 0; }
