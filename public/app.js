@@ -667,6 +667,18 @@
       "dash.overlay.ais.config": "Distances and times (plugin)",
       "dash.overlay.ais.voice":  "Voice alert",
       "dash.overlay.ais.harborAuto": "Switch to Harbour by itself when stopped 2 min",
+      "zones.title":   "HARBOUR ZONES",
+      "zones.hint":    "Draw the zone in Freeboard (pencil, Draw Region) and mark it here. Collision alarms then ignore stopped boats inside it; a boat moving or drifting there still alarms.",
+      "zones.reload":  "Reload",
+      "zones.none":    "No regions yet. Draw one in Freeboard with Draw Region.",
+      "zones.type.none":         "Not a harbour zone",
+      "zones.type.harbour":      "Harbour / marina",
+      "zones.type.berth":        "Berth / pontoon",
+      "zones.type.mooringField": "Mooring field",
+      "zones.saved":   "Saved",
+      "zones.err.auth": "Signal K login needed to save",
+      "zones.err.save": "Could not save",
+      "zones.err.load": "Could not read the regions",
       "info.comp.title":     "Companion plugins",
       "info.comp.intro":     "The autopilot works with pypilot alone. These plugins unlock the rest; install them from the Signal K App Store.",
       "info.comp.ok":        "installed",
@@ -1729,6 +1741,18 @@
       "dash.overlay.ais.config": "Distancias y tiempos (plugin)",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "dash.overlay.ais.harborAuto": "Pasar solo a Puerto al estar parados 2 min",
+      "zones.title":   "ZONAS DE PUERTO",
+      "zones.hint":    "Dibuja la zona en Freeboard (lápiz, Draw Region) y márcala aquí. Las alarmas de colisión ignoran entonces a los barcos parados dentro; uno que se mueve o garrea ahí sigue avisando.",
+      "zones.reload":  "Recargar",
+      "zones.none":    "Aún no hay regiones. Dibuja una en Freeboard con Draw Region.",
+      "zones.type.none":         "No es zona de puerto",
+      "zones.type.harbour":      "Puerto / marina",
+      "zones.type.berth":        "Atraque / pantalán",
+      "zones.type.mooringField": "Campo de boyas",
+      "zones.saved":   "Guardado",
+      "zones.err.auth": "Hace falta iniciar sesión en Signal K para guardar",
+      "zones.err.save": "No se pudo guardar",
+      "zones.err.load": "No se pudieron leer las regiones",
       "info.comp.title":     "Plugins compañeros",
       "info.comp.intro":     "El piloto funciona solo con pypilot. Estos plugins desbloquean el resto; se instalan desde la App Store de Signal K.",
       "info.comp.ok":        "instalado",
@@ -4239,7 +4263,90 @@
       return `<span class="${cls}"><b>${head}</b>${tail}</span>`;
     }).join(`<span class="${cls}">/</span>`);   // Rev603: slash coloured too
   }
+  // Rev606 (Carlos): harbour zones. Lists the Signal K regions and lets
+  // the sailor mark each one as harbour / berth / mooring field. The mark
+  // is feature.properties.zoneType in the region itself (proposal
+  // SignalK/signalk-server#3271), written with the standard resources
+  // API, so collision-alerts and any other app read the same thing.
+  const ZONE_TYPES = ["harbour", "berth", "mooringField"];
+  const REGIONS_URL = "/signalk/v2/api/resources/regions";
+  let _zonesLoadedAt = 0;
+  function _zonesMsg(txt, err) {
+    const m = document.getElementById("harbour-zones-msg");
+    if (!m) return;
+    m.textContent = txt || "";
+    m.style.color = err ? "#ff6b6b" : "var(--fg-dim)";
+  }
+  async function _zonesLoad(force) {
+    const box = document.getElementById("harbour-zones-list");
+    if (!box) return;
+    if (!force && Date.now() - _zonesLoadedAt < 10000) return;
+    _zonesLoadedAt = Date.now();
+    let regions = null;
+    try {
+      const r = await skFetch(REGIONS_URL);
+      regions = r.ok ? await r.json() : null;
+    } catch { regions = null; }
+    box.textContent = "";
+    if (!regions || typeof regions !== "object") { _zonesMsg(t("zones.err.load"), true); return; }
+    const ids = Object.keys(regions);
+    if (ids.length === 0) { _zonesMsg(t("zones.none")); return; }
+    _zonesMsg("");
+    ids.sort((a, b) => String(regions[a]?.name || a).localeCompare(String(regions[b]?.name || b)));
+    for (const id of ids) {
+      const reg = regions[id] || {};
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
+      const name = document.createElement("span");
+      name.style.cssText = "flex:1 1 140px;font-size:13px";
+      name.textContent = reg.name || id;
+      const sel = document.createElement("select");
+      sel.style.cssText = "flex:0 0 auto;font-size:13px";
+      for (const v of ["", ...ZONE_TYPES]) {
+        const o = document.createElement("option");
+        o.value = v;
+        o.textContent = t(v ? `zones.type.${v}` : "zones.type.none");
+        sel.appendChild(o);
+      }
+      const cur = reg.feature?.properties?.zoneType;
+      sel.value = ZONE_TYPES.includes(cur) ? cur : "";
+      sel.addEventListener("change", () => _zonesSave(id, sel));
+      row.append(name, sel);
+      box.appendChild(row);
+    }
+  }
+  async function _zonesSave(id, sel) {
+    sel.disabled = true;
+    try {
+      // Read the region fresh so a change made elsewhere is not lost.
+      const r0 = await skFetch(`${REGIONS_URL}/${encodeURIComponent(id)}`);
+      if (!r0.ok) throw new Error(String(r0.status));
+      const reg = await r0.json();
+      const body = {};
+      for (const [k, v] of Object.entries(reg || {})) {
+        if (!k.startsWith("$") && k !== "timestamp") body[k] = v;   // server metadata
+      }
+      if (!body.feature || typeof body.feature !== "object") throw new Error("no feature");
+      const props = { ...(body.feature.properties || {}) };
+      if (sel.value) props.zoneType = sel.value; else delete props.zoneType;
+      body.feature = { ...body.feature, properties: props };
+      const r = await skFetch(`${REGIONS_URL}/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.status === 401 || r.status === 403) { _zonesMsg(t("zones.err.auth"), true); _zonesLoad(true); return; }
+      if (!r.ok) throw new Error(String(r.status));
+      _zonesMsg(t("zones.saved"));
+    } catch (e) {
+      _zonesMsg(`${t("zones.err.save")} (${e && e.message ? e.message : e})`, true);
+      _zonesLoad(true);
+    } finally {
+      sel.disabled = false;
+    }
+  }
   function _dashPopulateSelectors() {
+    _zonesLoad(false);
     // Rev58: the corner dropdown lists CORE keys + user-enabled extras +
     // any custom paths the user has added. Everything else stays hidden
     // to keep the list scannable at the helm.
@@ -5264,6 +5371,7 @@
   function _aisSetMode(mode) {
     if (!AIS_MODES.includes(mode)) return;
     _vpSet({ aisMode: mode });
+    if (mode === "anchor") _anchorZoneRefresh();
     // Switching mode clears any stale hull on the rose; the next delta
     // will repopulate under the new rules.
     try { state.aisAlarms.clear(); renderAisAlarms(); } catch { /* silent */ }
@@ -5402,8 +5510,61 @@
     if (aisMode === "off") return true;
     const cached = state.aisTargetPos.get(mmsi);
     const sog = _aisEffectiveSog(cached);
-    if (aisMode === "anchor") return !(sog != null && sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS);
+    if (aisMode === "anchor") {
+      if (sog != null && sog >= AIS_ANCHOR_MIN_TARGET_SOG_MS) return false;
+      // Rev606 (Carlos, same rule as signalk-mareas-ihm): a slow or
+      // "stopped" target that is INSIDE our swing circle gets through - a
+      // neighbour dragging toward us usually keeps reporting 0 kn. When
+      // mareas-ihm is watching the anchor it already raises that alarm
+      // (with voice on the Pi), so we stay quiet to avoid saying it twice.
+      if (_aisInAnchorZone(cached) === true && !_anchorZone.mareasWatching) return false;
+      return true;
+    }
     return sog != null && sog < AIS_IGNORE_SOG_MS;
+  }
+  // Rev606: our swing circle. From the standard anchor paths
+  // (navigation.anchor.position / maxRadius, published by mareas-ihm or
+  // any anchor plugin); without them, a fixed distance around our own
+  // position. Refreshed every 20 s while the AIS mode is "anchor".
+  const AIS_ANCHOR_ZONE_MARGIN_M = 15;   // safety margin + a typical hull, as mareas
+  const AIS_ANCHOR_NEAR_M = 60;          // no anchor data: "inside" = closer than this
+  const _anchorZone = { pos: null, radius: null, mareasWatching: false, at: 0 };
+  async function _anchorZoneRefresh() {
+    const num = async (path) => {
+      try {
+        const r = await skFetch(`/signalk/v1/api/vessels/self/${path}`);
+        return r.ok ? await r.json() : null;
+      } catch { return null; }
+    };
+    const [pos, radius, mareasAis] = await Promise.all([
+      num("navigation/anchor/position/value"),
+      num("navigation/anchor/maxRadius/value"),
+      num("environment/anchor/mareasIhm/aisAlarmEnabled/value"),
+    ]);
+    const posOk = pos && Number.isFinite(pos.latitude) && Number.isFinite(pos.longitude);
+    _anchorZone.pos = posOk ? { lat: pos.latitude, lon: pos.longitude } : null;
+    _anchorZone.radius = Number.isFinite(radius) && radius > 0 ? radius : null;
+    // mareas only watches AIS while it has an anchor down.
+    _anchorZone.mareasWatching = mareasAis === true && posOk;
+    _anchorZone.at = Date.now();
+  }
+  setInterval(() => {
+    if (document.visibilityState === "visible" && _aisMode() === "anchor") _anchorZoneRefresh();
+  }, 20000);
+  // true / false, or null when the target position is unknown.
+  function _aisInAnchorZone(cached) {
+    if (Date.now() - _anchorZone.at > 60000) { _anchorZone.at = Date.now(); _anchorZoneRefresh(); }
+    const p = cached && cached.pos;
+    if (!p || !Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return null;
+    const tgt = { lat: p.latitude, lon: p.longitude };
+    if (_anchorZone.pos && _anchorZone.radius != null) {
+      return _distanceNm(_anchorZone.pos, tgt) * 1852 <= _anchorZone.radius + AIS_ANCHOR_ZONE_MARGIN_M;
+    }
+    const own = state.position;
+    if (own && Number.isFinite(own.lat) && Number.isFinite(own.lon)) {
+      return _distanceNm(own, tgt) * 1852 <= AIS_ANCHOR_NEAR_M;
+    }
+    return null;
   }
   const _aisSogAskedTs = new Map();
   function _handleAisAlarmDelta(path, value, _retry) {
@@ -5454,8 +5615,9 @@
     // Rev539 (GPT review 5 #7): at anchor a target with UNKNOWN speed was
     // silenced and its speed never fetched (the fetch sat in the other
     // branch): a fast new threat stayed invisible. Fetch, then re-decide.
+    const _cachedAt = state.aisTargetPos.get(mmsi);
     if (modeSilenced && !_retry && isActive && _aisMode() === "anchor"
-        && _aisEffectiveSog(state.aisTargetPos.get(mmsi)) == null
+        && (_aisEffectiveSog(_cachedAt) == null || !(_cachedAt && _cachedAt.pos))
         && Date.now() - (_aisSogAskedTs.get(mmsi) || 0) > 30000) {   // self-audit Rev540: once per 30 s
       _aisSogAskedTs.set(mmsi, Date.now());
       _aisRefreshTargetPos(mmsi)
@@ -15337,6 +15499,10 @@
         if (w) w.location.href = url; else window.open(url, "_blank");
       });
     }
+    const zonesReload = document.getElementById("harbour-zones-reload");
+    if (zonesReload) zonesReload.addEventListener("click", (ev) => {
+      ev.preventDefault(); ev.stopPropagation(); _zonesLoad(true);
+    });
     // Rev438: open the "silenciados" modal.
     const aisSil = document.getElementById("dash-ais-alarm-silenced");
     if (aisSil) {
