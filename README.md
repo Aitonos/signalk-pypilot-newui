@@ -124,9 +124,9 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 19. **COG line + Current vector** overlays.
 20. **Custom Signal K path** bindable to any corner tile.
 21. **Polar performance on corner tiles** *(with the polar plugins)*.
-22. **Bottom bar with three views** — heel / rudder bar, a live chart or Freeboard-SK at chart size. Double tap cycles through the views you choose, long press opens the settings. The chart groups series by kind (all speeds on one knots scale from 0: SOG, STW, polar max speed, VMG, AWS, TWS; angles AWA / TWA), the legend shows the average over 2 / 10 / 30 min and a finger on the chart reads the values of that moment. The bar takes the free height of the screen.
+22. **Multifunction panel with three views** — heel / rudder bar, a live chart or Freeboard-SK at chart size. Double tap cycles through the views you choose, long press opens the settings. The chart groups series by kind (all speeds on one knots scale from 0: SOG, STW, polar max speed, VMG, AWS, TWS; angles AWA / TWA), the legend shows the average over 2 / 10 / 30 min and a finger on the chart reads the values of that moment. The bar takes the free height of the screen.
 23. **Integrated chartplotter** *(with Freeboard-SK)* — double-tap the rose.
-24. **AIS collision targets on the rose** *(with @signalk/collision-alerts)*.
+24. **AIS collision targets on the rose** *(with @signalk/collision-alerts)* — Harbour / At anchor / Sailing modes. At anchor, a boat inside your swing circle always warns, even if it reports 0 kn. **Harbour zones**: draw your usual harbours in Freeboard-SK and mark them in the visor settings; inside one the alarm goes quiet by itself.
 25. **Tide at a glance** *(with AnchorWatch Pro)* — interactive tide curve and anchor-watch visor in the rose. A helm button on the other side opens the logbook (the live trip while sailing).
 26. **Race timer T1/T2** with beeps, screen flash and spoken countdown, persistent across tabs.
 27. **Swipe navigation** between tabs with vertical-axis lock, so scrolling never flips a tab by accident.

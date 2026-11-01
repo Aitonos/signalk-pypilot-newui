@@ -1,5 +1,45 @@
 # Changelog
 
+## 3.10.0 — 2026-11-01 — Harbour zones, anchor swing circle, tidier settings
+
+Rolls up Rev602 → Rev619 on top of 3.9.0. Self-audit in
+`docs/_autoauditoria_pre_3.10.0_2026-11-01.md`; settings layout in
+`docs/_ajustes_pantalla_estructura_2026-11-01.md`.
+
+### Added
+- **Harbour zones.** Mark Signal K regions (drawn in Freeboard-SK with
+  Draw Region) as harbour or mooring field from the visor settings. The
+  mark is stored in the region itself (`feature.properties.zoneType`,
+  proposed as a standard in SignalK/signalk-server#3271) so other apps can
+  use it. Inside a harbour zone the AIS alarm switches to Harbour mode at
+  once, for every device, instead of after 2 min stopped.
+- **At anchor, the swing circle.** A slow or "stopped" AIS target inside
+  our swing circle now gets through (a neighbour dragging toward us often
+  keeps reporting 0 kn). Uses the standard anchor position and radius;
+  stays quiet when signalk-mareas-ihm is already watching the anchor.
+- **Chart history survives restarts.** The last 30 min are saved when the
+  plugin stops (and every 10 min) and restored at start.
+
+### Changed
+- **Visor settings** (long press on a corner, or "Visor settings" in the
+  boat menu) in folding sections: Corner data, Data on the visor,
+  Multifunction panel, Collision alarm (AIS), Sounds and charts, Display
+  presets. Selectors and buttons follow the app's style; on phones the
+  corner pickers go one per row.
+- `@signalk/collision-alerts`: new package name in texts, App Store link
+  and README; both plugin ids (0.6.0 and 0.6.1+) are recognised and its
+  settings button opens the installed one.
+- Multifunction panel: tab-bar toggle at the bottom centre; heel / rudder
+  pointer triangles centred on the line and the number box.
+- Charts: tooltip age in whole minutes and each value in its series colour.
+- Rose: white A / T letters (T lower), true-wind gust marker drawn with the
+  true arrow shape, coloured "/" in AWA/AWS and TWA/TWS.
+- Tab bar closes by itself 5 s after every show in Control, and at start.
+
+### Fixed
+- Gain watchdog: a connection closed by pypilot before answering counts as
+  a failed attempt at once instead of waiting 5 s.
+
 ## 3.9.0 — 2026-10-31 — Control bottom bar: chart and Freeboard views
 
 Rolls up Rev584 → Rev601 on top of 3.8.2. Details and QA in
