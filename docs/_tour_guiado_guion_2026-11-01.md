@@ -68,3 +68,21 @@ traducirlos).
 
 1. ¿Te vale el guion así, o quitas / añades pasos?
 2. ¿Repetir tour desde Info y el menú del barco, o en otro sitio?
+
+## Versión implementada (Rev620-621)
+
+Aprobado "de momento" por Carlos; tras verlo pidió viñetas, no tapar la
+rosa, abrir de verdad Freeboard y la gráfica, y hablar de mareas.
+
+16 pasos: bienvenida, rosa, esquinas, AP, modo y perfil, cambiar rumbo,
+virar, panel multifunción, panel gráfica (se abre), la carta en la rosa
+(Freeboard se abre), mareas y fondeo (solo si signalk-mareas-ihm está),
+bitácora (solo si su botón está), pestañas, ajustes, setup, final.
+
+- Textos en viñetas cortas (ES / EN).
+- El bocadillo va debajo o encima del elemento; si es grande (la rosa en
+  apaisado), al lado; nunca encima salvo que no quepa en ningún sitio.
+- Lo que el tour abre (gráfica del panel, Freeboard en la rosa) se cierra
+  al cambiar de paso o al saltar el tour, y el panel vuelve a la vista que
+  tenía el usuario.
+- Repetir: botón en la pestaña Info y "Tour guiado" en el menú del barco.
