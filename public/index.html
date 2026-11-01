@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev622" />
+  <link rel="stylesheet" href="style.css?v=Rev623" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2068,7 +2068,7 @@
     <section id="tab-info" class="tab-panel">
       <div class="info-scroll">
         <div class="info-header">
-          <div class="info-title">PyPilot New-UI + SK Paths</div>
+          <div class="info-title">PyPilot New-UI</div>
           <div class="info-sub">
             <span id="info-version">v? &middot; Rev?</span>
             <span class="info-sep">&middot;</span>
@@ -2077,7 +2077,11 @@
         </div>
 
         <!-- Rev620: replay the first-run guided tour. -->
-        <button type="button" class="primary" id="tour-replay-info" style="margin:8px 0 12px" data-i18n="tour.replay">Replay the guided tour</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">
+          <a class="info-btn-link" href="https://github.com/Aitonos/signalk-pypilot-newui" target="_blank" rel="noopener"><button type="button" class="primary" data-i18n="info.star">Give us a star on GitHub</button></a>
+          <a class="info-btn-link" href="https://github.com/Aitonos/signalk-pypilot-newui/issues/new" target="_blank" rel="noopener"><button type="button" class="ghost" data-i18n="info.feedback">Feedback</button></a>
+          <button type="button" class="ghost" id="tour-replay-info" data-i18n="tour.replay">Replay the guided tour</button>
+        </div>
 
         <!-- Safety notice -->
         <div class="safety-notice">
@@ -2331,7 +2335,7 @@
           <div data-lang="en">
             <div class="section-title" style="margin-top:22px">About</div>
             <p class="info-p">
-              <b>PyPilot New-UI + SK Paths</b> is a modern touch interface for the
+              <b>PyPilot New-UI</b> is a modern touch interface for the
               <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a>
               autopilot, plus a full bridge of its data to Signal K (KIP-ready). Runs alongside
               <code>pypilot-autopilot-provider</code> and adds paths that plugin does not cover.
@@ -2341,7 +2345,7 @@
           <div data-lang="es">
             <div class="section-title" style="margin-top:22px">Acerca de</div>
             <p class="info-p">
-              <b>PyPilot New-UI + SK Paths</b> es una interfaz t&aacute;ctil moderna para el autopiloto
+              <b>PyPilot New-UI</b> es una interfaz t&aacute;ctil moderna para el autopiloto
               <a href="https://github.com/pypilot/pypilot" target="_blank" rel="noopener">pypilot</a>
               + puente completo de sus datos a Signal K (KIP-ready). Convive con
               <code>pypilot-autopilot-provider</code> sin pisarse y a&ntilde;ade paths que ese no cubre.
@@ -2809,6 +2813,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev622"></script>
+  <script src="app.js?v=Rev623"></script>
 </body>
 </html>

@@ -674,53 +674,56 @@
       "tour.skip": "Skip tour",
       "tour.done": "Done",
       "tour.replay": "Replay the guided tour",
-      "tour.welcome.t": "Welcome to PyPilot New-UI",
-      "tour.welcome.x": "A short tour of the basics.\nNothing on the pilot is touched during the tour.\nReplay it any time from the Info tab.",
+      "tour.welcome.t": "Hi! Welcome to PyPilot New-UI",
+      "tour.welcome.x": "I'll show you the basics in a few minutes.\nNothing on the pilot is touched during the tour, don't worry.\nYou can replay it any time from the Info tab.",
       "tour.rose.t": "The rose",
-      "tour.rose.x": "Your boat seen from above; heading at the top.\nYellow A arrow: apparent wind.\nGreen T arrow: true wind.\nBlue diamond: the course the pilot steers.",
+      "tour.rose.x": "It's your boat seen from above, with the heading at the very top.\nThe yellow A arrow is the apparent wind; the green T one, the true wind.\nWith the pilot engaged you'll see its target: red in compass, yellow in apparent wind, green in true wind.",
       "tour.corners.t": "Data in the corners",
-      "tour.corners.x": "Each corner shows the data you choose.\nLong press a corner: visor settings.",
-      "tour.chip.t": "The data at the bottom centre",
-      "tour.chip.x": "Tap it to change what it shows.\nSOG, depth or % of polar speed.",
+      "tour.corners.x": "Each corner shows whatever data you like.\nLong press a corner and the visor settings open.",
+      "tour.chip.t": "Bottom data display",
+      "tour.chip.x": "Tap it and it changes what it shows: SOG, depth or % of polar speed.",
       "tour.ap.t": "Engage the pilot",
-      "tour.ap.x": "AP engages and disengages the pilot.\nGrey: off.\nOn: holds the current heading or wind angle.",
-      "tour.mode.t": "Mode and profile",
-      "tour.mode.x": "Compass, GPS, apparent wind, true wind.\nAuto wind: apparent upwind, true downwind.\nThe tuning profile is picked here too.",
+      "tour.ap.x": "AP engages and disengages the pilot.\nGrey means off; red means on.\nWhen you engage it, it keeps the heading or wind angle you are sailing.",
+      "tour.mode.t": "Modes and profiles",
+      "tour.mode.x": "Pick a steering mode: compass, GPS, apparent wind, true wind, auto mode (switches between apparent and true by itself) or sail-hoisting mode (head to wind).\nPick your tuning profile here too.",
       "tour.nudge.t": "Change course",
-      "tour.nudge.x": "‹ 1 and 1 ›: one degree.\n« 10 and 10 »: ten degrees.\nLeft to port, right to starboard.",
-      "tour.tack.t": "Tack",
-      "tour.tack.x": "Red arrow: tack to port.\nGreen arrow: tack to starboard.\nFull manoeuvre; in wind modes it changes tack.",
+      "tour.nudge.x": "Correct the course 1 or 10 degrees at a time.\nThe ones on the left go to port; the ones on the right, to starboard.",
+      "tour.tack.t": "Tack and gybe",
+      "tour.tack.x": "Red arrow to port, green arrow to starboard.\nIt changes tack and settles at the same angle to the wind.",
       "tour.panel.t": "Multifunction panel",
-      "tour.panel.x": "Shows heel (or rudder angle).\nDouble tap: next view (chart, chart plotter).\nLong press: its settings.",
-      "tour.chart.t": "Panel: chart",
-      "tour.chart.x": "Speeds and wind over the last minutes.\nTop line: averages of the period.\nA finger on the chart: values of that moment.",
-      "tour.panelFb.t": "Panel: chart plotter",
-      "tour.panelFb.x": "Freeboard-SK in the panel, with the rose above.\n× goes back to the heel bar.",
-      "tour.panelFb.m": "Freeboard-SK is not installed.\nThis is what you would see: the chart in the panel, with the rose above.",
-      "tour.fb.t": "The chart plotter in the rose",
-      "tour.fb.x": "Freeboard-SK: a free chart plotter for Signal K.\nDouble tap the rose: it opens here.\nDouble tap again: back to the rose.",
-      "tour.fb.m": "Freeboard-SK, a free chart plotter for Signal K, is not installed.\nYou are missing the chart with your boat, AIS and routes, one double tap away.",
+      "tour.panel.x": "Here you see the rudder or the heel, the history chart, or Freeboard.\nDouble tap to go from one view to the next.\nLong press for its settings.",
+      "tour.chart.t": "Panel: history chart",
+      "tour.chart.x": "Speeds and wind over the last minutes.\nAt the top, the averages of that period.\nPut your finger on it to read the values of that moment.",
+      "tour.panelFb.t": "Panel: Freeboard",
+      "tour.panelFb.x": "The Freeboard chart down here, without losing the rose above.\nTap × to go back to the heel bar.",
+      "tour.panelFb.m": "You don't have Freeboard-SK installed.\nThis is how the chart would look in the panel, with the rose still above:",
+      "tour.fb.t": "Freeboard in the rose",
+      "tour.fb.x": "Freeboard is a free chart plotter for Signal K.\nDouble tap the rose and it opens right here.\nYou can maximise it, or close it to get the rose back.",
+      "tour.fb.m": "You don't have Freeboard-SK, a free chart plotter for Signal K.\nYou're missing the chart with your boat, AIS and routes, one double tap away:",
       "tour.tide.t": "AnchorWatch Pro: tides",
-      "tour.tide.x": "The tides of your area: today's curve and the next high and low.\nOpens from the tide button on the rose.",
-      "tour.tide.m": "AnchorWatch Pro is not installed.\nIt shows the tides of your area and manages your anchorings.\nThis is the tide view you are missing:",
+      "tour.tide.x": "Press this button on the rose and you see the tides of your area.\nToday's curve, the next high and low water.",
+      "tour.tide.m": "You don't have AnchorWatch Pro installed.\nIt shows the tides of your area and manages your anchorings.\nThis is the tide view you're missing:",
       "tour.anchor.t": "AnchorWatch Pro: anchoring",
-      "tour.anchor.x": "Anchor watch: swing circle, drag alarm, AIS near you.\nShown inside the rose; × to close.",
-      "tour.anchor.m": "AnchorWatch Pro is not installed.\nThis is its anchor watch: swing circle, drag alarm and AIS near you.",
+      "tour.anchor.x": "From the tide window, 'Open AnchorWatch Pro' opens the anchor watch.\nSwing circle, drag alarm and the AIS boats near you.\nTap × to get the rose back.",
+      "tour.anchor.m": "You don't have AnchorWatch Pro installed.\nThis is its anchor watch: swing circle, drag alarm and the AIS boats near you:",
       "tour.log.t": "Logbook",
-      "tour.log.x": "Your trips with their summary.\nWhile sailing: the live trip.",
-      "tour.tabs.t": "Tabs",
-      "tour.tabs.x": "Swipe sideways to change tab.\nTriangle at the bottom of the panel: hide or show this bar.\nCorner button: full screen.",
+      "tour.log.x": "It records your trips automatically.\nWhile sailing you can check the data of the trip in progress.",
+      "tour.tabs.t": "Top menu",
+      "tour.tabs.x": "Open it with the button at the bottom centre of the multifunction panel, or swipe sideways.\nThe corner button goes full screen.",
       "tour.tune.t": "Pilot tuning",
-      "tour.tune.x": "The pypilot gains, each one explained.\nLocked: unlock them to make changes.",
+      "tour.tune.x": "Here are the gains that decide how the pilot steers.\nIt's the most delicate part: a big change can make it steer badly.\nChange little by little, one value at a time, and try it under sail.\nThey're locked: unlock them to make changes.\nNot sure? The Doctor in Setup studies how it steers and suggests settings.",
       "tour.setup.t": "Setup",
-      "tour.setup.x": "Profiles and calibrations.\nDoctor: studies how it steers and suggests settings.\nLogbook and black box.",
-      "tour.companions.t": "What to install",
-      "tour.companions.x": "Here you see what you have and what is missing.\nRequired: pypilot (TinyPilot or another pypilot computer).\nRecommended: Freeboard-SK, AnchorWatch Pro, @signalk/collision-alerts, a polar plugin.\nTap a missing one to install it from the App Store.",
+      "tour.setup.x": "The most important bits:\nDoctor: studies how it steers and suggests settings.\nAlarms: choose what warns you and when.\nHealth information: sensors, servo and link with pypilot.",
+      "tour.companions.t": "Get the most out of it",
+      "tour.companions.x": "pypilot is all you need; these other plugins make it shine:\nFreeboard-SK: the chart plotter.\nAnchorWatch Pro: tides and anchor watch.\n@signalk/collision-alerts: AIS collision warnings.\nA polar plugin: your boat's performance.\nTap one you're missing to install it.",
       "tour.info.t": "Info",
-      "tour.info.x": "Replay this tour from here.\nFurther down: quick start and full instructions.\nAnd the companion plugins, installed or not.",
+      "tour.info.x": "From here you replay this tour whenever you like.\nFurther down you'll find quick and full instructions.",
       "tour.end.t": "Ready to sail",
-      "tour.end.x": "AIS alarms, harbour zones and everything on the screen: long press a corner.\nThere is much more than this tour shows: explore the tabs and menus.\nFair winds.",
+      "tour.end.x": "You know the basics now.\nThere's much more than we've shown you: explore the tabs and menus, nothing breaks by looking.\nIf you like it, give us a star on GitHub. Fair winds!",
       "tour.install": "Install",
+      "tour.star": "⭐ Give us a star on GitHub",
+      "info.star": "⭐ Give us a star on GitHub",
+      "info.feedback": "Feedback",
       "cfg.sec.rose":    "DATA ON THE VISOR",
       "cfg.sec.bar":     "MULTIFUNCTION PANEL",
       "cfg.sec.ais":     "COLLISION ALARM (AIS)",
@@ -1806,53 +1809,56 @@
       "tour.skip": "Saltar tour",
       "tour.done": "Terminar",
       "tour.replay": "Repetir el tour guiado",
-      "tour.welcome.t": "Bienvenido a PyPilot New-UI",
-      "tour.welcome.x": "Te enseño lo básico en pocos minutos.\nDurante el tour no se toca el piloto.\nPuedes repetirlo cuando quieras desde la pestaña Info.",
+      "tour.welcome.t": "¡Hola! Bienvenido a PyPilot New-UI",
+      "tour.welcome.x": "Te enseño lo básico en unos minutos.\nDurante el tour no se toca el piloto, tranquilo.\nPuedes repetirlo cuando quieras desde la pestaña Info.",
       "tour.rose.t": "La rosa",
-      "tour.rose.x": "Tu barco visto desde arriba; arriba, el rumbo.\nFlecha amarilla A: viento aparente.\nFlecha verde T: viento real.\nRombo azul: el rumbo que lleva el piloto.",
+      "tour.rose.x": "Es tu barco visto desde arriba, con el rumbo arriba del todo.\nLa flecha amarilla A es el viento aparente; la verde T, el viento real.\nCon el piloto conectado verás su objetivo: rojo en compás, amarillo en viento aparente, verde en viento real.",
       "tour.corners.t": "Datos en las esquinas",
-      "tour.corners.x": "Cada esquina muestra el dato que elijas.\nPulsación larga en una esquina: configuración del visor.",
-      "tour.chip.t": "El dato de abajo en el centro",
-      "tour.chip.x": "Tócalo para cambiar lo que muestra.\nSOG, profundidad o % de la velocidad de la polar.",
+      "tour.corners.x": "Cada esquina enseña el dato que tú quieras.\nHaz pulsación larga en una esquina y se abre la configuración del visor.",
+      "tour.chip.t": "Visor de datos inferior",
+      "tour.chip.x": "Tócalo y cambia lo que enseña: SOG, profundidad o % de la polar.",
       "tour.ap.t": "Conectar el piloto",
-      "tour.ap.x": "AP conecta y desconecta el piloto.\nEn gris: desconectado.\nConectado: mantiene el rumbo o el ángulo de viento actual.",
-      "tour.mode.t": "Modo y perfil",
-      "tour.mode.x": "Compás, GPS, viento aparente, viento real.\nAuto viento: aparente en ceñida, real en popa.\nAquí también eliges el perfil de ajustes.",
+      "tour.ap.x": "Con AP conectas y desconectas el piloto.\nEn gris está desconectado; en rojo, conectado.\nAl conectarlo mantiene el rumbo o el ángulo de viento que llevas.",
+      "tour.mode.t": "Modos y perfiles",
+      "tour.mode.x": "Elige entre los distintos modos de guiado: compás, GPS, viento aparente, viento real, modo auto (cambia solo entre aparente y real) o modo subir velas (aproado).\nElige también aquí tu perfil de ajustes.",
       "tour.nudge.t": "Cambiar el rumbo",
-      "tour.nudge.x": "‹ 1 y 1 ›: un grado.\n« 10 y 10 »: diez grados.\nIzquierda a babor, derecha a estribor.",
-      "tour.tack.t": "Virar",
-      "tour.tack.x": "Flecha roja: virar a babor.\nFlecha verde: virar a estribor.\nManiobra completa; en modos de viento cambia de amura.",
+      "tour.nudge.x": "Corrige el rumbo de 1 en 1 o de 10 en 10 grados.\nLos de la izquierda llevan a babor; los de la derecha, a estribor.",
+      "tour.tack.t": "Virar y trasluchar",
+      "tour.tack.x": "Flecha roja hacia babor, flecha verde hacia estribor.\nCambia de amura y queda al mismo ángulo respecto al viento.",
       "tour.panel.t": "Panel multifunción",
-      "tour.panel.x": "Muestra la escora (o el ángulo del timón).\nDoble toque: siguiente vista (gráfica, plotter).\nPulsación larga: sus ajustes.",
-      "tour.chart.t": "Panel: gráfica",
-      "tour.chart.x": "Velocidades y viento de los últimos minutos.\nArriba: medias del periodo.\nCon el dedo encima: valores de ese momento.",
-      "tour.panelFb.t": "Panel: plotter",
-      "tour.panelFb.x": "Freeboard-SK en el panel, con la rosa encima.\n× vuelve a la barra de escora.",
-      "tour.panelFb.m": "Freeboard-SK no está instalado.\nAsí se vería: la carta en el panel, con la rosa encima.",
-      "tour.fb.t": "El plotter en la rosa",
-      "tour.fb.x": "Freeboard-SK: un plotter de cartas gratuito para Signal K.\nDoble toque en la rosa: se abre aquí.\nDoble toque otra vez: vuelves a la rosa.",
-      "tour.fb.m": "Freeboard-SK, un plotter de cartas gratuito para Signal K, no está instalado.\nTe pierdes la carta con tu barco, el AIS y las rutas, a un doble toque.",
+      "tour.panel.x": "Aquí ves el timón o la escora, la gráfica de históricos o Freeboard.\nDoble toque para pasar de una vista a otra.\nPulsación larga para sus ajustes.",
+      "tour.chart.t": "Panel: gráfica de históricos",
+      "tour.chart.x": "Velocidades y viento de los últimos minutos.\nArriba, las medias de ese rato.\nPon el dedo encima y ves los valores de ese momento.",
+      "tour.panelFb.t": "Panel: Freeboard",
+      "tour.panelFb.x": "La carta de Freeboard aquí abajo, sin perder la rosa de arriba.\nToca la × para volver a la escora.",
+      "tour.panelFb.m": "No tienes Freeboard-SK instalado.\nAsí se vería la carta en el panel, sin perder la rosa de arriba:",
+      "tour.fb.t": "Freeboard en el cuadro de la rosa",
+      "tour.fb.x": "Freeboard es un plotter de cartas gratuito para Signal K.\nHaz doble toque en la rosa y se abre aquí mismo.\nPuedes maximizarlo, o cerrarlo para volver a la rosa.",
+      "tour.fb.m": "No tienes Freeboard-SK, un plotter de cartas gratuito para Signal K.\nTe pierdes la carta con tu barco, el AIS y las rutas, a un doble toque:",
       "tour.tide.t": "AnchorWatch Pro: mareas",
-      "tour.tide.x": "Las mareas de tu zona: la curva del día y la próxima pleamar y bajamar.\nSe abre con el botón de marea de la rosa.",
-      "tour.tide.m": "AnchorWatch Pro no está instalado.\nSirve para ver las mareas de tu zona y gestionar tus fondeos.\nEsta es la vista de mareas que te pierdes:",
+      "tour.tide.x": "Pulsa este botón de la rosa y ves las mareas de tu zona.\nLa curva del día, la próxima pleamar y bajamar.",
+      "tour.tide.m": "No tienes AnchorWatch Pro instalado.\nSirve para ver las mareas de tu zona y gestionar tus fondeos.\nEsta es la vista de mareas que te pierdes:",
       "tour.anchor.t": "AnchorWatch Pro: fondeo",
-      "tour.anchor.x": "Gestor de fondeo: círculo de borneo, alarma de garreo, AIS cerca.\nSe ve dentro de la rosa; × para cerrar.",
-      "tour.anchor.m": "AnchorWatch Pro no está instalado.\nEste es su gestor de fondeo: círculo de borneo, alarma de garreo y AIS cerca.",
-      "tour.log.t": "Bitácora",
-      "tour.log.x": "Tus salidas con su resumen.\nNavegando: la salida en curso.",
-      "tour.tabs.t": "Pestañas",
-      "tour.tabs.x": "Desliza el dedo a los lados para cambiar de pestaña.\nTriángulo abajo del panel: oculta o muestra esta barra.\nBotón de la esquina: pantalla completa.",
+      "tour.anchor.x": "Desde la ventana de mareas, «Abrir AnchorWatch Pro» abre el gestor de fondeo.\nCírculo de borneo, alarma de garreo y los barcos AIS que tienes cerca.\nToca la × para volver a la rosa.",
+      "tour.anchor.m": "No tienes AnchorWatch Pro instalado.\nEste es su gestor de fondeo: círculo de borneo, alarma de garreo y los barcos AIS cerca:",
+      "tour.log.t": "Cuaderno de bitácora",
+      "tour.log.x": "Graba tus salidas automáticamente.\nMientras navegas puedes consultar los datos de la salida en curso.",
+      "tour.tabs.t": "Menú superior",
+      "tour.tabs.x": "Ábrelo pulsando el botón central de abajo del panel multifunción, o desliza el dedo a los lados.\nEl botón de la esquina pone pantalla completa.",
       "tour.tune.t": "Ajustes del piloto",
-      "tour.tune.x": "Las ganancias de pypilot, con explicación de cada una.\nBloqueadas: desbloquéalas para tocar.",
+      "tour.tune.x": "Aquí están las ganancias que deciden cómo gobierna el piloto.\nEs lo más delicado: un cambio grande puede hacer que gobierne mal.\nCambia poco a poco, un valor cada vez, y pruébalo navegando.\nEstán bloqueadas: desbloquéalas para tocar.\n¿Dudas? El Doctor de Setup analiza cómo gobierna y te propone ajustes.",
       "tour.setup.t": "Setup",
-      "tour.setup.x": "Perfiles y calibraciones.\nDoctor: analiza cómo gobierna y propone ajustes.\nBitácora y caja negra.",
-      "tour.companions.t": "Qué instalar",
-      "tour.companions.x": "Aquí ves qué tienes y qué te falta.\nImprescindible: pypilot (TinyPilot u otro ordenador con pypilot).\nRecomendados: Freeboard-SK, AnchorWatch Pro, @signalk/collision-alerts y un plugin de polares.\nToca uno que falte para instalarlo desde la App Store.",
+      "tour.setup.x": "Lo más importante:\nDoctor: analiza cómo gobierna y te propone ajustes.\nAlarmas: elige qué te avisa y cuándo.\nInformación de salud: sensores, servo y conexión con pypilot.",
+      "tour.companions.t": "Sácale el jugo",
+      "tour.companions.x": "Con pypilot basta; con estos otros plugins le sacas el jugo:\nFreeboard-SK: el plotter de cartas.\nAnchorWatch Pro: mareas y gestor de fondeo.\n@signalk/collision-alerts: avisos de colisión AIS.\nUn plugin de polares: el rendimiento de tu barco.\nToca uno que te falte para instalarlo.",
       "tour.info.t": "Info",
-      "tour.info.x": "Desde aquí repites este tour.\nMás abajo: instrucciones rápidas y completas.\nY los plugins complementarios, instalados o no.",
+      "tour.info.x": "Desde aquí repites este tour cuando quieras.\nMás abajo tienes instrucciones rápidas y completas.",
       "tour.end.t": "Listo para navegar",
-      "tour.end.x": "Alarmas AIS, zonas de puerto y todo lo de la pantalla: pulsación larga en una esquina.\nHay muchas más funciones de las que te hemos contado: explora las pestañas y los menús.\nBuen viento.",
+      "tour.end.x": "Ya conoces lo básico.\nHay muchas más funciones de las que te hemos contado: explora las pestañas y los menús, no se rompe nada por mirar.\nSi te gusta, danos una estrella en GitHub. ¡Buen viento!",
       "tour.install": "Instalar",
+      "tour.star": "⭐ Danos una estrella en GitHub",
+      "info.star": "⭐ Danos una estrella en GitHub",
+      "info.feedback": "Feedback",
       "cfg.sec.rose":    "DATOS SOBRE EL VISOR",
       "cfg.sec.bar":     "PANEL MULTIFUNCIÓN",
       "cfg.sec.ais":     "ALARMA DE COLISIÓN (AIS)",
@@ -20040,23 +20046,29 @@
       sim: "tour/panel-fb.jpg", pkg: "@signalk/freeboard-sk" },
     { key: "fb",      sel: ".dash-rose .rose-wrap",      tab: "control", needs: "fb",
       sim: "tour/fb-rose.jpg", pkg: "@signalk/freeboard-sk",
-      enter: () => { if (_fbApi && _fbApi.openRose) _fbApi.openRose(); },
+      seq: [{ sel: ".dash-rose .rose-wrap", double: true, act: () => { if (_fbApi && _fbApi.openRose) _fbApi.openRose(); } }],
       leave: () => { if (_fbApi && _fbApi.closeRose) _fbApi.closeRose(); } },
     { key: "tide",    sel: "#tide-pop .popup-box",       tab: "control", needs: "mareas",
       sim: "tour/tide.jpg", pkg: "signalk-mareas-ihm",
-      enter: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); },
+      seq: [{ sel: "#rose-tide-btn", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } }],
       leave: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); } },
     { key: "anchor",  sel: "#mareas-embed",              tab: "control", needs: "mareas",
       sim: "tour/anchor.jpg", pkg: "signalk-mareas-ihm",
-      enter: () => { if (_tourExtApi.openMareas) _tourExtApi.openMareas(); },
-      leave: () => { if (_tourExtApi.closeMareas) _tourExtApi.closeMareas(); } },
+      seq: [
+        { sel: "#rose-tide-btn", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } },
+        { sel: "#tide-full", act: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); if (_tourExtApi.openMareas) _tourExtApi.openMareas(); } },
+      ],
+      leave: () => {
+        if (_tourExtApi.closeTide) _tourExtApi.closeTide();
+        if (_tourExtApi.closeMareas) _tourExtApi.closeMareas();
+      } },
     { key: "log",     sel: "#rose-log-btn",              tab: "control", optional: true },
     { key: "tabs",    sel: "#tabbar",                    tab: "control", nav: true },
     { key: "tune",    sel: '.tab-btn[data-tab="tune"]',  tab: "tune" },
     { key: "setup",   sel: '.tab-btn[data-tab="setup"]', tab: "setup" },
     { key: "companions", sel: "#info-companions",        tab: "info" },
     { key: "info",    sel: "#tour-replay-info",          tab: "info" },
-    { key: "end",     sel: null,                         tab: "control" },
+    { key: "end",     sel: null,                         tab: "control", link: { label: "tour.star", url: "https://github.com/Aitonos/signalk-pypilot-newui" } },
   ];
   // Rev622: which companions are installed (Freeboard-SK, AnchorWatch
   // Pro); a missing one gets a simulated screenshot and an Install button.
@@ -20171,9 +20183,11 @@
     const st = TOUR_STEPS[i];
     const missing = !!st.needs && !_tourHas[st.needs];
     if (!st.panel || missing) _tourRestorePanel();
+    _tour.curSel = null;
     if (!missing) {
       if (st.panel) _tourPanelView(st.panel);
       if (st.enter) { try { st.enter(); } catch { /* silent */ } }
+      if (st.seq) _tourRunSeq(i, st.seq);
     }
     _tour.missing = missing;
     const cur = document.querySelector(".tab-btn.active");
@@ -20194,9 +20208,17 @@
     E.text.appendChild(ul);
     E.sim.hidden = !missing || !st.sim;
     if (missing && st.sim) E.sim.src = st.sim;
-    E.install.hidden = !missing || !st.pkg;
-    E.install.textContent = t("tour.install");
-    E.install.onclick = () => window.open(`/admin/#/appstore/plugin/${encodeURIComponent(st.pkg)}`, "_blank", "noopener");
+    if (missing && st.pkg) {
+      E.install.hidden = false;
+      E.install.textContent = t("tour.install");
+      E.install.onclick = () => window.open(`/admin/#/appstore/plugin/${encodeURIComponent(st.pkg)}`, "_blank", "noopener");
+    } else if (st.link) {
+      E.install.hidden = false;
+      E.install.textContent = t(st.link.label);
+      E.install.onclick = () => window.open(st.link.url, "_blank", "noopener");
+    } else {
+      E.install.hidden = true;
+    }
     E.bub.classList.toggle("has-sim", missing && !!st.sim);
     // Rev622: chart step at the berth (no data yet): show an example.
     if (!missing && st.simIfEmpty) {
@@ -20218,11 +20240,36 @@
     // Let the tab switch / panel animation / chart opening settle first.
     setTimeout(_tourPlace, 380);
   }
+  // Rev623 (Carlos: "debieras darle al botón y animarse que se abre"):
+  // light the button, show it being pressed, then open; one item per tap.
+  function _tourRunSeq(i, seq) {
+    let k = 0;
+    const next = () => {
+      if (_tour.i !== i) return;
+      if (k >= seq.length) { _tour.curSel = null; setTimeout(_tourPlace, 450); return; }
+      const item = seq[k++];
+      _tour.curSel = item.sel;
+      _tourPlace();
+      const el = document.querySelector(item.sel);
+      setTimeout(() => {
+        if (_tour.i !== i) return;
+        if (el) { el.classList.remove("tour-press", "tour-press2"); void el.offsetWidth; el.classList.add(item.double ? "tour-press2" : "tour-press"); }
+        setTimeout(() => {
+          if (_tour.i !== i) return;
+          if (el) el.classList.remove("tour-press", "tour-press2");
+          try { item.act(); } catch { /* silent */ }
+          setTimeout(next, 700);
+        }, item.double ? 900 : 650);
+      }, 900);
+    };
+    next();
+  }
   function _tourPlace() {
     if (_tour.i < 0 || !_tour.els) return;
     const E = _tour.els;
     const st = TOUR_STEPS[_tour.i];
-    const el = st.sel && !_tour.missing ? document.querySelector(st.sel) : null;
+    const selNow = _tour.curSel || st.sel;
+    const el = selNow && !_tour.missing ? document.querySelector(selNow) : null;
     const r = el ? el.getBoundingClientRect() : null;
     const vw = window.innerWidth, vh = window.innerHeight, pad = 6, m = 10;
     E.bub.classList.remove("arrow-up", "arrow-down");
