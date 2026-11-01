@@ -1,17 +1,17 @@
-# Ajustes de pantalla (ventana de la rosa): estructura
+# Configuración del visor (ventana de la rosa): estructura
 
 Fecha: 2026-11-01 (Rev607-608). Carlos: "ordena esto, ya no me aclaro".
 Se abre con pulsación larga en una esquina de la rosa (o pulsación larga
-en la barra de abajo, que abre directamente su sección).
+en el panel multifunción, que abre directamente su sección; o desde el menú del barco, "Configuración del visor").
 
 | Sección | Qué contiene |
 |---|---|
-| Esquinas de la rosa (abierta) | Qué dato va en cada esquina; datos de polares disponibles; ruta Signal K propia |
-| Sobre la rosa | Flecha A, flecha T, COG, corriente, marca de rachas |
-| Barra de abajo | Escora o timón; qué vistas recorre el doble toque; series y ventana de la gráfica |
-| Alarma de colisión AIS | Modo (Puerto / Fondeo / Navegando), voz, puerto automático, ajustes del plugin, silenciadas; zonas de puerto |
-| Sonido y carta | Sonido al tocar; Freeboard en segundo plano |
-| Pantallas guardadas | Guardar / aplicar la disposición de la pantalla |
+| Datos en esquinas (abierta) | Qué dato va en cada esquina; datos de polares disponibles; ruta Signal K propia |
+| Datos sobre el visor | Flecha A, flecha T, COG, corriente, marca de rachas |
+| Panel multifunción | Escora o timón; qué vistas recorre el doble toque; series y ventana de la gráfica |
+| Alarma de colisión (AIS) | Modo (Puerto / Fondeo / Navegando), voz, puerto automático, ajustes del plugin, silenciadas; zonas de puerto |
+| Sonidos y cartas | Sonido al tocar; Freeboard en segundo plano |
+| Presets de visualización | Guardar / aplicar la disposición de la pantalla |
 
 ## Alarma AIS, en una frase por modo
 
@@ -29,3 +29,10 @@ callar barcos parados dentro (PR SignalK/collision-alerts#47).
 
 Mismos controles e identificadores que antes: solo cambia el orden y que
 cada tema se pliega.
+
+## Estilo (Rev609-610)
+
+Nombres aprobados por Carlos. Selectores con esquinas de 8 px como los
+botones "2 min / 10 min" (antes en forma de píldora); Escora | Timón como
+dos botones de selección; datos de polares como selectores en línea; el
+desplegable de zonas con el mismo estilo que los de las esquinas.
