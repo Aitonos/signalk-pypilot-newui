@@ -674,6 +674,7 @@
       "tour.skip": "Skip tour",
       "tour.done": "Done",
       "tour.replay": "Replay the guided tour",
+      "tour.zoomHint": "🔍 Tap to enlarge",
       "tour.anchor.p2": "Now 'Open AnchorWatch Pro' (one tap).\nPress Next and I'll tap it.",
       "tour.anchor.p1": "First, the tide button on the rose (one tap).\nPress Next and I'll tap it.",
       "tour.tide.p1": "Tap this button on the rose once.\nPress Next and I'll tap it.",
@@ -1815,6 +1816,7 @@
       "tour.skip": "Saltar tour",
       "tour.done": "Terminar",
       "tour.replay": "Repetir el tour guiado",
+      "tour.zoomHint": "🔍 Toca para ampliar",
       "tour.anchor.p2": "Ahora «Abrir AnchorWatch Pro» (un toque).\nPulsa Siguiente y lo pulso yo.",
       "tour.anchor.p1": "Primero, el botón de mareas de la rosa (un toque).\nPulsa Siguiente y lo pulso yo.",
       "tour.tide.p1": "Pulsa una vez este botón de la rosa.\nPulsa Siguiente y lo pulso yo.",
@@ -20064,12 +20066,13 @@
       leave: () => { if (_fbApi && _fbApi.closeRose) _fbApi.closeRose(); } },
     { key: "tide",    sel: "#tide-pop .popup-box",       tab: "control", needs: "mareas",
       sim: "tour/tide.jpg", pkg: "signalk-mareas-ihm",
-      phases: [{ sel: "#rose-tide-btn", key: "tide.p1", act: () => _tourOpenTide() }],
-      leave: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); } },
+      phases: [{ sel: "#rose-tide-btn", key: "tide.p1", act: () => _tourOpenTide() }] },
     { key: "anchor",  sel: "#mareas-embed",              tab: "control", needs: "mareas",
       sim: "tour/anchor.jpg", pkg: "signalk-mareas-ihm",
+      // Rev627 (Carlos): the tide window from step 13 stays open, so the
+      // button is found where it was; opened here only if it is not.
+      enter: () => { if (!_tourTideOpen()) _tourOpenTide(); },
       phases: [
-        { sel: "#rose-tide-btn", key: "anchor.p1", act: () => _tourOpenTide() },
         { sel: "#tide-full", key: "anchor.p2", act: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); if (_tourExtApi.openMareas) _tourExtApi.openMareas(); } },
       ],
       leave: () => {
@@ -20137,6 +20140,7 @@
         <div class="tour-title"></div>
         <div class="tour-text"></div>
         <img class="tour-sim" alt="" hidden title="" />
+        <div class="tour-sim-hint" hidden></div>
         <button type="button" class="primary tour-install" hidden></button>
         <div class="tour-actions">
           <button type="button" class="ghost tour-skip"></button>
@@ -20148,21 +20152,28 @@
       <div class="tour-zoom" hidden><button type="button" class="tour-zoom-close" aria-label="Close">&#x2715;</button><img alt="" /></div>`;
     // Swallow every tap so nothing underneath reacts during the tour.
     for (const ev of ["pointerdown", "pointerup", "click", "dblclick", "touchstart", "contextmenu"]) {
-      ov.addEventListener(ev, (e) => { if (!e.target.closest(".tour-actions button, .tour-install, .tour-sim, .tour-zoom")) { e.stopPropagation(); if (ev !== "touchstart") e.preventDefault(); } }, { passive: false });
+      ov.addEventListener(ev, (e) => { if (!e.target.closest(".tour-actions button, .tour-install, .tour-sim, .tour-sim-hint, .tour-zoom")) { e.stopPropagation(); if (ev !== "touchstart") e.preventDefault(); } }, { passive: false });
     }
     ov.querySelector(".tour-next").addEventListener("click", () => _tourNext());
     ov.querySelector(".tour-back").addEventListener("click", () => _tourGo(_tour.i - 1));
     ov.querySelector(".tour-skip").addEventListener("click", () => _tourEnd());
     ov.querySelector(".tour-sim").addEventListener("load", () => _tourPlace());
+    new MutationObserver(() => {
+      const img = ov.querySelector(".tour-sim"), hint = ov.querySelector(".tour-sim-hint");
+      hint.hidden = img.hidden;
+      hint.textContent = t("tour.zoomHint");
+    }).observe(ov.querySelector(".tour-sim"), { attributes: true, attributeFilter: ["hidden"] });
     // Rev626 (Carlos): tap the example screenshot to see it full screen,
     // fitted to the width (scroll for the rest); tap again or x to close.
     const zoom = ov.querySelector(".tour-zoom");
-    ov.querySelector(".tour-sim").addEventListener("click", (e) => {
+    const openZoom = (e) => {
       e.stopPropagation();
-      zoom.querySelector("img").src = e.currentTarget.src;
+      zoom.querySelector("img").src = ov.querySelector(".tour-sim").src;
       zoom.hidden = false;
       zoom.scrollTop = 0;
-    });
+    };
+    ov.querySelector(".tour-sim").addEventListener("click", openZoom);
+    ov.querySelector(".tour-sim-hint").addEventListener("click", openZoom);
     zoom.addEventListener("click", (e) => { e.stopPropagation(); zoom.hidden = true; });
     document.body.appendChild(ov);
     _tour.els = {
@@ -20170,6 +20181,7 @@
       count: ov.querySelector(".tour-count"), title: ov.querySelector(".tour-title"), text: ov.querySelector(".tour-text"),
       skip: ov.querySelector(".tour-skip"), back: ov.querySelector(".tour-back"), next: ov.querySelector(".tour-next"),
       sim: ov.querySelector(".tour-sim"), install: ov.querySelector(".tour-install"),
+      simHint: ov.querySelector(".tour-sim-hint"),
     };
   }
   async function tourStart() {
@@ -20197,6 +20209,7 @@
     _tour.i = -1;
     document.body.classList.remove("tour-on");
     { const box = document.querySelector("#tide-pop .popup-box"); if (box) box.style.transform = ""; }
+    if (_tourTideOpen() && _tourExtApi.closeTide) _tourExtApi.closeTide();
     if (_tour.els) _tour.els.ov.classList.remove("open");
     const cur = document.querySelector(".tab-btn.active");
     if (cur && cur.dataset.tab !== "control") _activateTab("control", null);
@@ -20209,6 +20222,7 @@
     if (prev && prev.leave && _tour.i !== i) { try { prev.leave(); } catch { /* silent */ } }
     _tour.i = i;
     const st = TOUR_STEPS[i];
+    if (st.key !== "tide" && st.key !== "anchor" && _tourTideOpen() && _tourExtApi.closeTide) _tourExtApi.closeTide();
     const missing = !!st.needs && !_tourHas[st.needs];
     if (!st.panel || missing) _tourRestorePanel();
     _tour.curSel = null;
@@ -20275,6 +20289,10 @@
                           (window.innerWidth * 0.96) / Math.max(1, box.offsetWidth));
     box.style.transformOrigin = "top center";
     box.style.transform = k < 0.999 ? `scale(${k.toFixed(3)})` : "";
+  }
+  function _tourTideOpen() {
+    const p = document.getElementById("tide-pop");
+    return !!p && p.classList.contains("open");
   }
   function _tourOpenTide() {
     if (_tourExtApi.openTide) _tourExtApi.openTide();

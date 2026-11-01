@@ -4866,3 +4866,6 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
   width: 40px; height: 40px; border-radius: 10px;
   background: #e5484d; color: #fff; border: none; font-size: 20px; cursor: pointer;
 }
+
+.tour-sim-hint { font-size: 12px; color: var(--fg-dim); text-align: center; margin-top: 2px; cursor: zoom-in; }
+.tour-sim-hint[hidden] { display: none; }
