@@ -82,7 +82,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev617";
+const PLUGIN_REVISION = "Rev618";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -327,6 +327,26 @@ module.exports = function (app: any) {
   // before start(). The 1 Hz timer feeds own SOG to the harbour machine.
   let visorPrefs: VisorPrefs | null = null;
   let visorPrefsTimer: NodeJS.Timeout | null = null;
+  // Rev618: historian on disk across restarts.
+  let historianSaveTimer: NodeJS.Timeout | null = null;
+  const historianFile = (): string => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require("path");
+    return p.join(app.getDataDirPath ? app.getDataDirPath() : ".", "historian.json");
+  };
+  const saveHistorian = (): void => {
+    if (!historian) return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require("fs");
+      const file = historianFile();
+      // 5 decimals is plenty for radians, m/s, A and V; keeps the file small.
+      const json = JSON.stringify(historian.dump(), (_k, v) =>
+        (typeof v === "number" && !Number.isInteger(v)) ? Math.round(v * 1e5) / 1e5 : v);
+      fs.writeFileSync(file + ".tmp", json);
+      fs.renameSync(file + ".tmp", file);
+    } catch (e: any) { app.debug?.(`[historian] save failed: ${e?.message || e}`); }
+  };
   // Rev612: harbour zones (regions with zoneType "harbour"), re-read every minute.
   let harbourZonesTimer: NodeJS.Timeout | null = null;
   let harbourPolygons: Polygon[] = [];
@@ -1030,6 +1050,21 @@ module.exports = function (app: any) {
       // it too. Kept modest on purpose so Pi 4 hosts have headroom;
       // disk persistence is opt-in in a later batch.
       historian = new Historian({ capacitySamples: 1800, samplePeriodMs: 1000 });
+      // Rev618 (Carlos): the last 30 min survive a restart (new revision,
+      // Signal K restart) - saved when the plugin stops and every 10 min,
+      // put back here before sampling resumes.
+      try {
+        const fs = require("fs");
+        if (fs.existsSync(historianFile())) {
+          const n = historian.restore(JSON.parse(fs.readFileSync(historianFile(), "utf8")));
+          app.debug?.(`[historian] restored ${n} samples from disk`);
+        }
+      } catch (e: any) { app.debug?.(`[historian] restore skipped: ${e?.message || e}`); }
+      if (historianSaveTimer) { try { clearInterval(historianSaveTimer); } catch {} }
+      historianSaveTimer = setInterval(() => saveHistorian(), 10 * 60_000);
+      if (typeof (historianSaveTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
+        (historianSaveTimer as NodeJS.Timeout & { unref: () => void }).unref();
+      }
       // Rev95: KPI computer feeds off every sample and publishes a
       // compact digest every second as SK paths (see publishKpiPaths).
       kpis = new KPIComputer(historian, { sampleTickMs: 1000 });
@@ -1342,7 +1377,9 @@ module.exports = function (app: any) {
       // Rev93: stop the historian sampler so its setInterval does not
       // outlive the plugin (Disable+Enable in the SK admin would leak
       // it just like the watchdog timer used to).
+      if (historianSaveTimer) { try { clearInterval(historianSaveTimer); } catch {} historianSaveTimer = null; }
       if (historian) {
+        saveHistorian();   // Rev618: keep the last 30 min for the next start
         try { historian.stop(); } catch { /* defensive */ }
         historian = null;
       }

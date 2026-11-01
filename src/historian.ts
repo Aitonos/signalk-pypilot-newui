@@ -155,6 +155,29 @@ export class Historian {
     }
   }
 
+  /** Rev618: every sample still inside the buffer's time span, oldest
+   *  first - what gets saved to disk across a restart. */
+  dump(now = Date.now()): Sample[] {
+    const span = this.capacity * this.periodMs;
+    return (this.slice(span) as Sample[]).filter((s) => s.ts <= now);
+  }
+
+  /** Rev618: puts saved samples back after a restart, before sampling
+   *  resumes. Keeps only well-formed samples newer than one buffer span
+   *  and not in the future, oldest first. Returns how many came back. */
+  restore(samples: unknown, now = Date.now()): number {
+    if (!Array.isArray(samples)) return 0;
+    const cutoff = now - this.capacity * this.periodMs;
+    const ok = samples
+      .filter((s): s is Sample => !!s && typeof s === "object"
+        && typeof (s as Sample).ts === "number" && Number.isFinite((s as Sample).ts)
+        && (s as Sample).ts > cutoff && (s as Sample).ts <= now)
+      .sort((a, b) => a.ts - b.ts)
+      .slice(-this.capacity);
+    for (const s of ok) this.push(s);
+    return ok.length;
+  }
+
   /** Stops the sampler interval. Buffer contents are retained (a
    *  subsequent start() will keep pushing on top of the old samples).
    *  Called from plugin.stop() to avoid leaking timers across a
