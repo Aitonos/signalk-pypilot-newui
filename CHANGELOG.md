@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.11.0 — 2026-11-02 — Guided tour, complete German and French
+
+Rolls up Rev620 → Rev628 on top of 3.10.0. Self-audit in
+`docs/_autoauditoria_pre_3.11.0_2026-11-02.md`; tour design in
+`docs/_tour_guiado_guion_2026-11-01.md`.
+
+### Added
+- **Guided tour** on first open (21 steps, spotlight + bubble): rose,
+  corner data, mode and profile, nudge and tack buttons, multifunction
+  panel (chart and Freeboard views really opened), Freeboard in the rose,
+  AnchorWatch Pro tide and anchor windows, logbook, top menu, Tune, Setup,
+  companion plugins and Info. Taps are shown in two parts: where and how
+  many, then Next performs them. It never touches the pilot. When a
+  companion plugin is missing the step shows a real screenshot (tap to
+  enlarge) and an Install button. Replay from Info or the boat menu; seen
+  once per device.
+- **Info**: "Star us on GitHub" and Feedback buttons.
+
+### Changed
+- **German and French complete**: 908 texts that were still in English
+  (settings, Doctor, alarms, sessions, logbook, AIS, manoeuvres, tour…)
+  are now translated; every EN key exists in DE and FR.
+- Info title without "+ SK Paths".
+
 ## 3.10.0 — 2026-11-01 — Harbour zones, anchor swing circle, tidier settings
 
 Rolls up Rev602 → Rev619 on top of 3.9.0. Self-audit in

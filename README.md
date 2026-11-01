@@ -57,6 +57,8 @@ Spend more time sailing and less time guessing which slider to move.
 4. Enable the plugin.
 5. Open **`http://localhost:3000/signalk-pypilot-newui/`** (replace `localhost` with your Signal K server address on a tablet or phone).
 
+On first open a **guided tour** walks you through the rose, the controls, the multifunction panel and the companion plugins in a few minutes, without touching the pilot. Replay it any time from the **Info** tab or the boat menu.
+
 That's it — the autopilot visor works with just pypilot. Add the [companion plugins](#unlock-more-with-companion-plugins) to light up charts, AIS, tides and polars.
 
 ---
@@ -130,7 +132,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 25. **Tide at a glance** *(with AnchorWatch Pro)* — interactive tide curve and anchor-watch visor in the rose. A helm button on the other side opens the logbook (the live trip while sailing).
 26. **Race timer T1/T2** with beeps, screen flash and spoken countdown, persistent across tabs.
 27. **Swipe navigation** between tabs with vertical-axis lock, so scrolling never flips a tab by accident.
-28. **Multi-language** EN / ES / DE / FR, auto-detected from the browser.
+28. **Multi-language** EN / ES / DE / FR, auto-detected from the browser, every screen translated. A first-run **guided tour** (replay from Info) shows the essentials.
 29. **Profile history** — the profile manager shows under each profile its version, when it was made, which profile it was copied from and how (Tune, New, Doctor, import); a rename keeps the history, and look-alike names (extra spaces, capitals) are flagged.
 
 ### Logbook & performance data (6)
