@@ -120,23 +120,15 @@ describe("gain watchdog (Rev571)", () => {
   });
 
   it("A10: keeps retrying after connection failures and restores once pypilot is back", async () => {
-    // Reserve a port, close it: the first attempts are refused.
-    const probe = net.createServer(); await new Promise<void>((r) => probe.listen(0, "127.0.0.1", () => r()));
-    const port = (probe.address() as net.AddressInfo).port; await new Promise<void>((r) => probe.close(() => r()));
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
-    fs.writeFileSync(path.join(dir, "lease.json"), JSON.stringify({
-      active: true, restoreProfile: "base", testProfile: "tune-w", host: "127.0.0.1", port,
-      renewedTs: Date.now() - 60_000, ttlMs: 1000,
-    }));
-    const g = new GainGuard({ dir, host: "127.0.0.1", port, scriptPath: SCRIPT });
-    g.recoverOnStart();
-    assert.ok(await until(() => !!g.status().lease?.lastAttemptError, 8000), "a failed attempt recorded");
-    assert.equal(g.status().lease?.active, true, "still pending, not given up");
-    // pypilot comes back on the same port.
-    const state = { active: "tune-w", sets: [] as string[] };
+    // Rev617: one server we own on the port, first "down" (it drops every
+    // connection), then "up". Reserving a port and closing it let another
+    // test grab it under load, and the first attempt then waited for the
+    // 5 s timeout instead of failing at once (flaky A10).
+    const state = { up: false, active: "tune-w", sets: [] as string[] };
     const srv = net.createServer((sock) => {
-      sock.setEncoding("utf8"); let buf = "";
       sock.on("error", () => { /* */ });
+      if (!state.up) { sock.destroy(); return; }
+      sock.setEncoding("utf8"); let buf = "";
       sock.on("data", (d: string) => {
         buf += d; let nl: number;
         while ((nl = buf.indexOf("\n")) >= 0) {
@@ -146,8 +138,21 @@ describe("gain watchdog (Rev571)", () => {
         }
       });
     });
-    await new Promise<void>((r) => srv.listen(port, "127.0.0.1", () => r()));
-    assert.ok(await until(() => state.active === "base", 25_000), "restored after the outage");
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", () => r()));
+    const port = (srv.address() as net.AddressInfo).port;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gw-")); dirs.push(dir);
+    fs.writeFileSync(path.join(dir, "lease.json"), JSON.stringify({
+      active: true, restoreProfile: "base", testProfile: "tune-w", host: "127.0.0.1", port,
+      renewedTs: Date.now() - 60_000, ttlMs: 1000,
+    }));
+    const g = new GainGuard({ dir, host: "127.0.0.1", port, scriptPath: SCRIPT });
+    g.recoverOnStart();
+    // Generous waits: the watchdog is a real child process and the whole
+    // suite runs in parallel.
+    assert.ok(await until(() => !!g.status().lease?.lastAttemptError, 15_000), "a failed attempt recorded");
+    assert.equal(g.status().lease?.active, true, "still pending, not given up");
+    state.up = true;   // pypilot comes back
+    assert.ok(await until(() => state.active === "base", 70_000), "restored after the outage");
     srv.close();
   });
 });

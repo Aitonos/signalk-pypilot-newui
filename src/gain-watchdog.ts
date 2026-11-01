@@ -88,6 +88,9 @@ export function setProfile(host: string, port: number, profile: string, timeoutM
     const timer = setTimeout(() => finish("timeout"), timeoutMs);
     sock.setEncoding("utf8");
     sock.on("error", () => finish("error"));
+    // Rev617: pypilot closing the connection before answering is a failed
+    // attempt now, not a 5 s wait for the timeout.
+    sock.on("close", () => finish("error"));
     sock.on("connect", () => sock.write(`watch=${JSON.stringify({ profiles: true, profile: true })}\n`));
     sock.on("data", (chunk: string) => {
       buf += chunk;
