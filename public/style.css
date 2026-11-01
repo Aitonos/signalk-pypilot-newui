@@ -2668,6 +2668,7 @@ main { touch-action: pan-y; overflow-x: hidden; }
   right: auto;
   transform: translateX(-50%) scale(0.65);
   transform-origin: bottom center;
+  margin: 0;   /* Rev616: the 6 px side margin from the arrow row pushed it off centre */
   z-index: 3;
 }
 
