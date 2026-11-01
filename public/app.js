@@ -15317,10 +15317,24 @@
     }
     const aisCfg = document.getElementById("dash-ais-alarm-config");
     if (aisCfg) {
-      aisCfg.addEventListener("click", (ev) => {
+      aisCfg.addEventListener("click", async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        window.open("/admin/#/serverConfiguration/plugins/signalk-collision-alerts", "_blank");
+        // Rev605: @signalk/collision-alerts 0.6.1+ uses the plugin id
+        // "collision-alerts"; 0.6.0 and the old package use
+        // "signalk-collision-alerts". Open the settings of the one that
+        // is installed. The window is opened first (popup blockers) and
+        // pointed at the right page once the plugin list answers.
+        const w = window.open("about:blank", "_blank");
+        let id = "collision-alerts";
+        try {
+          const r = await skFetch("/skServer/plugins");
+          const list = r.ok ? await r.json() : [];
+          const ids = new Set((Array.isArray(list) ? list : []).map((p) => p.id));
+          if (!ids.has("collision-alerts") && ids.has("signalk-collision-alerts")) id = "signalk-collision-alerts";
+        } catch { /* keep the new id */ }
+        const url = `/admin/#/serverConfiguration/plugins/${id}`;
+        if (w) w.location.href = url; else window.open(url, "_blank");
       });
     }
     // Rev438: open the "silenciados" modal.
@@ -16046,11 +16060,11 @@
         st: has("@signalk/freeboard-sk") ? "ok" : "missing" },
       { name: "signalk-charts-provider-simple", pkg: "signalk-charts-provider-simple", level: "reqChart", what: "info.comp.charts",
         st: has("signalk-charts-provider-simple") ? "ok" : (chartCount > 0 ? "other" : "missing") },
-      // Rev604: the plugin moved to @signalk/collision-alerts (2026-10-26);
-      // its plugin id is still "signalk-collision-alerts", so the check
-      // below finds the old and the new package alike.
+      // Rev604/605: the plugin moved to @signalk/collision-alerts
+      // (2026-10-26) and its id changes from "signalk-collision-alerts"
+      // (old package, 0.6.0) to "collision-alerts" (0.6.1+): accept both.
       { name: "@signalk/collision-alerts", pkg: "@signalk/collision-alerts", level: "recommended", what: "info.comp.collision",
-        st: (pluginIds && pluginIds.has("signalk-collision-alerts")) ? "ok"
+        st: (pluginIds && (pluginIds.has("collision-alerts") || pluginIds.has("signalk-collision-alerts"))) ? "ok"
           : (state._collisionAlertsSeen ? "active" : (pluginIds ? "missing" : "unknown")) },
     ];
     const levelKey = { required: "info.comp.required", recommended: "info.comp.recommended", reqChart: "info.comp.reqChart" };
