@@ -20064,12 +20064,12 @@
       leave: () => { if (_fbApi && _fbApi.closeRose) _fbApi.closeRose(); } },
     { key: "tide",    sel: "#tide-pop .popup-box",       tab: "control", needs: "mareas",
       sim: "tour/tide.jpg", pkg: "signalk-mareas-ihm",
-      phases: [{ sel: "#rose-tide-btn", key: "tide.p1", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } }],
+      phases: [{ sel: "#rose-tide-btn", key: "tide.p1", act: () => _tourOpenTide() }],
       leave: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); } },
     { key: "anchor",  sel: "#mareas-embed",              tab: "control", needs: "mareas",
       sim: "tour/anchor.jpg", pkg: "signalk-mareas-ihm",
       phases: [
-        { sel: "#rose-tide-btn", key: "anchor.p1", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } },
+        { sel: "#rose-tide-btn", key: "anchor.p1", act: () => _tourOpenTide() },
         { sel: "#tide-full", key: "anchor.p2", act: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); if (_tourExtApi.openMareas) _tourExtApi.openMareas(); } },
       ],
       leave: () => {
@@ -20185,6 +20185,7 @@
     _tourRestorePanel();
     _tour.i = -1;
     document.body.classList.remove("tour-on");
+    { const box = document.querySelector("#tide-pop .popup-box"); if (box) box.style.transform = ""; }
     if (_tour.els) _tour.els.ov.classList.remove("open");
     const cur = document.querySelector(".tab-btn.active");
     if (cur && cur.dataset.tab !== "control") _activateTab("control", null);
@@ -20251,6 +20252,23 @@
     E.skip.hidden = i === TOUR_STEPS.length - 1;
     // Let the tab switch / panel animation / chart opening settle first.
     setTimeout(_tourPlace, 380);
+  }
+  // Rev625 (Carlos: "no sale escalada y se corta"): during the tour the
+  // tide window is scaled down as a whole to fit the top half of the
+  // screen (the bubble goes below), never cut or scrolled.
+  function _tourFitTide() {
+    const box = document.querySelector("#tide-pop .popup-box");
+    if (!box) return;
+    box.style.transform = "";
+    const k = Math.min(1, (window.innerHeight * 0.52) / Math.max(1, box.offsetHeight),
+                          (window.innerWidth * 0.96) / Math.max(1, box.offsetWidth));
+    box.style.transformOrigin = "top center";
+    box.style.transform = k < 0.999 ? `scale(${k.toFixed(3)})` : "";
+  }
+  function _tourOpenTide() {
+    if (_tourExtApi.openTide) _tourExtApi.openTide();
+    // The curve is drawn after its data arrives: fit again when it has.
+    for (const ms of [60, 400, 1200]) setTimeout(() => { if (_tour.i >= 0) { _tourFitTide(); _tourPlace(); } }, ms);
   }
   function _tourText(key) {
     const E = _tour.els;
@@ -20367,7 +20385,7 @@
     E.bub.style.top = top + "px";
     E.bub.style.setProperty("--arrow-x", Math.max(16, Math.min(bw - 16, cx - left)) + "px");
   }
-  window.addEventListener("resize", () => { if (_tour.i >= 0) setTimeout(_tourPlace, 150); });
+  window.addEventListener("resize", () => { if (_tour.i >= 0) setTimeout(() => { _tourFitTide(); _tourPlace(); }, 150); });
   document.addEventListener("keydown", (e) => {
     if (_tour.i < 0) return;
     if (e.key === "Escape") _tourEnd();

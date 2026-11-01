@@ -4847,4 +4847,6 @@ body.pi-browser .tide-cur-box { background: color-mix(in srgb, var(--bg) 88%, tr
 /* Rev624: during the tour the tide window sits at the top and stays
    small, so the explaining bubble fits below it. */
 body.tour-on #tide-pop { align-items: flex-start; padding-top: 10px; }
-body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: 48dvh; padding: 18px 14px 14px; }
+/* Rev625: no height cap (it cut the window and hid "Open AnchorWatch
+   Pro"); the tour scales the whole box to fit instead (_tourFitTide). */
+body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: none; overflow: visible; padding: 18px 14px 14px; }
