@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev602" />
+  <link rel="stylesheet" href="style.css?v=Rev603" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -408,7 +408,7 @@
               <!-- Rev126: label "A" reposicionado a y=-38 para caer
                    dentro del nuevo path grande (punta -24 → V-hueco -48). -->
               <text id="rose-piece-awa-label" x="0" y="-38" text-anchor="middle" dominant-baseline="middle"
-                    fill="#b8c4d0" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
+                    fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">A</text>
             </g>
             <!-- Rev77: TWA vuelve a la estructura Rev74 (4-vértices
                  concave quad) pero con hombros a ±15° (24.33,-90.79)
@@ -437,8 +437,10 @@
                    upside-down. -->
               <!-- Rev126: label "T" reposicionado a y=-56 para caer
                    dentro del nuevo path pequeño (punta -48 → V-hueco -68). -->
-              <text id="rose-piece-twa-label" x="0" y="-56" text-anchor="middle" dominant-baseline="middle"
-                    fill="#b8c4d0" font-size="12" font-weight="900" font-family="ui-monospace, monospace">T</text>
+              <!-- Rev603 (Carlos): white, and 2 units further out so it
+                   also sits well when the arrow points aft (flipped). -->
+              <text id="rose-piece-twa-label" x="0" y="-58" text-anchor="middle" dominant-baseline="middle"
+                    fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">T</text>
             </g>
             <!-- DIA (outermost, cyan target diamond): arco base r=94 +
                  lados rectos + punta afilada (0,-68). Rotado a
@@ -2767,6 +2769,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev602"></script>
+  <script src="app.js?v=Rev603"></script>
 </body>
 </html>

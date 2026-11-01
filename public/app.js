@@ -4237,7 +4237,7 @@
       const head = trimmed[0];
       const tail = trimmed.slice(1);
       return `<span class="${cls}"><b>${head}</b>${tail}</span>`;
-    }).join("/");
+    }).join(`<span class="${cls}">/</span>`);   // Rev603: slash coloured too
   }
   function _dashPopulateSelectors() {
     // Rev58: the corner dropdown lists CORE keys + user-enabled extras +
@@ -5966,7 +5966,7 @@
         const twaDeg = state.windAngleTrue * RAD2DEG;
         _setAttr(twa, "transform", _rot(twaDeg));
         const twaLbl = document.getElementById("rose-piece-twa-label");
-        _setAttr(twaLbl, "transform", `rotate(${_pieceLabelFlipDeg(twaDeg)}, 0, -56)`);
+        _setAttr(twaLbl, "transform", `rotate(${_pieceLabelFlipDeg(twaDeg)}, 0, -58)`);
         _setDisplay(twa, "");
         if (twaRaya) {
           _setAttr(twaRaya, "transform", _rot(twaDeg));
@@ -7919,8 +7919,15 @@
     const ghostStroke  = useTeal ? "#38b596" : "#b56500";
     const ghostLetter  = useTeal ? "T" : "A";
     const ghostLabelFill = ghostFill;
+    // Rev603 (Carlos): in true wind (also AUTO WIND past 120 deg) the
+    // ghost is the TRUE arrow - its shape and letter spot - not the
+    // apparent arrow painted teal. Angle and speed are already TWA/TWS.
+    const ghostPath = useTeal
+      ? "M -21.15,-91.59 L 0,-48 L 21.15,-91.59 L 0,-68 Z"
+      : "M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z";
+    const letterY = useTeal ? -58 : -38;
     const path = document.createElementNS(NS, "path");
-    path.setAttribute("d", "M -21.15,-91.59 L 0,-24 L 21.15,-91.59 L 0,-48 Z");
+    path.setAttribute("d", ghostPath);
     path.setAttribute("fill", ghostFill);
     path.setAttribute("stroke", ghostStroke);
     path.setAttribute("stroke-width", "0.75");
@@ -7928,14 +7935,14 @@
     ghost.appendChild(path);
     const aLetter = document.createElementNS(NS, "text");
     aLetter.setAttribute("x", "0");
-    aLetter.setAttribute("y", "-38");
+    aLetter.setAttribute("y", String(letterY));
     aLetter.setAttribute("text-anchor", "middle");
     aLetter.setAttribute("dominant-baseline", "middle");
-    aLetter.setAttribute("fill", "#b8c4d0");
+    aLetter.setAttribute("fill", "#ffffff");
     aLetter.setAttribute("font-size", "12");
     aLetter.setAttribute("font-weight", "900");
     aLetter.setAttribute("font-family", "ui-monospace, monospace");
-    aLetter.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, -38)`);
+    aLetter.setAttribute("transform", `rotate(${_pieceLabelFlipDeg(awaDeg)}, 0, ${letterY})`);
     // Rev177: letter swaps A/T so it matches the piece the ghost is
     // shadowing on the rose.
     aLetter.textContent = ghostLetter;
@@ -17849,8 +17856,11 @@
     if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
   }
   function _navShow() { document.body.classList.remove("nav-hidden"); }
+  // Rev603 (Carlos: "muchas veces no hay autoclose del menú superior"):
+  // showing the bar by hand used to cancel the auto-hide for good. Now
+  // any show in Control re-arms the 5 s auto-hide.
   function _navToggle() {
-    if (document.body.classList.contains("nav-hidden")) _navShow();
+    if (document.body.classList.contains("nav-hidden")) { _navShow(); _navScheduleAutoHide(); }
     else _navHide();
   }
   function _navScheduleAutoHide() {
@@ -17868,8 +17878,6 @@
     const btn = document.getElementById("nav-toggle");
     if (btn) btn.addEventListener("click", () => {
       _navToggle();
-      // User interacted -> cancel any pending auto-hide.
-      if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
     });
     // Rev129 (Carlos): swipe DOWN from the top of the viewport (when
     // nav is hidden in Control mode) reveals the tab bar. Keeps the
@@ -17902,6 +17910,10 @@
     }, { passive: true });
     document.addEventListener("touchend", () => { _swipeY0 = null; }, { passive: true });
     document.addEventListener("touchcancel", () => { _swipeY0 = null; }, { passive: true });
+    // Rev603: the visor opens on Control with the bar showing - close it
+    // after 5 s like when entering Control from another tab.
+    const cur = document.querySelector(".tab-btn.active");
+    if (!cur || cur.dataset.tab === "control") _navScheduleAutoHide();
   }
 
   // ============================================================
@@ -20019,7 +20031,6 @@
         ev.preventDefault();
         ev.stopPropagation();
         _navToggle();
-        if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
       });
       marker.addEventListener("touchstart", (ev) => ev.stopPropagation(), { passive: true });
     }
