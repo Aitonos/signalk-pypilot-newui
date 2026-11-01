@@ -86,3 +86,26 @@ bitácora (solo si su botón está), pestañas, ajustes, setup, final.
   al cambiar de paso o al saltar el tour, y el panel vuelve a la vista que
   tenía el usuario.
 - Repetir: botón en la pestaña Info y "Tour guiado" en el menú del barco.
+
+## Rev622
+
+Carlos: el final como la primera página; AnchorWatch Pro siempre por su
+nombre y abierto en el tour; Freeboard explicado como plotter gratuito; si
+falta un plugin, captura simulada y botón Instalar; pasar por Info (repetir
+tour, instrucciones) y por lo que hay que instalar; el dato de abajo en el
+centro; Freeboard en el panel; invitar a explorar.
+
+21 fichas: bienvenida, rosa, esquinas, dato de abajo en el centro, AP,
+modo y perfil, rumbo, virar, panel, panel gráfica, panel plotter, plotter
+en la rosa, AnchorWatch Pro mareas, AnchorWatch Pro fondeo, bitácora,
+pestañas, ajustes, setup, qué instalar (lista de plugins de Info), Info,
+final centrado.
+
+- Plugin ausente (Freeboard-SK o AnchorWatch Pro, detectado al empezar el
+  tour): la ficha no abre nada, enseña una captura real en `public/tour/`
+  y un botón Instalar a su ficha de la App Store.
+- Gráfica sin datos (en puerto): a los 1,5 s se enseña `tour/chart.jpg`
+  como ejemplo navegando.
+- Capturas: mareas y fondeo sacadas del visor actual en la Pi; gráfica con
+  datos inventados; Freeboard en rosa y en panel, de las capturas de
+  Carlos del 2026-11-01.

@@ -4830,3 +4830,9 @@ body.pi-browser .tide-cur-box { background: color-mix(in srgb, var(--bg) 88%, tr
 .tour-bubble.arrow-right::before { right: -9px; border-left: 9px solid var(--accent); }
 .tour-text ul { margin: 0; padding-left: 18px; }
 .tour-text li { margin: 4px 0; }
+
+.tour-bubble.has-sim { width: min(440px, calc(100vw - 20px)); }
+.tour-sim { display: block; width: 100%; max-height: 38vh; object-fit: contain; border-radius: 8px; border: 1px solid var(--border); margin: 10px 0 4px; }
+.tour-sim[hidden] { display: none; }
+.tour-install { margin-top: 8px; width: 100%; }
+.tour-install[hidden] { display: none; }
