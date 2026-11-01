@@ -71,7 +71,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 | [`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm) — **AnchorWatch Pro: Smart Anchoring, AIS & Tides** | **Recommended** | **Tide button on the rose** (tide curve, current height, rising / falling, next HW / LW, coefficient) and the **anchor-watch visor inside the rose**. Also fills AIS vessel names into Signal K from its persistent AIS database, so targets show names instead of raw MMSIs right after a server restart. |
 | [`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk) | **Recommended** | **Integrated chartplotter**: double-tap the rose and the chart opens inside it with every AIS target, your route and all overlays — the autopilot buttons stay reachable. |
 | A chart provider: [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) or [`@signalk/charts-plugin`](https://www.npmjs.com/package/@signalk/charts-plugin) | **Required for the chartplotter** | Serves the chart tiles Freeboard-SK draws. [See note below](#chart-provider-note). |
-| [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing, distance label, course line, infobox with vessel name and ACK. |
+| [`@signalk/collision-alerts`](https://www.npmjs.com/package/@signalk/collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing, distance label, course line, infobox with vessel name and ACK. |
 | [`signalk-polar-performance-plugin`](https://www.npmjs.com/package/signalk-polar-performance-plugin) + [`signalk-polar-management`](https://www.npmjs.com/package/signalk-polar-management) | Optional | **Polar performance on the corner tiles**: polar speed, % of polar, target speed, beat / gybe angle and VMG from your boat's polar table. |
 | [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider) | Optional | Shares the pypilot connection with other Signal K autopilot clients. [How the two coexist](#working-alongside-pypilot-autopilot-provider). |
 
@@ -80,7 +80,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 - **AnchorWatch Pro** (`signalk-mareas-ihm`) — the tide button sits just above the bottom-right corner tile. From the tide popup, one tap opens the anchor-watch visor full-screen inside the rose, like the chart. Without the plugin, the button explains what it does and links straight to its App Store page.
 - **Freeboard-SK** — opens embedded in the rose box; side panels stay visible and usable. Drop from the autopilot view to the full chart in one tap without leaving the session. It's kept loaded in the background so it opens instantly (a per-device switch in the *Chart in the background* card enables lazy loading on weak tablets).
-- **signalk-collision-alerts** by @dirkwa — provides the CPA/TCPA engine. PyPilot New-UI subscribes to `notifications.navigation.closestApproach.*` and draws each target oriented by its heading / course, with a projected track when moving. ACK goes through the Signal K v2 Notifications API, so an ACK here is also seen by Freeboard-SK and every other client. [Feature notes](https://github.com/Aitonos/signalk-pypilot-newui/blob/main/docs/_feature_ais_overlay.md).
+- **@signalk/collision-alerts** by @dirkwa (formerly `signalk-collision-alerts`, now maintained under the Signal K organisation) — provides the CPA/TCPA engine. PyPilot New-UI subscribes to `notifications.navigation.closestApproach.*` and draws each target oriented by its heading / course, with a projected track when moving. ACK goes through the Signal K v2 Notifications API, so an ACK here is also seen by Freeboard-SK and every other client. [Feature notes](https://github.com/Aitonos/signalk-pypilot-newui/blob/main/docs/_feature_ais_overlay.md).
 - **Polar plugins** — `signalk-polar-management` (Aswin Bouwmeester) stores your polar table (import ORC / CSV / text) and selects the active polar; `signalk-polar-performance-plugin` (hanstool) turns it into live `performance.*` values, each one opt-in on the corner selectors.
 
 </details>
@@ -126,7 +126,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 21. **Polar performance on corner tiles** *(with the polar plugins)*.
 22. **Bottom bar with three views** — heel / rudder bar, a live chart or Freeboard-SK at chart size. Double tap cycles through the views you choose, long press opens the settings. The chart groups series by kind (all speeds on one knots scale from 0: SOG, STW, polar max speed, VMG, AWS, TWS; angles AWA / TWA), the legend shows the average over 2 / 10 / 30 min and a finger on the chart reads the values of that moment. The bar takes the free height of the screen.
 23. **Integrated chartplotter** *(with Freeboard-SK)* — double-tap the rose.
-24. **AIS collision targets on the rose** *(with signalk-collision-alerts)*.
+24. **AIS collision targets on the rose** *(with @signalk/collision-alerts)*.
 25. **Tide at a glance** *(with AnchorWatch Pro)* — interactive tide curve and anchor-watch visor in the rose. A helm button on the other side opens the logbook (the live trip while sailing).
 26. **Race timer T1/T2** with beeps, screen flash and spoken countdown, persistent across tabs.
 27. **Swipe navigation** between tabs with vertical-axis lock, so scrolling never flips a tab by accident.
@@ -313,7 +313,7 @@ To try it on a Signal K server, link the folder into `~/.signalk/node_modules/si
 - **Sean D'Epagnier** — creator of [pypilot](https://github.com/pypilot/pypilot), the open-source autopilot that makes this plugin possible.
 - **Jean-Marc** at [Navitop](https://www.navitop.fr/) — for the TinyPilot hardware and marine integrations, and for making pypilot accessible to European sailors.
 - **Panaaj** — for [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider), the reference AP v2 provider this plugin builds on.
-- **@dirkwa** — for [`signalk-collision-alerts`](https://www.npmjs.com/package/signalk-collision-alerts), the CPA/TCPA engine behind the AIS overlay.
+- **@dirkwa** — for [`@signalk/collision-alerts`](https://www.npmjs.com/package/@signalk/collision-alerts), the CPA/TCPA engine behind the AIS overlay.
 - The [Signal K](https://signalk.org/) community and OpenPlotter for the open ecosystem this plugin runs on.
 
 ## License

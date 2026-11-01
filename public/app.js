@@ -660,7 +660,7 @@
       "dash.overlay.ais.title":  "AIS collision alarm",
       "pypilot.offline.title":   "AUTOPILOT NOT REACHABLE",
       "pypilot.offline.hint":    "Controls disabled. The autopilot keeps its last course. Check the connection to the pypilot Pi.",
-      "dash.overlay.ais.needs":  "Warns when another AIS vessel may collide with us. It is drawn on the rose with its course and distance. Requires the signalk-collision-alerts plugin. Double-tap the rose to open the chart (Freeboard).",
+      "dash.overlay.ais.needs":  "Warns when another AIS vessel may collide with us. It is drawn on the rose with its course and distance. Requires the @signalk/collision-alerts plugin. Double-tap the rose to open the chart (Freeboard).",
       "dash.overlay.ais.mode.off":      "Harbour: no alerts",
       "dash.overlay.ais.mode.anchor":   "At anchor: moving vessels only",
       "dash.overlay.ais.mode.underway": "Sailing: all alerts",
@@ -1722,7 +1722,7 @@
       "dash.overlay.ais.title":  "Alarma de colisión AIS",
       "pypilot.offline.title":   "SIN CONEXIÓN AL AUTOPILOTO",
       "pypilot.offline.hint":    "Los comandos están deshabilitados. El autopilot sigue en su último rumbo. Comprueba la conexión al Pi del pypilot.",
-      "dash.overlay.ais.needs":  "Avisa cuando otro barco con AIS puede chocar con nosotros. Se pinta en la rosa con su rumbo y su distancia. Necesita el plugin signalk-collision-alerts. Doble toque en la rosa abre la carta (Freeboard).",
+      "dash.overlay.ais.needs":  "Avisa cuando otro barco con AIS puede chocar con nosotros. Se pinta en la rosa con su rumbo y su distancia. Necesita el plugin @signalk/collision-alerts. Doble toque en la rosa abre la carta (Freeboard).",
       "dash.overlay.ais.mode.off":      "Puerto: sin avisos",
       "dash.overlay.ais.mode.anchor":   "Fondeo: solo barcos que se mueven",
       "dash.overlay.ais.mode.underway": "Navegando: todos los avisos",
@@ -16046,7 +16046,10 @@
         st: has("@signalk/freeboard-sk") ? "ok" : "missing" },
       { name: "signalk-charts-provider-simple", pkg: "signalk-charts-provider-simple", level: "reqChart", what: "info.comp.charts",
         st: has("signalk-charts-provider-simple") ? "ok" : (chartCount > 0 ? "other" : "missing") },
-      { name: "signalk-collision-alerts", pkg: "signalk-collision-alerts", level: "recommended", what: "info.comp.collision",
+      // Rev604: the plugin moved to @signalk/collision-alerts (2026-10-26);
+      // its plugin id is still "signalk-collision-alerts", so the check
+      // below finds the old and the new package alike.
+      { name: "@signalk/collision-alerts", pkg: "@signalk/collision-alerts", level: "recommended", what: "info.comp.collision",
         st: (pluginIds && pluginIds.has("signalk-collision-alerts")) ? "ok"
           : (state._collisionAlertsSeen ? "active" : (pluginIds ? "missing" : "unknown")) },
     ];
