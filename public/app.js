@@ -4422,7 +4422,8 @@
           _dashRenderCorners();
         };
         const txt = document.createElement("span");
-        txt.textContent = `${lab} — ${key.startsWith("perf") ? "performance." : ""}${key}`;
+        txt.textContent = lab;   // Rev611: short label; the key was noise on phones
+        row.title = `${key.startsWith("perf") ? "performance." : ""}${key}`;
         row.appendChild(cb); row.appendChild(txt);
         polBox.appendChild(row);
       }
@@ -19474,7 +19475,7 @@
       g.keys.push(k);
     }
     const bandH = plotH / groups.length;
-    const legendW = cssW - marginL - 4;   // Rev590: legend spans the gutter too
+    const legendW = cssW - marginL - 4 - (c.legendPadR || 0);   // Rev590: legend spans the gutter too
 
     // Pass 1 (vertical layout only): legend, scale and labels per band.
     // The right gutter is then sized to the widest real label.
@@ -19822,6 +19823,7 @@
     hintId: "helm-chart-empty",
     emptyKey: "helmChart.empty",
     fontPx: 13,
+    legendPadR: 30,   // Rev611: corner kept free for the tab-bar toggle
     window: "10m",
     enabled: new Set(["sog", "polarSpeed", "aws", "tws"]),
     lastSamples: [],

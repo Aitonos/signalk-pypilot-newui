@@ -832,6 +832,12 @@ main {
 /* One column inside sections; only the four corner pickers keep 2 x 2. */
 .cfg-section > .cfg-body > .dash-corner-cfg { grid-template-columns: 1fr; }
 .cfg-section > .cfg-body > .dash-corner-cfg:has(select[data-corner]) { grid-template-columns: 1fr 1fr; }
+@media (max-width: 560px) {
+  /* Rev611: phones - the four corner pickers one per row (they overflowed). */
+  .cfg-section > .cfg-body > .dash-corner-cfg:has(select[data-corner]) { grid-template-columns: 1fr; }
+  .cfg-section > .cfg-body { padding: 0 8px 10px; }
+}
+.cfg-section select { max-width: 100%; min-width: 0; }
 /* Rev609: a radio shown as a selection button (Heel | Rudder), same look
    as "2 min / 10 min"; the radio itself is hidden. */
 .chart-window-btn.seg-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; flex-direction: row; color: var(--fg-dim); }
@@ -2632,11 +2638,16 @@ main { touch-action: pan-y; overflow-x: hidden; }
   z-index: 2;
   pointer-events: none;
 }
-.swipe-hint.view-chart .nav-toggle {
+/* Rev611 (Carlos): the tab-bar toggle sits in the panel's top-right
+   corner in every view, not in the middle of the panel. */
+#tab-control .swipe-hint .nav-toggle {
   position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%) scale(0.65);
+  top: 2px;
+  right: 2px;
+  left: auto;
+  bottom: auto;
+  transform: scale(0.65);
+  transform-origin: top right;
   z-index: 3;
 }
 
