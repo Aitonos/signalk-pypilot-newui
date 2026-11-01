@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev606" />
+  <link rel="stylesheet" href="style.css?v=Rev608" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -793,37 +793,40 @@
           <h4 data-i18n="dash.help.title">Configure the rose corners</h4>
           <button class="popup-close" onclick="document.getElementById('dash-help-pop').classList.remove('open')">✕</button>
           <div class="popup-body">
-          <p class="dash-help-body" data-i18n="dash.help.body">Pick which datum shows in each corner. Saved in your browser.</p>
-          <!-- Rev522 (Carlos): named display presets of the rose, saved on
-               this device or on the server for every device. -->
-          <div class="dash-corner-cfg" style="gap:8px" id="dash-presets">
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.presets.title">SAVED DISPLAYS</div>
-            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.presets.hint">Save this rose layout with a name.</div>
-            <label><span data-i18n="dash.presets.pick">Saved</span> <select id="dash-preset-select"></select></label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button type="button" class="primary" id="dash-preset-apply" data-i18n="dash.presets.apply">Apply</button>
-              <button type="button" class="ghost" id="dash-preset-save-local" data-i18n="dash.presets.saveLocal">Save on this device</button>
-              <button type="button" class="ghost" id="dash-preset-save-server" data-i18n="dash.presets.saveServer">Save for all devices</button>
-              <button type="button" class="ghost" id="dash-preset-delete" data-i18n="dash.presets.delete">Delete</button>
-            </div>
-          </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
+          <!-- Rev607 (Carlos: "ordenar, que ya no me aclaro"): one
+               folding section per subject, same controls and ids. -->
+          <details class="cfg-section" open>
+            <summary data-i18n="cfg.sec.corners">CORNERS OF THE ROSE</summary>
+            <div class="cfg-body">
           <div class="dash-corner-cfg">
             <label><span data-i18n="dash.corner.tl">Top left</span> <select id="dash-corner-tl" data-corner="tl"></select></label>
             <label><span data-i18n="dash.corner.tr">Top right</span> <select id="dash-corner-tr" data-corner="tr"></select></label>
             <label><span data-i18n="dash.corner.bl">Bottom left</span> <select id="dash-corner-bl" data-corner="bl"></select></label>
             <label><span data-i18n="dash.corner.br">Bottom right</span> <select id="dash-corner-br" data-corner="br"></select></label>
           </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
-          <div class="dash-corner-cfg" style="gap:8px">
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.overlays.title">ROSE OVERLAYS</div>
-            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.overlays.hint">Toggle what floats on the compass rose. Each card lists what data it needs to render.</div>
-            <!-- Rev85 revamp: 4 uniform cards (AWA, TWA, COG, Current)
-                 replace the old checkbox rows. Each card shows a big
-                 sample of the actual visual, a human title, a data
-                 requirement line, and the enable checkbox. Grid so
-                 they lay out 2×2 on wide, 1× on narrow. -->
-            <div class="overlay-cards">
+          <div class="dash-corner-cfg" style="gap:6px">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.polar.title">POLAR PERFORMANCE</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.polar.hint">Enable the ones you want available in the corner selectors. Requires the signalk-polar-performance-plugin.</div>
+            <div id="dash-polar-toggles"></div>
+          </div>
+          <div class="dash-corner-cfg" style="gap:6px">
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.custom.title">CUSTOM SK PATH</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.custom.hint">Add any path published by Signal K. Shown as it appears on the bus (no conversion).</div>
+            <div class="row" style="gap:6px;flex-wrap:wrap">
+              <input type="text" id="dash-custom-path" list="dash-custom-path-list" data-i18n-placeholder="dash.custom.path.ph" placeholder="e.g. environment.water.temperature" style="flex:2;min-width:200px" />
+              <input type="text" id="dash-custom-label" data-i18n-placeholder="dash.custom.label.ph" placeholder="Label" style="flex:1;min-width:80px;max-width:120px" />
+              <input type="text" id="dash-custom-unit"  data-i18n-placeholder="dash.custom.unit.ph"  placeholder="Unit (opt)" style="flex:1;min-width:70px;max-width:100px" />
+              <button id="dash-custom-add" class="ghost" data-i18n="dash.custom.add">Add</button>
+            </div>
+            <datalist id="dash-custom-path-list"></datalist>
+            <div id="dash-custom-list"></div>
+          </div>
+            </div>
+          </details>
+          <details class="cfg-section">
+            <summary data-i18n="cfg.sec.rose">ON THE ROSE</summary>
+            <div class="cfg-body">
+              <div class="overlay-cards">
               <!-- Rev123 (Carlos): tras el swap, la pieza AMARILLA
                    externa (letra "A") apunta al viento REAL, y la pieza
                    VERDE interna (letra "T") apunta al viento APARENTE.
@@ -908,25 +911,61 @@
                         data-i18n="dash.overlay.gust.test"
                         onclick="event.preventDefault();event.stopPropagation();">Test now</button>
               </label>
-              <!-- Rev522 (Carlos): tap sound toggle, same overlay-card look. -->
-              <label class="overlay-card">
-                <input type="checkbox" id="dash-tap-sound" />
-                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
-                  <path d="M -14,-38 L -6,-38 L 4,-48 L 4,-12 L -6,-22 L -14,-22 Z" fill="#ffffff"/>
-                  <path d="M 10,-38 Q 15,-30 10,-22" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
-                  <path d="M 15,-44 Q 24,-30 15,-16" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
-                </svg>
-                <div class="overlay-title" data-i18n="dash.overlay.tap.title">Tap sound</div>
-                <div class="overlay-needs" data-i18n="dash.overlay.tap.needs">A short click on every button you tap.</div>
-                <!-- Rev523: sound picker + test (choosing one plays it). -->
-                <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
-                  <select id="dash-tap-sound-type" onclick="event.stopPropagation();"></select>
-                  <button type="button" id="dash-tap-sound-test" class="ghost"
-                          style="padding:6px 10px;font-size:12px"
-                          data-i18n="dash.overlay.gust.test"
-                          onclick="event.preventDefault();event.stopPropagation();">Test now</button>
-                </div>
+              </div>
+            </div>
+          </details>
+          <details class="cfg-section">
+            <summary data-i18n="cfg.sec.bar">BOTTOM BAR</summary>
+            <div class="cfg-body">
+          <!-- Rev183 (Carlos): helm-bar source selector. Lives here in
+               the corner-config popup (no chip on the strip). Two
+               radios: R = rudder angle, E = escora. Choice persists in
+               localStorage under pypilotnewui.helmBar. -->
+          <div class="dash-corner-cfg" id="helm-cfg" style="gap:6px">
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmBar.hint">Pick what the big bar at the bottom shows: rudder angle or boat heel.</div>
+            <div class="row" style="gap:14px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                <input type="radio" name="helm-bar-src" value="heel" id="helm-bar-src-heel" />
+                <span data-i18n="dash.helmBar.heel">Heel (default)</span>
               </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                <input type="radio" name="helm-bar-src" value="rudder" id="helm-bar-src-rudder" />
+                <span data-i18n="dash.helmBar.rudder">Rudder angle</span>
+              </label>
+            </div>
+            <div class="hint" style="font-size:12px;margin:8px 0 4px" data-i18n="dash.helmViews.title">Double tap cycles through:</div>
+            <div class="chart-paths-row" id="helm-views">
+              <label class="chart-path-chip"><input type="checkbox" data-hview="bar"><span data-i18n="dash.helmViews.bar">Heel / rudder bar</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hview="chart"><span data-i18n="dash.helmViews.chart">Chart</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hview="fb"><span>Freeboard</span></label>
+            </div>
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px;margin-top:10px" data-i18n="dash.helmChart.title">CHART IN THE BOTTOM BAR</div>
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmChart.hint">Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.</div>
+            <div class="chart-window-row" id="helm-chart-windows">
+              <button class="chart-window-btn" data-hwindow="2m">2 min</button>
+              <button class="chart-window-btn" data-hwindow="10m">10 min</button>
+              <button class="chart-window-btn" data-hwindow="30m">30 min</button>
+            </div>
+            <div class="chart-paths-row" id="helm-chart-paths">
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="sog"><span>SOG</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="stw"><span>STW</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="polarSpeed"><span data-i18n="helmChart.polar">Polar max speed</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="vmg"><span>VMG</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="aws"><span>AWS</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="tws"><span>TWS</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="awa"><span>AWA</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="twa"><span>TWA</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="heel"><span>Heel</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="rudder"><span>Rudder</span></label>
+              <label class="chart-path-chip"><input type="checkbox" data-hpath="servoCurrent"><span>Servo A</span></label>
+            </div>
+          </div>
+            </div>
+          </details>
+          <details class="cfg-section">
+            <summary data-i18n="cfg.sec.ais">AIS COLLISION ALARM</summary>
+            <div class="cfg-body">
+              <div class="overlay-cards">
               <!-- Rev434 (Carlos QA Rev433): AIS collision overlay toggle.
                    Same overlay-card layout as the gust ghost. Default
                    enabled. Opens signalk-collision-alerts plugin config
@@ -937,7 +976,7 @@
                    selector so the sailor explicitly tells the visor what
                    situation he is in — Puerto / Fondeo / Navegacion.
                    See _aisMode() + _handleAisAlarmDelta in app.js. -->
-              <label class="overlay-card" style="cursor:default">
+              <div class="overlay-card" style="cursor:default">
                 <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
                   <polygon points="0,-50 10,-20 -10,-20" fill="#ff3b30" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
                   <text x="0" y="-35" text-anchor="middle" dominant-baseline="middle"
@@ -983,7 +1022,7 @@
                   </label>
 
                 </div>
-              </label>
+              </div>
               <!-- Rev606 (Carlos): mark Signal K regions (drawn in
                    Freeboard with Draw Region) as harbour / berth /
                    mooring field. Stored as feature.properties.zoneType in
@@ -998,6 +1037,32 @@
                   <span id="harbour-zones-msg" style="font-size:12px;color:var(--fg-dim)"></span>
                 </div>
               </div>
+              </div>
+            </div>
+          </details>
+          <details class="cfg-section">
+            <summary data-i18n="cfg.sec.other">SOUND AND CHART</summary>
+            <div class="cfg-body">
+              <div class="overlay-cards">
+              <!-- Rev522 (Carlos): tap sound toggle, same overlay-card look. -->
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-tap-sound" />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <path d="M -14,-38 L -6,-38 L 4,-48 L 4,-12 L -6,-22 L -14,-22 Z" fill="#ffffff"/>
+                  <path d="M 10,-38 Q 15,-30 10,-22" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
+                  <path d="M 15,-44 Q 24,-30 15,-16" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.tap.title">Tap sound</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.tap.needs">A short click on every button you tap.</div>
+                <!-- Rev523: sound picker + test (choosing one plays it). -->
+                <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
+                  <select id="dash-tap-sound-type" onclick="event.stopPropagation();"></select>
+                  <button type="button" id="dash-tap-sound-test" class="ghost"
+                          style="padding:6px 10px;font-size:12px"
+                          data-i18n="dash.overlay.gust.test"
+                          onclick="event.preventDefault();event.stopPropagation();">Test now</button>
+                </div>
+              </label>
               <!-- Rev477 (Carlos 2026-10-14): own card for the Freeboard
                    background preload (Rev475/476) + "?" explaining when to
                    turn it off. A <div>, not a <label>: inside a label a tap
@@ -1019,72 +1084,24 @@
                 </div>
                 <div class="gain-help-long" id="dash-fb-help" hidden data-i18n="dash.overlay.fb.help">Freeboard stays open in the background: it uses some CPU, data and battery even when you do not see it. If the visor feels slow (lag) or you want to save battery, turn this off: the chart will then load only when you open it (a few seconds slower). This setting applies to this device only.</div>
               </div>
+              </div>
+            </div>
+          </details>
+          <details class="cfg-section">
+            <summary data-i18n="cfg.sec.presets">SAVED DISPLAYS</summary>
+            <div class="cfg-body">
+          <div class="dash-corner-cfg" style="gap:8px" id="dash-presets">
+            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.presets.hint">Save this rose layout with a name.</div>
+            <label><span data-i18n="dash.presets.pick">Saved</span> <select id="dash-preset-select"></select></label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="primary" id="dash-preset-apply" data-i18n="dash.presets.apply">Apply</button>
+              <button type="button" class="ghost" id="dash-preset-save-local" data-i18n="dash.presets.saveLocal">Save on this device</button>
+              <button type="button" class="ghost" id="dash-preset-save-server" data-i18n="dash.presets.saveServer">Save for all devices</button>
+              <button type="button" class="ghost" id="dash-preset-delete" data-i18n="dash.presets.delete">Delete</button>
             </div>
           </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
-          <div class="dash-corner-cfg" style="gap:6px">
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.polar.title">POLAR PERFORMANCE</div>
-            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.polar.hint">Enable the ones you want available in the corner selectors. Requires the signalk-polar-performance-plugin.</div>
-            <div id="dash-polar-toggles"></div>
-          </div>
-          <!-- Rev183 (Carlos): helm-bar source selector. Lives here in
-               the corner-config popup (no chip on the strip). Two
-               radios: R = rudder angle, E = escora. Choice persists in
-               localStorage under pypilotnewui.helmBar. -->
-          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
-          <div class="dash-corner-cfg" id="helm-cfg" style="gap:6px">
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.helmBar.title">BOTTOM BAR (indicator)</div>
-            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmBar.hint">Pick what the big bar at the bottom shows: rudder angle or boat heel.</div>
-            <div class="row" style="gap:14px;flex-wrap:wrap">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-                <input type="radio" name="helm-bar-src" value="heel" id="helm-bar-src-heel" />
-                <span data-i18n="dash.helmBar.heel">Heel (default)</span>
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-                <input type="radio" name="helm-bar-src" value="rudder" id="helm-bar-src-rudder" />
-                <span data-i18n="dash.helmBar.rudder">Rudder angle</span>
-              </label>
             </div>
-            <div class="hint" style="font-size:12px;margin:8px 0 4px" data-i18n="dash.helmViews.title">Double tap cycles through:</div>
-            <div class="chart-paths-row" id="helm-views">
-              <label class="chart-path-chip"><input type="checkbox" data-hview="bar"><span data-i18n="dash.helmViews.bar">Heel / rudder bar</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hview="chart"><span data-i18n="dash.helmViews.chart">Chart</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hview="fb"><span>Freeboard</span></label>
-            </div>
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px;margin-top:10px" data-i18n="dash.helmChart.title">CHART IN THE BOTTOM BAR</div>
-            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmChart.hint">Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.</div>
-            <div class="chart-window-row" id="helm-chart-windows">
-              <button class="chart-window-btn" data-hwindow="2m">2 min</button>
-              <button class="chart-window-btn" data-hwindow="10m">10 min</button>
-              <button class="chart-window-btn" data-hwindow="30m">30 min</button>
-            </div>
-            <div class="chart-paths-row" id="helm-chart-paths">
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="sog"><span>SOG</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="stw"><span>STW</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="polarSpeed"><span data-i18n="helmChart.polar">Polar max speed</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="vmg"><span>VMG</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="aws"><span>AWS</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="tws"><span>TWS</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="awa"><span>AWA</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="twa"><span>TWA</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="heel"><span>Heel</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="rudder"><span>Rudder</span></label>
-              <label class="chart-path-chip"><input type="checkbox" data-hpath="servoCurrent"><span>Servo A</span></label>
-            </div>
-          </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px" />
-          <div class="dash-corner-cfg" style="gap:6px">
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px" data-i18n="dash.custom.title">CUSTOM SK PATH</div>
-            <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.custom.hint">Add any path published by Signal K. Shown as it appears on the bus (no conversion).</div>
-            <div class="row" style="gap:6px;flex-wrap:wrap">
-              <input type="text" id="dash-custom-path" list="dash-custom-path-list" data-i18n-placeholder="dash.custom.path.ph" placeholder="e.g. environment.water.temperature" style="flex:2;min-width:200px" />
-              <input type="text" id="dash-custom-label" data-i18n-placeholder="dash.custom.label.ph" placeholder="Label" style="flex:1;min-width:80px;max-width:120px" />
-              <input type="text" id="dash-custom-unit"  data-i18n-placeholder="dash.custom.unit.ph"  placeholder="Unit (opt)" style="flex:1;min-width:70px;max-width:100px" />
-              <button id="dash-custom-add" class="ghost" data-i18n="dash.custom.add">Add</button>
-            </div>
-            <datalist id="dash-custom-path-list"></datalist>
-            <div id="dash-custom-list"></div>
-          </div>
+          </details>
           </div><!-- /.popup-body Rev151 -->
         </div>
       </div>
@@ -2783,6 +2800,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev606"></script>
+  <script src="app.js?v=Rev608"></script>
 </body>
 </html>

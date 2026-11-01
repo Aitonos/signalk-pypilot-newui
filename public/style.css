@@ -798,10 +798,39 @@ main {
    card toggles the enable state and border color reflects it. */
 .overlay-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Rev607: as many columns as fit (was 2 inside a half-width cell). */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
   margin-top: 4px;
 }
+/* Rev607 (Carlos): the rose config popup in folding sections, one per
+   subject. Native <details>, like the Setup "show detail" toggles. */
+.cfg-section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-2);
+  margin-top: 10px;
+}
+.cfg-section > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--fg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cfg-section > summary::-webkit-details-marker { display: none; }
+.cfg-section > summary::after { content: "\25B8"; color: var(--fg-dim); }
+.cfg-section[open] > summary::after { content: "\25BE"; }
+.cfg-section > .cfg-body { padding: 0 12px 12px; }
+.cfg-section > .cfg-body > .dash-corner-cfg:first-child { margin-top: 0; }
+/* One column inside sections; only the four corner pickers keep 2 x 2. */
+.cfg-section > .cfg-body > .dash-corner-cfg { grid-template-columns: 1fr; }
+.cfg-section > .cfg-body > .dash-corner-cfg:has(select[data-corner]) { grid-template-columns: 1fr 1fr; }
 @media (max-width: 460px) {
   .overlay-cards { grid-template-columns: 1fr; }
 }

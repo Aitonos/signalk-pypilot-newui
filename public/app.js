@@ -645,7 +645,7 @@
       "regata.voice": "Voice",
       "regata.hint": "TIMER: start / pause. In race (after 0), stops. SYNC: in countdown rounds to the nearest minute; in idle starts from T2. RESET: back to idle.",
       // Dashboard corner popup
-      "dash.help.title": "Configure the rose corners",
+      "dash.help.title": "Display settings",
       "dash.help.body": "Pick which datum shows in each corner. Saved in your browser.",
       "dash.corner.tl": "Top left",
       "dash.corner.tr": "Top right",
@@ -662,12 +662,18 @@
       "pypilot.offline.hint":    "Controls disabled. The autopilot keeps its last course. Check the connection to the pypilot Pi.",
       "dash.overlay.ais.needs":  "Warns when another AIS vessel may collide with us. It is drawn on the rose with its course and distance. Requires the @signalk/collision-alerts plugin. Double-tap the rose to open the chart (Freeboard).",
       "dash.overlay.ais.mode.off":      "Harbour: no alerts",
-      "dash.overlay.ais.mode.anchor":   "At anchor: moving vessels only",
-      "dash.overlay.ais.mode.underway": "Sailing: all alerts",
+      "dash.overlay.ais.mode.anchor":   "At anchor: boats that move or come inside my swing circle",
+      "dash.overlay.ais.mode.underway": "Sailing: all alerts except stopped boats",
       "dash.overlay.ais.config": "Distances and times (plugin)",
       "dash.overlay.ais.voice":  "Voice alert",
       "dash.overlay.ais.harborAuto": "Switch to Harbour by itself when stopped 2 min",
       "zones.title":   "HARBOUR ZONES",
+      "cfg.sec.corners": "CORNERS OF THE ROSE",
+      "cfg.sec.rose":    "ON THE ROSE",
+      "cfg.sec.bar":     "BOTTOM BAR",
+      "cfg.sec.ais":     "AIS COLLISION ALARM",
+      "cfg.sec.other":   "SOUND AND CHART",
+      "cfg.sec.presets": "SAVED DISPLAYS",
       "zones.hint":    "Draw the zone in Freeboard (pencil, Draw Region) and mark it here. Collision alarms then ignore stopped boats inside it; a boat moving or drifting there still alarms.",
       "zones.reload":  "Reload",
       "zones.none":    "No regions yet. Draw one in Freeboard with Draw Region.",
@@ -1719,7 +1725,7 @@
       "regata.voice": "Voz",
       "regata.hint": "TIMER: arranca / pausa. En race (tras 0), detiene. SYNC: en countdown redondea al minuto; en idle arranca desde T2. RESET: vuelve a idle.",
       // Dashboard corner popup
-      "dash.help.title": "Configurar las esquinas de la rosa",
+      "dash.help.title": "Ajustes de pantalla",
       "dash.help.body": "Elige que dato quieres ver en cada esquina. Se guarda en tu navegador.",
       "dash.corner.tl": "Arriba izquierda",
       "dash.corner.tr": "Arriba derecha",
@@ -1736,12 +1742,18 @@
       "pypilot.offline.hint":    "Los comandos están deshabilitados. El autopilot sigue en su último rumbo. Comprueba la conexión al Pi del pypilot.",
       "dash.overlay.ais.needs":  "Avisa cuando otro barco con AIS puede chocar con nosotros. Se pinta en la rosa con su rumbo y su distancia. Necesita el plugin @signalk/collision-alerts. Doble toque en la rosa abre la carta (Freeboard).",
       "dash.overlay.ais.mode.off":      "Puerto: sin avisos",
-      "dash.overlay.ais.mode.anchor":   "Fondeo: solo barcos que se mueven",
-      "dash.overlay.ais.mode.underway": "Navegando: todos los avisos",
+      "dash.overlay.ais.mode.anchor":   "Fondeo: barcos que se mueven o entran en mi círculo de borneo",
+      "dash.overlay.ais.mode.underway": "Navegando: todos los avisos menos barcos parados",
       "dash.overlay.ais.config": "Distancias y tiempos (plugin)",
       "dash.overlay.ais.voice":  "Aviso de voz",
       "dash.overlay.ais.harborAuto": "Pasar solo a Puerto al estar parados 2 min",
       "zones.title":   "ZONAS DE PUERTO",
+      "cfg.sec.corners": "ESQUINAS DE LA ROSA",
+      "cfg.sec.rose":    "SOBRE LA ROSA",
+      "cfg.sec.bar":     "BARRA DE ABAJO",
+      "cfg.sec.ais":     "ALARMA DE COLISIÓN AIS",
+      "cfg.sec.other":   "SONIDO Y CARTA",
+      "cfg.sec.presets": "PANTALLAS GUARDADAS",
       "zones.hint":    "Dibuja la zona en Freeboard (lápiz, Draw Region) y márcala aquí. Las alarmas de colisión ignoran entonces a los barcos parados dentro; uno que se mueve o garrea ahí sigue avisando.",
       "zones.reload":  "Recargar",
       "zones.none":    "Aún no hay regiones. Dibuja una en Freeboard con Draw Region.",
@@ -19890,6 +19902,8 @@
     if (!pop) return;
     pop.classList.add("open");
     const sec = document.getElementById("helm-cfg");
+    const fold = sec && sec.closest("details");
+    if (fold) fold.open = true;
     if (sec) setTimeout(() => sec.scrollIntoView({ block: "start" }), 50);
   }
   function wireHelmChart() {
