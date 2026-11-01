@@ -2584,6 +2584,26 @@ main { touch-action: pan-y; overflow-x: hidden; }
   line-height: 0.8;
 }
 #tab-control .swipe-hint .rudder-marker .rmk-tri-bot { flex-direction: column-reverse; }
+/* Rev614 (Carlos): the triangles were text glyphs (U+25BC / U+25B2) that
+   the font draws a few px off centre, so they missed the line and the
+   box. Drawn with CSS borders now, centred on the same axis; the glyph
+   is kept in the HTML but not shown. */
+#tab-control .swipe-hint .rudder-marker .rmk-tri {
+  font-size: 0;
+  line-height: 0;
+  --tw: clamp(8px, 7cqh, 18px);
+  --th: clamp(10px, 9cqh, 22px);
+}
+#tab-control .swipe-hint .rudder-marker .rmk-tri::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: var(--tw) solid transparent;
+  border-right: var(--tw) solid transparent;
+}
+#tab-control .swipe-hint .rudder-marker .rmk-tri-top::before { border-top: var(--th) solid #ffcf47; }
+#tab-control .swipe-hint .rudder-marker .rmk-tri-bot::before { border-bottom: var(--th) solid #ffcf47; }
 #tab-control .swipe-hint .rudder-marker .rmk-tri::after {
   content: "";
   flex: 1 1 auto;
