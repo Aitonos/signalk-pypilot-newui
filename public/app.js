@@ -669,6 +669,37 @@
       "dash.overlay.ais.harborAuto": "Switch to Harbour by itself: stopped 2 min or inside a harbour zone",
       "zones.title":   "HARBOUR ZONES",
       "cfg.sec.corners": "CORNER DATA",
+      "tour.next": "Next",
+      "tour.back": "Back",
+      "tour.skip": "Skip tour",
+      "tour.done": "Done",
+      "tour.replay": "Replay the guided tour",
+      "tour.s1.t": "Welcome to PyPilot New-UI",
+      "tour.s1.x": "A one-minute tour of the basics. Nothing on the pilot is touched during the tour. You can skip it and replay it any time from the Info tab.",
+      "tour.s2.t": "The rose",
+      "tour.s2.x": "Your boat seen from above. At the top, the heading. The yellow A arrow is the apparent wind and the green T arrow the true wind. The blue diamond is the course the pilot steers.",
+      "tour.s3.t": "Data in the corners",
+      "tour.s3.x": "The four corners show the data you choose. Long press a corner to open the visor settings.",
+      "tour.s4.t": "Engage the pilot",
+      "tour.s4.x": "AP engages and disengages the pilot. Grey means off; when engaged it holds the current heading or wind angle.",
+      "tour.s5.t": "Mode and profile",
+      "tour.s5.x": "How it steers: compass, GPS, apparent wind, true wind or Auto wind (apparent upwind, true downwind). The tuning profile is picked here too.",
+      "tour.s6.t": "Change course",
+      "tour.s6.x": "Correct the course by 1 or 10 degrees, to port or to starboard.",
+      "tour.s7.t": "Tack",
+      "tour.s7.x": "The red and green arrows tack to port or to starboard with the full manoeuvre. In wind modes they change tack.",
+      "tour.s8.t": "Multifunction panel",
+      "tour.s8.x": "Shows heel (or rudder). Double tap: switch to the chart or the map. Long press: its settings. A finger on the chart shows the values of that moment.",
+      "tour.s9.t": "The chart, one double tap away",
+      "tour.s9.x": "Double tap the rose to open the chart (Freeboard-SK, if installed) inside the rose. Double tap again to come back.",
+      "tour.s10.t": "Tabs",
+      "tour.s10.x": "Swipe sideways to change tab. The triangle at the bottom of the panel hides or shows this bar; the corner button goes full screen.",
+      "tour.s11.t": "Pilot tuning",
+      "tour.s11.x": "The pypilot gains, each one explained. They are locked: unlock them to make changes.",
+      "tour.s12.t": "Setup",
+      "tour.s12.x": "Profiles, calibrations, the Doctor that studies how the pilot steers and suggests settings, the logbook and the black box.",
+      "tour.s13.t": "Ready",
+      "tour.s13.x": "AIS alarms (Harbour / At anchor / Sailing modes and harbour zones) and everything about the screen: long press a corner. Fair winds.",
       "cfg.sec.rose":    "DATA ON THE VISOR",
       "cfg.sec.bar":     "MULTIFUNCTION PANEL",
       "cfg.sec.ais":     "COLLISION ALARM (AIS)",
@@ -1749,6 +1780,37 @@
       "dash.overlay.ais.harborAuto": "Pasar solo a Puerto: parados 2 min o dentro de una zona de puerto",
       "zones.title":   "ZONAS DE PUERTO",
       "cfg.sec.corners": "DATOS EN ESQUINAS",
+      "tour.next": "Siguiente",
+      "tour.back": "Atrás",
+      "tour.skip": "Saltar tour",
+      "tour.done": "Terminar",
+      "tour.replay": "Repetir el tour guiado",
+      "tour.s1.t": "Bienvenido a PyPilot New-UI",
+      "tour.s1.x": "Te enseño lo básico en un minuto. Durante el tour no se toca el piloto. Puedes saltarlo y repetirlo cuando quieras desde la pestaña Info.",
+      "tour.s2.t": "La rosa",
+      "tour.s2.x": "Tu barco visto desde arriba. Arriba, el rumbo. La flecha amarilla A es el viento aparente y la verde T el viento real. El rombo azul es el rumbo que lleva el piloto.",
+      "tour.s3.t": "Datos en las esquinas",
+      "tour.s3.x": "Las cuatro esquinas muestran los datos que elijas. Mantén pulsada una esquina para abrir la Configuración del visor.",
+      "tour.s4.t": "Conectar el piloto",
+      "tour.s4.x": "AP conecta y desconecta el piloto. En gris está desconectado; al conectarlo, mantiene el rumbo o el ángulo de viento actual.",
+      "tour.s5.t": "Modo y perfil",
+      "tour.s5.x": "Cómo gobierna: compás, GPS, viento aparente, viento real o Auto viento (aparente en ceñida, real en popa). Aquí también eliges el perfil de ajustes.",
+      "tour.s6.t": "Cambiar el rumbo",
+      "tour.s6.x": "Corrige el rumbo de 1 en 1 o de 10 en 10 grados, a babor o a estribor.",
+      "tour.s7.t": "Virar",
+      "tour.s7.x": "Las flechas roja y verde viran a babor o a estribor, con la maniobra completa. En modos de viento cambian de amura.",
+      "tour.s8.t": "Panel multifunción",
+      "tour.s8.x": "Muestra la escora (o el timón). Doble toque: cambia a gráfica o a la carta. Pulsación larga: sus ajustes. Con el dedo sobre la gráfica ves los valores de ese momento.",
+      "tour.s9.t": "La carta, a un doble toque",
+      "tour.s9.x": "Doble toque en la rosa abre la carta (Freeboard-SK, si está instalado) dentro de la rosa. Doble toque otra vez para volver.",
+      "tour.s10.t": "Pestañas",
+      "tour.s10.x": "Pasa de pestaña deslizando el dedo a los lados. El triángulo de abajo del panel oculta o muestra esta barra; el botón de la esquina pone pantalla completa.",
+      "tour.s11.t": "Ajustes del piloto",
+      "tour.s11.x": "Las ganancias de pypilot, con explicación de cada una. Están bloqueadas: desbloquéalas para tocar.",
+      "tour.s12.t": "Setup",
+      "tour.s12.x": "Perfiles, calibraciones, el Doctor que analiza cómo gobierna y te propone ajustes, la bitácora y la caja negra.",
+      "tour.s13.t": "Listo",
+      "tour.s13.x": "Alarmas AIS (modos Puerto / Fondeo / Navegando y zonas de puerto) y todo lo de la pantalla: pulsación larga en una esquina. Buen viento.",
       "cfg.sec.rose":    "DATOS SOBRE EL VISOR",
       "cfg.sec.bar":     "PANEL MULTIFUNCIÓN",
       "cfg.sec.ais":     "ALARMA DE COLISIÓN (AIS)",
@@ -19903,6 +19965,154 @@
     try { localStorage.setItem(_HELM_VIEW_LS_KEY, _HELM_VIEWS.includes(v) ? v : "bar"); } catch { /* silent */ }
     _helmApplyView();
   }
+  // Rev620 (Carlos): first-run guided tour - dim the screen, light up one
+  // element, explain it in a bubble. 13 steps, script in
+  // docs/_tour_guiado_guion_2026-11-01.md. Nothing on the visor can be
+  // tapped while it runs (the overlay takes every tap): it shows, it never
+  // touches the pilot. Seen-flag per device on purpose (a guest's phone
+  // needs its own tour), with a version to offer new steps later.
+  const TOUR_VERSION = 1;
+  const TOUR_LS_KEY = "pypilotnewui.tourDone";
+  const TOUR_STEPS = [
+    { sel: null,                        tab: "control" },
+    { sel: ".dash-rose .rose-wrap",     tab: "control" },
+    { sel: ".dash-cell.corner-tl",      tab: "control" },
+    { sel: "#engage-toggle",            tab: "control" },
+    { sel: "#mode-select-btn",          tab: "control" },
+    { sel: ".row-nudge-ap",             tab: "control" },
+    { sel: ".row-tack-mode",            tab: "control" },
+    { sel: "#swipe-hint",               tab: "control" },
+    { sel: ".dash-rose .rose-wrap",     tab: "control" },
+    { sel: "#tabbar",                   tab: "control", nav: true },
+    { sel: '.tab-btn[data-tab="tune"]', tab: "tune" },
+    { sel: '.tab-btn[data-tab="setup"]', tab: "setup" },
+    { sel: ".dash-cell.corner-tl",      tab: "control" },
+  ];
+  const _tour = { i: -1, els: null };
+  function _tourSeen() {
+    try { return Number(localStorage.getItem(TOUR_LS_KEY)) >= TOUR_VERSION; } catch { return true; }
+  }
+  function _tourMark() {
+    try { localStorage.setItem(TOUR_LS_KEY, String(TOUR_VERSION)); } catch { /* silent */ }
+  }
+  function _tourBusy() {
+    // Never on top of a login / access / other popup.
+    return [...document.querySelectorAll("#login-modal, #access-request-modal, #pm-modal, .popup-overlay.open, .mode-select-modal-backdrop.open")]
+      .some((el) => !el.hidden && getComputedStyle(el).display !== "none");
+  }
+  function _tourBuild() {
+    const ov = document.createElement("div");
+    ov.className = "tour-overlay";
+    ov.innerHTML = `<div class="tour-spot"></div>
+      <div class="tour-bubble" role="dialog" aria-live="polite">
+        <div class="tour-count"></div>
+        <div class="tour-title"></div>
+        <div class="tour-text"></div>
+        <div class="tour-actions">
+          <button type="button" class="ghost tour-skip"></button>
+          <span class="tour-gap"></span>
+          <button type="button" class="ghost tour-back"></button>
+          <button type="button" class="primary tour-next"></button>
+        </div>
+      </div>`;
+    // Swallow every tap so nothing underneath reacts during the tour.
+    for (const ev of ["pointerdown", "pointerup", "click", "dblclick", "touchstart", "contextmenu"]) {
+      ov.addEventListener(ev, (e) => { if (!e.target.closest(".tour-actions button")) { e.stopPropagation(); if (ev !== "touchstart") e.preventDefault(); } }, { passive: false });
+    }
+    ov.querySelector(".tour-next").addEventListener("click", () => _tourGo(_tour.i + 1));
+    ov.querySelector(".tour-back").addEventListener("click", () => _tourGo(_tour.i - 1));
+    ov.querySelector(".tour-skip").addEventListener("click", () => _tourEnd());
+    document.body.appendChild(ov);
+    _tour.els = {
+      ov, spot: ov.querySelector(".tour-spot"), bub: ov.querySelector(".tour-bubble"),
+      count: ov.querySelector(".tour-count"), title: ov.querySelector(".tour-title"), text: ov.querySelector(".tour-text"),
+      skip: ov.querySelector(".tour-skip"), back: ov.querySelector(".tour-back"), next: ov.querySelector(".tour-next"),
+    };
+  }
+  function tourStart() {
+    if (_tour.i >= 0) return;
+    if (!_tour.els) _tourBuild();
+    if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
+    _tour.els.ov.classList.add("open");
+    _tourGo(0);
+  }
+  function _tourEnd() {
+    _tourMark();
+    _tour.i = -1;
+    if (_tour.els) _tour.els.ov.classList.remove("open");
+    const cur = document.querySelector(".tab-btn.active");
+    if (cur && cur.dataset.tab !== "control") _activateTab("control", null);
+    else _navScheduleAutoHide();
+  }
+  function _tourGo(i) {
+    if (i < 0) return;
+    if (i >= TOUR_STEPS.length) { _tourEnd(); return; }
+    _tour.i = i;
+    const st = TOUR_STEPS[i];
+    const cur = document.querySelector(".tab-btn.active");
+    if (st.tab && (!cur || cur.dataset.tab !== st.tab)) _activateTab(st.tab, null);
+    if (st.nav || st.tab !== "control") _navShow();
+    if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
+    const E = _tour.els;
+    E.count.textContent = `${i + 1} / ${TOUR_STEPS.length}`;
+    E.title.textContent = t(`tour.s${i + 1}.t`);
+    E.text.textContent = t(`tour.s${i + 1}.x`);
+    E.skip.textContent = t("tour.skip");
+    E.back.textContent = t("tour.back");
+    E.back.hidden = i === 0;
+    E.next.textContent = t(i === TOUR_STEPS.length - 1 ? "tour.done" : "tour.next");
+    E.skip.hidden = i === TOUR_STEPS.length - 1;
+    // Let the tab switch / tab bar slide settle before measuring.
+    setTimeout(_tourPlace, 320);
+  }
+  function _tourPlace() {
+    if (_tour.i < 0 || !_tour.els) return;
+    const E = _tour.els;
+    const st = TOUR_STEPS[_tour.i];
+    const el = st.sel ? document.querySelector(st.sel) : null;
+    const r = el ? el.getBoundingClientRect() : null;
+    const vw = window.innerWidth, vh = window.innerHeight, pad = 6, m = 10;
+    E.bub.classList.remove("arrow-up", "arrow-down");
+    if (!r || r.width < 2 || r.height < 2) {
+      // No target (welcome) or not on screen: centred bubble, no spotlight.
+      E.spot.style.cssText = "left:50%;top:50%;width:0;height:0";
+      const bw = E.bub.offsetWidth, bh = E.bub.offsetHeight;
+      E.bub.style.left = Math.max(m, (vw - bw) / 2) + "px";
+      E.bub.style.top = Math.max(m, (vh - bh) / 2) + "px";
+      return;
+    }
+    E.spot.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + 2 * pad}px;height:${r.height + 2 * pad}px`;
+    const bw = E.bub.offsetWidth, bh = E.bub.offsetHeight;
+    const below = vh - r.bottom - pad - m, above = r.top - pad - m;
+    let top;
+    if (below >= bh + 12) { top = r.bottom + pad + 12; E.bub.classList.add("arrow-up"); }
+    else if (above >= bh + 12) { top = r.top - pad - 12 - bh; E.bub.classList.add("arrow-down"); }
+    else { top = Math.max(m, Math.min(vh - bh - m, r.top + r.height / 2 - bh / 2)); }   // big target: on top of it
+    const cx = r.left + r.width / 2;
+    const left = Math.max(m, Math.min(vw - bw - m, cx - bw / 2));
+    E.bub.style.left = left + "px";
+    E.bub.style.top = top + "px";
+    E.bub.style.setProperty("--arrow-x", Math.max(16, Math.min(bw - 16, cx - left)) + "px");
+  }
+  window.addEventListener("resize", () => { if (_tour.i >= 0) setTimeout(_tourPlace, 150); });
+  document.addEventListener("keydown", (e) => {
+    if (_tour.i < 0) return;
+    if (e.key === "Escape") _tourEnd();
+    else if (e.key === "ArrowRight" || e.key === "Enter") _tourGo(_tour.i + 1);
+    else if (e.key === "ArrowLeft") _tourGo(_tour.i - 1);
+  });
+  // First open on this device: wait until the visor is up and no login /
+  // access window is in the way (checks for up to 2 min).
+  function _tourMaybeAutoStart() {
+    if (_tourSeen()) return;
+    const t0 = Date.now();
+    const tryStart = () => {
+      if (_tourSeen() || _tour.i >= 0) return;
+      if (_tourBusy()) { if (Date.now() - t0 < 120000) setTimeout(tryStart, 3000); return; }
+      tourStart();
+    };
+    setTimeout(tryStart, 2500);
+  }
   function _helmOpenSettings() {
     _dashPopulateSelectors();
     const pop = document.getElementById("dash-help-pop");
@@ -20206,6 +20416,15 @@
     initSetupTiles();
     wireChart();
     wireHelmChart();
+    // Rev620: guided tour - replay buttons + first-run start.
+    for (const id of ["tour-replay-info", "boat-menu-tour"]) {
+      const b = document.getElementById(id);
+      if (b) b.addEventListener("click", () => {
+        document.getElementById("boat-menu-pop")?.classList.remove("open");
+        tourStart();
+      });
+    }
+    _tourMaybeAutoStart();
     // Rev101: kick off the alarm poll (banner + config panel + audio).
     alarmsStart();
     // Rev102: wire the pre-departure check refresh button. Poll starts

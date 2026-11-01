@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev619" />
+  <link rel="stylesheet" href="style.css?v=Rev620" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2076,6 +2076,9 @@
           </div>
         </div>
 
+        <!-- Rev620: replay the first-run guided tour. -->
+        <button type="button" class="primary" id="tour-replay-info" style="margin:8px 0 12px" data-i18n="tour.replay">Replay the guided tour</button>
+
         <!-- Safety notice -->
         <div class="safety-notice">
           <div data-lang="en">
@@ -2578,6 +2581,12 @@
           <span data-lang="en" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Corner data, data on the visor, multifunction panel and alarms.</span>
           <span data-lang="es" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Datos en esquinas, datos sobre el visor, panel multifunción y alarmas.</span>
         </button>
+        <button class="primary" id="boat-menu-tour" style="padding:16px;font-size:16px;text-align:left">
+          <span data-lang="en">Guided tour</span>
+          <span data-lang="es">Tour guiado</span>
+          <span data-lang="en" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">One minute to see what each part of the screen does.</span>
+          <span data-lang="es" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Un minuto para ver qué hace cada parte de la pantalla.</span>
+        </button>
         <button class="primary" id="boat-menu-tacklog" style="padding:16px;font-size:16px;text-align:left">
           <span data-lang="en">Tack history</span>
           <span data-lang="es">Historial de bordos</span>
@@ -2800,6 +2809,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev619"></script>
+  <script src="app.js?v=Rev620"></script>
 </body>
 </html>
