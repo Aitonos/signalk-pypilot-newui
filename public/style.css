@@ -4850,3 +4850,19 @@ body.tour-on #tide-pop { align-items: flex-start; padding-top: 10px; }
 /* Rev625: no height cap (it cut the window and hid "Open AnchorWatch
    Pro"); the tour scales the whole box to fit instead (_tourFitTide). */
 body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: none; overflow: visible; padding: 18px 14px 14px; }
+
+/* Rev626: example screenshot full screen, fitted to the width. */
+.tour-sim { cursor: zoom-in; }
+.tour-zoom {
+  position: fixed; inset: 0; z-index: 9100;
+  background: rgba(0, 0, 0, 0.92);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  cursor: zoom-out;
+}
+.tour-zoom[hidden] { display: none; }
+.tour-zoom img { display: block; width: 100%; height: auto; }
+.tour-zoom-close {
+  position: fixed; top: 10px; right: 10px; z-index: 1;
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #e5484d; color: #fff; border: none; font-size: 20px; cursor: pointer;
+}

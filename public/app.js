@@ -20136,7 +20136,7 @@
         <div class="tour-count"></div>
         <div class="tour-title"></div>
         <div class="tour-text"></div>
-        <img class="tour-sim" alt="" hidden />
+        <img class="tour-sim" alt="" hidden title="" />
         <button type="button" class="primary tour-install" hidden></button>
         <div class="tour-actions">
           <button type="button" class="ghost tour-skip"></button>
@@ -20144,15 +20144,26 @@
           <button type="button" class="ghost tour-back"></button>
           <button type="button" class="primary tour-next"></button>
         </div>
-      </div>`;
+      </div>
+      <div class="tour-zoom" hidden><button type="button" class="tour-zoom-close" aria-label="Close">&#x2715;</button><img alt="" /></div>`;
     // Swallow every tap so nothing underneath reacts during the tour.
     for (const ev of ["pointerdown", "pointerup", "click", "dblclick", "touchstart", "contextmenu"]) {
-      ov.addEventListener(ev, (e) => { if (!e.target.closest(".tour-actions button, .tour-install")) { e.stopPropagation(); if (ev !== "touchstart") e.preventDefault(); } }, { passive: false });
+      ov.addEventListener(ev, (e) => { if (!e.target.closest(".tour-actions button, .tour-install, .tour-sim, .tour-zoom")) { e.stopPropagation(); if (ev !== "touchstart") e.preventDefault(); } }, { passive: false });
     }
     ov.querySelector(".tour-next").addEventListener("click", () => _tourNext());
     ov.querySelector(".tour-back").addEventListener("click", () => _tourGo(_tour.i - 1));
     ov.querySelector(".tour-skip").addEventListener("click", () => _tourEnd());
     ov.querySelector(".tour-sim").addEventListener("load", () => _tourPlace());
+    // Rev626 (Carlos): tap the example screenshot to see it full screen,
+    // fitted to the width (scroll for the rest); tap again or x to close.
+    const zoom = ov.querySelector(".tour-zoom");
+    ov.querySelector(".tour-sim").addEventListener("click", (e) => {
+      e.stopPropagation();
+      zoom.querySelector("img").src = e.currentTarget.src;
+      zoom.hidden = false;
+      zoom.scrollTop = 0;
+    });
+    zoom.addEventListener("click", (e) => { e.stopPropagation(); zoom.hidden = true; });
     document.body.appendChild(ov);
     _tour.els = {
       ov, spot: ov.querySelector(".tour-spot"), bub: ov.querySelector(".tour-bubble"),
