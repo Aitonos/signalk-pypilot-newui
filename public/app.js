@@ -674,6 +674,12 @@
       "tour.skip": "Skip tour",
       "tour.done": "Done",
       "tour.replay": "Replay the guided tour",
+      "tour.anchor.p2": "Now 'Open AnchorWatch Pro' (one tap).\nPress Next and I'll tap it.",
+      "tour.anchor.p1": "First, the tide button on the rose (one tap).\nPress Next and I'll tap it.",
+      "tour.tide.p1": "Tap this button on the rose once.\nPress Next and I'll tap it.",
+      "tour.fb.p1": "Double tap the rose to open Freeboard right here.\nPress Next and I'll do it.",
+      "tour.panelFb.p1": "Another double tap and the panel shows Freeboard.\nPress Next and I'll do it.",
+      "tour.chart.p1": "Double tap the panel to go to the history chart.\nPress Next and I'll do it for you.",
       "tour.welcome.t": "Hi! Welcome to PyPilot New-UI",
       "tour.welcome.x": "I'll show you the basics in a few minutes.\nNothing on the pilot is touched during the tour, don't worry.\nYou can replay it any time from the Info tab.",
       "tour.rose.t": "The rose",
@@ -689,9 +695,9 @@
       "tour.nudge.t": "Change course",
       "tour.nudge.x": "Correct the course 1 or 10 degrees at a time.\nThe ones on the left go to port; the ones on the right, to starboard.",
       "tour.tack.t": "Tack and gybe",
-      "tour.tack.x": "Red arrow to port, green arrow to starboard.\nIt changes tack and settles at the same angle to the wind.",
+      "tour.tack.x": "In wind modes these buttons change tack to that side, ending at the same wind angle you started from.\nRed arrow to port, green arrow to starboard.",
       "tour.panel.t": "Multifunction panel",
-      "tour.panel.x": "Here you see the rudder or the heel, the history chart, or Freeboard.\nDouble tap to go from one view to the next.\nLong press for its settings.",
+      "tour.panel.x": "Here you can see the rudder angle, the heel, the history chart or Freeboard.\nDouble tap to go from one view to the next; long press for its settings.",
       "tour.chart.t": "Panel: history chart",
       "tour.chart.x": "Speeds and wind over the last minutes.\nAt the top, the averages of that period.\nPut your finger on it to read the values of that moment.",
       "tour.panelFb.t": "Panel: Freeboard",
@@ -701,19 +707,19 @@
       "tour.fb.x": "Freeboard is a free chart plotter for Signal K.\nDouble tap the rose and it opens right here.\nYou can maximise it, or close it to get the rose back.",
       "tour.fb.m": "You don't have Freeboard-SK, a free chart plotter for Signal K.\nYou're missing the chart with your boat, AIS and routes, one double tap away:",
       "tour.tide.t": "AnchorWatch Pro: tides",
-      "tour.tide.x": "Press this button on the rose and you see the tides of your area.\nToday's curve, the next high and low water.",
+      "tour.tide.x": "The tides of your area: today's curve, the next high and low water.",
       "tour.tide.m": "You don't have AnchorWatch Pro installed.\nIt shows the tides of your area and manages your anchorings.\nThis is the tide view you're missing:",
       "tour.anchor.t": "AnchorWatch Pro: anchoring",
-      "tour.anchor.x": "From the tide window, 'Open AnchorWatch Pro' opens the anchor watch.\nSwing circle, drag alarm and the AIS boats near you.\nTap × to get the rose back.",
+      "tour.anchor.x": "The anchor watch: swing circle, drag alarm and the AIS boats near you.\nTap × to get the rose back.",
       "tour.anchor.m": "You don't have AnchorWatch Pro installed.\nThis is its anchor watch: swing circle, drag alarm and the AIS boats near you:",
       "tour.log.t": "Logbook",
-      "tour.log.x": "It records your trips automatically.\nWhile sailing you can check the data of the trip in progress.",
+      "tour.log.x": "It records your trips automatically, with track, speeds and wind.\nWhile sailing you can check the trip in progress.\nThis is one of our trips:",
       "tour.tabs.t": "Top menu",
-      "tour.tabs.x": "Open it with the button at the bottom centre of the multifunction panel, or swipe sideways.\nThe corner button goes full screen.",
+      "tour.tabs.x": "Open it with the button at the bottom centre of the multifunction panel, or swipe sideways.\nThe button in the top corner switches between full screen and normal.",
       "tour.tune.t": "Pilot tuning",
-      "tour.tune.x": "Here are the gains that decide how the pilot steers.\nIt's the most delicate part: a big change can make it steer badly.\nChange little by little, one value at a time, and try it under sail.\nThey're locked: unlock them to make changes.\nNot sure? The Doctor in Setup studies how it steers and suggests settings.",
+      "tour.tune.x": "Here are the gains that decide how the pilot steers.\nCareful, these settings are delicate! A big change can make it steer badly.\nChange little by little, one value at a time, and try it under sail.\nThey're locked: unlock them to make changes.\nNot sure? The Doctor in Setup studies how it steers and suggests settings.",
       "tour.setup.t": "Setup",
-      "tour.setup.x": "The most important bits:\nDoctor: studies how it steers and suggests settings.\nAlarms: choose what warns you and when.\nHealth information: sensors, servo and link with pypilot.",
+      "tour.setup.x": "Here's what matters most:\nDoctor: studies how it steers and suggests settings.\nAlarms: choose what warns you and when.\nHealth information: sensors, servo and link with pypilot.\nAnd many more options for when you want to go further.",
       "tour.companions.t": "Get the most out of it",
       "tour.companions.x": "pypilot is all you need; these other plugins make it shine:\nFreeboard-SK: the chart plotter.\nAnchorWatch Pro: tides and anchor watch.\n@signalk/collision-alerts: AIS collision warnings.\nA polar plugin: your boat's performance.\nTap one you're missing to install it.",
       "tour.info.t": "Info",
@@ -1809,6 +1815,12 @@
       "tour.skip": "Saltar tour",
       "tour.done": "Terminar",
       "tour.replay": "Repetir el tour guiado",
+      "tour.anchor.p2": "Ahora «Abrir AnchorWatch Pro» (un toque).\nPulsa Siguiente y lo pulso yo.",
+      "tour.anchor.p1": "Primero, el botón de mareas de la rosa (un toque).\nPulsa Siguiente y lo pulso yo.",
+      "tour.tide.p1": "Pulsa una vez este botón de la rosa.\nPulsa Siguiente y lo pulso yo.",
+      "tour.fb.p1": "Haz doble toque en la rosa para abrir Freeboard aquí mismo.\nPulsa Siguiente y lo hago yo.",
+      "tour.panelFb.p1": "Otro doble toque y el panel pasa a Freeboard.\nPulsa Siguiente y lo hago yo.",
+      "tour.chart.p1": "Haz doble toque en el panel para pasar a la gráfica de históricos.\nPulsa Siguiente y lo hago yo.",
       "tour.welcome.t": "¡Hola! Bienvenido a PyPilot New-UI",
       "tour.welcome.x": "Te enseño lo básico en unos minutos.\nDurante el tour no se toca el piloto, tranquilo.\nPuedes repetirlo cuando quieras desde la pestaña Info.",
       "tour.rose.t": "La rosa",
@@ -1824,9 +1836,9 @@
       "tour.nudge.t": "Cambiar el rumbo",
       "tour.nudge.x": "Corrige el rumbo de 1 en 1 o de 10 en 10 grados.\nLos de la izquierda llevan a babor; los de la derecha, a estribor.",
       "tour.tack.t": "Virar y trasluchar",
-      "tour.tack.x": "Flecha roja hacia babor, flecha verde hacia estribor.\nCambia de amura y queda al mismo ángulo respecto al viento.",
+      "tour.tack.x": "En modo viento, con estos botones cambias de amura hacia ese lado, quedando al mismo ángulo de viento del que arrancas.\nFlecha roja hacia babor, flecha verde hacia estribor.",
       "tour.panel.t": "Panel multifunción",
-      "tour.panel.x": "Aquí ves el timón o la escora, la gráfica de históricos o Freeboard.\nDoble toque para pasar de una vista a otra.\nPulsación larga para sus ajustes.",
+      "tour.panel.x": "Aquí puedes ver el ángulo del timón, la escora, la gráfica de históricos o Freeboard.\nDoble toque para pasar de una vista a otra; pulsación larga para sus ajustes.",
       "tour.chart.t": "Panel: gráfica de históricos",
       "tour.chart.x": "Velocidades y viento de los últimos minutos.\nArriba, las medias de ese rato.\nPon el dedo encima y ves los valores de ese momento.",
       "tour.panelFb.t": "Panel: Freeboard",
@@ -1836,19 +1848,19 @@
       "tour.fb.x": "Freeboard es un plotter de cartas gratuito para Signal K.\nHaz doble toque en la rosa y se abre aquí mismo.\nPuedes maximizarlo, o cerrarlo para volver a la rosa.",
       "tour.fb.m": "No tienes Freeboard-SK, un plotter de cartas gratuito para Signal K.\nTe pierdes la carta con tu barco, el AIS y las rutas, a un doble toque:",
       "tour.tide.t": "AnchorWatch Pro: mareas",
-      "tour.tide.x": "Pulsa este botón de la rosa y ves las mareas de tu zona.\nLa curva del día, la próxima pleamar y bajamar.",
+      "tour.tide.x": "Las mareas de tu zona: la curva del día, la próxima pleamar y bajamar.",
       "tour.tide.m": "No tienes AnchorWatch Pro instalado.\nSirve para ver las mareas de tu zona y gestionar tus fondeos.\nEsta es la vista de mareas que te pierdes:",
       "tour.anchor.t": "AnchorWatch Pro: fondeo",
-      "tour.anchor.x": "Desde la ventana de mareas, «Abrir AnchorWatch Pro» abre el gestor de fondeo.\nCírculo de borneo, alarma de garreo y los barcos AIS que tienes cerca.\nToca la × para volver a la rosa.",
+      "tour.anchor.x": "El gestor de fondeo: círculo de borneo, alarma de garreo y los barcos AIS que tienes cerca.\nToca la × para volver a la rosa.",
       "tour.anchor.m": "No tienes AnchorWatch Pro instalado.\nEste es su gestor de fondeo: círculo de borneo, alarma de garreo y los barcos AIS cerca:",
       "tour.log.t": "Cuaderno de bitácora",
-      "tour.log.x": "Graba tus salidas automáticamente.\nMientras navegas puedes consultar los datos de la salida en curso.",
+      "tour.log.x": "Graba tus salidas automáticamente, con el recorrido, las velocidades y el viento.\nMientras navegas puedes consultar la salida en curso.\nAsí queda una de nuestras salidas:",
       "tour.tabs.t": "Menú superior",
-      "tour.tabs.x": "Ábrelo pulsando el botón central de abajo del panel multifunción, o desliza el dedo a los lados.\nEl botón de la esquina pone pantalla completa.",
+      "tour.tabs.x": "Ábrelo pulsando el botón central de abajo del panel multifunción, o desliza el dedo a los lados.\nEl botón de la esquina superior cambia entre pantalla completa y normal.",
       "tour.tune.t": "Ajustes del piloto",
-      "tour.tune.x": "Aquí están las ganancias que deciden cómo gobierna el piloto.\nEs lo más delicado: un cambio grande puede hacer que gobierne mal.\nCambia poco a poco, un valor cada vez, y pruébalo navegando.\nEstán bloqueadas: desbloquéalas para tocar.\n¿Dudas? El Doctor de Setup analiza cómo gobierna y te propone ajustes.",
+      "tour.tune.x": "Aquí están las ganancias que deciden cómo gobierna el piloto.\n¡Ojo, que estos ajustes son delicados! Un cambio grande puede hacer que gobierne mal.\nCambia poco a poco, un valor cada vez, y pruébalo navegando.\nEstán bloqueadas: desbloquéalas para tocar.\n¿Dudas? El Doctor de Setup analiza cómo gobierna y te propone ajustes.",
       "tour.setup.t": "Setup",
-      "tour.setup.x": "Lo más importante:\nDoctor: analiza cómo gobierna y te propone ajustes.\nAlarmas: elige qué te avisa y cuándo.\nInformación de salud: sensores, servo y conexión con pypilot.",
+      "tour.setup.x": "Te comento lo más importante:\nDoctor: analiza cómo gobierna y te propone ajustes.\nAlarmas: elige qué te avisa y cuándo.\nInformación de salud: sensores, servo y conexión con pypilot.\nY luego hay muchas otras opciones más profesionales para cuando quieras ir más allá.",
       "tour.companions.t": "Sácale el jugo",
       "tour.companions.x": "Con pypilot basta; con estos otros plugins le sacas el jugo:\nFreeboard-SK: el plotter de cartas.\nAnchorWatch Pro: mareas y gestor de fondeo.\n@signalk/collision-alerts: avisos de colisión AIS.\nUn plugin de polares: el rendimiento de tu barco.\nToca uno que te falte para instalarlo.",
       "tour.info.t": "Info",
@@ -20041,28 +20053,30 @@
     { key: "nudge",   sel: ".row-nudge-ap",              tab: "control" },
     { key: "tack",    sel: ".row-tack-mode",             tab: "control" },
     { key: "panel",   sel: "#swipe-hint",                tab: "control", panel: "bar" },
-    { key: "chart",   sel: "#swipe-hint",                tab: "control", panel: "chart", simIfEmpty: "tour/chart.jpg" },
-    { key: "panelFb", sel: "#swipe-hint",                tab: "control", panel: "fb", needs: "fb",
+    { key: "chart",   sel: "#swipe-hint",                tab: "control", panel: "bar", simIfEmpty: "tour/chart.jpg",
+      phases: [{ sel: "#swipe-hint", key: "chart.p1", double: true, act: () => _tourPanelView("chart") }] },
+    { key: "panelFb", sel: "#swipe-hint",                tab: "control", panel: "chart", needs: "fb",
+      phases: [{ sel: "#swipe-hint", key: "panelFb.p1", double: true, act: () => _tourPanelView("fb") }],
       sim: "tour/panel-fb.jpg", pkg: "@signalk/freeboard-sk" },
     { key: "fb",      sel: ".dash-rose .rose-wrap",      tab: "control", needs: "fb",
       sim: "tour/fb-rose.jpg", pkg: "@signalk/freeboard-sk",
-      seq: [{ sel: ".dash-rose .rose-wrap", double: true, act: () => { if (_fbApi && _fbApi.openRose) _fbApi.openRose(); } }],
+      phases: [{ sel: ".dash-rose .rose-wrap", key: "fb.p1", double: true, act: () => { if (_fbApi && _fbApi.openRose) _fbApi.openRose(); } }],
       leave: () => { if (_fbApi && _fbApi.closeRose) _fbApi.closeRose(); } },
     { key: "tide",    sel: "#tide-pop .popup-box",       tab: "control", needs: "mareas",
       sim: "tour/tide.jpg", pkg: "signalk-mareas-ihm",
-      seq: [{ sel: "#rose-tide-btn", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } }],
+      phases: [{ sel: "#rose-tide-btn", key: "tide.p1", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } }],
       leave: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); } },
     { key: "anchor",  sel: "#mareas-embed",              tab: "control", needs: "mareas",
       sim: "tour/anchor.jpg", pkg: "signalk-mareas-ihm",
-      seq: [
-        { sel: "#rose-tide-btn", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } },
-        { sel: "#tide-full", act: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); if (_tourExtApi.openMareas) _tourExtApi.openMareas(); } },
+      phases: [
+        { sel: "#rose-tide-btn", key: "anchor.p1", act: () => { if (_tourExtApi.openTide) _tourExtApi.openTide(); } },
+        { sel: "#tide-full", key: "anchor.p2", act: () => { if (_tourExtApi.closeTide) _tourExtApi.closeTide(); if (_tourExtApi.openMareas) _tourExtApi.openMareas(); } },
       ],
       leave: () => {
         if (_tourExtApi.closeTide) _tourExtApi.closeTide();
         if (_tourExtApi.closeMareas) _tourExtApi.closeMareas();
       } },
-    { key: "log",     sel: "#rose-log-btn",              tab: "control", optional: true },
+    { key: "log",     sel: "#rose-log-btn",              tab: "control", optional: true, img: "tour/log.jpg" },
     { key: "tabs",    sel: "#tabbar",                    tab: "control", nav: true },
     { key: "tune",    sel: '.tab-btn[data-tab="tune"]',  tab: "tune" },
     { key: "setup",   sel: '.tab-btn[data-tab="setup"]', tab: "setup" },
@@ -20135,7 +20149,7 @@
     for (const ev of ["pointerdown", "pointerup", "click", "dblclick", "touchstart", "contextmenu"]) {
       ov.addEventListener(ev, (e) => { if (!e.target.closest(".tour-actions button, .tour-install")) { e.stopPropagation(); if (ev !== "touchstart") e.preventDefault(); } }, { passive: false });
     }
-    ov.querySelector(".tour-next").addEventListener("click", () => _tourGo(_tour.i + 1));
+    ov.querySelector(".tour-next").addEventListener("click", () => _tourNext());
     ov.querySelector(".tour-back").addEventListener("click", () => _tourGo(_tour.i - 1));
     ov.querySelector(".tour-skip").addEventListener("click", () => _tourEnd());
     ov.querySelector(".tour-sim").addEventListener("load", () => _tourPlace());
@@ -20161,6 +20175,7 @@
       return _tourVisible(st.sel);
     });
     _tour.els.ov.classList.add("open");
+    document.body.classList.add("tour-on");
     _tourGo(0);
   }
   function _tourEnd() {
@@ -20169,6 +20184,7 @@
     if (st && st.leave) { try { st.leave(); } catch { /* silent */ } }
     _tourRestorePanel();
     _tour.i = -1;
+    document.body.classList.remove("tour-on");
     if (_tour.els) _tour.els.ov.classList.remove("open");
     const cur = document.querySelector(".tab-btn.active");
     if (cur && cur.dataset.tab !== "control") _activateTab("control", null);
@@ -20184,10 +20200,12 @@
     const missing = !!st.needs && !_tourHas[st.needs];
     if (!st.panel || missing) _tourRestorePanel();
     _tour.curSel = null;
+    _tour.phase = 0;
+    _tour.busy = false;
     if (!missing) {
       if (st.panel) _tourPanelView(st.panel);
       if (st.enter) { try { st.enter(); } catch { /* silent */ } }
-      if (st.seq) _tourRunSeq(i, st.seq);
+      if (st.phases && st.phases.length) _tour.curSel = st.phases[0].sel;
     }
     _tour.missing = missing;
     const cur = document.querySelector(".tab-btn.active");
@@ -20197,17 +20215,11 @@
     const E = _tour.els;
     E.count.textContent = `${i + 1} / ${TOUR_STEPS.length}`;
     E.title.textContent = t(`tour.${st.key}.t`);
-    // Bullets, one per line of the text.
-    E.text.textContent = "";
-    const ul = document.createElement("ul");
-    for (const line of String(t(`tour.${st.key}.${missing ? "m" : "x"}`)).split("\n")) {
-      const li = document.createElement("li");
-      li.textContent = line;
-      ul.appendChild(li);
-    }
-    E.text.appendChild(ul);
-    E.sim.hidden = !missing || !st.sim;
-    if (missing && st.sim) E.sim.src = st.sim;
+    const hasPhases = !missing && st.phases && st.phases.length;
+    _tourText(hasPhases ? `tour.${st.phases[0].key}` : `tour.${st.key}.${missing ? "m" : "x"}`);
+    const img = missing ? st.sim : (hasPhases ? null : st.img);
+    E.sim.hidden = !img;
+    if (img) E.sim.src = img;
     if (missing && st.pkg) {
       E.install.hidden = false;
       E.install.textContent = t("tour.install");
@@ -20219,9 +20231,9 @@
     } else {
       E.install.hidden = true;
     }
-    E.bub.classList.toggle("has-sim", missing && !!st.sim);
+    E.bub.classList.toggle("has-sim", !!img);
     // Rev622: chart step at the berth (no data yet): show an example.
-    if (!missing && st.simIfEmpty) {
+    if (!missing && st.simIfEmpty && !hasPhases) {
       setTimeout(() => {
         if (_tour.i !== i) return;
         const empty = document.getElementById("helm-chart-empty");
@@ -20239,6 +20251,51 @@
     E.skip.hidden = i === TOUR_STEPS.length - 1;
     // Let the tab switch / panel animation / chart opening settle first.
     setTimeout(_tourPlace, 380);
+  }
+  function _tourText(key) {
+    const E = _tour.els;
+    E.text.textContent = "";
+    const ul = document.createElement("ul");
+    for (const line of String(t(key)).split("\n")) {
+      const li = document.createElement("li");
+      li.textContent = line;
+      ul.appendChild(li);
+    }
+    E.text.appendChild(ul);
+  }
+  // Rev624 (Carlos): a card with taps has two parts in the same bubble.
+  // First it lights where to tap and says how many taps; Next does those
+  // taps (animated), the thing opens, and the bubble explains it.
+  function _tourNext() {
+    if (_tour.i < 0 || _tour.busy) return;
+    const i = _tour.i;
+    const st = TOUR_STEPS[i];
+    const phases = (!_tour.missing && st.phases) || [];
+    if (_tour.phase >= phases.length) { _tourGo(i + 1); return; }
+    const ph = phases[_tour.phase];
+    const el = document.querySelector(ph.sel);
+    _tour.busy = true;
+    if (el) { el.classList.remove("tour-press", "tour-press2"); void el.offsetWidth; el.classList.add(ph.double ? "tour-press2" : "tour-press"); }
+    setTimeout(() => {
+      if (_tour.i !== i) return;
+      if (el) el.classList.remove("tour-press", "tour-press2");
+      try { ph.act(); } catch { /* silent */ }
+      _tour.phase += 1;
+      const more = _tour.phase < phases.length;
+      _tour.curSel = more ? phases[_tour.phase].sel : null;
+      _tourText(more ? `tour.${phases[_tour.phase].key}` : `tour.${st.key}.x`);
+      if (!more && st.img) { _tour.els.sim.src = st.img; _tour.els.sim.hidden = false; _tour.els.bub.classList.add("has-sim"); }
+      if (!more && st.simIfEmpty) {
+        setTimeout(() => {
+          if (_tour.i !== i) return;
+          const empty = document.getElementById("helm-chart-empty");
+          if (!empty || empty.hidden) return;
+          _tour.els.sim.src = st.simIfEmpty; _tour.els.sim.hidden = false;
+          _tour.els.bub.classList.add("has-sim"); _tourPlace();
+        }, 1500);
+      }
+      setTimeout(() => { _tour.busy = false; _tourPlace(); }, 650);
+    }, ph.double ? 900 : 650);
   }
   // Rev623 (Carlos: "debieras darle al botón y animarse que se abre"):
   // light the button, show it being pressed, then open; one item per tap.
@@ -20314,7 +20371,7 @@
   document.addEventListener("keydown", (e) => {
     if (_tour.i < 0) return;
     if (e.key === "Escape") _tourEnd();
-    else if (e.key === "ArrowRight" || e.key === "Enter") _tourGo(_tour.i + 1);
+    else if (e.key === "ArrowRight" || e.key === "Enter") _tourNext();
     else if (e.key === "ArrowLeft") _tourGo(_tour.i - 1);
   });
   // First open on this device: wait until the visor is up and no login /
