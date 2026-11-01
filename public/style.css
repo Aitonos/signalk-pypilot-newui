@@ -2638,16 +2638,16 @@ main { touch-action: pan-y; overflow-x: hidden; }
   z-index: 2;
   pointer-events: none;
 }
-/* Rev611 (Carlos): the tab-bar toggle sits in the panel's top-right
-   corner in every view, not in the middle of the panel. */
+/* Rev611/613 (Carlos): the tab-bar toggle sits at the bottom centre of
+   the panel in every view (not floating in the middle of it). */
 #tab-control .swipe-hint .nav-toggle {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  left: auto;
-  bottom: auto;
-  transform: scale(0.65);
-  transform-origin: top right;
+  left: 50%;
+  bottom: 0;
+  top: auto;
+  right: auto;
+  transform: translateX(-50%) scale(0.65);
+  transform-origin: bottom center;
   z-index: 3;
 }
 

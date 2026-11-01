@@ -19552,6 +19552,7 @@
       { frac: 1.0, txt: "NOW" },
     ];
     for (const tk of timeLabels) {
+      if (c.hideMidTime && tk.frac === 0.5) continue;
       const x = marginL + tk.frac * plotW;
       ctx.beginPath();
       ctx.moveTo(x, marginT);
@@ -19826,7 +19827,7 @@
     hintId: "helm-chart-empty",
     emptyKey: "helmChart.empty",
     fontPx: 13,
-    legendPadR: 30,   // Rev611: corner kept free for the tab-bar toggle
+    hideMidTime: true,   // Rev613: the tab-bar toggle sits at the bottom centre
     window: "10m",
     enabled: new Set(["sog", "polarSpeed", "aws", "tws"]),
     lastSamples: [],
