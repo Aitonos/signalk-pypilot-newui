@@ -46,6 +46,9 @@
     "socket.io-client": "^4.7.5",
     "ssh2": "^1.15.0"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "rimraf": "^5.0.0",
