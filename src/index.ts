@@ -82,7 +82,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev628";
+const PLUGIN_REVISION = "Rev629";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1061,7 +1061,8 @@ module.exports = function (app: any) {
         }
       } catch (e: any) { app.debug?.(`[historian] restore skipped: ${e?.message || e}`); }
       if (historianSaveTimer) { try { clearInterval(historianSaveTimer); } catch {} }
-      historianSaveTimer = setInterval(() => saveHistorian(), 10 * 60_000);
+      // Every 30 min besides on stop: ~500 KB per write, kept rare for the SD card.
+      historianSaveTimer = setInterval(() => saveHistorian(), 30 * 60_000);
       if (typeof (historianSaveTimer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
         (historianSaveTimer as NodeJS.Timeout & { unref: () => void }).unref();
       }
