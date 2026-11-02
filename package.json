@@ -60,7 +60,7 @@
       "signalk-mareas-ihm",
       "@signalk/freeboard-sk",
       "signalk-charts-provider-simple",
-      "signalk-collision-alerts",
+      "@signalk/collision-alerts",
       "signalk-polar-performance-plugin",
       "signalk-polar-management"
     ],
