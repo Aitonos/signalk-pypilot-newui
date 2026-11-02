@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.11.1 — 2026-11-02 — Language review, App Store fixes
+
+Rev629 on top of 3.11.0. Self-audit in
+`docs/_autoauditoria_pre_3.11.1_2026-11-02.md`.
+
+### Fixed
+- Four tack messages ("Tack failed", "Pypilot not responding: tack
+  cancelled") showed their raw key on screen; now defined in every language.
+- German and French: "Save in active profile" showed a literal `{pilot}`.
+- French strings from the first versions rewritten with accents and the
+  same "vous" as the rest; older German strings with proper umlauts;
+  about 60 Spanish words given their accents and questions their opening
+  "¿".
+- App Store: recommends `@signalk/collision-alerts` (the old package name
+  showed as "Not installed").
+
+### Changed
+- Chart history saved every 30 min instead of 10 (plus on stop), to spare
+  the SD card.
+- Every release now gets GitHub release notes from this changelog, which is
+  what the App Store's Changelog tab shows.
+
+### Added
+- Test that fails the build when a text is missing in a language, a key is
+  duplicated, `{placeholders}` differ or the visor uses an undefined key.
+
 ## 3.11.0 — 2026-11-02 — Guided tour, complete German and French
 
 Rolls up Rev620 → Rev628 on top of 3.10.0. Self-audit in
