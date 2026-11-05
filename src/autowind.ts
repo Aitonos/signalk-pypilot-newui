@@ -16,6 +16,24 @@ export const AUTOWIND_MIN_GAP_MS = 30_000;     // between two switches
 // Rev630 (GPT audit 2026-11-05 F07): after a switch that failed, wait this
 // long before asking again (the 30 s gap counts only real switches).
 export const AUTOWIND_RETRY_MS = 10_000;
+// Rev632 (AUTOWIND audit 2026-11-05, GPT F06): wind data older than this
+// counts as missing (on Tunatunes derived-data and the vane update every
+// 1-4 s). And a gap longer than AUTOWIND_MAX_TICK_GAP_MS between two
+// inputs restarts the 10 s count: two readings 60 s apart are not "10 s
+// sustained".
+export const AUTOWIND_MAX_DATA_AGE_MS = 10_000;
+export const AUTOWIND_MAX_TICK_GAP_MS = 3_000;
+
+/** The number in a Signal K node ({value, timestamp}) if it is younger
+ *  than maxAgeMs, else null. No timestamp = not fresh; a timestamp in
+ *  the future by more than maxAgeMs (clock step) = not fresh either. */
+export function freshNumber(node: unknown, nowMs: number, maxAgeMs = AUTOWIND_MAX_DATA_AGE_MS): number | null {
+  if (!node || typeof node !== "object") return null;
+  const v = (node as any).value;
+  const ts = Date.parse(String((node as any).timestamp));
+  if (typeof v !== "number" || !isFinite(v) || !isFinite(ts)) return null;
+  return Math.abs(nowMs - ts) <= maxAgeMs ? v : null;
+}
 // Rev521 (Carlos 2026-10-20, in port with the AP off: "no cambió de
 // modo"): it now also switches with the AP disengaged, so engaging lands
 // in the right mode, but only with a meaningful wind - below 3 kn TWS the
@@ -52,10 +70,15 @@ export class AutowindDecider {
   private pendingSince: number | null = null;
   private lastSwitchMs: number | null = null;
   private lastFailMs: number | null = null;
+  private lastTickMs: number | null = null;
 
   /** Returns the mode to switch to now, or null. The caller reports the
    *  outcome with noteSwitch() or noteFailure(). */
   tick(i: AutowindInput): WindSubMode | null {
+    // Rev632: a hole in the inputs (plugin busy, clock step) restarts the count.
+    const gap = this.lastTickMs == null ? 0 : i.nowMs - this.lastTickMs;
+    this.lastTickMs = i.nowMs;
+    if (gap < 0 || gap > AUTOWIND_MAX_TICK_GAP_MS) { this.pending = null; this.pendingSince = null; }
     const cur = String(i.mode || "").toLowerCase();
     const curSub: WindSubMode | null = cur === "true wind" ? "true wind" : cur === "wind" ? "wind" : null;
     const windOk = typeof i.twsKn === "number" && isFinite(i.twsKn) && i.twsKn >= AUTOWIND_MIN_TWS_KN;

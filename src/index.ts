@@ -72,7 +72,7 @@ import {
 } from "./nav-bearing";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { SteerWatch } from "./steer-watch";
-import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN } from "./autowind";
+import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev631";
+const PLUGIN_REVISION = "Rev632";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -5076,19 +5076,30 @@ module.exports = function (app: any) {
     _autowindLastReason = why;
     _autowindPublish();
   }
+  // Rev632 (AUTOWIND audit 2026-11-05, GPT F06): AUTOWIND only decides on
+  // wind data younger than AUTOWIND_MAX_DATA_AGE_MS. A path that stopped
+  // (sensor off, plugin that publishes only now and then, like
+  // polar-performance's speedTrue) is skipped for the next one; none fresh
+  // = "no-wind-data". The sampler / alarms keep using _readTwaRad as is.
+  function _autowindFresh(paths: string[]): number | null {
+    const now = Date.now();
+    for (const p of paths) {
+      try {
+        const v = freshNumber(app.getSelfPath ? app.getSelfPath(p) : null, now);
+        if (v != null) return v;
+      } catch { /* next path */ }
+    }
+    return null;
+  }
   function _autowindTwaDeg(): number | null {
-    const r = _readTwaRad();
+    // Rev534: angleTrueGround as the sampler does when Water is missing.
+    const r = _autowindFresh(["environment.wind.angleTrueWater", "environment.wind.angleTrueGround"]);
     return r == null ? null : r * 180 / Math.PI;
   }
   function _autowindTwsKn(): number | null {
-    try {
-      // Rev534 (GPT review 2 #6): same sources as the sampler.
-      for (const p of ["environment.wind.speedTrue.value", "environment.wind.speedOverGround.value"]) {
-        const v = app.getSelfPath ? app.getSelfPath(p) : null;
-        if (typeof v === "number" && isFinite(v)) return v * 1.94384;
-      }
-      return null;
-    } catch { return null; }
+    // Rev534 (GPT review 2 #6): same sources as the sampler.
+    const v = _autowindFresh(["environment.wind.speedTrue", "environment.wind.speedOverGround"]);
+    return v == null ? null : v * 1.94384;
   }
   function _autowindSetBlocked(reason: string | null): void {
     if (reason === _autowindBlockedReason) return;

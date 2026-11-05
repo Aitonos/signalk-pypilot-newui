@@ -11391,6 +11391,14 @@
       if (btn.textContent !== txt) btn.textContent = txt;
       return;
     }
+    // Rev632 (Carlos QA 2026-11-05: "Empopado dice REAL"): a running
+    // Aproado / Empopado shows its own name, not pypilot's wind mode.
+    for (const [man, label] of [[state.empopado, "empopado"], [state.aproado, "aproado"]]) {
+      if (man && (man.phase === "transit" || man.phase === "active")) {
+        btn.textContent = _modeLabel(label);
+        return;
+      }
+    }
     const m = state.mode || "";
     // Rev518: AUTOWIND -> "AUTO · REAL" / "AUTO · APARENTE".
     if (state.autowind && state.autowind.enabled && (m === "wind" || m === "true wind")) {
@@ -12772,6 +12780,7 @@
     if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
     hideAproadoHud();
     state.aproado = null;
+    try { _renderModeSelectBtn(); } catch { /* silent */ }
   }
 
   // Rev313 (Carlos sea trial 2026-09-25): pseudo-mode EMPOPADO — mirror
@@ -13293,6 +13302,7 @@
     if (ap._summaryTimer) { clearTimeout(ap._summaryTimer); ap._summaryTimer = null; }
     hideEmpopadoHud();
     state.empopado = null;
+    try { _renderModeSelectBtn(); } catch { /* silent */ }
   }
 
   // SALIR from the transit or active HUD: freeze counters, show the

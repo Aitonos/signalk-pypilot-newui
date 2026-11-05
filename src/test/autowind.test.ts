@@ -2,7 +2,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { AutowindDecider, desiredSubMode, AutowindInput } from "../autowind";
+import fs from "node:fs";
+import path from "node:path";
+import { AutowindDecider, desiredSubMode, AutowindInput, freshNumber } from "../autowind";
 
 const inp = (o: Partial<AutowindInput>): AutowindInput => ({
   nowMs: 0, twaDeg: 90, mode: "wind", engaged: true, blocked: false, twsKn: 10, ...o,
@@ -110,5 +112,50 @@ describe("autowind (Rev518)", () => {
     assert.equal(d.initial(150), "true wind");
     assert.equal(d.initial(-60), "wind");
     assert.equal(d.initial(null), "wind");
+  });
+});
+
+describe("Rev632: data age and gaps", () => {
+  it("two readings 60 s apart are not 10 s sustained", () => {
+    const d = new AutowindDecider();
+    assert.equal(d.tick(inp({ nowMs: 0, twaDeg: 150 })), null);
+    assert.equal(d.tick(inp({ nowMs: 60_000, twaDeg: 150 })), null);
+    // the count restarted at 60 s: 10 s of 1 Hz input from there
+    const out = feed(d, 61_000, 12, () => ({ twaDeg: 150 }));
+    assert.deepEqual(out, [{ s: 9, m: "true wind" }]);
+  });
+
+  it("freshNumber: young value yes; old, undated, future or non-numeric no", () => {
+    const now = Date.parse("2026-11-05T16:52:00Z");
+    const at = (ms: number) => new Date(now - ms).toISOString();
+    assert.equal(freshNumber({ value: 1.2, timestamp: at(2000) }, now), 1.2);
+    assert.equal(freshNumber({ value: 1.2, timestamp: at(11_000) }, now), null);
+    assert.equal(freshNumber({ value: 1.2 }, now), null);
+    assert.equal(freshNumber({ value: 1.2, timestamp: at(-20_000) }, now), null);
+    assert.equal(freshNumber({ value: null, timestamp: at(0) }, now), null);
+    assert.equal(freshNumber(undefined, now), null);
+  });
+});
+
+describe("Rev632: replay of the 2026-11-05 sea trial (17:51:25-17:53:33)", () => {
+  const fx = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "src", "test", "fixtures-autowind-2026-11-05.json"), "utf8"));
+  const toMs = (hms: string) => { const [h, m, s] = hms.split(":").map(Number); return ((h * 60 + m) * 60 + s) * 1000; };
+  const run = (blocked: boolean) => {
+    const d = new AutowindDecider();
+    d.noteSwitch(toMs("17:51:24"));          // AUTOWIND selected -> true wind
+    let mode = "true wind";
+    for (const [t, , twa, tws] of fx.rows as Array<[string, string, number, number]>) {
+      const r = d.tick(inp({ nowMs: toMs(t), twaDeg: twa, twsKn: tws, mode, blocked }));
+      if (r) { d.noteSwitch(toMs(t)); mode = r; return { t, r }; }
+    }
+    return null;
+  };
+
+  it("with no manoeuvre running it switches to apparent at 17:52:02", () => {
+    assert.deepEqual(run(false), { t: "17:52:02", r: "wind" });
+  });
+
+  it("with a manoeuvre really running it does not switch", () => {
+    assert.equal(run(true), null);
   });
 });

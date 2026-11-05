@@ -164,8 +164,13 @@ apagadas). Arregla el fallo y N1, N4 y N8.
   2026-11-05 23:00 correcta: 4 de 4 pruebas, verificadas en el journal y
   la traza.
 - Fase 2 hecha en Rev631 (commit `be41c6e`).
-- Las dos están desplegadas en la Pi y sin publicar.
-- Fase 3 pendiente.
+- Fase 2: QA en puerto de Carlos 23:18-23:24 correcta (3 de 3).
+- Fase 3 hecha en Rev632: datos de viento con más de 10 s no cuentan,
+  con salto a la segunda fuente; un hueco de más de 3 s entre muestras
+  reinicia la espera de 10 s; test con los datos reales del 5/11.
+- Rev632 corrige además el botón de modo durante Aproado/Empopado (decía
+  REAL/APARENTE en vez del nombre de la maniobra; venía de Rev425).
+- Las tres fases están desplegadas en la Pi y sin publicar.
 
 **Aparte** (no son AUTOWIND; a decidir):
 - N5 / re-anchor del backend (ver 3.2);
