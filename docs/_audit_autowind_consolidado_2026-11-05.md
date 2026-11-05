@@ -159,8 +159,13 @@ apagadas). Arregla el fallo y N1, N4 y N8.
 13. Banda de histéresis: Carlos decidió (2026-11-05) que un segundo
     dentro de la banda **sí** reinicia la espera. Se queda como está.
 
-**Estado:** fase 1 hecha en Rev630 (commit `770f78e`), desplegada en la
-Pi, sin publicar.
+**Estado:**
+- Fase 1 hecha en Rev630 (commit `770f78e`). QA en puerto de Carlos
+  2026-11-05 23:00 correcta: 4 de 4 pruebas, verificadas en el journal y
+  la traza.
+- Fase 2 hecha en Rev631 (commit `be41c6e`).
+- Las dos están desplegadas en la Pi y sin publicar.
+- Fase 3 pendiente.
 
 **Aparte** (no son AUTOWIND; a decidir):
 - N5 / re-anchor del backend (ver 3.2);
