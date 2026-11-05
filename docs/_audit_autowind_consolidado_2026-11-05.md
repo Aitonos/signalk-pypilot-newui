@@ -156,8 +156,11 @@ apagadas). Arregla el fallo y N1, N4 y N8.
 
 12. TWA/TWS con su antigüedad: datos viejos = bloqueado, con motivo. Un
     hueco en las muestras reinicia los 10 s.
-13. Banda de histéresis: decidir si un segundo dentro de la banda debe
-    reiniciar la espera (Carlos).
+13. Banda de histéresis: Carlos decidió (2026-11-05) que un segundo
+    dentro de la banda **sí** reinicia la espera. Se queda como está.
+
+**Estado:** fase 1 hecha en Rev630 (commit `770f78e`), desplegada en la
+Pi, sin publicar.
 
 **Aparte** (no son AUTOWIND; a decidir):
 - N5 / re-anchor del backend (ver 3.2);
