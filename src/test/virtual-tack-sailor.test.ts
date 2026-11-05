@@ -498,4 +498,25 @@ describe("long-way gybe needs confirmation (Rev511)", () => {
       await waitFor(() => !p2.isVirtualTackActive(), 3000);
     } finally { sim2.stop(); }
   });
+
+  it("Rev630: an outside mode change during the tack is refused with an error, not ignored", async () => {
+    // AUTOWIND took the old silent return for success and changed the
+    // profile (GPT audit 2026-11-05 F02).
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1 });
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      await waitFor(() => p.getVirtualTackState()?.phase === "turning", 2000);
+      const before = sim.writes.filter((w) => w.name === "ap.mode").length;
+      await assert.rejects(
+        (p.toProviderInterface() as any).setMode("true wind", "_default"),
+        /refused: virtual tack is driving the pilot/,
+      );
+      assert.equal(sim.writes.filter((w) => w.name === "ap.mode" && w.value === "true wind").length, 0);
+      assert.ok(sim.writes.filter((w) => w.name === "ap.mode").length >= before);
+      await p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 3000);
+    } finally { sim.stop(); }
+  });
 });

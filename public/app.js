@@ -526,6 +526,11 @@
       "autowind.needsGps":    "needs GPS for true wind",
       "autowind.prof.apparent": "Apparent wind",
       "autowind.prof.true":   "True wind",
+      "autowind.blocked.virtual-tack": "tacking",
+      "autowind.blocked.pypilot-tack": "tacking",
+      "autowind.blocked.manoeuvre": "manoeuvre",
+      "autowind.blocked.no-wind-data": "no wind data",
+      "autowind.blocked.wind-too-light": "wind too light",
       "mode.label.nav":       "NAV (ROUTE)",
       "mode.label.aproado":   "HEAD TO WIND",
       "mode.label.empopado":    "DEAD DOWNWIND",
@@ -1666,6 +1671,11 @@
       "autowind.needsGps":    "necesita GPS para el viento real",
       "autowind.prof.apparent": "Viento aparente",
       "autowind.prof.true":   "Viento real",
+      "autowind.blocked.virtual-tack": "virando",
+      "autowind.blocked.pypilot-tack": "virando",
+      "autowind.blocked.manoeuvre": "maniobra",
+      "autowind.blocked.no-wind-data": "sin datos de viento",
+      "autowind.blocked.wind-too-light": "viento flojo",
       "mode.label.nav":       "NAV (RUTA)",
       "mode.label.aproado":   "APROADO",
       "mode.label.empopado":    "EMPOPADO",
@@ -2889,6 +2899,11 @@
       "autowind.needsGps": "braucht GPS für wahren Wind",
       "autowind.prof.apparent": "Scheinbarer Wind",
       "autowind.prof.true": "Wahrer Wind",
+      "autowind.blocked.virtual-tack": "Wende",
+      "autowind.blocked.pypilot-tack": "Wende",
+      "autowind.blocked.manoeuvre": "Manöver",
+      "autowind.blocked.no-wind-data": "keine Winddaten",
+      "autowind.blocked.wind-too-light": "Wind zu schwach",
       "mode.label.empopado": "PLATT VOR DEM WIND",
       "net.warn": "Netz unterbrochen",
       "net.ok": "Netz OK",
@@ -4004,6 +4019,11 @@
       "autowind.needsGps": "nécessite le GPS pour le vent réel",
       "autowind.prof.apparent": "Vent apparent",
       "autowind.prof.true": "Vent réel",
+      "autowind.blocked.virtual-tack": "virement",
+      "autowind.blocked.pypilot-tack": "virement",
+      "autowind.blocked.manoeuvre": "manœuvre",
+      "autowind.blocked.no-wind-data": "pas de données de vent",
+      "autowind.blocked.wind-too-light": "vent trop faible",
       "mode.label.empopado": "PLEIN VENT ARRIÈRE",
       "net.warn": "Réseau intermittent",
       "net.ok": "Réseau OK",
@@ -11359,6 +11379,7 @@
   function _renderModeSelectBtn() {
     const btn = document.getElementById("mode-select-btn");
     if (!btn) return;
+    btn.title = "";
     // Rev510 (Carlos sea trial 2026-10-18, 18:07-18:12: "la tablet decia
     // un modo y el telefono decia otro"): during a virtual tack pypilot is
     // in compass on purpose. Every visor shows the wind mode of the tack,
@@ -11373,7 +11394,12 @@
     const m = state.mode || "";
     // Rev518: AUTOWIND -> "AUTO · REAL" / "AUTO · APARENTE".
     if (state.autowind && state.autowind.enabled && (m === "wind" || m === "true wind")) {
-      btn.textContent = `${t("autowind.short")} · ${_modeLabel(m)}`;
+      // Rev630 (sea trial 2026-11-05: "AUTO · REAL" was on screen while the
+      // backend could not switch): say why it is waiting, if it is.
+      const why = state.autowind.blockedReason;
+      const whyKey = `autowind.blocked.${why}`;
+      btn.textContent = `${t("autowind.short")} · ${_modeLabel(m)}${why ? ` (${t(whyKey)})` : ""}`;
+      btn.title = state.autowind.lastError || "";
       return;
     }
     // Rev545: NAV -> "NAV · <waypoint> · 2.3 nm".

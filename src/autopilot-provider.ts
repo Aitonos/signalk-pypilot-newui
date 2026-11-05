@@ -624,7 +624,10 @@ export class AutopilotProvider {
       if (active) {
         // eslint-disable-next-line no-console
         console.log(`[virtual-tack] rejected external setMode '${mode}' (FSM is driving)`);
-        return;
+        // Rev630 (GPT audit 2026-11-05 F02): a refusal, not a silent return -
+        // AUTOWIND took the return for success and changed the profile.
+        // Same wording as setTarget's refusal.
+        throw new Error("mode change refused: virtual tack is driving the pilot");
       }
     }
     if (

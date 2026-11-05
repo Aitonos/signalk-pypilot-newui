@@ -53,9 +53,35 @@ describe("autowind (Rev518)", () => {
     for (let s = 0; s < 60; s++) {
       const twa = s < 12 ? 140 : 100;   // bears away, then heads up again
       const r = d.tick(inp({ nowMs: s * 1000, twaDeg: twa, mode }));
-      if (r) { switches.push(s); mode = r; }
+      if (r) { switches.push(s); mode = r; d.noteSwitch(s * 1000); }
     }
     assert.deepEqual(switches, [10, 40]);
+  });
+
+  it("Rev630: a failed switch does not use up the 30 s gap; it retries 10 s later", () => {
+    const d = new AutowindDecider();
+    const asks: number[] = [];
+    for (let s = 0; s < 40; s++) {
+      const r = d.tick(inp({ nowMs: s * 1000, twaDeg: 150, mode: "wind" }));
+      if (r) { asks.push(s); d.noteFailure(s * 1000); }
+    }
+    // sustain 10 s, then one ask per (10 s sustain >= 10 s retry) - never 30 s apart
+    assert.deepEqual(asks, [10, 21, 32]);
+  });
+
+  it("Rev630: a switch that succeeds after a failure starts the normal 30 s gap", () => {
+    const d = new AutowindDecider();
+    let mode = "wind";
+    const asks: number[] = [];
+    for (let s = 0; s < 60; s++) {
+      const twa = s < 25 ? 150 : 100;
+      const r = d.tick(inp({ nowMs: s * 1000, twaDeg: twa, mode }));
+      if (!r) continue;
+      asks.push(s);
+      if (asks.length === 1) d.noteFailure(s * 1000);
+      else { mode = r; d.noteSwitch(s * 1000); }
+    }
+    assert.deepEqual(asks, [10, 21, 51]);
   });
 
   it("never while blocked (tack, aproado)", () => {

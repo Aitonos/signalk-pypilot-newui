@@ -72,7 +72,7 @@ import {
 } from "./nav-bearing";
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { SteerWatch } from "./steer-watch";
-import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG } from "./autowind";
+import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev630";
+const PLUGIN_REVISION = "Rev631";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -435,6 +435,11 @@ module.exports = function (app: any) {
   let _autowindLastSwitchTs: number | null = null;
   let _autowindLastReason: string | null = null;
   let _autowindOffFamilySince: number | null = null;
+  // Rev630 (AUTOWIND audit 2026-11-05).
+  let _autowindOp = 0;                              // bumped by every apply and by "off"
+  let _autowindInFlight = 0;                        // mode switches waiting on pypilot
+  let _autowindBlockedReason: string | null = null;
+  let _autowindLastError: string | null = null;
   // Rev176 (Carlos): debounce the raw `engaged` flag so a rebound
   // caused by a competing client (pypilot_web on another device, a KIP
   // widget cycling, socket races) does not open+close a JSONL every 5 s.
@@ -4988,6 +4993,11 @@ module.exports = function (app: any) {
       thresholdDeg: props.autowindThresholdDeg ?? AUTOWIND_DEFAULT_THRESHOLD_DEG,
       lastSwitchTs: _autowindLastSwitchTs,
       lastReason: _autowindLastReason,
+      // Rev630 (sea trial 2026-11-05): why AUTOWIND cannot switch right now
+      // ("virtual-tack" | "pypilot-tack" | "manoeuvre" | "no-wind-data" |
+      // "wind-too-light" | null), and the last switch that failed.
+      blockedReason: props.autowindEnabled ? _autowindBlockedReason : null,
+      lastError: _autowindLastError,
     };
   }
   function _autowindPublish(): void {
@@ -5007,23 +5017,50 @@ module.exports = function (app: any) {
     const want = _autowindProfileFor(sub);
     if (!want || !client || !client.connected) return;
     if (client.getValues()["profile"] === want) return;
+    let sent = false;
     try {
       profileChangeLog.markPlannedWrite(want, "autowind", reason);
-      client.set("profile", want);
+      sent = client.set("profile", want) !== false;
     } catch { /* silent */ }
+    // Rev630 (GPT audit 2026-11-05 F03): a refused write is a failure.
+    if (!sent) _autowindFail(`profile ${want} not sent to pypilot`);
   }
-  async function _autowindApply(sub: WindSubMode, reason: string): Promise<void> {
+  function _autowindFail(msg: string): void {
+    _autowindLastError = msg;
+    // eslint-disable-next-line no-console
+    console.log(`[autowind] failed: ${msg}`);
+    _autowindPublish();
+  }
+  // Rev630 (GPT audit 2026-11-05 F02/F03): `fromTick` = an automatic switch
+  // (its outcome feeds the decider's gap / retry). An operation number:
+  // turning AUTOWIND off, or a newer apply, makes an apply still waiting on
+  // pypilot stop there - no profile, no "switched" afterwards.
+  async function _autowindApply(sub: WindSubMode, reason: string, fromTick = false): Promise<void> {
     if (!apProvider) return;
+    const op = ++_autowindOp;
     _autowindLastReason = reason;
     const cur = String(apProvider.data.mode || "").toLowerCase();
     if (cur !== sub) {
       // wind <-> true wind share the angle space: pypilot keeps the
       // heading itself on the mode change, nothing else is written.
+      _autowindInFlight++;
       try { await (apProvider.toProviderInterface() as any).setMode(sub, apProvider.deviceId); }
-      catch (e: any) { app.debug?.(`[autowind] setMode ${sub}: ${e?.message || e}`); return; }
+      catch (e: any) {
+        _autowindInFlight--;
+        if (fromTick) autowind.noteFailure(Date.now());
+        _autowindFail(`mode ${sub}: ${e?.message || e}`);
+        return;
+      }
+      _autowindInFlight--;
+      if (op !== _autowindOp || !props.autowindEnabled) {
+        // eslint-disable-next-line no-console
+        console.log(`[autowind] ${sub} landed after AUTOWIND was turned off or overridden: profile left as is`);
+        return;
+      }
       _autowindLastSwitchTs = Date.now();
       autowind.noteSwitch(_autowindLastSwitchTs);
     }
+    _autowindLastError = null;
     _autowindApplyProfile(sub, reason);
     // eslint-disable-next-line no-console
     console.log(`[autowind] ${reason} -> ${sub}${_autowindProfileFor(sub) ? ` / profile ${_autowindProfileFor(sub)}` : ""}`);
@@ -5032,6 +5069,7 @@ module.exports = function (app: any) {
   function _autowindSetEnabled(on: boolean, why: string): void {
     if (!!props.autowindEnabled === on) return;
     props.autowindEnabled = on;
+    if (!on) { _autowindOp++; _autowindBlockedReason = null; }
     try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ }
     // eslint-disable-next-line no-console
     console.log(`[autowind] ${on ? "on" : "off"} (${why})`);
@@ -5052,19 +5090,38 @@ module.exports = function (app: any) {
       return null;
     } catch { return null; }
   }
+  function _autowindSetBlocked(reason: string | null): void {
+    if (reason === _autowindBlockedReason) return;
+    _autowindBlockedReason = reason;
+    // eslint-disable-next-line no-console
+    console.log(`[autowind] ${reason ? `blocked: ${reason}` : "unblocked"}`);
+    _autowindPublish();
+  }
   function _autowindTick(): void {
     if (!props.autowindEnabled || !apProvider) return;
     const mode = String(apProvider.data.mode || "").toLowerCase();
-    const blocked = apProvider.isVirtualTackActive()
-      || !!(_tackStatePrev && _tackStatePrev !== "none")
-      || _pseudoActive();
+    const vtActive = apProvider.isVirtualTackActive();
+    const pypilotTack = !!(_tackStatePrev && _tackStatePrev !== "none");
+    const manoeuvre = _pseudoActive();
+    const blocked = vtActive || pypilotTack || manoeuvre;
+    const twaNow = _autowindTwaDeg();
+    const twsNow = _autowindTwsKn();
+    _autowindSetBlocked(
+      vtActive ? "virtual-tack"
+      : pypilotTack ? "pypilot-tack"
+      : manoeuvre ? "manoeuvre"
+      : twaNow == null || twsNow == null ? "no-wind-data"
+      : twsNow < AUTOWIND_MIN_TWS_KN ? "wind-too-light"
+      : null);
     // Sailor (remote, TinyPilot, KIP) moved to compass/gps: AUTOWIND
     // ends, like picking another mode in the visor. 5 s so a transient
     // write race never switches it off.
     // pypilot drops to compass on its own when it loses GPS / true wind
     // (and returns when it is back): that is not the sailor leaving.
+    // Rev630 (Gemini audit 2026-11-05): only a tack, which passes through
+    // compass, suspends this check - a visor manoeuvre flag no longer does.
     const trueWindAvailable = ((apProvider as any).pypilotModes || []).includes("true wind");
-    if (!blocked && trueWindAvailable && mode !== "wind" && mode !== "true wind" && mode !== "") {
+    if (!vtActive && !pypilotTack && trueWindAvailable && mode !== "wind" && mode !== "true wind" && mode !== "") {
       if (_autowindOffFamilySince == null) _autowindOffFamilySince = Date.now();
       else if (Date.now() - _autowindOffFamilySince > 5000) {
         _autowindOffFamilySince = null;
@@ -5073,18 +5130,18 @@ module.exports = function (app: any) {
       return;
     }
     _autowindOffFamilySince = null;
+    if (_autowindInFlight > 0) return;   // a switch is still waiting on pypilot
     const want = autowind.tick({
       nowMs: Date.now(),
-      twaDeg: _autowindTwaDeg(),
+      twaDeg: twaNow,
       mode,
       engaged: !!apProvider.data.engaged,
       blocked,
-      twsKn: _autowindTwsKn(),
+      twsKn: twsNow,
       thresholdDeg: props.autowindThresholdDeg,
     });
     if (want) {
-      const twa = _autowindTwaDeg();
-      void _autowindApply(want, `TWA ${twa == null ? "?" : Math.abs(twa).toFixed(0)} deg`);
+      void _autowindApply(want, `TWA ${twaNow == null ? "?" : Math.abs(twaNow).toFixed(0)} deg`, true);
     }
   }
   // Rev164/165/166: supervisor layer. Runs on every historian tick.

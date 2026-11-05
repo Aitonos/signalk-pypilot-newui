@@ -13,6 +13,9 @@ export const AUTOWIND_DEFAULT_THRESHOLD_DEG = 120;
 export const AUTOWIND_HYSTERESIS_DEG = 5;      // +-5 around the threshold
 export const AUTOWIND_SUSTAIN_MS = 10_000;     // condition held this long
 export const AUTOWIND_MIN_GAP_MS = 30_000;     // between two switches
+// Rev630 (GPT audit 2026-11-05 F07): after a switch that failed, wait this
+// long before asking again (the 30 s gap counts only real switches).
+export const AUTOWIND_RETRY_MS = 10_000;
 // Rev521 (Carlos 2026-10-20, in port with the AP off: "no cambió de
 // modo"): it now also switches with the AP disengaged, so engaging lands
 // in the right mode, but only with a meaningful wind - below 3 kn TWS the
@@ -48,8 +51,10 @@ export class AutowindDecider {
   private pending: WindSubMode | null = null;
   private pendingSince: number | null = null;
   private lastSwitchMs: number | null = null;
+  private lastFailMs: number | null = null;
 
-  /** Returns the mode to switch to now, or null. */
+  /** Returns the mode to switch to now, or null. The caller reports the
+   *  outcome with noteSwitch() or noteFailure(). */
   tick(i: AutowindInput): WindSubMode | null {
     const cur = String(i.mode || "").toLowerCase();
     const curSub: WindSubMode | null = cur === "true wind" ? "true wind" : cur === "wind" ? "wind" : null;
@@ -69,8 +74,8 @@ export class AutowindDecider {
     }
     if (this.pendingSince != null && i.nowMs - this.pendingSince < AUTOWIND_SUSTAIN_MS) return null;
     if (this.lastSwitchMs != null && i.nowMs - this.lastSwitchMs < AUTOWIND_MIN_GAP_MS) return null;
+    if (this.lastFailMs != null && i.nowMs - this.lastFailMs < AUTOWIND_RETRY_MS) return null;
     this.pending = null; this.pendingSince = null;
-    this.lastSwitchMs = i.nowMs;
     return want;
   }
 
@@ -82,5 +87,7 @@ export class AutowindDecider {
     return a >= (thresholdDeg ?? AUTOWIND_DEFAULT_THRESHOLD_DEG) ? "true wind" : "wind";
   }
 
-  noteSwitch(nowMs: number): void { this.lastSwitchMs = nowMs; }
+  noteSwitch(nowMs: number): void { this.lastSwitchMs = nowMs; this.lastFailMs = null; }
+
+  noteFailure(nowMs: number): void { this.lastFailMs = nowMs; }
 }
