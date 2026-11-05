@@ -12190,18 +12190,41 @@
   // Rev311 no las cazaba.
   // Rev534: the backend forgets the flag after 60 s unless renewed, so a
   // closed browser cannot leave the alarms silenced. Renew every 20 s.
+  // Rev630 (sea trial 2026-11-05): the flag belongs to one manoeuvre (its
+  // id) and each renewal first checks that this manoeuvre is still in
+  // transit / active. Closing the Empopado summary by hand used to leave
+  // the renewal running for the rest of the session: AUTOWIND blocked and
+  // the three steering alarms silenced for ~48 min.
   let _maneuverPseudoTimer = null;
-  function _setManeuverPseudo(active) {
-    try { if (_maneuverPseudoTimer) { clearInterval(_maneuverPseudoTimer); _maneuverPseudoTimer = null; } } catch { /* silent */ }
-    if (active) _maneuverPseudoTimer = setInterval(() => _postManeuverPseudo(true), 20000);
-    _postManeuverPseudo(active);
+  let _maneuverPseudoId = null;
+  function _pseudoManeuverRunning(id) {
+    for (const m of [state.aproado, state.empopado]) {
+      if (m && m.id === id && (m.phase === "transit" || m.phase === "active")) return true;
+    }
+    return false;
   }
-  function _postManeuverPseudo(active) {
+  function _setManeuverPseudo(active, id) {
+    if (!active && id && _maneuverPseudoId && id !== _maneuverPseudoId) return;   // not ours
+    try { if (_maneuverPseudoTimer) { clearInterval(_maneuverPseudoTimer); _maneuverPseudoTimer = null; } } catch { /* silent */ }
+    if (active) {
+      _maneuverPseudoId = id;
+      _maneuverPseudoTimer = setInterval(() => {
+        if (_pseudoManeuverRunning(id)) _postManeuverPseudo(true, id);
+        else _setManeuverPseudo(false, id);
+      }, 20000);
+      _postManeuverPseudo(true, id);
+    } else {
+      const was = _maneuverPseudoId;
+      _maneuverPseudoId = null;
+      if (was) _postManeuverPseudo(false, was);
+    }
+  }
+  function _postManeuverPseudo(active, id) {
     try {
       skFetch(`/plugins/${PLUGIN_ID}/maneuver-state`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !!active }),
+        body: JSON.stringify({ active: !!active, id }),
       }).catch(() => { /* silent - alarm gate is best-effort */ });
     } catch { /* silent */ }
   }
@@ -12446,6 +12469,7 @@
       ts: Date.now(),
     };
     state.aproado = {
+      id: `apr-${Date.now()}`,
       phase: "choosing",
       direction: null,
       snapshot,
@@ -12514,7 +12538,7 @@
     // Rev323 (Carlos, 2026-09-27): flag pseudo-modo activo para
     // silenciar heading-deviation / cruise-drift / unable-to-steer
     // durante la maniobra.
-    _setManeuverPseudo(true);
+    _setManeuverPseudo(true, apr.id);
     // Rev90: transit is a NEW phase between countdown and active. The
     // boat starts rotating toward head-to-wind; only when |AWA| falls
     // below APROADO_ACHIEVED_DEG do we consider it "aproada" and start
@@ -12716,7 +12740,7 @@
     _mtLog("aproado_teardown", { phase: apr.phase, direction: apr.direction });
     // Rev323: cerrar el gate pseudo-modo antes de nada; el backend
     // vuelve a evaluar heading-deviation con el umbral normal.
-    _setManeuverPseudo(false);
+    _setManeuverPseudo(false, apr.id);
     if (apr._cdTimer) { clearInterval(apr._cdTimer); apr._cdTimer = null; }
     if (apr._hudTimer) { clearInterval(apr._hudTimer); apr._hudTimer = null; }
     if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
@@ -12899,6 +12923,7 @@
       ts: Date.now(),
     };
     state.empopado = {
+      id: `emp-${Date.now()}`,
       phase: "choosing",
       direction: null,
       snapshot,
@@ -12938,7 +12963,7 @@
     if (!ap) return;
     // Rev323 (Carlos, 2026-09-27): silenciar heading-deviation /
     // cruise-drift / unable-to-steer durante la maniobra.
-    _setManeuverPseudo(true);
+    _setManeuverPseudo(true, ap.id);
     ap.phase = "transit";
     ap.executeTs = Date.now();
     ap.startTs = null;
@@ -13138,6 +13163,10 @@
     }
     if (ap.startTs == null) ap.startTs = ap.endTs;
     ap.phase = silent ? "summary" : "summary";
+    // Rev630 (sea trial 2026-11-05): the manoeuvre is over - stop the
+    // "manoeuvre active" flag now, as aproadoFinish does. It used to wait
+    // for the summary timer, which closing the summary by hand cancelled.
+    _setManeuverPseudo(false, ap.id);
     const hud = _empopadoHud();
     if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
     _empopadoSetPhase("summary");
@@ -13189,17 +13218,14 @@
       }
     }
     // Auto-hide del summary igual que aproado (usa APROADO_SUMMARY_MS).
-    ap._summaryTimer = setTimeout(() => { empopadoTearDown(); }, APROADO_SUMMARY_MS);
+    // Rev630: close only - gains and profile were restored above; a second
+    // restore 15 s later overwrote what the sailor had chosen meanwhile.
+    ap._summaryTimer = setTimeout(() => { if (state.empopado === ap) empopadoClose(); }, APROADO_SUMMARY_MS);
   }
   function empopadoTearDown(opts) {
     const ap = state.empopado;
     if (!ap) return;
     _mtLog("empopado_teardown", { phase: ap.phase, direction: ap.direction, restoreAll: !!(opts && opts.restoreAll) });
-    // Rev323: cerrar el gate pseudo-modo — el heading-deviation
-    // vuelve al umbral normal.
-    _setManeuverPseudo(false);
-    if (ap._hudTimer)     { clearInterval(ap._hudTimer);   ap._hudTimer = null; }
-    if (ap._summaryTimer) { clearTimeout(ap._summaryTimer); ap._summaryTimer = null; }
     // Rev316: restore adicional si tearDown fue directo (sin pasar por
     // finish, ej. mode-select change durante active).
     const restoreAll = opts && opts.restoreAll === true;
@@ -13208,17 +13234,37 @@
     // empopadoFinish; ver comentario allí para el racional).
     // Rev539 (GPT review 5 #9): wait for the gain restore before switching
     // profile, or the last gains land on the original profile.
+    // Rev630 (GPT audit 2026-11-05 F04): this runs after the sailor's next
+    // choice may have landed (AUTOWIND writes its own profile). Restore
+    // only while the profile is still the one the manoeuvre left.
     const swapped = ap._profileSwapped;
-    _empopadoRestoreHotGains(ap).catch(() => {}).then(() => {
-      if (swapped && snap.profile && snap.profile !== swapped) {
-        try { pluginRaw("profile", snap.profile).catch(() => {}); } catch { /* silent */ }
-      }
-    });
+    const left = swapped || snap.profile;
+    if (state.profile === left) {
+      _empopadoRestoreHotGains(ap).catch(() => {}).then(() => {
+        if (swapped && snap.profile && snap.profile !== swapped && state.profile === swapped) {
+          try { pluginRaw("profile", snap.profile).catch(() => {}); } catch { /* silent */ }
+        }
+      });
+    } else {
+      console.info(`empopado: profile is now "${state.profile}", not "${left}": gains/profile not restored`);
+    }
     if (restoreAll) {
       if (snap.mode) { try { apSetMode(snap.mode).catch(() => {}); } catch {} }
       if (typeof snap.targetRad === "number") { try { apSetTargetRad(snap.targetRad).catch(() => {}); } catch {} }
       if (snap.engaged === false && state.engaged) { try { apDisengage().catch(() => {}); } catch {} }
     }
+    empopadoClose();
+  }
+  // Rev630 (sea trial 2026-11-05): ends the manoeuvre without touching
+  // gains, profile or mode - the "manoeuvre active" flag, timers, HUD and
+  // state. Every way out goes through here: the end of the summary, the
+  // summary closed by hand, another mode chosen, the teardown above.
+  function empopadoClose() {
+    const ap = state.empopado;
+    if (!ap) return;
+    _setManeuverPseudo(false, ap.id);
+    if (ap._hudTimer)     { clearInterval(ap._hudTimer);   ap._hudTimer = null; }
+    if (ap._summaryTimer) { clearTimeout(ap._summaryTimer); ap._summaryTimer = null; }
     hideEmpopadoHud();
     state.empopado = null;
   }
@@ -13245,7 +13291,7 @@
     apr.phase = "summary";
     // Rev539 (GPT review 5 #1): the manoeuvre is over - stop renewing the
     // "manoeuvre active" flag that silences the heading alarms.
-    _setManeuverPseudo(false);
+    _setManeuverPseudo(false, apr.id);
     const hud = _aproadoHud();
     if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
     _setPhase("summary");
@@ -13852,6 +13898,20 @@
     $("#mode-select").addEventListener("change", (e) => {
       _msCollapse();
       const chosen = e.target.value;
+      // Picking another mode while a pseudo-mode is active ends the
+      // maneuver WITHOUT restoring the pre-* mode (usuario ya
+      // eligió qué quiere ahora). SÍ restaura el profile (Empopado).
+      // Use the SALIR button on the HUD to return to the previous mode.
+      // Rev630 (sea trial 2026-11-05): done first, so AUTOWIND and NAV
+      // (which return early below) end it too, and a manoeuvre still
+      // showing its summary is closed as well.
+      if (chosen !== "aproado" && chosen !== "empopado") {
+        const emp = state.empopado;
+        if (emp && (emp.phase === "transit" || emp.phase === "active")) empopadoTearDown({ restoreAll: false });
+        else if (emp && emp.phase === "summary") empopadoClose();
+        const apr = state.aproado;
+        if (apr && (apr.phase === "transit" || apr.phase === "active" || apr.phase === "summary")) aproadoTearDown();
+      }
       // Rev518: pseudo-mode AUTOWIND lives in the backend.
       if (chosen === "autowind") {
         _autowindPost({ enabled: true });
@@ -13883,18 +13943,6 @@
       if (chosen === "empopado") {
         empopadoStart();
         return;
-      }
-      // Picking another mode while a pseudo-mode is active ends the
-      // maneuver WITHOUT restoring the pre-* mode (usuario ya
-      // eligió qué quiere ahora). SÍ restaura el profile.
-      if (state.empopado && (state.empopado.phase === "transit" || state.empopado.phase === "active")) {
-        empopadoTearDown({ restoreAll: false });
-      }
-      // Picking another mode while aproado is active ends the maneuver
-      // WITHOUT restoring the pre-aproado mode - honor the user's new
-      // choice. (Use the SALIR button on the HUD to return to previous.)
-      if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
-        aproadoTearDown();
       }
       // Rev170/171 (Carlos): fix target reference when switching
       // between compass-family and wind-family modes without the
@@ -13992,9 +14040,8 @@
         const apr = state.aproado;
         if (!apr) return;
         if (apr.phase === "summary") {
-          if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
-          hideAproadoHud();
-          state.aproado = null;
+          // Rev630: same close as every other way out (flag, timers, HUD).
+          aproadoTearDown();
         } else if (apr.phase === "active" || apr.phase === "transit") {
           aproadoFinish();
         }
@@ -14019,9 +14066,9 @@
         const emp = state.empopado;
         if (!emp) return;
         if (emp.phase === "summary") {
-          if (emp._summaryTimer) { clearTimeout(emp._summaryTimer); emp._summaryTimer = null; }
-          hideEmpopadoHud();
-          state.empopado = null;
+          // Rev630 (sea trial 2026-11-05): this branch cleared the state but
+          // left the "manoeuvre active" renewal running.
+          empopadoClose();
         } else if (emp.phase === "active" || emp.phase === "transit") {
           empopadoFinish();
         }

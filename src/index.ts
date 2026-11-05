@@ -73,6 +73,7 @@ import {
 import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder";
 import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG } from "./autowind";
+import { ManeuverGate } from "./maneuver-gate";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
   ManeuverTraceLog,
@@ -82,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev629";
+const PLUGIN_REVISION = "Rev630";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -598,15 +599,14 @@ module.exports = function (app: any) {
   // to-steer durante la maniobra, INDEPENDIENTE de `ap.tack.state` â€”
   // en modo wind pypilot NO obedece y ap.tack.state se queda en "none"
   // aunque el visor estÃ© pilotando la maniobra por otras vÃ­as.
-  let _maneuverPseudoActive = false;
   // Rev534 (GPT review 2 #1): the visor renews it every 20 s; a closed or
   // disconnected browser must not silence the heading alarms (and block
   // AUTO WIND) for ever.
   // Self-audit Rev540: 180 s - with the screen off Chrome runs the 20 s
   // renewal only about once a minute, and 60 s let it lapse mid-manoeuvre.
-  const MANEUVER_PSEUDO_TTL_MS = 180_000;
-  let _maneuverPseudoUntil = 0;
-  const _pseudoActive = (): boolean => _maneuverPseudoActive && Date.now() < _maneuverPseudoUntil;
+  // Rev630: one entry per manoeuvre id, see src/maneuver-gate.ts.
+  const maneuverGate = new ManeuverGate();
+  const _pseudoActive = (): boolean => maneuverGate.active(Date.now());
   let lastNavState: string | null = null;
   let sessionSampleTimer: NodeJS.Timeout | null = null;
   let lastEngagedState = false;
@@ -3448,10 +3448,7 @@ module.exports = function (app: any) {
       });
       router.post("/maneuver-state", (req: any, res: any) => {
         const body = req.body || {};
-        if (typeof body.active === "boolean") {
-          _maneuverPseudoActive = body.active;
-          _maneuverPseudoUntil = body.active ? Date.now() + MANEUVER_PSEUDO_TTL_MS : 0;
-        }
+        maneuverGate.update(body.active, body.id, Date.now());
         res.json({ ok: true, pseudoActive: _pseudoActive() });
       });
       const validKinds: ManeuverEventKind[] = [
