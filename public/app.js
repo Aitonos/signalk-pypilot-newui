@@ -531,6 +531,7 @@
       "autowind.blocked.manoeuvre": "manoeuvre",
       "autowind.blocked.no-wind-data": "no wind data",
       "autowind.blocked.wind-too-light": "wind too light",
+      "autowind.refused": "AUTOWIND not started",
       "mode.label.nav":       "NAV (ROUTE)",
       "mode.label.aproado":   "HEAD TO WIND",
       "mode.label.empopado":    "DEAD DOWNWIND",
@@ -1676,6 +1677,7 @@
       "autowind.blocked.manoeuvre": "maniobra",
       "autowind.blocked.no-wind-data": "sin datos de viento",
       "autowind.blocked.wind-too-light": "viento flojo",
+      "autowind.refused": "AUTOWIND no arrancado",
       "mode.label.nav":       "NAV (RUTA)",
       "mode.label.aproado":   "APROADO",
       "mode.label.empopado":    "EMPOPADO",
@@ -2904,6 +2906,7 @@
       "autowind.blocked.manoeuvre": "Manöver",
       "autowind.blocked.no-wind-data": "keine Winddaten",
       "autowind.blocked.wind-too-light": "Wind zu schwach",
+      "autowind.refused": "AUTOWIND nicht gestartet",
       "mode.label.empopado": "PLATT VOR DEM WIND",
       "net.warn": "Netz unterbrochen",
       "net.ok": "Netz OK",
@@ -4024,6 +4027,7 @@
       "autowind.blocked.manoeuvre": "manœuvre",
       "autowind.blocked.no-wind-data": "pas de données de vent",
       "autowind.blocked.wind-too-light": "vent trop faible",
+      "autowind.refused": "AUTOWIND non démarré",
       "mode.label.empopado": "PLEIN VENT ARRIÈRE",
       "net.warn": "Réseau intermittent",
       "net.ok": "Réseau OK",
@@ -11485,6 +11489,13 @@
         state.autowind = await r.json();
         _renderModeSelectBtn();
         _rebuildModePopupProfiles();
+      } else if (r.status === 409) {
+        // Rev633: a tack or a manoeuvre is running - AUTOWIND did not start.
+        const j = await r.json().catch(() => ({}));
+        state.autowind = j && typeof j === "object" ? j : state.autowind;
+        setSelect("#mode-select", state.mode || "");
+        const whyKey = `autowind.blocked.${j && j.refused}`;
+        _pmAlert(t("autowind.refused"), t(whyKey));
       }
     } catch (e) { console.warn("[autowind] post", e); }
   }
@@ -12238,7 +12249,9 @@
     return false;
   }
   function _setManeuverPseudo(active, id) {
-    if (!active && id && _maneuverPseudoId && id !== _maneuverPseudoId) return;   // not ours
+    // Not the manoeuvre the heartbeat renews: end its own backend entry
+    // only (Rev633, Gemini re-audit 2026-11-06).
+    if (!active && id && _maneuverPseudoId && id !== _maneuverPseudoId) { _postManeuverPseudo(false, id); return; }
     try { if (_maneuverPseudoTimer) { clearInterval(_maneuverPseudoTimer); _maneuverPseudoTimer = null; } } catch { /* silent */ }
     if (active) {
       _maneuverPseudoId = id;
@@ -12881,10 +12894,21 @@
       );
     }
   }
+  // Rev633 (GPT re-audit 2026-11-06 R05): the manoeuvre is still running
+  // and on the profile the gains were raised in.
+  function _empopadoHotGainsOwned(ap) {
+    return state.empopado === ap && (ap.phase === "transit" || ap.phase === "active")
+      && state.profile === ap._hotGainProfile;
+  }
   async function _empopadoApplyHotGains(ap) {
     if (!ap || ap._hotGainSnapshot) return;
     const pilot = state.pilot;
     if (!pilot) return;
+    // Rev633: the original of each gain is recorded BEFORE it is raised,
+    // so a manoeuvre ended half way restores what was already sent; and no
+    // further gain is raised once it ended or the profile changed.
+    ap._hotGainProfile = state.profile;
+    ap._hotGainSnapshot = {};
     const cat = state.catalog || {};
     const vals = state.pypilotValues || {};
     const targets = [
@@ -12901,6 +12925,8 @@
       const max = typeof entry?.max === "number" ? entry.max : Infinity;
       const next = Math.min(cur * t.mult, max);
       if (Math.abs(next - cur) < 1e-6) continue;
+      if (!_empopadoHotGainsOwned(ap)) { console.info("empopado: ended or profile changed - no more hot gains"); break; }
+      ap._hotGainSnapshot[t.path] = cur;
       try {
         const resp = await pluginRaw(t.path, next);
         if (resp && resp.ok === false) {
@@ -12915,7 +12941,6 @@
         console.warn(`empopado: hot gain ${t.path} apply failed`, e);
       }
     }
-    ap._hotGainSnapshot = applied;
     const appliedCount = Object.keys(applied).length;
     if (appliedCount === 0) {
       console.warn(`[empopado] hot gains NO aplicadas — pilot='${pilot}' valsKeys=${Object.keys(vals).length} anyFailed=${anyFailed}`);
@@ -12931,6 +12956,12 @@
       return;
     }
     for (const [path, val] of Object.entries(snap)) {
+      // Rev633 (GPT re-audit 2026-11-06 R04): checked before EVERY write -
+      // an old gain is never written into a profile chosen meanwhile.
+      if (ap._hotGainProfile !== undefined && state.profile !== ap._hotGainProfile) {
+        console.warn(`empopado: profile is now "${state.profile}", not "${ap._hotGainProfile}": ${path} and the rest left as they are`);
+        break;
+      }
       try {
         await pluginRaw(path, val);
         console.info(`empopado: hot gain ${path} restored → ${val.toFixed(3)}`);
@@ -13020,6 +13051,12 @@
         ap._profileSwapped = reactive;
         console.info(`empopado: profile swapped ${ap.snapshot.profile} → ${reactive} (reactive)`);
       } catch (e) { console.warn("empopado: profile swap failed", e); }
+      // Rev633 (GPT re-audit 2026-11-06 R03): ended while swapping: put the
+      // profile back and send nothing else.
+      if (state.empopado !== ap || ap.phase !== "transit") {
+        if (ap._profileSwapped && ap.snapshot.profile) { try { pluginRaw("profile", ap.snapshot.profile).catch(() => {}); } catch { /* silent */ } }
+        return;
+      }
     }
     try {
       // Rev367 (Carlos, 2026-09-30, sea-trial feedback): empopado
@@ -13215,10 +13252,14 @@
     // gains del perfil original y nuestro restore (con valores ya
     // sobrescritos por el profile) los pisaría con valores viejos.
     await _empopadoRestoreHotGains(ap);
+    // Rev633 (GPT re-audit 2026-11-06 R03): closed (or another mode chosen)
+    // while restoring: the sailor's choice stands, nothing more is sent.
+    if (state.empopado !== ap) return;
     // Perfil siempre restaura si lo swapeamos.
-    if (ap._profileSwapped && snap.profile && snap.profile !== ap._profileSwapped) {
+    if (ap._profileSwapped && snap.profile && snap.profile !== ap._profileSwapped && state.profile === ap._profileSwapped) {
       try { await pluginRaw("profile", snap.profile); console.info(`empopado: profile restored → ${snap.profile}`); }
       catch (e) { console.warn("empopado: profile restore failed", e); }
+      if (state.empopado !== ap) return;
     }
     if (restoreAll) {
       if (snap.mode) {
@@ -13243,6 +13284,7 @@
       if (curHdg != null) {
         try {
           await apSetModeAndWait("compass");
+          if (state.empopado !== ap) return;   // Rev633 R03
           await apSetTargetRad(curHdg);
           console.info(`empopado: safe-exit to compass @ ${(curHdg * RAD2DEG).toFixed(1)} deg (Rev440)`);
         } catch (e) {
@@ -13371,6 +13413,7 @@
       if (curHdg != null) {
         try {
           await apSetModeAndWait("compass");
+          if (state.aproado !== apr) return;   // Rev633 R03: closed meanwhile
           await apSetTargetRad(curHdg);
           console.info(`aproado: safe-exit to compass @ ${(curHdg * RAD2DEG).toFixed(1)} deg (Rev440)`);
         } catch (e) {
@@ -13941,16 +13984,32 @@
       // Rev630 (sea trial 2026-11-05): done first, so AUTOWIND and NAV
       // (which return early below) end it too, and a manoeuvre still
       // showing its summary is closed as well.
-      if (chosen !== "aproado" && chosen !== "empopado") {
+      // Rev633 (GPT R10 / Gemini 2.2, re-audit 2026-11-06): Aproado ends an
+      // Empopado and vice versa - only one manoeuvre at a time.
+      let endedManoeuvre = false;
+      if (chosen !== "empopado") {
         const emp = state.empopado;
-        if (emp && (emp.phase === "transit" || emp.phase === "active")) empopadoTearDown({ restoreAll: false });
-        else if (emp && emp.phase === "summary") empopadoClose();
-        const apr = state.aproado;
-        if (apr && (apr.phase === "transit" || apr.phase === "active" || apr.phase === "summary")) aproadoTearDown();
+        if (emp && (emp.phase === "transit" || emp.phase === "active")) { empopadoTearDown({ restoreAll: false }); endedManoeuvre = true; }
+        else if (emp) empopadoClose();
       }
+      if (chosen !== "aproado") {
+        const apr = state.aproado;
+        if (apr && (apr.phase === "transit" || apr.phase === "active")) { aproadoTearDown(); endedManoeuvre = true; }
+        else if (apr) aproadoTearDown();
+      }
+      // Rev633 (Gemini 2.1): the manoeuvre left pypilot on its extreme
+      // target (AWA 0 / TWA 180). Going on in a wind mode (AUTOWIND
+      // included) holds the wind angle the boat has NOW instead.
+      const endedOnWindTarget = endedManoeuvre && (state.mode === "wind" || state.mode === "true wind");
       // Rev518: pseudo-mode AUTOWIND lives in the backend.
       if (chosen === "autowind") {
-        _autowindPost({ enabled: true });
+        (async () => {
+          if (endedOnWindTarget) {
+            const now = state.mode === "true wind" ? state.windAngleTrue : state.windAngle;
+            if (typeof now === "number") { try { await apSetTargetRad(now); } catch (e) { console.warn("[mode-select] hold wind angle", e); } }
+          }
+          _autowindPost({ enabled: true });
+        })();
         return;
       }
       if (state.autowind && state.autowind.enabled) {
@@ -14009,7 +14068,10 @@
       // painted as a 49 deg compass heading). Reajustar SIEMPRE.
       const familyChanged = wasWindFam !== !isNewCompassFam;
       let newTargetRad = null;
-      if (familyChanged) {
+      // Rev633 (Gemini 2.1): after a manoeuvre, a wind mode also starts on
+      // the angle the boat has now, not on the manoeuvre's AWA 0 / TWA 180.
+      const reanchor = familyChanged || (endedOnWindTarget && !isNewCompassFam);
+      if (reanchor) {
         if (isNewTrueWind && state.windAngleTrue != null) newTargetRad = state.windAngleTrue;
         else if (isNewWind && state.windAngle != null)    newTargetRad = state.windAngle;
         else if (isNewCompassFam && state.heading != null) newTargetRad = state.heading;
@@ -14021,7 +14083,7 @@
       // for a short window (see applyValue mode handler).
       _modeChangePendingUntil = Date.now() + 1500;
       _modeChangeChosen = chosen;
-      if (familyChanged) {
+      if (reanchor) {
         // Snap the visor first so the diamond never renders the
         // stale value under the new mode. Then fire mode + target
         // together to pypilot.

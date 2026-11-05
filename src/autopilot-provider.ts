@@ -603,7 +603,18 @@ export class AutopilotProvider {
     try { (this._engagedReconcileTimer as any).unref?.(); } catch { /* silent */ }
   }
 
-  private async setMode(mode: string): Promise<void> {
+  /** Rev633 (GPT re-audit 2026-11-06 R01): a mode switch that only stands
+   *  while `stillWanted()` says so - checked before the write and before
+   *  every retry. AUTOWIND uses it, so turning AUTOWIND off stops a retry
+   *  that has not gone out yet. */
+  async setModeIfWanted(mode: string, stillWanted: () => boolean): Promise<void> {
+    return this.setMode(mode, false, stillWanted);
+  }
+
+  // Rev633 (GPT re-audit 2026-11-06 R07): `internal` marks the virtual
+  // tack's own writes, per call. It used to be a shared flag held across
+  // an await, and an outside call arriving during a retry inherited it.
+  private async setMode(mode: string, internal = false, stillWanted?: () => boolean): Promise<void> {
     // Rev547 (2026-10-25 22:14-22:16): pypilot accepts ap.mode="nav" even
     // without a route (no APB); the route follower then found NAV with no
     // route, went to compass and said "route lost" - twice. NAV only when
@@ -616,7 +627,7 @@ export class AutopilotProvider {
     // the maneuver, they tap TACK a second time or call /virtual-tack/
     // cancel, which flows through cancelVirtualTack and rolls back
     // cleanly.
-    if (this._virtualTack && !this._vtInternalWrite) {
+    if (this._virtualTack && !internal) {
       const active = this._virtualTack.phase !== "idle"
         && this._virtualTack.phase !== "completed"
         && this._virtualTack.phase !== "cancelled"
@@ -657,7 +668,10 @@ export class AutopilotProvider {
     const gen = ++this.modeGen;
     // Rev254 (Carlos audit): fail explicit when pypilot offline.
     // Rev255: retry with backoff.
-    if (!(await this._setWithRetry("ap.mode", mode, () => this.modeGen !== gen))) {
+    const unwanted = () => !!stillWanted && !stillWanted();
+    if (unwanted()) throw new Error("mode change no longer wanted");
+    if (!(await this._setWithRetry("ap.mode", mode, () => this.modeGen !== gen || unwanted()))) {
+      if (unwanted()) throw new Error("mode change no longer wanted");
       if (this.modeGen !== gen) {
         throw new Error("mode change superseded by newer order");
       }
@@ -672,7 +686,7 @@ export class AutopilotProvider {
     // wind-family crossings trigger the re-anchor).
     if (this.data.engaged) {
       try {
-        if (this._reAnchorTargetAfterModeChange(oldMode, newMode)) {
+        if (this._reAnchorTargetAfterModeChange(oldMode, newMode, internal)) {
           void this._verifyReAnchor(mode, oldMode, newMode);
         }
       } catch (e: any) {
@@ -718,7 +732,7 @@ export class AutopilotProvider {
     } catch { /* best-effort */ }
   }
 
-  private _reAnchorTargetAfterModeChange(oldMode: string, newMode: string): boolean {
+  private _reAnchorTargetAfterModeChange(oldMode: string, newMode: string, internal = false): boolean {
     // Rev407 (Carlos sea trial 2026-10-03, audit O): respect the virtual
     // tack's internal-write flag. If the FSM is driving the pilot, the
     // re-anchor would write ap.heading_command = currentHeading right
@@ -727,7 +741,7 @@ export class AutopilotProvider {
     // "doesn't move the first 1-2 s of the VT" because pypilot IS obeying
     // — just not us. Skip re-anchor during VT; the FSM manages the target
     // explicitly after every setMode.
-    if (this._vtInternalWrite) {
+    if (internal) {
       // eslint-disable-next-line no-console
       console.log(`[apProvider.setMode] skip re-anchor: FSM driving`);
       return false;
@@ -750,21 +764,18 @@ export class AutopilotProvider {
     return true;
   }
 
-  /** Rev390: internal flag set by _runVirtualTack around its own
-   *  setMode/setTarget calls, so the external-write guard below can
-   *  distinguish our FSM's writes from frontend writes (nudges,
-   *  adjust target, legacy countdown) that would compete with the
-   *  maneuver. */
-  private _vtInternalWrite = false;
-
-  private async setTarget(rad: number): Promise<void> {
+  /** Rev390: `internal` = a write of _runVirtualTack itself, so the
+   *  external-write guard below can tell our FSM's writes from frontend
+   *  writes (nudges, adjust target, legacy countdown) that would compete
+   *  with the maneuver. Rev633: per call, see setMode. */
+  private async setTarget(rad: number, internal = false): Promise<void> {
     // Rev390 (Carlos, 2026-10-01, QA Rev389): reject external target
     // writes while a virtual tack is driving the pilot. Rev389 QA
     // caught a mid-maneuver `setTarget rad=0.9250 deg=53.00` that
     // competed with the FSM's own intermediate (`rad=0.4498 deg=25.77`)
     // and ultimately corrupted the maneuver. We now swallow any
     // target write that didn't originate from _runVirtualTack itself.
-    if (this._virtualTack && !this._vtInternalWrite) {
+    if (this._virtualTack && !internal) {
       const active = this._virtualTack.phase !== "idle"
         && this._virtualTack.phase !== "completed"
         && this._virtualTack.phase !== "cancelled"
@@ -790,7 +801,7 @@ export class AutopilotProvider {
     // Self-audit Rev540: the virtual tack's own writes are already in the
     // right space (compass steps 0..2pi, final wind angle -pi..pi) and
     // data.mode can still be the old mode if pypilot's echo was late.
-    if (!this._vtInternalWrite) rad = this._normTargetRad(rad);
+    if (!internal) rad = this._normTargetRad(rad);
     const deg = rad * RAD_TO_DEG;
     // Rev199 (Carlos): trace the values so we can tell whether SK
     // Autopilot API normalises rad to [-pi, pi] BEFORE it reaches us
@@ -854,7 +865,7 @@ export class AutopilotProvider {
       // Rev532 (GPT audit #2): +-1 / +-10 from KIP, the SK autopilot API or
       // a PUT action during a virtual tack move its destination (same as
       // the visor), instead of writing a target that fights the FSM.
-      if (this.isVirtualTackActive() && !this._vtInternalWrite) {
+      if (this.isVirtualTackActive()) {
         if (this.adjustVirtualTack(rad)) return;
         throw new Error("target adjust refused: virtual tack is driving the pilot");
       }
@@ -1244,8 +1255,7 @@ export class AutopilotProvider {
           `delta=${(geometry.deltaHRad * RAD_TO_DEG).toFixed(1)}deg ` +
           `steps=${geometry.intermediatesRad.length}`,
       );
-      this._vtInternalWrite = true;
-      try { await this.setMode("compass"); } finally { this._vtInternalWrite = false; }
+      await this.setMode("compass", true);
       checkCancelled();
       const compassReady = await waitForPypilotEcho("ap.mode", "compass", 1500);
       if (!compassReady) {
@@ -1294,8 +1304,7 @@ export class AutopilotProvider {
         this._virtualTack!.stepIndex = stepCounter;
         this._virtualTack!.phase1StepStartedAtMs = Date.now();
         const stepTargetRad = remainingIntermediates[0];
-        this._vtInternalWrite = true;
-        try { await this.setTarget(stepTargetRad); } finally { this._vtInternalWrite = false; }
+        await this.setTarget(stepTargetRad, true);
         checkCancelled();
 
         // Poll heading until we reach the intermediate within tolerance,
@@ -1384,8 +1393,7 @@ export class AutopilotProvider {
       // ─── Phase handover → settling: back to wind mode, final target ───
       checkCancelled();
       setPhase("handover");
-      this._vtInternalWrite = true;
-      try { await this.setMode(windMode); } finally { this._vtInternalWrite = false; }
+      await this.setMode(windMode, true);
       checkCancelled();
       const windReady = await waitForPypilotEcho("ap.mode", windMode, 1500);
       if (!windReady) {
@@ -1400,8 +1408,7 @@ export class AutopilotProvider {
       await sleep(400);
       checkCancelled();
       for (let attempt = 0; attempt < 2; attempt++) {
-        this._vtInternalWrite = true;
-        try { await this.setTarget(finalWind()); } finally { this._vtInternalWrite = false; }
+        await this.setTarget(finalWind(), true);
         checkCancelled();
         await sleep(1200);
         checkCancelled();
@@ -1456,8 +1463,7 @@ export class AutopilotProvider {
         // Rev506: a nudge during settling re-aims the wind target.
         if (curAdjustVersion() !== seenAdjustVersion) {
           seenAdjustVersion = curAdjustVersion();
-          this._vtInternalWrite = true;
-          try { await this.setTarget(finalWind()); } finally { this._vtInternalWrite = false; }
+          await this.setTarget(finalWind(), true);
           checkCancelled();
           dwellStart = null;
         }
@@ -1533,8 +1539,7 @@ export class AutopilotProvider {
       try {
         // Make sure we are in the wind mode we started with. If we
         // were caught mid-step still in compass, bring the AP back.
-        this._vtInternalWrite = true;
-        try { await this.setMode(windMode); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+        try { await this.setMode(windMode, true); } catch { /* best-effort */ }
       } catch { /* swallow */ }
       try {
         const skPath = windMode === "wind"
@@ -1556,8 +1561,7 @@ export class AutopilotProvider {
           await this._waitValue("ap.mode", windMode, 1500);
           await sleep(400);
           for (let attempt = 0; attempt < 2; attempt++) {
-            this._vtInternalWrite = true;
-            try { await this.setTarget(awaRad); } catch { /* best-effort */ } finally { this._vtInternalWrite = false; }
+            try { await this.setTarget(awaRad, true); } catch { /* best-effort */ }
             await sleep(1200);
             const cmdDeg = Number(((this.client as any).getValues?.() || {})["ap.heading_command"]);
             if (!Number.isFinite(cmdDeg)) break;

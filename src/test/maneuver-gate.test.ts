@@ -49,3 +49,22 @@ describe("ManeuverGate", () => {
     assert.equal(g.active(0), false);
   });
 });
+
+describe("ManeuverGate - late messages (Rev633)", () => {
+  it("a renewal that arrives after the end does not open the manoeuvre again", () => {
+    const g = new ManeuverGate(180_000);
+    g.update(true, "emp-1", 0);
+    g.update(false, "emp-1", 1000);
+    g.update(true, "emp-1", 2000);       // renewal sent before the end, late
+    assert.equal(g.active(2000), false);
+    assert.equal(g.active(181_999), false);
+  });
+
+  it("a new manoeuvre (new id) still opens it", () => {
+    const g = new ManeuverGate(180_000);
+    g.update(true, "emp-1", 0);
+    g.update(false, "emp-1", 1000);
+    g.update(true, "emp-2", 2000);
+    assert.equal(g.active(2000), true);
+  });
+});

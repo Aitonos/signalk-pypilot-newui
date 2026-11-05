@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev632";
+const PLUGIN_REVISION = "Rev633";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -440,6 +440,12 @@ module.exports = function (app: any) {
   let _autowindInFlight = 0;                        // mode switches waiting on pypilot
   let _autowindBlockedReason: string | null = null;
   let _autowindLastError: string | null = null;
+  // Rev633 (GPT re-audit 2026-11-06): mode switch confirmed by pypilot's
+  // echo within this time; a profile it did not take is retried.
+  const AUTOWIND_CONFIRM_MS = 3000;
+  const AUTOWIND_PROFILE_RETRY_MS = 10_000;
+  const AUTOWIND_PROFILE_TRIES = 5;
+  let _autowindProfilePending: { sub: WindSubMode; op: number; was: string; tries: number; nextMs: number } | null = null;
   // Rev176 (Carlos): debounce the raw `engaged` flag so a rebound
   // caused by a competing client (pypilot_web on another device, a KIP
   // widget cycling, socket races) does not open+close a JSONL every 5 s.
@@ -2876,11 +2882,26 @@ module.exports = function (app: any) {
         if (changed) { try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ } }
         if (typeof b.enabled === "boolean") {
           const was = !!props.autowindEnabled;
+          // Rev633 (GPT re-audit 2026-11-06 R06): switching on goes through
+          // the same tack / manoeuvre guard as the 1 Hz tick. Refused, it
+          // stays off and says why.
+          if (b.enabled && !was) {
+            const busy = _autowindBusyReason();
+            if (busy) {
+              _autowindPublish();
+              return res.status(409).json({ ..._autowindState(), refused: busy });
+            }
+          }
           _autowindSetEnabled(b.enabled, b.enabled ? "selected" : "another mode selected");
           if (b.enabled && !was) {
-            // Pick the side now, no waiting.
-            const sub = autowind.initial(_autowindTwaDeg(), props.autowindThresholdDeg);
-            await _autowindApply(sub, "AUTOWIND on");
+            // Pick the side now, no waiting. Without fresh true wind data
+            // (or below the wind floor) the start is apparent wind, on
+            // purpose: pypilot steers it from the vane alone.
+            const twa = _autowindTwaDeg();
+            const tws = _autowindTwsKn();
+            const usable = twa != null && tws != null && tws >= AUTOWIND_MIN_TWS_KN;
+            const sub = usable ? autowind.initial(twa, props.autowindThresholdDeg) : "wind";
+            await _autowindApply(sub, usable ? "AUTOWIND on" : "AUTOWIND on (no usable true wind: apparent)", true);
           }
         }
         // New profile for the side that is active right now: apply it.
@@ -5013,17 +5034,21 @@ module.exports = function (app: any) {
   function _autowindProfileFor(sub: WindSubMode): string {
     return (sub === "true wind" ? props.autowindProfileTrue : props.autowindProfileApparent) || "";
   }
-  function _autowindApplyProfile(sub: WindSubMode, reason: string): void {
+  /** false = pypilot did not take the profile write. */
+  function _autowindApplyProfile(sub: WindSubMode, reason: string): boolean {
     const want = _autowindProfileFor(sub);
-    if (!want || !client || !client.connected) return;
-    if (client.getValues()["profile"] === want) return;
+    if (!want) return true;
+    if (client && client.getValues()["profile"] === want) return true;
     let sent = false;
     try {
-      profileChangeLog.markPlannedWrite(want, "autowind", reason);
-      sent = client.set("profile", want) !== false;
+      if (client && client.connected) {
+        profileChangeLog.markPlannedWrite(want, "autowind", reason);
+        sent = client.set("profile", want) !== false;
+      }
     } catch { /* silent */ }
     // Rev630 (GPT audit 2026-11-05 F03): a refused write is a failure.
     if (!sent) _autowindFail(`profile ${want} not sent to pypilot`);
+    return sent;
   }
   function _autowindFail(msg: string): void {
     _autowindLastError = msg;
@@ -5035,24 +5060,45 @@ module.exports = function (app: any) {
   // (its outcome feeds the decider's gap / retry). An operation number:
   // turning AUTOWIND off, or a newer apply, makes an apply still waiting on
   // pypilot stop there - no profile, no "switched" afterwards.
+  // Rev633: why AUTOWIND must not switch now (tack or visor manoeuvre), or null.
+  function _autowindBusyReason(): string | null {
+    if (!apProvider) return null;
+    if (apProvider.isVirtualTackActive()) return "virtual-tack";
+    if (_tackStatePrev && _tackStatePrev !== "none") return "pypilot-tack";
+    if (_pseudoActive()) return "manoeuvre";
+    return null;
+  }
   async function _autowindApply(sub: WindSubMode, reason: string, fromTick = false): Promise<void> {
     if (!apProvider) return;
     const op = ++_autowindOp;
+    _autowindProfilePending = null;
     _autowindLastReason = reason;
+    const current = () => op === _autowindOp && !!props.autowindEnabled;
     const cur = String(apProvider.data.mode || "").toLowerCase();
     if (cur !== sub) {
       // wind <-> true wind share the angle space: pypilot keeps the
       // heading itself on the mode change, nothing else is written.
+      // Rev633 (GPT re-audit 2026-11-06 R01/R02): no retry goes out once
+      // AUTOWIND is off or overridden, and success = pypilot's own echo of
+      // the mode, not the write being accepted.
       _autowindInFlight++;
-      try { await (apProvider.toProviderInterface() as any).setMode(sub, apProvider.deviceId); }
-      catch (e: any) {
+      try {
+        await apProvider.setModeIfWanted(sub, current);
+        const t0 = Date.now();
+        while (String(apProvider.data.mode || "").toLowerCase() !== sub) {
+          if (!current()) break;
+          if (Date.now() - t0 > AUTOWIND_CONFIRM_MS) throw new Error(`not confirmed by pypilot in ${AUTOWIND_CONFIRM_MS / 1000} s`);
+          await new Promise<void>((r) => setTimeout(r, 100));
+        }
+      } catch (e: any) {
         _autowindInFlight--;
+        if (!current()) return;
         if (fromTick) autowind.noteFailure(Date.now());
         _autowindFail(`mode ${sub}: ${e?.message || e}`);
         return;
       }
       _autowindInFlight--;
-      if (op !== _autowindOp || !props.autowindEnabled) {
+      if (!current()) {
         // eslint-disable-next-line no-console
         console.log(`[autowind] ${sub} landed after AUTOWIND was turned off or overridden: profile left as is`);
         return;
@@ -5061,7 +5107,12 @@ module.exports = function (app: any) {
       autowind.noteSwitch(_autowindLastSwitchTs);
     }
     _autowindLastError = null;
-    _autowindApplyProfile(sub, reason);
+    if (!_autowindApplyProfile(sub, reason)) {
+      // Rev633 (GPT R09 / Gemini 3.1): the mode is right but pypilot did not
+      // take the profile - retry it from the tick, a few times.
+      const was = client ? String(client.getValues()["profile"] ?? "") : "";
+      _autowindProfilePending = { sub, op, was, tries: 1, nextMs: Date.now() + AUTOWIND_PROFILE_RETRY_MS };
+    }
     // eslint-disable-next-line no-console
     console.log(`[autowind] ${reason} -> ${sub}${_autowindProfileFor(sub) ? ` / profile ${_autowindProfileFor(sub)}` : ""}`);
     _autowindPublish();
@@ -5069,7 +5120,7 @@ module.exports = function (app: any) {
   function _autowindSetEnabled(on: boolean, why: string): void {
     if (!!props.autowindEnabled === on) return;
     props.autowindEnabled = on;
-    if (!on) { _autowindOp++; _autowindBlockedReason = null; }
+    if (!on) { _autowindOp++; _autowindBlockedReason = null; _autowindProfilePending = null; }
     try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ }
     // eslint-disable-next-line no-console
     console.log(`[autowind] ${on ? "on" : "off"} (${why})`);
@@ -5111,16 +5162,14 @@ module.exports = function (app: any) {
   function _autowindTick(): void {
     if (!props.autowindEnabled || !apProvider) return;
     const mode = String(apProvider.data.mode || "").toLowerCase();
-    const vtActive = apProvider.isVirtualTackActive();
-    const pypilotTack = !!(_tackStatePrev && _tackStatePrev !== "none");
-    const manoeuvre = _pseudoActive();
-    const blocked = vtActive || pypilotTack || manoeuvre;
+    const busy = _autowindBusyReason();
+    const vtActive = busy === "virtual-tack";
+    const pypilotTack = busy === "pypilot-tack";
+    const blocked = busy != null;
     const twaNow = _autowindTwaDeg();
     const twsNow = _autowindTwsKn();
     _autowindSetBlocked(
-      vtActive ? "virtual-tack"
-      : pypilotTack ? "pypilot-tack"
-      : manoeuvre ? "manoeuvre"
+      busy ? busy
       : twaNow == null || twsNow == null ? "no-wind-data"
       : twsNow < AUTOWIND_MIN_TWS_KN ? "wind-too-light"
       : null);
@@ -5142,6 +5191,17 @@ module.exports = function (app: any) {
     }
     _autowindOffFamilySince = null;
     if (_autowindInFlight > 0) return;   // a switch is still waiting on pypilot
+    // Rev633: a profile pypilot did not take, retried while the side holds.
+    const pend = _autowindProfilePending;
+    if (pend && Date.now() >= pend.nextMs) {
+      const nowProfile = client ? String(client.getValues()["profile"] ?? "") : "";
+      // The sailor picked another profile meanwhile: theirs wins.
+      const sailorChose = nowProfile !== pend.was && nowProfile !== _autowindProfileFor(pend.sub);
+      if (pend.op !== _autowindOp || mode !== pend.sub || blocked || sailorChose) _autowindProfilePending = null;
+      else if (_autowindApplyProfile(pend.sub, "profile retry")) { _autowindProfilePending = null; _autowindLastError = null; _autowindPublish(); }
+      else if (pend.tries >= AUTOWIND_PROFILE_TRIES) { _autowindProfilePending = null; _autowindFail(`profile ${_autowindProfileFor(pend.sub)} not taken after ${pend.tries} tries: set it by hand`); }
+      else { pend.tries++; pend.nextMs = Date.now() + AUTOWIND_PROFILE_RETRY_MS; }
+    }
     const want = autowind.tick({
       nowMs: Date.now(),
       twaDeg: twaNow,

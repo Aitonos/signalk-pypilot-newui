@@ -519,4 +519,56 @@ describe("long-way gybe needs confirmation (Rev511)", () => {
       await waitFor(() => !p.isVirtualTackActive(), 3000);
     } finally { sim.stop(); }
   });
+
+  it("Rev633: an outside mode change while the tack's own write is retrying is still refused", async () => {
+    // GPT re-audit 2026-11-06 R07: the tack's permission was a shared flag
+    // held across the retry wait; an outside call inherited it.
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315, turnDegPerTick: 1 });
+    const realSet = sim.client.set.bind(sim.client);
+    let compassTries = 0;
+    (sim.client as any).set = (name: string, value: unknown) => {
+      if (name === "ap.mode" && value === "compass" && compassTries++ === 0) return false;   // retry in 250 ms
+      return realSet(name, value);
+    };
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      const starting = p.startVirtualTack({ direction: "starboard" });
+      await sleep(60);
+      await assert.rejects(
+        (p.toProviderInterface() as any).setMode("wind", "_default"),
+        /refused: virtual tack is driving the pilot/,
+      );
+      await starting;
+      await p.cancelVirtualTack();
+      await waitFor(() => !p.isVirtualTackActive(), 3000);
+    } finally { sim.stop(); }
+  });
+});
+
+describe("setModeIfWanted (Rev633)", () => {
+  it("no retry goes out once the caller no longer wants the mode", async () => {
+    // GPT re-audit 2026-11-06 R01: AUTOWIND turned off while a failed mode
+    // write waits for its retry.
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const realSet = sim.client.set.bind(sim.client);
+    const modeWrites: unknown[] = [];
+    let first = true;
+    (sim.client as any).set = (name: string, value: unknown) => {
+      if (name === "ap.mode") modeWrites.push(value);
+      if (name === "ap.mode" && first) { first = false; return false; }
+      return realSet(name, value);
+    };
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      let wanted = true;
+      const switching = p.setModeIfWanted("true wind", () => wanted);
+      await sleep(50);
+      wanted = false;
+      await assert.rejects(switching, /no longer wanted/);
+      await sleep(1200);
+      assert.deepEqual(modeWrites, ["true wind"], "only the first, failed write");
+    } finally { sim.stop(); }
+  });
 });
