@@ -1,0 +1,3681 @@
+# Blind review: AUTOWIND did not switch at sea (2026-11-05)
+
+Everything is in this one file: the task, what the sailor reported, the
+raw logs and the code with line numbers. It deliberately contains **no
+analysis or conclusions**, so that your review is independent. Paste the
+whole file into the LLM. Ask for the answer in Spanish if Carlos will
+read it directly.
+
+---
+
+## Task
+
+You are a senior reviewer of safety-relevant marine software. The
+plugin below drives a **pypilot autopilot on a sailing boat**. During a
+sea trial its AUTOWIND feature did not behave as the sailor expected.
+
+Using **only** the data and the code in this file:
+
+1. Explain why AUTOWIND did not switch mode, with the exact lines of
+   code and the exact log lines or data rows that prove it. If the data
+   is not enough to prove a cause, say so and say what is missing.
+2. List every other real bug or risk you find in these code paths,
+   especially anything that can make the boat steer somewhere
+   unexpected, or silently disable a safety function.
+3. For each finding, propose the smallest correct fix and say what
+   could break.
+
+Mark each claim as **proven by the data**, **follows from the code** or
+**hypothesis**. No style comments.
+
+## System
+
+- A Raspberry Pi 5 runs Signal K and this plugin.
+- The autopilot is a TinyPilot (pypilot on a Pi Zero W), reached over
+  TCP.
+- pypilot modes: `compass`, `gps`, `wind` (apparent wind angle) and
+  `true wind`. `ap.heading_command` is:
+  - a compass heading in compass/gps;
+  - an AWA in `wind`;
+  - a TWA in `true wind`.
+- When `ap.mode` changes, pypilot recomputes `heading_command` itself.
+- The plugin has a backend (`src/*.ts`) and a browser UI, the "visor"
+  (`public/app.js`), used on a phone or tablet in the cockpit.
+- The visor offers pypilot's modes plus pseudo-modes:
+  - **AUTOWIND**, run in the backend: automatic choice between `wind`
+    and `true wind`.
+  - **Aproado**, run in the visor: bow into the wind.
+  - **Empopado**, run in the visor: stern to the wind.
+
+**Intended AUTOWIND behaviour** (from the design notes): while AUTOWIND
+is on, use `wind` when |TWA| < 120° and `true wind` when |TWA| > 120°.
+The rules are:
+- ±5° hysteresis;
+- the condition must hold for 10 s;
+- at least 30 s between two switches;
+- only with true wind speed ≥ 3 kn;
+- never during a tack or manoeuvre.
+
+Each side can carry its own pypilot profile. AUTOWIND ends when the
+sailor picks another mode.
+
+## What the sailor reported
+
+Original voice log, Spanish, local time CET (UTC+1):
+
+> **17:52** A las 17:52 he puesto el modo automático de viento y se ha
+> quedado como auto real [...] empecé en viento de popa y era real lo
+> que había que usar y lo moví con +10 -10 hasta ponerlo a viento
+> aparente en los primeros cuadrantes y no cambió a aparente, ya no
+> cambia a aparente. Ya se ha quedado como auto real [...] no funciona
+> bien.
+>
+> **17:53** Ahora a las 17:53 acabo de poner modo de viento, lo he
+> desconectado, he puesto modo compás creo, luego lo he pasado a auto y
+> ahora ya me pone aparente, pero voy a hacer un cambio, voy a llevar la
+> orientación del viento hacia la popa a ver si cambia a real. Sigue
+> como auto aparente, es decir, que no está cambiando. No está cambiando
+> a real.
+>
+> **17:54** [...] se ha pasado [...] por lo menos unos 60 grados aparte
+> de no haber cambiado a real [...] 17:54 cancelo directamente y pongo
+> modo compás.
+
+In English: AUTOWIND stayed in true wind after he steered into the
+apparent sector. Re-selected, it started in apparent and stayed there
+while he bore away to the stern; the boat overshot about 60° and he
+cancelled to compass.
+
+## Raw data
+
+### A. Black box, 1 sample per second
+
+Time is CET.
+
+Columns:
+- `heading_deg` is the compass heading.
+- `target_deg` is pypilot's `heading_command`, in the space of the
+  current mode.
+- `error_deg` is the target minus the measured value, in that same
+  space.
+- `awa_deg` and `twa_deg` are the apparent and true wind angles,
+  negative to port.
+- `tws_kn` is the true wind speed.
+- `servo_flags` are pypilot's servo flags.
+
+Gaps in the time column are periods the black box did not keep.
+
+```csv
+time_cet,mode,engaged,heading_deg,target_deg,error_deg,awa_deg,twa_deg,tws_kn,sog_kn,servo_a,servo_flags,pypilot_tack_state,virtual_tack_phase
+17:49:14,compass,1,125.7,124.6,-1.1,70.0,139.1,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:15,compass,1,125.5,124.6,-0.9,72.0,139.2,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:16,compass,1,125.0,124.6,-0.4,73.0,141.2,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:17,compass,1,124.8,124.6,-0.2,71.0,142.2,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:18,compass,1,124.9,124.6,-0.3,79.0,143.7,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:19,compass,1,124.8,124.6,-0.2,78.0,142.3,3.3,3.2,1.41,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:20,compass,1,125.7,124.6,-1.1,77.0,143.6,3.5,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:21,compass,1,126.6,124.6,-2.0,80.0,145.7,3.5,3.3,2.73,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:22,compass,1,127.0,124.6,-2.4,83.0,144.1,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:23,compass,1,126.8,124.6,-2.2,83.0,141.4,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:24,compass,1,126.7,124.6,-2.1,79.0,141.2,3.7,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:25,compass,1,126.6,124.6,-2.0,76.0,143.5,3.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:26,compass,1,125.9,124.6,-1.3,73.0,139.7,3.4,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:27,compass,1,125.6,124.6,-1.0,70.0,138.5,3.4,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:28,compass,1,125.2,124.6,-0.6,70.0,141.5,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:29,wind,1,124.9,0.0,-71.0,71.0,145.2,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:49:30,wind,1,125.6,0.0,-81.0,81.0,146.4,3.1,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:31,wind,1,127.3,0.0,-79.0,79.0,146.1,3.1,3.2,3.68,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:32,wind,1,130.7,0.0,-81.0,81.0,146.6,3.4,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:33,wind,1,135.3,0.0,-75.0,75.0,147.0,3.4,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:34,wind,1,141.5,0.0,-68.0,68.0,140.7,3.2,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:35,wind,1,147.6,0.0,-60.0,60.0,127.3,3.2,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:36,wind,1,153.4,0.0,-50.0,50.0,115.9,2.9,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:37,wind,1,159.6,0.0,-51.0,51.0,113.6,2.9,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:38,wind,1,165.6,0.0,-51.0,51.0,109.3,2.7,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:39,wind,1,171.4,0.0,-47.0,47.0,100.8,2.7,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:40,wind,1,176.1,0.0,-39.0,39.0,91.7,2.7,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:41,wind,1,181.7,0.0,-34.0,34.0,81.8,2.7,3.0,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:49:42,wind,1,187.3,0.0,-39.0,39.0,80.4,2.3,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:43,wind,1,192.2,0.0,-29.0,29.0,66.4,2.3,3.0,2.82,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:44,wind,1,196.9,0.0,-30.0,30.0,63.5,2.4,2.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:45,wind,1,201.1,0.0,-22.0,22.0,51.4,2.4,2.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:46,wind,1,205.5,0.0,-24.0,24.0,47.9,2.4,2.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:47,wind,1,208.7,0.0,-18.0,18.0,38.0,2.4,2.8,1.18,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:48,wind,1,211.6,0.0,-24.0,24.0,41.1,2.6,2.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:49,wind,1,214.8,0.0,-16.0,16.0,33.9,2.6,2.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:50,wind,1,217.2,0.0,-15.0,15.0,24.7,3.2,2.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:51,wind,1,219.6,0.0,-8.0,8.0,16.8,3.2,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:52,wind,1,222.6,0.0,-11.0,11.0,17.2,3.1,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:53,wind,1,225.3,0.0,-4.0,4.0,9.5,3.1,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:54,wind,1,227.1,0.0,-3.0,3.0,5.5,3.0,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:55,wind,1,229.0,0.0,1.0,-1.0,-2.0,3.0,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:56,wind,1,229.9,0.0,-6.0,6.0,9.2,2.8,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:57,wind,1,231.1,0.0,3.0,-3.0,-3.9,2.8,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:58,wind,1,231.9,0.0,5.0,-5.0,-10.8,3.1,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:49:59,wind,1,232.9,0.0,7.0,-7.0,-12.6,3.1,2.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:00,compass,1,234.0,232.1,-1.9,0.0,-16.6,3.3,2.6,2.82,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:01,compass,1,234.9,233.4,-1.5,-4.0,4.0,3.3,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:02,compass,1,235.2,233.4,-1.8,-7.0,-11.1,2.6,2.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:03,compass,1,235.0,233.4,-1.6,0.0,-2.0,2.6,2.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:04,compass,1,234.4,233.4,-1.0,-1.0,0.0,2.7,2.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:05,compass,1,234.2,233.4,-0.8,2.0,4.0,2.7,2.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:06,compass,1,234.1,233.4,-0.7,3.0,0.0,2.4,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:07,compass,1,233.9,233.4,-0.5,2.0,5.5,2.4,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:08,compass,1,233.5,233.4,-0.1,0.0,0.0,3.1,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:09,compass,1,233.2,233.4,0.2,1.0,1.7,3.1,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:10,compass,1,234.2,233.4,-0.8,2.0,5.3,3.6,2.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:11,true wind,1,234.4,179.9,178.2,1.0,1.7,3.6,2.6,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:50:12,true wind,1,234.9,179.9,-176.5,-1.0,-3.6,3.3,2.6,2.25,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:50:13,true wind,1,233.8,179.9,174.2,2.0,5.7,3.3,2.6,3.57,SYNC|OVERCURRENT_FAULT|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:14,true wind,1,231.2,179.9,157.8,13.0,22.1,3.1,2.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:15,true wind,1,227.1,179.9,164.1,9.0,15.8,3.1,2.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:16,true wind,1,222.2,179.9,176.4,2.0,3.5,3.1,2.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:17,true wind,1,216.7,179.9,143.0,21.0,36.9,3.1,2.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:18,true wind,1,212.1,179.9,127.5,32.0,52.4,3.4,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:19,true wind,1,207.3,179.9,126.9,28.0,53.0,3.4,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:20,true wind,1,201.4,179.9,136.0,25.0,43.9,4.0,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:21,true wind,1,196.2,179.9,94.8,48.0,85.1,4.0,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:22,true wind,1,191.2,179.9,108.6,36.0,71.3,3.3,2.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:23,true wind,1,186.1,179.9,104.0,40.0,75.9,3.3,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:24,true wind,1,180.2,179.9,107.6,28.0,72.3,2.9,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:25,true wind,1,176.2,179.9,97.2,49.0,82.7,2.9,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:26,true wind,1,171.1,179.9,91.7,49.0,88.2,2.0,2.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:27,true wind,1,165.8,179.9,94.0,44.0,85.9,2.0,2.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:28,true wind,1,161.4,179.9,80.6,59.0,99.3,3.2,2.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:29,true wind,1,155.8,179.9,77.8,57.0,102.1,3.2,2.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:30,true wind,1,150.7,179.9,76.5,59.0,103.4,3.3,2.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:31,true wind,1,145.5,179.9,62.3,72.0,117.6,3.3,2.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:32,true wind,1,140.3,179.9,74.2,62.0,105.7,3.0,2.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:33,true wind,1,135.8,179.9,63.1,69.0,116.8,3.0,2.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:34,true wind,1,130.1,179.9,66.9,65.0,113.0,3.2,2.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:35,true wind,1,123.7,179.9,60.4,67.0,119.5,3.2,2.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:36,true wind,1,118.1,179.9,52.1,78.0,127.8,3.0,2.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:37,true wind,1,112.7,179.9,45.5,82.0,134.4,3.0,2.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:38,true wind,1,107.5,179.9,36.4,107.0,143.5,3.4,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:39,true wind,1,101.1,179.9,25.4,116.0,154.5,3.4,2.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:50:40,true wind,1,95.6,179.9,31.7,107.0,148.2,4.5,2.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:50:41,true wind,1,88.9,179.9,17.2,143.0,162.7,4.5,2.9,1.64,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:50:42,true wind,1,82.8,179.9,3.1,177.0,176.8,4.2,2.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:50:43,true wind,1,76.6,179.9,-4.5,-171.0,-175.6,4.2,2.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:50:44,true wind,1,70.2,179.9,12.8,138.0,167.1,4.9,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:45,true wind,1,64.7,179.9,13.6,143.0,166.3,4.9,3.1,1.24,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:46,true wind,1,60.6,179.9,-13.8,-129.0,-166.3,4.2,3.1,3.08,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:47,true wind,1,58.2,179.9,-20.3,-110.0,-159.8,4.2,3.1,2.17,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:48,true wind,1,57.3,179.9,-16.9,-125.0,-163.2,3.9,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:49,true wind,1,54.7,179.9,-12.2,-139.0,-167.9,3.9,3.1,1.77,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:50,true wind,1,52.3,179.9,-11.4,-137.0,-168.7,4.0,3.1,2.49,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:51,true wind,1,51.1,179.9,-12.2,-128.0,-167.9,4.0,3.1,1.31,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:52,true wind,1,51.9,179.9,-15.1,-114.0,-165.0,4.0,3.2,1.31,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:53,true wind,1,52.9,179.9,-16.1,-103.0,-164.0,4.0,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:54,true wind,1,54.8,179.9,-11.8,-131.0,-168.3,3.6,3.2,2.87,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:55,true wind,1,56.2,179.9,-6.9,-155.0,-173.2,3.6,3.2,3.11,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:56,true wind,1,57.1,179.9,-5.6,-158.0,-174.5,4.0,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:57,true wind,1,58.7,179.9,-4.6,-149.0,-175.5,4.0,3.3,2.41,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:58,true wind,1,61.4,179.9,-1.3,-131.0,-178.8,4.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:50:59,true wind,1,64.4,179.9,-44.1,-138.0,-136.0,4.3,3.3,1.97,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:00,true wind,1,65.8,179.9,-16.1,-174.0,-164.0,3.6,3.3,1.26,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:01,true wind,1,66.3,179.9,26.9,149.0,153.0,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:02,true wind,1,67.7,179.9,27.9,157.0,152.0,3.6,3.4,2.51,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:03,true wind,1,69.8,179.9,-3.1,-165.0,-177.0,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:04,true wind,1,72.5,179.9,-26.1,-157.0,-154.0,3.6,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:05,true wind,1,74.3,179.9,5.9,165.0,174.0,3.6,3.4,2.3,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:06,true wind,1,74.3,179.9,46.9,127.0,133.0,3.6,3.4,2.13,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:07,true wind,1,73.9,179.9,61.9,119.0,118.0,3.6,3.5,2.21,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:08,true wind,1,75.5,179.9,39.9,145.0,140.0,3.6,3.5,2.53,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:09,true wind,1,77.4,179.9,-11.1,-169.0,-169.0,3.6,3.5,2.53,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:10,true wind,1,77.7,179.9,48.9,110.0,131.0,3.6,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:11,true wind,1,76.6,179.9,89.9,92.0,90.0,3.6,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:12,true wind,1,76.1,179.9,74.9,113.0,105.0,3.6,3.6,1.37,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:13,true wind,1,77.3,179.9,14.9,171.0,165.0,3.6,3.6,3.01,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:14,true wind,1,78.9,179.9,-2.1,174.0,-178.0,3.6,3.6,3.01,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:15,true wind,1,77.2,179.9,71.9,102.0,108.0,3.6,3.6,3.01,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:16,compass,1,75.1,78.3,3.2,94.0,93.0,3.6,3.6,2.83,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:17,compass,1,74.7,78.3,3.6,121.0,114.0,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:18,compass,1,75.8,78.3,2.5,-167.0,-170.0,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:19,compass,1,76.6,78.3,1.7,136.0,154.0,3.6,3.7,1.48,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:20,compass,1,77.8,78.3,0.5,97.0,96.0,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:21,compass,1,78.8,78.3,-0.5,122.0,118.0,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:22,compass,1,79.4,78.3,-1.1,148.0,148.0,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:23,compass,1,80.1,78.3,-1.8,119.0,122.0,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:24,compass,1,80.0,78.3,-1.7,117.0,173.4,3.6,3.7,2.6,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:25,true wind,1,79.0,175.9,3.9,141.0,172.0,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:26,true wind,1,77.8,175.9,3.9,133.0,172.0,4.1,3.7,1.49,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:27,true wind,1,76.7,175.9,-2.8,119.0,178.7,4.1,3.7,1.81,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:28,true wind,1,77.2,175.9,43.9,136.0,132.0,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:29,true wind,1,77.8,175.9,24.9,151.0,151.0,4.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:30,true wind,1,78.3,175.9,45.9,127.0,130.0,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:31,true wind,1,78.6,175.9,66.9,110.0,109.0,4.0,3.7,1.21,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:32,true wind,1,77.3,175.9,51.9,125.0,124.0,4.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:33,true wind,1,76.4,175.9,36.9,140.0,139.0,4.0,3.8,1.53,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:34,true wind,1,76.2,175.9,27.9,148.0,148.0,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:35,true wind,1,76.9,175.9,28.9,147.0,147.0,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:36,true wind,1,76.8,175.9,28.9,147.0,147.0,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:37,true wind,1,76.8,-124.1,92.9,143.0,143.0,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:51:38,true wind,1,76.8,-124.1,88.9,148.0,147.0,4.0,3.8,4.05,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:51:39,true wind,1,75.0,-124.1,71.9,168.0,164.0,4.0,3.8,7.8,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:40,true wind,1,70.3,-124.1,60.9,170.0,175.0,4.0,3.8,7.8,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:41,true wind,1,63.8,-124.1,96.9,137.0,139.0,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:42,true wind,1,56.9,-84.1,136.9,158.0,139.0,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:51:43,true wind,1,50.7,-74.1,30.9,-95.0,-105.0,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:51:44,true wind,1,43.6,-74.1,-8.1,-68.0,-66.0,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+17:51:45,true wind,1,36.3,-74.1,11.9,-87.0,-86.0,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:46,true wind,1,28.6,-74.1,8.9,-82.0,-83.0,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:47,true wind,1,21.4,-74.1,94.0,-73.0,-168.1,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:48,true wind,1,13.6,-74.1,77.0,-74.0,-151.1,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:49,true wind,1,6.7,-74.1,67.2,-67.0,-141.3,4.0,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:50,true wind,1,359.8,-74.1,64.3,-68.0,-138.4,3.7,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:51,true wind,1,352.5,-74.1,51.5,-66.0,-125.6,3.7,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:52,true wind,1,344.9,-74.1,31.8,-53.0,-105.9,4.1,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:51:53,true wind,1,337.0,-74.1,28.3,-50.0,-102.4,4.1,3.7,1.49,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:54,true wind,1,330.5,-74.1,27.6,-58.0,-101.7,3.7,3.7,1.28,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:55,true wind,1,324.7,-74.1,14.9,-50.0,-89.0,3.7,3.7,4.5,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:56,true wind,1,318.1,-74.1,-10.2,-32.0,-63.9,4.7,3.7,7.95,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:57,true wind,1,310.7,-74.1,-4.4,-34.0,-69.7,4.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:58,true wind,1,303.2,-74.1,2.7,-46.0,-76.8,3.6,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:51:59,true wind,1,295.7,-74.1,-13.0,-35.0,-61.1,3.6,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:00,true wind,1,289.2,-74.1,-37.5,-13.0,-36.6,4.9,3.5,1.65,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:01,true wind,1,282.3,-74.1,-37.7,-20.0,-36.4,4.9,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:02,true wind,1,274.9,-74.1,-18.1,-28.0,-56.0,3.3,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:03,true wind,1,268.3,-74.1,-29.2,-22.0,-44.9,3.3,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:04,true wind,1,261.8,-74.1,-63.9,-1.0,-10.2,3.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:05,true wind,1,255.8,-74.1,-64.1,-6.0,-10.0,3.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:06,true wind,1,248.3,-74.1,-38.9,-22.0,-35.2,3.2,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:07,true wind,1,242.1,-74.1,-67.7,0.0,-6.4,3.2,3.4,2.22,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:08,true wind,1,238.8,-74.1,-77.9,2.0,3.8,3.6,3.4,2.96,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:09,true wind,1,235.5,-74.1,-76.0,1.0,1.9,3.6,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:10,true wind,1,234.1,-74.1,-74.1,1.0,0.0,4.2,3.3,1.11,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:11,true wind,1,234.1,-74.1,-79.5,3.0,5.4,4.2,3.2,3.38,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:12,true wind,1,236.3,-74.1,-77.9,1.0,3.8,3.7,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:13,true wind,1,240.2,-74.1,-67.1,-5.0,-7.0,3.7,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:52:14,true wind,1,245.1,-74.1,-72.2,-1.0,-1.9,3.8,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:52:15,true wind,1,251.1,-74.1,-63.2,-9.0,-10.9,3.8,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:52:16,true wind,1,256.5,-74.1,-39.8,-21.0,-34.3,3.4,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:52:17,true wind,1,262.7,-74.1,-51.7,-12.0,-22.4,3.4,3.1,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:52:18,true wind,1,269.6,-74.1,-33.7,-25.0,-40.4,4.0,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:19,true wind,1,274.7,-74.1,-17.5,-35.0,-56.6,4.0,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:20,true wind,1,279.3,-74.1,-30.6,-25.0,-43.5,4.4,3.0,1.29,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:21,true wind,1,283.4,-74.1,-27.1,-28.0,-47.0,4.4,3.0,1.23,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:22,true wind,1,286.3,-74.1,-9.5,-40.0,-64.6,4.1,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:23,true wind,1,287.9,-74.1,-20.1,-31.0,-54.0,4.1,3.0,1.31,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:24,true wind,1,290.2,-74.1,-19.6,-33.0,-54.5,4.6,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:25,true wind,1,291.0,-74.1,-15.8,-34.0,-58.3,4.6,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:26,true wind,1,291.3,-74.1,-6.9,-43.0,-67.2,4.1,3.0,2.45,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:27,true wind,1,292.1,-74.1,-15.3,-36.0,-58.8,4.1,3.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:28,true wind,1,292.6,-74.1,-30.5,-26.0,-43.6,5.0,3.1,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:29,true wind,1,293.6,-74.1,-14.1,-39.0,-60.0,5.0,3.1,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:30,true wind,1,294.2,-74.1,-8.5,-42.0,-65.6,4.5,3.1,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:31,true wind,1,295.0,-74.1,-14.6,-36.0,-59.5,4.5,3.1,1.75,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:32,true wind,1,296.1,-74.1,-19.1,-34.0,-55.0,5.5,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:33,true wind,0,297.1,-74.1,-5.5,-43.0,-68.6,5.5,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:34,true wind,1,297.7,-74.1,-3.1,-45.0,-71.0,4.7,3.3,0,SYNC|BAD_FUSES,none,
+17:52:35,true wind,1,298.3,-71.7,-5.0,-38.0,-66.7,4.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:36,true wind,0,298.5,-71.7,-19.3,-29.0,-52.4,5.6,3.3,2.46,SYNC|BAD_FUSES,none,
+17:52:37,true wind,0,297.9,-71.7,-0.7,-43.0,-71.0,5.6,3.3,0,SYNC|BAD_FUSES,none,
+17:52:38,true wind,0,297.3,-71.7,1.9,-44.0,-73.6,4.0,3.3,0,SYNC|BAD_FUSES,none,
+17:52:39,true wind,0,296.3,-71.7,-24.7,-24.0,-47.0,4.0,3.3,0,SYNC|BAD_FUSES,none,
+17:52:40,true wind,0,295.1,-71.7,-30.3,-25.0,-41.4,5.2,3.4,0,SYNC|BAD_FUSES,none,
+17:52:41,true wind,1,293.3,-41.4,33.0,-44.0,-74.4,5.2,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:42,true wind,1,291.3,-41.4,29.0,-37.0,-70.4,3.6,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:43,true wind,1,290.7,-41.4,5.8,-22.0,-47.2,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:44,true wind,1,288.6,-41.4,8.3,-26.0,-49.7,4.4,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:45,true wind,1,285.5,-41.4,16.8,-32.0,-58.2,4.4,3.4,2.66,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:46,true wind,1,282.2,-41.4,15.4,-31.0,-56.8,3.4,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:47,true wind,1,280.1,-41.4,3.1,-22.0,-44.5,3.4,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:48,true wind,1,278.7,-41.4,1.8,-25.0,-43.2,4.1,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:49,true wind,1,277.0,-41.4,5.1,-27.0,-46.5,4.1,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:50,true wind,1,276.0,-41.4,-4.6,-19.0,-36.8,4.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:51,true wind,1,274.7,-41.4,-5.5,-20.0,-35.9,4.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:52,true wind,1,273.2,-41.4,3.5,-25.0,-44.9,4.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:53,true wind,1,272.3,-41.4,3.2,-23.0,-44.6,4.0,3.5,2.4,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:54,true wind,1,272.0,-41.4,-1.1,-20.0,-40.3,4.3,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:55,true wind,1,272.8,-41.4,-9.4,-17.0,-32.0,4.3,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:56,true wind,1,272.2,-41.4,4.9,-26.0,-46.3,3.6,3.5,1.13,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:57,true wind,1,272.1,-41.4,-15.2,-11.0,-26.2,3.6,3.5,2.03,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:58,true wind,1,272.1,-41.4,8.6,-25.0,-50.0,4.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:52:59,true wind,1,271.2,-41.4,17.1,-28.0,-58.5,4.2,3.5,1.4,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:00,true wind,1,270.8,-41.4,19.6,-28.0,-61.0,3.6,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:01,true wind,1,271.5,-41.4,3.0,-20.0,-44.4,3.6,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:02,true wind,1,271.7,-41.4,14.2,-28.0,-55.6,3.3,3.5,1.36,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:03,true wind,1,271.8,-41.4,-1.0,-18.0,-40.4,3.3,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:04,true wind,1,271.7,-41.4,9.0,-23.0,-50.4,3.5,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:05,true wind,1,270.5,-41.4,-3.7,-17.0,-37.7,3.5,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:06,true wind,1,269.4,-41.4,6.3,-26.0,-47.7,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:07,true wind,1,268.7,-41.4,-8.2,-9.0,-33.2,3.0,3.5,1.1,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:08,true wind,1,268.8,-41.4,6.6,-22.0,-48.0,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:09,true wind,1,267.8,-41.4,6.6,-21.0,-48.0,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:10,true wind,1,268.3,-41.4,-2.3,-17.0,-39.1,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:11,true wind,1,268.5,-41.4,-3.9,-17.0,-37.5,3.0,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:12,true wind,1,268.8,-41.4,-1.1,-19.0,-40.3,3.3,3.5,2.07,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:13,true wind,1,269.2,-41.4,-8.8,-14.0,-32.6,3.3,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:14,true wind,1,269.5,-41.4,-0.7,-18.0,-40.7,3.2,3.5,1.27,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:15,true wind,1,269.0,-41.4,5.1,-21.0,-46.5,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:16,true wind,1,268.7,-41.4,-0.5,-18.0,-40.9,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:17,true wind,1,268.9,-41.4,9.0,-20.0,-50.4,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:18,true wind,1,269.7,-41.4,-6.9,-15.0,-34.5,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:19,true wind,1,270.4,-41.4,7.8,-25.0,-49.2,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:20,true wind,1,271.3,-41.4,-4.8,-18.0,-36.6,3.3,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:21,true wind,1,271.6,-41.4,-8.8,-18.0,-32.6,3.3,3.5,2.8,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:22,true wind,1,271.6,-41.4,8.1,-26.0,-49.5,3.5,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:23,true wind,1,271.5,-41.4,-1.2,-15.0,-40.2,3.5,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:24,true wind,1,270.8,-41.4,-12.7,-13.0,-28.7,3.8,3.5,1.3,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:25,true wind,1,270.7,-41.4,1.8,-23.0,-43.2,3.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:26,true wind,1,270.6,-41.4,-3.2,-19.0,-38.2,2.9,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:27,true wind,1,271.4,-41.4,-2.5,-20.0,-38.9,2.9,3.5,1.41,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:28,true wind,1,272.1,-41.4,2.7,-24.0,-44.1,3.1,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:29,true wind,1,272.2,-41.4,-2.9,-21.0,-38.5,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:30,true wind,1,272.0,-41.4,-1.5,-21.0,-39.9,3.6,3.5,1.46,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:31,true wind,1,271.3,-41.4,6.0,-27.0,-47.4,3.6,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:32,true wind,1,271.9,-41.4,0.4,-22.0,-41.8,4.0,3.6,2.85,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:33,compass,1,272.3,268.6,-3.7,-23.0,-49.8,4.0,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:34,compass,1,272.5,271.9,-0.6,-23.0,-44.9,3.8,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:35,compass,1,272.6,271.9,-0.7,-27.0,-50.6,3.8,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:36,compass,1,272.3,271.9,-0.4,-27.0,-52.5,3.4,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:37,wind,1,271.9,-23.7,-1.7,-22.0,-48.0,3.4,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:38,wind,1,271.4,-23.7,-0.7,-23.0,-45.2,3.8,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:39,wind,1,270.6,-23.7,-1.7,-22.0,-49.8,3.8,3.6,1.18,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:40,wind,1,270.0,-23.7,3.3,-27.0,-52.2,3.3,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:41,wind,1,270.3,-23.7,-1.7,-22.0,-46.8,3.3,3.6,2.68,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:42,wind,1,270.7,-23.7,-1.7,-22.0,-43.4,3.3,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:43,wind,1,271.4,-23.7,-4.7,-19.0,-39.9,3.3,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:44,wind,1,271.0,-23.7,-2.7,-21.0,-42.1,3.6,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:45,wind,1,270.1,-23.7,-1.7,-22.0,-45.2,3.6,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:46,wind,1,270.1,-23.7,-5.7,-18.0,-38.8,3.6,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:47,wind,1,269.4,-23.7,-3.7,-20.0,-40.8,3.6,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:53:48,wind,1,269.6,-23.7,1.3,-25.0,-49.3,3.5,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:51,wind,1,24.4,-133.7,-49.7,-84.0,-161.2,3.8,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:52,wind,1,25.7,-133.7,-53.7,-80.0,-161.3,3.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:53,wind,1,27.7,-133.7,-49.7,-84.0,-161.4,3.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:54,wind,1,30.6,-133.7,-50.7,-83.0,-161.3,3.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:55,wind,1,33.1,-133.7,-41.7,-92.0,-163.5,3.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:56,wind,1,35.5,-133.7,-43.7,-90.0,-163.3,3.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:57,wind,1,37.7,-133.7,-46.7,-87.0,-164.8,3.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:58,wind,1,40.2,-133.7,-49.7,-84.0,-164.5,3.9,3.7,1.67,SYNC|ENGAGED|BAD_FUSES,none,
+17:54:59,wind,1,43.2,-133.7,-43.7,-90.0,-164.6,3.9,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:00,wind,1,47.3,-133.7,-28.7,-105.0,-177.1,3.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:01,wind,1,51.6,-133.7,-24.7,-109.0,-108.0,3.7,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:02,wind,1,55.8,-133.7,-5.7,-128.0,-122.0,3.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:03,wind,1,59.4,-133.7,15.3,-149.0,-147.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:04,compass,1,62.6,59.4,-3.2,-155.0,-153.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:05,compass,1,65.4,59.4,-6.0,-177.0,-171.0,3.8,3.8,3.13,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:06,compass,1,66.4,59.4,-7.0,143.0,152.0,3.8,3.8,1.84,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:07,compass,1,66.0,59.4,-6.6,104.0,108.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:08,compass,1,64.5,59.4,-5.1,91.0,92.0,3.8,3.8,1.6,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:09,compass,1,62.3,59.4,-2.9,96.0,96.0,3.8,3.9,1.22,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:10,compass,1,59.9,59.4,-0.5,90.0,91.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:11,compass,1,60.1,59.4,-0.7,68.0,71.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:12,compass,1,61.6,59.4,-2.2,61.0,61.0,3.8,3.9,1.45,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:13,compass,1,61.8,59.4,-2.4,66.0,65.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:14,compass,1,61.6,59.4,-2.2,69.0,71.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:15,compass,1,62.2,59.4,-2.8,58.0,60.0,3.8,3.9,3.04,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:16,compass,1,62.4,59.4,-3.0,50.0,52.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:17,compass,1,61.6,59.4,-2.2,62.0,58.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:18,compass,1,60.6,59.4,-1.2,74.0,73.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:19,compass,1,60.1,59.4,-0.7,68.0,70.0,3.8,3.9,1.08,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:20,compass,1,59.8,59.4,-0.4,58.0,60.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:21,true wind,1,60.1,173.9,113.9,61.0,60.0,3.8,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:22,true wind,1,60.4,62.0,7.0,54.0,55.0,3.8,3.8,3.48,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:55:23,true wind,1,62.0,62.0,12.0,48.0,50.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:24,true wind,1,65.8,62.0,23.0,39.0,39.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:25,true wind,1,71.3,62.0,17.0,48.0,45.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:55:26,true wind,1,77.1,62.0,-18.0,85.0,80.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:27,true wind,1,84.0,62.0,-18.0,75.0,80.0,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:28,true wind,1,90.3,62.0,-115.6,52.0,177.6,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:29,true wind,1,97.0,62.0,-99.8,65.0,161.8,3.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:30,true wind,1,103.4,62.0,-96.6,63.0,158.6,3.4,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:31,true wind,1,110.5,62.0,-87.2,70.0,149.2,3.4,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:32,true wind,1,117.0,62.0,-75.2,61.0,137.2,3.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:33,true wind,1,124.1,62.0,-73.6,55.0,135.6,3.7,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:34,true wind,1,131.1,62.0,-70.4,54.0,132.4,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:35,true wind,1,138.3,62.0,-61.7,55.0,123.7,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:36,true wind,0,145.2,62.0,-51.4,46.0,113.4,3.3,3.6,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:55:37,true wind,0,151.1,62.0,-44.0,38.0,106.0,3.3,3.6,0,SYNC|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:55:38,true wind,0,158.4,62.0,-39.5,43.0,101.5,2.8,3.5,0,SYNC|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:55:39,wind,0,165.0,-13.5,-52.5,39.0,96.3,2.8,3.5,0,SYNC|BAD_FUSES|DRIVER_TIMEOUT,none,
+17:55:40,wind,1,171.2,41.0,9.0,32.0,87.3,2.4,3.4,1.26,SYNC|BAD_FUSES|DRIVER_TIMEOUT|SATURATED,none,
+17:55:41,wind,1,176.9,41.0,7.0,34.0,78.9,2.4,3.4,3.68,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:55:42,wind,1,181.5,41.0,15.0,26.0,59.0,2.7,3.4,3.5,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:43,wind,1,182.7,41.0,6.0,35.0,70.4,2.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:44,wind,1,180.2,41.0,5.0,36.0,69.4,3.3,3.3,1.21,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:45,wind,1,176.4,41.0,6.0,35.0,69.8,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:46,wind,1,173.2,41.0,8.0,33.0,71.2,3.6,3.3,1.48,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:47,wind,1,172.3,41.0,2.0,39.0,78.9,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:48,wind,1,173.0,41.0,3.0,38.0,76.1,3.1,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:49,wind,1,173.0,41.0,9.0,32.0,71.7,3.1,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:50,wind,1,173.8,41.0,-5.0,46.0,81.5,2.9,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:51,wind,1,173.8,41.0,10.0,31.0,66.9,2.9,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:52,wind,1,173.3,41.0,3.0,38.0,70.4,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:53,wind,1,172.6,41.0,7.0,34.0,69.9,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:54,wind,1,171.3,41.0,7.0,34.0,68.1,3.7,3.3,2.57,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:55,wind,1,170.4,41.0,-4.0,45.0,83.7,3.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:56,wind,1,170.1,41.0,1.0,40.0,83.9,3.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:57,wind,1,170.2,41.0,-4.0,45.0,85.7,3.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:58,wind,1,170.7,41.0,-3.0,44.0,86.1,3.0,3.4,2.12,SYNC|ENGAGED|BAD_FUSES,none,
+17:55:59,wind,1,170.8,41.0,5.0,36.0,83.3,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,preparing
+17:56:00,compass,1,170.4,254.8,84.4,47.0,88.1,3.5,3.5,1.42,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,turning
+17:56:01,compass,1,170.0,254.8,84.8,34.0,86.1,3.5,3.5,4.08,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,turning
+17:56:02,compass,1,170.8,254.8,84.0,24.0,70.6,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:56:03,compass,1,174.5,254.8,80.3,22.0,58.3,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:04,compass,1,180.0,254.8,74.8,22.0,58.8,2.1,3.5,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:05,compass,1,186.5,254.8,68.3,19.0,53.3,2.1,3.5,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:06,compass,1,192.7,254.8,62.1,20.0,50.6,2.3,3.5,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:07,compass,1,199.2,254.8,55.6,11.0,27.0,2.3,3.5,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:08,compass,1,204.9,254.8,49.9,10.0,25.9,1.9,3.5,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:09,compass,1,211.3,254.8,43.5,6.0,14.7,1.9,3.4,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:10,compass,1,218.0,254.8,36.8,7.0,16.8,2.3,3.4,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:11,compass,1,224.4,254.8,30.4,2.0,6.9,2.3,3.4,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,turning
+17:56:12,compass,1,230.5,254.8,24.3,-3.0,-2.1,2.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:56:13,compass,1,235.5,254.8,19.3,-11.0,-18.7,2.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,handover
+17:56:14,wind,1,240.1,-42.0,-31.0,-11.0,-13.1,3.3,3.4,2.55,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,handover
+17:56:15,wind,1,243.3,-42.0,-32.0,-10.0,-21.1,3.3,3.4,3.52,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:16,wind,1,246.5,-42.0,-35.0,-7.0,-15.9,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:17,wind,1,251.3,-42.0,-17.0,-25.0,-50.0,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:18,wind,1,256.4,-42.0,-18.0,-24.0,-51.1,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:19,wind,1,262.7,-42.0,-26.0,-16.0,-35.3,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,settling
+17:56:20,wind,1,269.1,-42.0,-18.0,-24.0,-48.2,2.8,3.2,1.52,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:21,wind,1,273.4,-42.0,-10.0,-32.0,-62.9,2.8,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:23,wind,1,276.6,-42.0,-17.0,-25.0,-51.2,3.2,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:24,wind,1,279.2,-42.0,-12.0,-30.0,-59.5,3.2,3.2,1.88,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:25,wind,1,281.4,-42.0,-9.0,-33.0,-69.6,2.7,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:26,wind,1,284.1,-42.0,-10.0,-32.0,-66.6,2.7,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:27,wind,1,287.4,-42.0,-5.0,-37.0,-73.6,2.8,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:28,wind,1,290.2,-42.0,-3.0,-39.0,-78.7,2.8,3.2,2.61,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:29,wind,1,293.0,-42.0,-8.0,-34.0,-72.5,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:56:30,wind,1,295.6,-42.0,0.0,-42.0,-85.8,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:56:31,wind,1,298.0,-42.0,4.0,-46.0,-89.3,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:56:32,wind,1,300.0,-42.0,-2.0,-40.0,-82.9,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:56:33,wind,1,301.5,-42.0,7.0,-49.0,-88.4,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:56:34,wind,1,302.4,-42.0,4.0,-46.0,-89.5,3.6,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:56:35,wind,1,303.5,-42.0,10.0,-52.0,-90.8,3.7,3.3,2.56,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:36,wind,1,304.5,-42.0,-2.0,-40.0,-80.8,3.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:37,wind,1,305.8,-42.0,4.0,-46.0,-84.2,3.7,3.3,2.12,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:38,wind,1,307.4,-42.0,7.0,-49.0,-96.9,3.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:39,wind,1,307.8,-42.0,4.0,-46.0,-87.7,3.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:40,wind,1,308.5,-42.0,-1.0,-41.0,-86.5,3.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:41,wind,1,308.8,-42.0,4.0,-46.0,-89.3,3.3,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:42,wind,1,309.6,-42.0,5.0,-47.0,-95.3,3.3,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:43,wind,1,309.9,-42.0,0.0,-42.0,-85.6,3.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:44,wind,1,310.1,-42.0,2.0,-44.0,-90.8,3.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:45,wind,1,310.2,-42.0,1.0,-43.0,-91.6,3.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:46,wind,1,310.8,-42.0,6.0,-48.0,-96.0,3.5,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:47,wind,1,312.3,-42.0,2.0,-44.0,-95.0,3.4,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:48,wind,1,313.2,-42.0,4.0,-46.0,-96.9,3.4,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:49,wind,1,314.2,-42.0,2.0,-44.0,-100.8,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:50,wind,1,314.7,-42.0,8.0,-50.0,-103.8,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:56:51,wind,1,315.6,-42.0,6.0,-48.0,-106.6,3.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,preparing
+17:56:52,compass,1,315.8,215.6,-100.2,-45.0,-102.0,3.2,3.6,1.66,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,turning
+17:56:53,compass,1,315.4,215.6,-99.8,-54.0,-109.0,3.1,3.6,4.17,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,turning
+17:56:54,compass,1,313.6,215.6,-98.0,-48.0,-104.3,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:56:55,compass,1,309.0,215.6,-93.4,-30.0,-90.8,3.3,3.7,1.27,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+17:56:56,compass,1,303.6,215.6,-88.0,-38.0,-100.4,3.3,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+17:56:57,compass,1,297.1,215.6,-81.5,-44.0,-105.1,2.2,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+17:56:58,compass,1,289.9,215.6,-74.3,-31.0,-86.0,2.2,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+17:56:59,compass,1,282.6,215.6,-67.0,-27.0,-73.6,2.9,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+17:57:00,compass,1,275.4,215.6,-59.8,-41.0,-82.4,2.9,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+17:57:01,compass,1,268.8,215.6,-53.2,-27.0,-65.6,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+17:57:02,compass,1,261.6,215.6,-46.0,-23.0,-55.2,3.0,3.8,1.33,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:57:03,compass,1,254.5,215.6,-38.9,-20.0,-54.4,2.7,3.8,2.87,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:57:04,compass,1,248.6,215.6,-33.0,-22.0,-56.7,2.7,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:57:05,compass,1,244.1,215.6,-28.5,-18.0,-59.8,2.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:57:06,compass,1,238.6,215.6,-23.0,-12.0,-30.6,2.2,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:57:07,compass,1,236.3,215.6,-20.7,-13.0,-39.9,2.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+17:57:08,wind,1,233.1,2.1,12.1,-10.0,-26.9,2.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,handover
+17:57:09,wind,1,230.3,50.0,61.0,-11.0,-25.9,2.0,3.4,3.69,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,handover
+17:57:10,wind,1,227.7,50.0,62.0,-12.0,-27.2,2.0,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:11,wind,1,223.4,50.0,50.0,0.0,-2.3,2.7,3.4,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+17:57:12,wind,1,218.3,50.0,42.0,8.0,18.7,2.7,3.4,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+17:57:13,wind,1,211.5,50.0,49.0,1.0,0.0,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+17:57:14,wind,1,204.2,50.0,43.0,7.0,14.3,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+17:57:15,wind,1,197.2,50.0,35.0,15.0,26.5,3.3,3.3,1.52,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:16,wind,1,190.9,50.0,21.0,29.0,55.3,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:17,wind,1,185.5,50.0,18.0,32.0,53.4,3.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:18,wind,1,180.4,50.0,20.0,30.0,54.6,3.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:19,wind,1,175.3,50.0,15.0,35.0,70.2,3.8,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:20,wind,1,173.9,50.0,-0.0,50.0,79.9,3.8,3.3,1.33,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:21,wind,1,170.7,50.0,5.0,45.0,82.6,3.9,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:22,wind,1,167.9,50.0,-11.0,61.0,92.1,3.9,3.3,2.26,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:23,wind,1,165.8,50.0,1.0,49.0,93.0,4.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+17:57:24,wind,1,164.3,50.0,-6.0,56.0,97.4,4.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:57:25,wind,1,163.7,50.0,-7.0,57.0,100.1,3.5,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:57:26,wind,1,163.9,50.0,3.0,47.0,100.6,3.5,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:57:27,wind,1,163.6,50.0,-5.0,55.0,97.7,3.8,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:57:28,wind,1,164.0,50.0,8.0,42.0,95.9,3.8,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+17:57:29,wind,1,164.2,50.0,4.0,46.0,97.3,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:30,wind,1,164.7,50.0,5.0,45.0,99.5,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:31,wind,1,164.8,50.0,14.0,36.0,92.3,3.0,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:32,wind,1,165.2,50.0,4.0,46.0,98.2,3.0,3.3,1.86,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:33,wind,1,166.0,50.0,15.0,35.0,91.8,2.4,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:34,wind,1,165.8,50.0,-2.0,52.0,100.1,2.4,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:35,wind,1,164.9,50.0,5.0,45.0,101.4,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:36,wind,1,163.6,50.0,-1.0,51.0,104.7,3.0,3.5,1.37,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:37,wind,1,163.2,50.0,-9.0,59.0,110.9,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:38,wind,1,162.7,50.0,8.0,42.0,101.4,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:39,wind,1,163.5,50.0,-1.0,51.0,107.2,2.7,3.5,2.13,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:40,wind,1,163.4,50.0,7.0,43.0,101.4,2.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:41,wind,1,163.0,50.0,5.0,45.0,102.8,2.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:42,wind,1,162.5,50.0,-1.0,51.0,110.4,2.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:43,wind,1,161.4,50.0,11.0,39.0,107.8,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:44,wind,1,161.8,50.0,-9.0,59.0,118.6,3.1,3.6,2.91,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:45,wind,1,161.9,50.0,15.0,35.0,108.7,3.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:46,wind,1,161.6,50.0,1.0,49.0,114.0,3.7,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:47,wind,1,160.8,50.0,10.0,40.0,109.9,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:48,wind,1,159.7,50.0,8.0,42.0,108.0,3.0,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:49,wind,1,159.0,50.0,9.0,41.0,107.0,2.6,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:50,wind,1,159.5,50.0,10.0,40.0,102.8,2.6,3.6,2.56,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:51,wind,1,159.0,50.0,15.0,35.0,102.7,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:52,wind,1,158.6,50.0,16.0,34.0,93.1,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:53,wind,1,158.0,50.0,11.0,39.0,100.3,2.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:54,wind,1,157.2,50.0,19.0,31.0,95.3,2.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:55,wind,1,156.1,50.0,14.0,36.0,98.0,2.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:56,wind,1,154.8,50.0,14.0,36.0,102.1,2.1,3.7,1.67,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:57,wind,1,153.9,50.0,8.0,42.0,102.7,2.5,3.8,1.17,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:58,wind,1,151.4,50.0,5.0,45.0,104.2,2.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:57:59,wind,1,149.4,50.0,13.0,37.0,102.8,3.0,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:00,wind,1,148.0,50.0,6.0,44.0,112.3,3.0,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:01,wind,1,147.1,50.0,12.0,38.0,111.7,3.2,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:02,wind,1,146.4,50.0,7.0,43.0,109.2,3.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:03,wind,1,146.0,50.0,9.0,41.0,114.4,2.3,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:04,wind,1,144.7,50.0,5.0,45.0,117.6,2.3,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:05,wind,1,143.6,50.0,11.0,39.0,120.6,2.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:06,wind,1,143.5,50.0,2.0,48.0,124.4,2.7,3.7,3.07,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:07,wind,1,141.9,50.0,10.0,40.0,124.2,2.6,3.6,1.75,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:08,wind,1,141.1,50.0,2.0,48.0,124.5,2.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:09,wind,1,139.6,50.0,10.0,40.0,124.8,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:10,wind,1,138.4,50.0,10.0,40.0,128.8,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:11,wind,1,138.0,50.0,8.0,42.0,129.2,2.3,3.6,1.17,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:12,wind,1,138.2,50.0,13.0,37.0,124.8,2.3,3.6,1.32,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:13,wind,1,138.4,50.0,5.0,45.0,126.9,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:14,wind,1,137.8,50.0,13.0,37.0,125.7,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:15,wind,1,136.9,50.0,13.0,37.0,129.0,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:16,wind,1,136.1,50.0,12.0,38.0,123.8,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:17,wind,1,134.5,50.0,10.0,40.0,124.0,2.2,3.7,2.35,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:18,wind,1,131.8,50.0,13.0,37.0,126.5,2.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:19,wind,1,130.3,50.0,22.0,28.0,130.7,2.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:20,wind,1,129.3,50.0,16.0,34.0,132.4,2.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:21,wind,1,128.3,50.0,-4.0,54.0,132.0,2.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:22,wind,1,127.2,50.0,-0.0,50.0,131.7,2.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:23,wind,1,127.0,50.0,6.0,44.0,131.2,2.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:24,wind,1,126.3,50.0,-0.0,50.0,134.2,2.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:25,compass,1,124.7,127.1,2.4,50.0,134.1,3.0,3.7,1.19,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:26,compass,1,123.8,127.1,3.3,47.0,134.0,3.0,3.7,2.12,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:27,compass,1,125.1,127.1,2.0,49.0,136.5,2.8,3.8,1.15,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:28,compass,1,126.9,127.1,0.2,35.0,138.8,2.8,3.7,1.18,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:29,compass,1,128.9,127.1,-1.8,35.0,142.7,2.3,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:30,compass,1,129.8,127.1,-2.7,51.0,139.7,2.3,3.7,1.58,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:31,compass,1,127.9,127.1,-0.8,50.0,136.3,2.8,3.7,2.02,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:32,compass,1,125.0,127.1,2.1,46.0,136.3,2.8,3.8,2.34,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:33,compass,1,123.5,127.1,3.6,45.0,138.2,2.7,3.7,1.49,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:34,compass,1,123.0,127.1,4.1,43.0,143.0,2.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:35,compass,1,122.9,127.1,4.2,51.0,144.0,2.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:36,compass,1,123.2,127.1,3.9,47.0,144.2,2.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:37,compass,1,123.3,127.1,3.8,45.0,144.5,2.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:38,compass,1,124.1,127.1,3.0,40.0,145.7,2.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:39,compass,1,123.9,127.1,3.2,46.0,144.9,2.5,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:40,compass,1,123.2,127.1,3.9,39.0,146.2,2.5,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:41,compass,1,123.2,127.1,3.9,52.0,144.4,2.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:42,compass,1,122.8,127.1,4.3,54.0,142.1,2.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:43,compass,1,122.2,27.1,-95.1,55.0,142.5,3.1,3.8,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:58:44,compass,1,121.0,27.1,-93.9,54.0,140.7,3.1,3.8,3.94,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+17:58:45,compass,1,117.1,27.1,-90.0,55.0,136.7,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:46,compass,1,112.1,27.1,-85.0,61.0,138.9,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:47,compass,1,104.7,27.1,-77.6,66.0,140.1,3.2,3.7,1.66,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:48,compass,1,97.2,357.1,-100.1,67.0,142.1,3.2,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:49,compass,1,89.9,357.1,-92.8,69.0,148.3,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:50,compass,1,81.9,357.1,-84.8,69.0,150.1,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:51,compass,1,75.0,357.1,-77.9,71.0,158.3,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:52,compass,1,67.0,357.1,-69.9,71.0,160.0,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:53,compass,1,59.7,357.1,-62.6,72.0,169.4,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:54,compass,1,52.8,357.1,-55.7,71.0,178.6,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+17:58:55,compass,1,45.6,357.1,-48.5,71.0,72.0,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:56,compass,1,39.2,357.1,-42.1,62.0,63.0,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:57,compass,1,33.2,357.1,-36.1,28.0,36.0,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:58,compass,1,28.1,357.1,-31.0,-83.0,-65.0,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:58:59,compass,1,23.2,357.1,-26.1,-79.0,-173.9,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:00,compass,1,18.8,357.1,-21.7,-68.0,-161.3,3.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:01,compass,1,15.1,357.1,-18.0,-71.0,-157.8,3.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:02,compass,1,12.2,357.1,-15.1,-70.0,-155.7,3.4,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:03,compass,1,9.6,357.1,-12.5,-76.0,-154.5,3.4,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:04,compass,1,6.8,357.1,-9.7,-60.0,-148.3,3.4,3.6,2.06,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:05,compass,1,5.6,357.1,-8.5,-71.0,-147.8,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:06,compass,1,5.6,357.1,-8.5,-59.0,-146.1,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:07,compass,1,5.6,357.1,-8.5,-54.0,-145.7,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:08,compass,1,5.6,357.1,-8.5,-53.0,-143.8,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:09,compass,1,5.6,357.1,-8.5,-51.0,-139.9,2.8,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:10,compass,1,5.6,357.1,-8.5,-58.0,-138.8,2.8,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:11,compass,1,5.6,357.1,-8.5,-48.0,-134.0,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:12,compass,1,5.6,357.1,-8.5,-50.0,-134.5,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:13,compass,1,5.6,357.1,-8.5,-62.0,-138.5,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:14,compass,1,5.6,357.1,-8.5,-57.0,-137.3,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:15,compass,1,5.6,357.1,-8.5,-62.0,-136.4,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:16,compass,1,5.6,357.1,-8.5,-49.0,-136.8,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:17,compass,1,5.6,357.1,-8.5,-61.0,-140.0,2.9,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:18,compass,1,356.8,357.1,0.3,-56.0,-140.0,2.9,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:19,compass,1,356.3,357.1,0.8,-51.0,-137.9,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:20,compass,1,356.9,357.1,0.2,-51.0,-137.2,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:21,compass,1,357.0,357.1,0.1,-56.0,-141.4,2.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:22,compass,1,357.4,357.1,-0.3,-55.0,-141.3,2.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:23,compass,1,357.4,357.1,-0.3,-51.0,-141.2,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:24,compass,1,357.5,357.1,-0.4,-58.0,-141.6,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:25,compass,1,356.0,357.1,1.1,-48.0,-141.7,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:26,compass,1,355.8,357.1,1.3,-47.0,-141.5,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:27,compass,1,355.9,357.1,1.2,-59.0,-141.3,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:28,compass,1,355.8,357.1,1.3,-57.0,-139.3,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:29,compass,1,356.2,357.1,0.9,-42.0,-135.1,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:30,compass,1,356.8,357.1,0.3,-47.0,-135.4,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:31,compass,1,357.4,357.1,-0.3,-57.0,-136.4,2.7,3.7,1.11,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:32,compass,1,357.1,357.1,-0.0,-49.0,-131.8,2.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:33,compass,1,357.4,357.1,-0.3,-54.0,-128.5,2.9,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:34,compass,1,356.8,357.1,0.3,-47.0,-125.6,2.9,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:35,compass,1,356.1,357.1,1.0,-52.0,-126.9,2.7,3.7,1.31,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:36,compass,1,356.1,357.1,1.0,-52.0,-127.3,2.7,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:37,compass,1,356.4,357.1,0.7,-49.0,-126.7,3.1,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:38,compass,1,356.7,357.1,0.4,-50.0,-124.8,3.1,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:39,compass,1,357.0,357.1,0.1,-44.0,-125.4,3.0,3.7,3.07,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:40,compass,1,357.0,357.1,0.1,-53.0,-130.7,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:41,compass,1,357.3,357.1,-0.2,-50.0,-126.7,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:42,compass,1,356.6,357.1,0.5,-45.0,-121.4,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:43,compass,1,355.7,357.1,1.4,-34.0,-118.8,2.8,3.7,1.7,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:44,compass,1,356.3,357.1,0.8,-48.0,-125.9,2.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:45,compass,1,356.6,357.1,0.5,-60.0,-131.4,2.8,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+17:59:46,compass,1,357.2,357.1,-0.1,-44.0,-123.7,2.8,3.8,1.59,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:19,compass,1,357.7,357.1,-0.6,-59.0,-132.5,3.0,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:20,compass,1,356.5,357.1,0.6,-43.0,-132.4,3.0,3.9,1.23,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:21,compass,1,355.1,357.1,2.0,-56.0,-135.0,2.7,3.9,1.95,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:22,compass,1,355.2,357.1,1.9,-57.0,-139.0,2.7,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:23,compass,1,356.4,357.1,0.7,-73.0,-141.9,3.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:24,compass,1,356.6,354.1,-2.5,-61.0,-136.2,3.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:25,compass,1,356.4,354.1,-2.3,-44.0,-129.9,3.6,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:26,compass,1,355.7,354.1,-1.6,-59.0,-135.6,3.6,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:27,compass,1,354.8,354.1,-0.7,-57.0,-138.8,3.4,3.9,1.7,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:28,compass,1,354.6,354.1,-0.5,-64.0,-139.7,3.4,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:29,compass,1,353.8,354.1,0.3,-53.0,-135.2,3.6,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:30,compass,1,353.6,354.1,0.5,-56.0,-133.6,3.6,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:31,compass,1,353.1,354.1,1.0,-47.0,-132.7,3.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:32,compass,1,353.5,354.1,0.6,-65.0,-133.8,3.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:33,compass,1,353.7,354.1,0.4,-59.0,-126.9,3.7,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:34,compass,1,354.1,354.1,-0.0,-58.0,-123.4,3.7,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:35,compass,1,354.7,354.1,-0.6,-60.0,-125.8,3.7,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:36,compass,1,355.2,354.1,-1.1,-68.0,-127.7,3.7,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:37,compass,1,355.9,354.1,-1.8,-65.0,-123.3,4.2,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:38,compass,1,355.4,354.1,-1.3,-65.0,-119.1,4.2,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:39,compass,1,354.8,354.1,-0.7,-58.0,-118.1,4.4,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:40,compass,1,353.3,354.1,0.8,-66.0,-121.6,4.4,3.9,2.88,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:41,compass,1,352.8,354.1,1.3,-63.0,-120.6,4.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:42,compass,1,352.9,354.1,1.2,-64.0,-117.4,4.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:43,compass,1,352.8,354.1,1.3,-63.0,-117.2,4.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:44,compass,1,353.2,354.1,0.9,-64.0,-118.6,4.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:45,compass,1,353.5,354.1,0.6,-65.0,-122.3,4.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:46,compass,1,354.2,354.1,-0.1,-64.0,-124.3,4.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:47,compass,1,354.9,354.1,-0.8,-68.0,-127.1,4.0,3.9,1.39,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:48,compass,1,355.1,354.1,-1.0,-57.0,-120.8,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:49,compass,1,355.2,354.1,-1.1,-60.0,-121.3,3.7,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:50,compass,1,354.5,0.0,5.5,-54.0,-125.1,3.7,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:51,compass,1,354.4,0.0,5.6,-65.0,-129.5,3.3,3.9,1.76,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:52,compass,1,356.3,0.0,3.7,-65.0,-127.6,3.3,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:53,compass,1,359.1,0.0,0.9,-65.0,-127.8,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:54,compass,1,1.0,0.0,-1.0,-67.0,-130.1,4.0,4.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:55,compass,1,2.8,0.0,-2.8,-66.0,-130.3,4.1,4.0,1.15,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:56,compass,1,3.5,0.0,-3.5,-66.0,-131.6,4.1,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:57,compass,1,3.9,0.0,-3.9,-62.0,-128.9,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:58,compass,1,2.8,0.0,-2.8,-66.0,-132.0,4.0,3.9,2.83,SYNC|ENGAGED|BAD_FUSES,none,
+18:00:59,compass,1,2.7,0.0,-2.7,-64.0,-130.1,3.9,3.9,2.5,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:00,compass,1,3.6,0.0,-3.6,-73.0,-131.7,3.9,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:01,compass,1,4.9,0.0,-4.9,-69.0,-125.3,4.4,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:02,compass,1,5.6,0.0,-5.6,-69.0,-125.1,4.4,3.9,1.61,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:03,compass,1,5.9,0.0,-5.9,-64.0,-123.3,4.4,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:04,compass,1,6.0,0.0,-6.0,-72.0,-133.1,4.4,3.9,1.34,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:05,compass,1,5.5,0.0,-5.5,-71.0,-132.9,4.2,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:06,compass,1,5.3,0.0,-5.3,-75.0,-134.7,4.2,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:07,compass,1,5.8,0.0,-5.8,-63.0,-128.6,4.4,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:08,compass,1,6.0,0.0,-6.0,-63.0,-128.9,4.4,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:09,compass,1,5.9,350.0,-15.9,-70.0,-134.0,3.8,3.9,2.23,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:10,compass,1,5.2,350.0,-15.2,-72.0,-134.8,3.8,3.9,3.33,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:11,compass,1,3.1,350.0,-13.1,-70.0,-129.8,4.1,3.9,1.85,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:12,compass,1,359.1,350.0,-9.1,-56.0,-122.7,4.1,3.9,2.3,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:13,compass,1,355.0,350.0,-5.0,-62.0,-128.6,3.6,3.9,1.58,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:14,compass,1,352.9,340.0,-12.9,-71.0,-132.8,3.6,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:15,compass,1,352.1,340.0,-12.1,-75.0,-126.6,4.1,3.9,3.05,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:16,compass,1,350.2,340.0,-10.2,-64.0,-114.6,4.1,3.9,3.64,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:17,compass,1,346.8,270.0,-76.8,-57.0,-111.8,4.7,3.9,4.12,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:01:18,compass,1,340.8,270.0,-70.8,-55.0,-116.6,4.7,3.9,0,SYNC|OVERCURRENT_FAULT|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+18:01:19,compass,1,334.3,270.0,-64.3,-56.0,-109.3,3.6,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT|SATURATED,none,
+18:01:20,compass,1,327.5,270.0,-57.5,-49.0,-98.1,3.6,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:21,compass,1,320.1,270.0,-50.1,-49.0,-92.5,4.0,3.9,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:22,compass,1,312.8,270.0,-42.8,-44.0,-90.1,4.0,4.0,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:23,compass,1,305.2,270.0,-35.2,-37.0,-80.1,3.9,3.9,1.3,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:24,compass,1,298.9,270.0,-28.9,-35.0,-74.5,3.9,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:25,compass,1,293.2,270.0,-23.2,-35.0,-74.4,3.4,3.9,2.38,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:26,compass,1,289.0,270.0,-19.0,-34.0,-70.7,3.4,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:27,compass,1,286.1,270.0,-16.1,-32.0,-67.1,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:28,compass,1,284.1,270.0,-14.1,-29.0,-62.9,3.6,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:29,compass,1,281.1,270.0,-11.1,-24.0,-52.4,3.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:30,compass,1,278.7,270.0,-8.7,-29.0,-64.9,3.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:31,compass,1,277.5,270.0,-7.5,-27.0,-59.8,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:32,compass,1,277.0,270.0,-7.0,-25.0,-52.5,3.1,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:33,compass,1,276.3,270.0,-6.3,-26.0,-55.3,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:34,compass,1,274.9,270.0,-4.9,-22.0,-50.8,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:35,compass,1,273.6,270.0,-3.6,-21.0,-45.3,3.1,3.5,1.82,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:36,compass,1,272.5,270.0,-2.5,-24.0,-52.9,3.1,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:37,compass,1,272.2,270.0,-2.2,-21.0,-43.4,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:38,compass,1,271.8,270.0,-1.8,-20.0,-40.2,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:39,compass,1,271.6,270.0,-1.6,-26.0,-52.5,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:40,compass,1,271.8,270.0,-1.8,-21.0,-40.2,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:41,compass,1,272.1,270.0,-2.1,-31.0,-58.5,3.4,3.4,1.42,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:42,compass,1,271.6,270.0,-1.6,-26.0,-50.4,3.4,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:43,compass,1,270.1,270.0,-0.1,-22.0,-43.0,3.9,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:44,compass,1,269.0,270.0,1.0,-27.0,-50.2,3.9,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:45,compass,1,268.6,270.0,1.4,-27.0,-51.3,3.7,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:46,compass,1,268.6,270.0,1.4,-22.0,-47.0,3.7,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:47,compass,1,268.9,171.6,-97.3,-19.0,-42.7,3.3,3.5,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:01:48,compass,1,268.7,171.6,-97.1,-29.0,-57.2,3.3,3.5,3.6,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:01:49,compass,1,266.9,171.6,-95.3,-25.0,-53.9,3.4,3.5,6.64,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:50,compass,1,262.0,171.6,-90.4,-8.0,-22.5,3.4,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:51,compass,1,255.3,171.6,-83.7,-12.0,-26.3,2.8,3.6,6.4,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:52,compass,1,248.7,171.6,-77.1,-14.0,-28.9,2.8,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:53,compass,1,241.1,171.6,-69.5,-9.0,-26.9,3.0,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:54,compass,1,233.9,171.6,-62.3,3.0,2.4,3.0,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:55,compass,1,227.0,171.6,-55.4,8.0,20.2,2.6,3.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:56,compass,1,219.5,171.6,-47.9,4.0,9.0,2.6,3.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,
+18:01:57,compass,1,212.7,171.6,-41.1,8.0,17.9,2.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:58,compass,1,206.2,171.6,-34.6,13.0,23.3,2.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:01:59,compass,1,200.6,171.6,-29.0,21.0,43.3,3.2,3.5,2.07,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:00,compass,1,195.5,171.6,-23.9,15.0,37.3,3.2,3.5,1.82,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:01,compass,1,191.8,171.6,-20.2,17.0,43.0,2.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:02,compass,1,189.2,171.6,-17.6,16.0,45.2,2.8,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:03,compass,1,187.3,171.6,-15.7,20.0,57.8,1.9,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:04,compass,1,185.3,171.6,-13.7,13.0,40.4,1.9,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:05,compass,1,183.1,171.6,-11.5,22.0,59.2,1.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:06,compass,1,181.1,171.6,-9.5,16.0,46.4,1.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:07,compass,1,179.5,169.6,-9.9,27.0,64.3,1.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:08,compass,1,177.7,169.6,-8.1,22.0,56.5,1.7,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:09,compass,1,175.4,166.6,-8.8,30.0,60.0,2.5,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:10,compass,1,173.7,166.6,-7.1,27.0,60.5,2.5,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:11,compass,1,172.2,166.6,-5.6,32.0,62.0,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:12,compass,1,170.6,166.6,-4.0,32.0,66.6,3.0,3.3,1.23,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:13,compass,1,169.7,166.6,-3.1,34.0,69.2,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:14,compass,1,169.2,166.6,-2.6,33.0,70.9,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:15,compass,1,168.7,166.6,-2.1,36.0,77.8,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:16,compass,1,168.6,166.6,-2.0,38.0,77.8,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:17,compass,1,168.3,166.6,-1.7,38.0,80.9,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:18,compass,1,168.3,166.6,-1.7,37.0,80.5,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:19,compass,1,168.4,166.6,-1.8,38.0,84.3,2.9,3.3,1.1,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:20,compass,1,167.6,166.6,-1.0,41.0,89.5,2.9,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:21,compass,1,166.6,166.6,0.0,47.0,96.2,3.0,3.4,1.08,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:22,compass,1,165.6,166.6,1.0,40.0,95.8,3.0,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:23,compass,1,165.7,126.6,-39.1,25.0,85.0,2.7,3.4,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:02:24,compass,1,166.1,126.6,-39.5,28.0,88.6,2.7,3.4,3.81,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:25,compass,1,163.8,126.6,-37.2,35.0,84.1,1.8,3.4,8.25,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:26,compass,1,157.6,120.6,-37.0,41.0,93.2,1.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:27,compass,1,150.2,120.6,-29.6,41.0,94.2,2.9,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:28,compass,1,142.7,120.6,-22.1,38.0,95.7,2.9,3.6,1.77,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:29,compass,1,136.6,120.6,-16.0,40.0,102.3,2.7,3.7,3.18,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:30,compass,1,133.0,120.6,-12.4,45.0,112.7,2.7,3.7,2.08,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:31,compass,1,130.3,120.6,-9.7,42.0,117.8,2.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:32,compass,1,129.4,120.6,-8.8,43.0,121.7,2.8,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:33,compass,1,129.0,120.6,-8.4,51.0,129.0,2.6,3.7,2.31,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:34,compass,1,128.3,120.6,-7.7,46.0,129.4,2.6,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:35,compass,1,127.5,120.6,-6.9,50.0,132.2,2.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:36,compass,1,126.6,120.6,-6.0,55.0,135.1,2.7,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:37,compass,1,125.0,120.6,-4.4,54.0,137.2,3.1,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:38,compass,1,125.4,120.6,-4.8,65.0,141.2,3.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:39,compass,1,123.6,120.6,-3.0,53.0,141.9,3.5,3.7,2.22,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:40,compass,1,122.3,120.6,-1.7,53.0,141.4,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:41,compass,1,121.8,120.6,-1.2,57.0,143.6,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:42,compass,1,121.9,120.6,-1.3,57.0,143.6,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:43,compass,1,122.1,120.6,-1.5,54.0,143.4,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:44,compass,1,121.7,120.6,-1.1,69.0,148.2,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:45,compass,1,120.8,120.6,-0.2,64.0,147.3,3.0,3.7,1.55,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:46,compass,1,119.5,120.6,1.1,54.0,146.9,3.3,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:02:47,compass,1,119.3,120.6,1.3,66.0,149.0,3.3,3.7,0,SYNC|ENGAGED|BAD_FUSES,waiting,
+18:02:48,compass,1,119.3,120.6,1.3,54.0,150.8,3.4,3.7,0,SYNC|ENGAGED|BAD_FUSES,waiting,
+18:02:49,compass,1,119.4,120.6,1.2,56.0,150.4,3.4,3.6,0,SYNC|ENGAGED|BAD_FUSES,waiting,
+18:02:50,compass,1,119.9,120.6,0.7,62.0,152.4,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,waiting,
+18:03:32,compass,1,211.9,220.6,8.7,7.0,19.1,1.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:33,compass,1,212.2,220.6,8.4,10.0,31.9,1.7,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:34,compass,1,212.2,220.6,8.4,5.0,18.1,1.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:35,compass,1,212.8,220.6,7.8,9.0,28.5,1.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:36,compass,1,213.4,220.6,7.2,5.0,17.8,1.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:37,compass,1,214.0,220.6,6.6,13.0,41.4,1.7,3.6,2.35,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:38,compass,1,214.4,220.6,6.2,9.0,21.0,2.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:39,compass,1,214.3,220.6,6.3,5.0,11.2,2.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:40,compass,1,213.7,220.6,6.9,9.0,18.3,2.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:41,compass,1,213.3,220.6,7.3,10.0,22.9,2.8,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:42,compass,1,212.9,220.6,7.7,7.0,14.4,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:43,compass,1,213.1,220.6,7.5,14.0,27.7,3.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:44,compass,1,214.0,220.6,6.6,14.0,29.4,3.6,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:45,compass,1,214.1,220.6,6.5,17.0,37.7,3.6,3.5,1.78,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:46,compass,1,214.1,220.6,6.5,19.0,37.9,3.1,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:47,compass,1,213.9,220.6,6.7,23.0,46.8,3.1,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:48,compass,1,213.3,200.6,-12.7,23.0,52.0,3.5,3.6,2.68,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:03:49,compass,1,212.0,200.6,-11.4,22.0,43.4,3.5,3.6,3.42,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:50,compass,1,207.5,260.6,53.1,33.0,62.2,3.2,3.6,2.32,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:03:51,compass,1,202.0,260.6,58.6,34.0,65.8,3.2,3.6,3.54,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:03:52,compass,1,199.5,260.6,61.1,31.0,65.1,3.9,3.7,4.43,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:53,compass,1,200.6,260.6,60.0,20.0,50.5,3.9,3.6,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:03:54,compass,1,204.7,260.6,55.9,27.0,61.6,2.4,3.6,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:03:55,compass,1,210.4,260.6,50.2,18.0,54.5,2.4,3.6,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:03:56,compass,1,216.8,260.6,43.8,16.0,40.8,2.1,3.7,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:03:57,compass,1,222.9,260.6,37.7,8.0,29.0,2.1,3.6,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:03:58,compass,1,229.6,260.6,31.0,0.0,-2.4,2.2,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:03:59,compass,1,236.0,260.6,24.6,0.0,0.0,2.2,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:00,compass,1,240.8,260.6,19.8,0.0,2.3,2.4,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:01,compass,1,244.6,260.6,16.0,-9.0,-23.7,2.4,3.5,2.67,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:02,compass,1,247.6,260.6,13.0,-12.0,-28.7,2.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:03,compass,1,249.9,260.6,10.7,-8.0,-27.9,2.2,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:04,compass,1,252.2,260.6,8.4,-13.0,-31.0,1.8,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:05,compass,1,253.5,260.6,7.1,-16.0,-36.8,1.8,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:06,compass,1,255.6,260.6,5.0,-6.0,-17.6,2.4,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:07,compass,1,257.5,260.6,3.1,-17.0,-37.7,2.4,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:08,compass,1,259.3,330.6,71.3,-17.0,-38.7,2.8,3.3,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:04:09,compass,1,261.1,330.6,69.5,-21.0,-43.0,2.8,3.3,3.78,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,
+18:04:10,compass,1,264.4,330.6,66.2,-28.0,-52.9,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:11,compass,1,269.9,330.6,60.7,-26.0,-53.9,3.0,3.4,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:04:12,compass,1,275.7,330.6,54.9,-26.0,-57.5,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:04:13,compass,1,282.1,330.6,48.5,-29.0,-64.0,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:04:14,compass,1,288.6,330.6,42.0,-39.0,-78.0,2.9,3.4,0,SYNC|ENGAGED|BAD_FUSES|DRIVER_TIMEOUT,none,
+18:04:15,compass,1,294.8,330.6,35.8,-39.0,-84.0,2.9,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:16,compass,1,300.5,330.6,30.1,-45.0,-90.4,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:17,compass,1,306.7,330.6,23.9,-46.0,-93.2,3.1,3.4,1.4,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:18,compass,1,311.0,330.6,19.6,-50.0,-97.9,3.3,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:19,compass,1,315.3,330.6,15.3,-45.0,-94.4,3.3,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:20,compass,1,318.3,330.6,12.3,-51.0,-103.3,3.1,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:21,compass,1,321.1,330.6,9.5,-52.0,-106.8,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:22,compass,1,323.8,330.6,6.8,-57.0,-111.7,3.2,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:23,compass,1,326.5,330.6,4.1,-50.0,-108.4,3.2,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:24,compass,1,328.4,330.6,2.2,-57.0,-111.5,3.1,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:25,compass,1,330.7,330.6,-0.1,-60.0,-111.1,3.1,3.3,2.89,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:26,wind,1,332.1,-60.0,-1.0,-59.0,-109.0,3.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:27,wind,1,332.8,-60.0,-9.0,-51.0,-103.4,3.7,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:04:28,compass,1,333.8,338.0,4.2,-54.0,-107.1,3.4,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+18:04:29,compass,1,335.3,229.0,-106.3,-59.0,-106.3,3.4,3.4,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,turning
+18:04:30,compass,1,335.5,229.0,-106.5,-43.0,-99.7,3.9,3.5,3.91,SYNC|ENGAGED|BAD_FUSES,none,turning
+18:04:31,compass,1,333.1,229.0,-104.1,-45.0,-101.7,3.9,3.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:32,compass,1,328.9,229.0,-99.9,-41.0,-103.3,3.0,3.5,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:33,compass,1,323.4,229.0,-94.4,-36.0,-103.0,3.0,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:34,compass,1,316.9,229.0,-87.9,-38.0,-98.4,2.3,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:35,compass,1,309.7,229.0,-80.7,-38.0,-93.2,2.3,3.6,2.73,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:36,compass,1,302.4,229.0,-73.4,-39.0,-91.4,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:37,compass,1,296.2,229.0,-67.2,-29.0,-75.4,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:38,compass,1,289.2,229.0,-60.2,-30.0,-75.2,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:39,compass,1,281.5,229.0,-52.5,-32.0,-68.9,2.4,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:40,compass,1,274.1,229.0,-45.1,-29.0,-60.9,3.2,3.7,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,turning
+18:04:41,compass,1,267.6,229.0,-38.6,-20.0,-44.7,3.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+18:04:42,compass,1,260.6,229.0,-31.6,-17.0,-38.3,3.0,3.6,1.3,SYNC|ENGAGED|BAD_FUSES,none,turning
+18:04:43,compass,1,255.0,229.0,-26.0,-17.0,-40.2,3.0,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+18:04:44,compass,1,250.3,229.0,-21.3,-14.0,-38.4,2.7,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,turning
+18:04:45,wind,1,246.6,0.6,5.6,-5.0,-13.1,2.7,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,handover
+18:04:46,wind,1,243.3,52.0,62.0,-10.0,-21.2,2.2,3.5,0,SYNC|ENGAGED|BAD_FUSES|SATURATED,none,handover
+18:04:47,wind,1,240.2,52.0,59.0,-7.0,-16.3,2.2,3.5,3.66,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:04:48,wind,1,235.7,52.0,51.0,1.0,-2.4,2.6,3.4,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+18:04:49,wind,1,229.9,52.0,49.0,3.0,6.9,2.6,3.4,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+18:04:50,wind,1,223.5,52.0,48.0,4.0,9.4,2.5,3.4,3.04,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+18:04:51,wind,1,216.9,52.0,49.0,3.0,4.7,2.5,3.4,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+18:04:52,wind,1,210.2,52.0,44.0,8.0,18.1,2.5,3.4,0,SYNC|ENGAGED|BAD_FUSES|PORT_OVERCURRENT_FAULT,none,settling
+18:04:53,wind,1,203.4,52.0,41.0,11.0,23.9,2.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:04:54,wind,1,197.3,52.0,27.0,25.0,41.8,2.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:04:55,wind,1,191.5,52.0,21.0,31.0,63.7,2.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:04:56,wind,1,186.1,52.0,13.0,39.0,73.8,3.4,3.4,2.69,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:04:57,wind,1,181.9,52.0,13.0,39.0,78.5,3.4,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:04:58,wind,1,176.0,52.0,12.0,40.0,84.3,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:04:59,wind,1,174.4,52.0,4.0,48.0,94.4,3.3,3.2,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:05:00,wind,1,169.3,52.0,7.0,45.0,97.3,3.2,3.2,1.63,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:05:01,wind,1,166.9,52.0,-4.0,56.0,108.0,3.2,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:05:02,wind,1,165.0,52.0,7.0,45.0,112.5,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,settling
+18:05:03,wind,1,163.9,52.0,-2.0,54.0,114.4,3.3,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+18:05:04,wind,1,163.2,52.0,4.0,48.0,119.0,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+18:05:05,wind,1,163.2,52.0,6.0,46.0,123.3,3.0,3.3,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+18:05:06,wind,1,163.4,52.0,6.0,46.0,125.1,2.5,3.3,1.89,SYNC|ENGAGED|BAD_FUSES,none,completed
+18:05:07,wind,1,163.2,52.0,15.0,37.0,127.5,2.5,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,completed
+18:05:08,wind,1,162.2,52.0,6.0,46.0,126.0,2.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:09,wind,1,160.7,52.0,13.0,39.0,121.2,2.0,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:10,wind,1,159.4,52.0,10.0,42.0,115.0,2.2,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:11,wind,1,158.0,52.0,21.0,31.0,102.3,2.2,3.4,2.29,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:12,wind,1,156.6,52.0,4.0,48.0,106.6,1.9,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:13,wind,1,155.7,52.0,15.0,37.0,102.3,1.9,3.4,1.38,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:14,wind,1,155.1,52.0,-0.0,52.0,112.1,2.3,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:15,wind,1,153.9,52.0,4.0,48.0,111.5,2.3,3.4,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:16,wind,1,152.9,52.0,9.0,43.0,111.1,2.9,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:17,wind,1,151.9,52.0,-2.0,54.0,118.3,2.9,3.5,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:18,wind,1,150.5,52.0,4.0,48.0,117.4,3.2,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:19,wind,1,149.4,52.0,-1.0,53.0,118.6,3.2,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:20,wind,1,147.7,52.0,5.0,47.0,119.6,3.2,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:21,wind,1,146.8,52.0,-4.0,56.0,120.7,3.2,3.6,2.16,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:22,wind,1,145.9,52.0,9.0,43.0,119.1,3.3,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:23,wind,1,146.1,52.0,1.0,51.0,123.8,3.3,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:24,wind,1,146.4,52.0,-1.0,53.0,129.5,2.9,3.6,1.47,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:25,wind,1,145.9,52.0,9.0,43.0,129.4,2.9,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:26,wind,1,145.5,52.0,3.0,49.0,130.5,2.5,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:27,wind,1,144.5,52.0,9.0,43.0,130.1,2.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:28,wind,1,143.7,52.0,2.0,50.0,130.9,2.5,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:29,wind,1,142.3,52.0,-4.0,56.0,131.5,2.5,3.6,3,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:30,wind,1,141.8,52.0,-5.0,57.0,138.2,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:31,wind,1,142.0,52.0,-9.0,61.0,141.0,3.1,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:32,wind,1,142.2,52.0,-6.0,58.0,144.4,3.3,3.8,2.53,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:33,wind,1,142.1,52.0,-3.0,55.0,146.6,3.3,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:34,wind,1,141.0,52.0,-3.0,55.0,147.1,3.1,3.9,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:35,wind,1,140.6,52.0,-2.0,54.0,145.9,3.1,3.7,2.01,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:36,wind,1,140.3,52.0,-5.0,57.0,145.5,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:37,wind,1,140.3,52.0,-7.0,59.0,145.6,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:38,wind,1,141.2,52.0,-11.0,63.0,148.3,3.2,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:39,wind,1,141.7,52.0,-5.0,57.0,146.2,3.2,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:40,wind,1,142.9,52.0,-6.0,58.0,146.2,3.2,3.8,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:41,wind,1,143.8,52.0,-3.0,55.0,143.9,3.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:42,wind,1,143.3,52.0,-1.0,53.0,143.3,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:43,wind,1,143.4,52.0,-7.0,59.0,139.8,3.1,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:44,wind,1,142.5,52.0,3.0,49.0,135.1,3.2,3.7,2.78,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:45,wind,1,142.7,52.0,-1.0,53.0,133.5,3.2,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:46,wind,1,143.1,52.0,3.0,49.0,131.1,3.0,3.7,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:47,wind,1,143.6,52.0,8.0,44.0,133.3,3.0,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+18:05:48,wind,1,145.0,52.0,5.0,47.0,132.3,2.5,3.6,0,SYNC|ENGAGED|BAD_FUSES,none,
+```
+
+### B. Signal K server journal, plugin-related lines
+
+Time is CET, 17:44-18:06.
+
+- Lines in `[brackets]` are the plugin's own console logs.
+- The other lines are HTTP access lines (method, path, status, time,
+  size). The visor reaches the plugin with `/plugins/signalk-pypilot-newui/...`,
+  and `/signalk/v2/api/vessels/self/autopilots/pypilot-newui/...` is the
+  Signal K autopilot API served by the plugin.
+- Frequent status polls by the visor have been removed. The
+  `GET .../autowind` polls are kept.
+
+```text
+2026-11-05T17:44:52 [autowind] TWA 157 deg -> true wind / profile Popa TWS 10 SIN OLA
+2026-11-05T17:45:21 GET /signalk/v2/api/vessels/self/autopilots?_=1793897121242 401 3.134 ms - 14
+2026-11-05T17:45:22 POST /signalk/v1/access/requests 202 5.540 ms - 194
+2026-11-05T17:45:22 GET /plugins/signalk-pypilot-newui/catalog 401 0.445 ms - 91
+2026-11-05T17:45:22 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/position/value 200 0.925 ms - 62
+2026-11-05T17:45:22 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/speedOverGround/value 200 0.744 ms - 17
+2026-11-05T17:45:22 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/courseOverGroundTrue/value 200 1.705 ms - 19
+2026-11-05T17:45:22 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/headingTrue/value 404 2.658 ms - 217
+2026-11-05T17:45:22 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/name 200 1.040 ms - 15
+2026-11-05T17:45:22 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/state/value 200 0.731 ms - 10
+2026-11-05T17:45:24 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 401 0.582 ms - 91
+2026-11-05T17:45:26 GET /signalk/v1/requests/7aba585a-6841-4faa-92be-dff489e4ce67 200 1.175 ms - 194
+2026-11-05T17:45:27 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/headingTrue/value 404 1.307 ms - 217
+2026-11-05T17:45:27 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/position/value 200 1.620 ms - 61
+2026-11-05T17:45:27 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/courseOverGroundTrue/value 200 1.485 ms - 19
+2026-11-05T17:45:27 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/speedOverGround/value 200 2.179 ms - 17
+2026-11-05T17:45:27 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/name 304 2.158 ms - -
+2026-11-05T17:45:27 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/state/value 304 2.301 ms - -
+2026-11-05T17:45:28 [apProvider.setMode] re-anchor: same target-space (wind) — no anchor needed
+2026-11-05T17:45:28 [autowind] TWA 93 deg -> wind / profile Ceñida fondo medio viento
+2026-11-05T17:45:29 GET /admin/ 200 2.435 ms - -
+2026-11-05T17:45:29 GET /admin/assets/style-pDEmYwaq.css 200 5.088 ms - 51437
+2026-11-05T17:45:29 GET /signalk-auto-polar/remoteEntry.js 404 3.153 ms - 172
+2026-11-05T17:45:29 GET /admin/assets/index-Cmk9hJw0.js 200 3.444 ms - 1676
+2026-11-05T17:45:29 GET /signalk-weather-router-plus/remoteEntry.js 200 5.225 ms - -
+2026-11-05T17:45:29 GET /@signalk/app-dock/remoteEntry.js 200 2.543 ms - -
+2026-11-05T17:45:29 GET /@signalk/signalk-to-nmea0183/remoteEntry.js 304 2.552 ms - -
+2026-11-05T17:45:29 GET /@marineyachtradar/signalk-plugin/remoteEntry.js 200 3.384 ms - -
+2026-11-05T17:45:29 GET /signalk-backup/remoteEntry.js 200 2.391 ms - -
+2026-11-05T17:45:29 GET /signalk-container/remoteEntry.js 200 3.276 ms - -
+2026-11-05T17:45:29 GET /@signalk/app-dock/configpanel/dist-D1jGdgWH.js 200 2.236 ms - -
+2026-11-05T17:45:29 GET /@signalk/app-dock/configpanel/vite-preload-helper-DHhhL8Zf.js 200 1.944 ms - -
+2026-11-05T17:45:29 GET /@marineyachtradar/signalk-plugin/assets/dist-C5M3fhBw.js 200 3.057 ms - 298
+2026-11-05T17:45:29 GET /@marineyachtradar/signalk-plugin/assets/helpers-oIxDNnZJ.js 200 2.807 ms - 88
+2026-11-05T17:45:30 GET /signalk-container/chunks/dist-D7DeBmx9.js 200 3.879 ms - -
+2026-11-05T17:45:30 GET /signalk-backup/assets/dist-C5M3fhBw.js 200 3.744 ms - 340
+2026-11-05T17:45:30 GET /signalk-backup/assets/helpers-oIxDNnZJ.js 200 5.291 ms - 133
+2026-11-05T17:45:30 GET /signalk-container/chunks/vite-preload-helper-DHhhL8Zf.js 200 3.963 ms - -
+2026-11-05T17:45:30 GET /@marineyachtradar/signalk-plugin/assets/vite-preload-helper-CRzLMJPS.js 200 5.525 ms - -
+2026-11-05T17:45:30 GET /signalk-backup/assets/vite-preload-helper-BDFk_Ne0.js 200 5.106 ms - -
+2026-11-05T17:45:30 GET /signalk-backup/assets/utils-v9GZlbdk.js 200 1.825 ms - -
+2026-11-05T17:45:30 GET /@marineyachtradar/signalk-plugin/assets/utils-v9GZlbdk.js 200 2.126 ms - -
+2026-11-05T17:45:30 GET /@marineyachtradar/signalk-plugin/assets/_virtual_mf-localSharedImportMap___mfe_internal___marineyachtradar_signalk_plugin__mf_owner__1-BGNhI5e7.js 200 1.146 ms - -
+2026-11-05T17:45:30 GET /admin/assets/rolldown-runtime-BWaJ3C7D.js 200 4.977 ms - 911
+2026-11-05T17:45:30 GET /admin/assets/Card-D9cCq7Lz.js 200 4.680 ms - 4165
+2026-11-05T17:45:30 GET /admin/assets/setPrototypeOf-CX5pU4_9.js 200 4.133 ms - 1579
+2026-11-05T17:45:30 GET /admin/assets/dist-IU7juufS.js 200 3.525 ms - 2248
+2026-11-05T17:45:30 GET /admin/assets/bootstrap-Cq79J5pU.js 200 5.034 ms - 150343
+2026-11-05T17:45:30 GET /admin/assets/dist-D1oLACbv.js 200 0.968 ms - 7270
+2026-11-05T17:45:30 GET /admin/assets/useEventCallback-DkuHAekl.js 200 2.168 ms - 940
+2026-11-05T17:45:30 GET /admin/assets/store-GXors5W0.js 200 3.481 ms - 69765
+2026-11-05T17:45:30 GET /admin/assets/useEventCallback-Bmt7DFvS.js 200 2.815 ms - 359
+2026-11-05T17:45:30 GET /admin/assets/Anchor-Dus7I-i-.js 200 2.195 ms - 623
+2026-11-05T17:45:30 GET /admin/assets/vendor-mathjs-DLeYV2CP.js 200 2.915 ms - 179284
+2026-11-05T17:45:30 GET /admin/assets/Fade-CX4NvDmQ.js 200 1.250 ms - 3241
+2026-11-05T17:45:30 GET /admin/assets/Button-BcBlqsc6.js 200 1.553 ms - 651
+2026-11-05T17:45:30 GET /admin/assets/CloseButton-D9uJXl0u.js 200 0.985 ms - 576
+2026-11-05T17:45:30 GET /admin/assets/prop-types-DjOvr2p_.js 200 1.318 ms - 863
+2026-11-05T17:45:30 GET /admin/assets/NavbarContext-ExsY4kFt.js 200 1.998 ms - 759
+2026-11-05T17:45:30 GET /admin/assets/Nav-EmwOwH1n.js 200 2.180 ms - 1449
+2026-11-05T17:45:30 GET /admin/assets/useMergedRefs-C6MYkhII.js 200 2.207 ms - 334
+2026-11-05T17:45:30 GET /admin/assets/hasClass-DHkuiHpP.js 200 2.211 ms - 1373
+2026-11-05T17:45:30 GET /admin/assets/NoopTransition-DU2vGR85.js 200 1.043 ms - 565
+2026-11-05T17:45:30 GET /admin/assets/InputGroupContext-BhwnYFGu.js 200 2.158 ms - 227
+2026-11-05T17:45:30 GET /admin/assets/ElementChildren-Drx5ns6E.js 200 3.128 ms - 390
+2026-11-05T17:45:30 GET /admin/assets/WebSocketService-BB_Q_dPm.js 200 3.708 ms - 2037
+2026-11-05T17:45:30 GET /admin/assets/dataFetching-BUMbFjA0.js 200 3.832 ms - 894
+2026-11-05T17:45:30 GET /admin/assets/Col-Bwy-Or0c.js 200 3.974 ms - 794
+2026-11-05T17:45:30 GET /admin/assets/Form-GS5AcyLc.js 200 4.020 ms - 1753
+2026-11-05T17:45:30 GET /admin/assets/DataKey-D-V1Gfkh.js 200 0.908 ms - 282
+2026-11-05T17:45:31 GET /signalk/v1/requests/7aba585a-6841-4faa-92be-dff489e4ce67 304 0.747 ms - -
+2026-11-05T17:45:32 GET /skServer/loginStatus 200 1.108 ms - 168
+2026-11-05T17:45:32 GET /skServer/plugins 401 0.431 ms - 91
+2026-11-05T17:45:32 GET /skServer/addons 304 4.964 ms - -
+2026-11-05T17:45:32 GET /skServer/appstore/available 401 0.343 ms - 91
+2026-11-05T17:45:32 GET /skServer/webapps 200 4.786 ms - -
+2026-11-05T17:45:32 GET /signalk 200 1.346 ms - 255
+2026-11-05T17:45:32 GET /skServer/security/access/requests 401 0.339 ms - 91
+2026-11-05T17:45:32 GET /skServer/security/devices 401 0.268 ms - 91
+2026-11-05T17:45:32 GET /skServer/nodeInfo 200 0.451 ms - 110
+2026-11-05T17:45:32 GET /signalk/v1/api/sources 200 0.705 ms - -
+2026-11-05T17:45:32 GET /skServer/priorities 401 0.402 ms - 91
+2026-11-05T17:45:32 GET /admin/assets/Simple-Line-Icons-D0KobG-u.woff2?v=2.4.0 200 1.000 ms - 30064
+2026-11-05T17:45:32 GET /skServer/sourceAliases 401 0.398 ms - 91
+2026-11-05T17:45:32 GET /skServer/ignoredInstanceConflicts 401 0.411 ms - 91
+2026-11-05T17:45:32 GET /skServer/n2kDeviceStatus 401 0.610 ms - 91
+2026-11-05T17:45:32 GET /skServer/livePreferredSources 401 0.380 ms - 91
+2026-11-05T17:45:32 GET /skServer/multiSourcePaths 401 0.322 ms - 91
+2026-11-05T17:45:32 GET /skServer/reconciledGroups 401 0.468 ms - 91
+2026-11-05T17:45:32 GET /signalk/v2/api/vessels/self/sensors/gnss 200 0.799 ms - 298
+2026-11-05T17:45:32 GET /skServer/positionSources 401 0.398 ms - 91
+2026-11-05T17:45:32 GET /admin/assets/public_src/img/signal-k-logo-image-text.svg 200 2.172 ms - -
+2026-11-05T17:45:33 GET /signalk 304 0.842 ms - -
+2026-11-05T17:45:33 GET /skServer/loginStatus 200 0.585 ms - 168
+2026-11-05T17:45:34 GET /skServer/loginStatus 200 0.744 ms - 168
+2026-11-05T17:45:34 GET /skServer/loginStatus 200 0.701 ms - 168
+2026-11-05T17:45:34 GET /signalk/v2/features?enabled=1 200 11.660 ms - -
+2026-11-05T17:45:34 GET /signalk/v1/unitpreferences/active 304 3.576 ms - -
+2026-11-05T17:45:34 GET /plugins/tracks/imports 200 4.108 ms - 2
+2026-11-05T17:45:34 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 401 0.416 ms - 91
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/symbols 404 1.204 ms - 171
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/plotterExtensions 200 5.950 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/tracks 304 0.934 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/infolayers 304 0.781 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/groups 200 5.252 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/routes 304 4.063 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/waypoints 200 2.390 ms - 2
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/charts 200 2.382 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/regions 200 1.311 ms - 582
+2026-11-05T17:45:34 GET /signalk/v2/features 200 6.417 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/tracks 304 0.785 ms - -
+2026-11-05T17:45:34 GET /@meri-imperiumi/signalk-internet/plotterext/indicator.html 200 6.336 ms - 206
+2026-11-05T17:45:34 GET /signalk-weather-router-plus/plotterext/background.html?v=0.2.1-6adcb087 200 1.466 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/infolayers 304 0.814 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources 200 0.684 ms - 710
+2026-11-05T17:45:34 GET /signalk/v2/api/vessels/self/navigation/course 304 0.455 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/routes 304 166.212 ms - -
+2026-11-05T17:45:34 GET /signalk/v1/api/vessels/self 200 6.982 ms - -
+2026-11-05T17:45:34 GET /plugins/tracks/imports 304 4.190 ms - -
+2026-11-05T17:45:34 GET /signalk/v2/api/resources/tracks 304 0.692 ms - -
+2026-11-05T17:45:34 GET /@meri-imperiumi/signalk-internet/plotterext/indicator.js 200 1.050 ms - 819
+2026-11-05T17:45:35 GET /signalk/v1/api/vessels/self/navigation/anchor 404 0.975 ms - 184
+2026-11-05T17:45:35 GET /@meri-imperiumi/signalk-internet/plotterext/vendor/plotterext-bus.js 200 1.140 ms - -
+2026-11-05T17:45:35 GET /@meri-imperiumi/signalk-internet/plotterext/view.js 200 1.006 ms - -
+2026-11-05T17:45:35 GET /@meri-imperiumi/signalk-internet/format.js 200 1.922 ms - -
+2026-11-05T17:45:36 GET /signalk/v1/requests/7aba585a-6841-4faa-92be-dff489e4ce67 304 0.696 ms - -
+2026-11-05T17:45:37 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/headingTrue/value 404 1.021 ms - 217
+2026-11-05T17:45:37 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/position/value 200 0.694 ms - 62
+2026-11-05T17:45:37 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/speedOverGround/value 200 1.732 ms - 17
+2026-11-05T17:45:37 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/courseOverGroundTrue/value 200 1.578 ms - 20
+2026-11-05T17:45:37 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/name 304 1.459 ms - -
+2026-11-05T17:45:37 GET /signalk/v1/api/vessels/urn:mrn:imo:mmsi:224182590/navigation/state/value 304 0.602 ms - -
+2026-11-05T17:45:40 GET /signalk/v1/requests/7aba585a-6841-4faa-92be-dff489e4ce67 304 0.947 ms - -
+2026-11-05T17:45:41 POST /signalk/v1/auth/login 200 163.552 ms - 158
+2026-11-05T17:45:41 GET /skServer/loginStatus 200 1.194 ms - 208
+2026-11-05T17:45:41 GET /skServer/webapps 304 30.171 ms - -
+2026-11-05T17:45:41 GET /skServer/addons 304 29.595 ms - -
+2026-11-05T17:45:41 GET /signalk 304 4.750 ms - -
+2026-11-05T17:45:41 GET /skServer/security/access/requests 200 0.956 ms - 482
+2026-11-05T17:45:41 GET /skServer/plugins 200 8.955 ms - -
+2026-11-05T17:45:41 GET /skServer/security/devices 200 1.273 ms - -
+2026-11-05T17:45:41 GET /skServer/nodeInfo 304 1.010 ms - -
+2026-11-05T17:45:41 GET /signalk/v1/api/sources 200 1.453 ms - -
+2026-11-05T17:45:41 GET /skServer/priorities 304 1.384 ms - -
+2026-11-05T17:45:41 GET /skServer/sourceAliases 304 1.220 ms - -
+2026-11-05T17:45:41 GET /skServer/ignoredInstanceConflicts 304 1.011 ms - -
+2026-11-05T17:45:41 GET /skServer/n2kDeviceStatus 200 1.813 ms - -
+2026-11-05T17:45:41 GET /skServer/livePreferredSources 200 1.231 ms - -
+2026-11-05T17:45:41 GET /skServer/multiSourcePaths 200 1.574 ms - -
+2026-11-05T17:45:41 GET /signalk/v2/api/vessels/self/sensors/gnss 304 0.995 ms - -
+2026-11-05T17:45:41 GET /skServer/reconciledGroups 200 2.336 ms - -
+2026-11-05T17:45:41 GET /skServer/positionSources 200 1.173 ms - 35
+2026-11-05T17:45:42 GET /skServer/loginStatus 200 1.029 ms - 208
+2026-11-05T17:45:45 GET /signalk/v1/requests/7aba585a-6841-4faa-92be-dff489e4ce67 304 0.993 ms - -
+2026-11-05T17:45:45 GET /skServer/appstore/available 200 3935.905 ms - -
+2026-11-05T17:45:49 GET /admin/assets/AccessRequests-DDlJ2ZV7.js 200 1.795 ms - 1857
+2026-11-05T17:45:49 GET /admin/assets/faAlignJustify-B2p11B6H.js 200 1.744 ms - 813
+2026-11-05T17:45:49 GET /admin/assets/faBan-ByVIacTf.js 200 1.380 ms - 663
+2026-11-05T17:45:49 GET /admin/assets/faCheck-DSQu-P9S.js 200 1.371 ms - 610
+2026-11-05T17:45:50 GET /signalk/v1/requests/7aba585a-6841-4faa-92be-dff489e4ce67 304 1.216 ms - -
+2026-11-05T17:45:54 PUT /skServer/security/access/requests/a67c1951-1de5-4e3b-9aff-b691eabaf531/approved 200 5.266 ms - 15
+2026-11-05T17:45:54 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.782 ms - 33
+2026-11-05T17:45:56 GET /signalk/v1/requests/7aba585a-6841-4faa-92be-dff489e4ce67 200 1.159 ms - 418
+2026-11-05T17:45:56 GET /signalk/v2/api/resources/notes?position=[-8.734839373783208,42.2762591577073]&distance=20000 304 3.764 ms - -
+2026-11-05T17:46:01 POST /signalk/v1/auth/login 200 127.836 ms - 158
+2026-11-05T17:46:04 GET /signalk/v2/api/vessels/self/autopilots?_=1793897163689 200 1.740 ms - 71
+2026-11-05T17:46:04 GET /signalk/v2/api/vessels/self/autopilots?_=1793897163690 200 1.463 ms - 71
+2026-11-05T17:46:04 [apProvider.setMode] re-anchor: no measurement for ap.heading; sailor will nudge
+2026-11-05T17:46:04 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 2.221 ms - 53
+2026-11-05T17:46:04 [apProvider.setTarget] rad=0.4214 deg=24.14
+2026-11-05T17:46:04 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 3.516 ms - 53
+2026-11-05T17:46:06 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.100 ms - 34
+2026-11-05T17:46:09 [autowind] off (mode changed to compass)
+2026-11-05T17:46:12 [apProvider.setTarget] rad=2.1747 deg=124.60
+2026-11-05T17:46:12 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.442 ms - 53
+2026-11-05T17:46:14 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.827 ms - 33
+2026-11-05T17:46:16 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.450 ms - 33
+2026-11-05T17:46:28 PUT /plugins/signalk-pypilot-newui/raw 200 2.673 ms - 56
+2026-11-05T17:47:12 POST /plugins/signalk-pypilot-newui/watch/release 200 1.639 ms - 81
+2026-11-05T17:47:12 GET /signalk-mareas-ihm/api/build-info 200 1.749 ms - 188
+2026-11-05T17:47:12 GET /skServer/plugins 200 9.636 ms - -
+2026-11-05T17:47:12 GET /skServer/webapps 304 5.709 ms - -
+2026-11-05T17:47:12 GET /signalk/v2/api/resources/charts 304 5.798 ms - -
+2026-11-05T17:47:18 GET /signalk-pypilot-newui/ 200 2.344 ms - -
+2026-11-05T17:47:18 GET /signalk-pypilot-newui/style.css?v=Rev629 200 2.665 ms - -
+2026-11-05T17:47:18 GET /signalk-pypilot-newui/app.js?v=Rev629 200 2.134 ms - -
+2026-11-05T17:47:18 GET /signalk-pypilot-newui/boat-cenital.svg 304 5.526 ms - -
+2026-11-05T17:47:18 GET /signalk/v2/api/resources/regions 304 1.516 ms - -
+2026-11-05T17:47:19 GET /signalk/v2/api/vessels/self/autopilots?_=1793897238610 200 1.030 ms - 71
+2026-11-05T17:47:19 GET /plugins/signalk-pypilot-newui/autowind 200 1.513 ms - 202
+2026-11-05T17:47:19 GET /plugins/signalk-pypilot-newui/catalog 304 2.231 ms - -
+2026-11-05T17:47:21 GET /signalk-mareas-ihm/api/build-info 200 1.081 ms - 188
+2026-11-05T17:47:21 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.346 ms - 33
+2026-11-05T17:47:21 GET /signalk-pypilot-newui/keepawake.webm 206 2.229 ms - 2035
+2026-11-05T17:47:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.737 ms - -
+2026-11-05T17:47:26 POST /plugins/signalk-pypilot-newui/watch/release 200 1.823 ms - 81
+2026-11-05T17:47:26 GET /signalk-mareas-ihm/api/build-info 200 1.933 ms - 188
+2026-11-05T17:47:26 GET /skServer/webapps 304 7.141 ms - -
+2026-11-05T17:47:26 GET /signalk/v2/api/resources/charts 304 6.348 ms - -
+2026-11-05T17:47:26 GET /skServer/plugins 200 11.663 ms - -
+2026-11-05T17:47:28 GET /signalk 304 1.001 ms - -
+2026-11-05T17:47:28 GET /skServer/loginStatus 200 1.438 ms - 208
+2026-11-05T17:47:28 GET /skServer/loginStatus 200 1.031 ms - 208
+2026-11-05T17:47:28 GET /skServer/loginStatus 200 0.963 ms - 208
+2026-11-05T17:47:28 GET /signalk/v2/features?enabled=1 304 5.149 ms - -
+2026-11-05T17:47:28 GET /signalk/v1/unitpreferences/active 304 3.794 ms - -
+2026-11-05T17:47:28 GET /plugins/tracks/imports 304 4.144 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/tracks 304 2.871 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/infolayers 304 2.124 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/groups 304 6.047 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources 304 0.702 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/symbols 404 2.671 ms - 171
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/plotterExtensions 304 4.020 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/features 304 5.151 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/tracks 304 3.595 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/notes?position=[-8.734839373783208,42.2762591577073]&distance=20000 304 2.691 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources 304 1.388 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/vessels/self/navigation/course 304 0.695 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/routes 304 7.171 ms - -
+2026-11-05T17:47:29 GET /signalk/v1/api/vessels/self 200 155.598 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/waypoints 304 5.294 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/charts 304 4.676 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/regions 304 1.514 ms - -
+2026-11-05T17:47:29 GET /plugins/tracks/imports 304 1.588 ms - -
+2026-11-05T17:47:29 GET /@meri-imperiumi/signalk-internet/plotterext/indicator.html 304 1.094 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/tracks 304 1.931 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/routes 304 1.383 ms - -
+2026-11-05T17:47:29 GET /signalk-weather-router-plus/plotterext/background.html?v=0.2.1-6adcb087 304 1.523 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/tracks 304 1.151 ms - -
+2026-11-05T17:47:29 GET /signalk/v2/api/resources/infolayers 304 3.583 ms - -
+2026-11-05T17:47:29 GET /@meri-imperiumi/signalk-internet/plotterext/indicator.js 304 1.597 ms - -
+2026-11-05T17:47:29 GET /signalk/v1/api/vessels/self/navigation/anchor 404 1.432 ms - 184
+2026-11-05T17:47:29 GET /plugins/signalk-pypilot-newui/autowind 304 1.764 ms - -
+2026-11-05T17:47:29 GET /plugins/tracks/imports 304 1.552 ms - -
+2026-11-05T17:47:29 GET /@meri-imperiumi/signalk-internet/plotterext/vendor/plotterext-bus.js 304 1.935 ms - -
+2026-11-05T17:47:29 GET /@meri-imperiumi/signalk-internet/plotterext/view.js 304 1.373 ms - -
+2026-11-05T17:47:29 GET /@meri-imperiumi/signalk-internet/format.js 304 1.086 ms - -
+2026-11-05T17:47:30 POST /plugins/signalk-pypilot-newui/watch/release 200 1.309 ms - 81
+2026-11-05T17:47:31 GET /skServer/loginStatus 200 1.091 ms - 208
+2026-11-05T17:47:34 GET /plugins/signalk-pypilot-newui/autowind 304 2.257 ms - -
+2026-11-05T17:47:39 GET /plugins/signalk-pypilot-newui/autowind 304 1.291 ms - -
+2026-11-05T17:47:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.823 ms - -
+2026-11-05T17:47:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.778 ms - -
+2026-11-05T17:47:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.212 ms - -
+2026-11-05T17:47:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.286 ms - -
+2026-11-05T17:48:04 GET /plugins/signalk-pypilot-newui/autowind 304 2.328 ms - -
+2026-11-05T17:48:09 GET /plugins/signalk-pypilot-newui/autowind 304 1.799 ms - -
+2026-11-05T17:48:14 GET /plugins/signalk-pypilot-newui/autowind 304 2.384 ms - -
+2026-11-05T17:48:15 POST /plugins/signalk-pypilot-newui/watch/release 200 1.837 ms - 81
+2026-11-05T17:48:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.272 ms - -
+2026-11-05T17:48:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.324 ms - -
+2026-11-05T17:48:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.080 ms - -
+2026-11-05T17:48:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.323 ms - -
+2026-11-05T17:48:39 GET /plugins/signalk-pypilot-newui/autowind 304 1.507 ms - -
+2026-11-05T17:48:44 GET /plugins/signalk-pypilot-newui/autowind 304 2.271 ms - -
+2026-11-05T17:48:48 POST /plugins/signalk-pypilot-newui/watch/focus 200 3.408 ms - 108
+2026-11-05T17:48:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.229 ms - -
+2026-11-05T17:48:50 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.627 ms - 33
+2026-11-05T17:48:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.210 ms - -
+2026-11-05T17:48:56 GET /skServer/plugins/ 401 0.435 ms - 91
+2026-11-05T17:48:56 PUT /plugins/signalk-pypilot-newui/raw 200 2.111 ms - 48
+2026-11-05T17:48:57 PUT /plugins/signalk-pypilot-newui/raw 200 2.078 ms - 48
+2026-11-05T17:48:58 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.652 ms - 33
+2026-11-05T17:48:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.060 ms - -
+2026-11-05T17:49:04 GET /plugins/signalk-pypilot-newui/autowind 304 2.577 ms - -
+2026-11-05T17:49:09 GET /plugins/signalk-pypilot-newui/autowind 304 2.169 ms - -
+2026-11-05T17:49:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.623 ms - -
+2026-11-05T17:49:19 GET /plugins/signalk-pypilot-newui/autowind 304 1.581 ms - -
+2026-11-05T17:49:20 POST /plugins/signalk-pypilot-newui/watch/release 200 2.785 ms - 81
+2026-11-05T17:49:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.661 ms - -
+2026-11-05T17:49:28 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.383 ms - 33
+2026-11-05T17:49:28 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.930 ms - 31
+2026-11-05T17:49:28 [apProvider.setMode] re-anchor: no measurement for wind.direction; sailor will nudge
+2026-11-05T17:49:28 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.826 ms - 53
+2026-11-05T17:49:28 [apProvider.setTarget] rad=0.0000 deg=0.00
+2026-11-05T17:49:28 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.248 ms - 53
+2026-11-05T17:49:29 GET /plugins/signalk-pypilot-newui/autowind 200 2.290 ms - 204
+2026-11-05T17:49:30 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.925 ms - 34
+2026-11-05T17:49:34 GET /plugins/signalk-pypilot-newui/autowind 304 2.686 ms - -
+2026-11-05T17:49:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.380 ms - -
+2026-11-05T17:49:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.658 ms - -
+2026-11-05T17:49:48 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.613 ms - 31
+2026-11-05T17:49:49 GET /plugins/signalk-pypilot-newui/autowind 304 1.756 ms - -
+2026-11-05T17:49:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.630 ms - -
+2026-11-05T17:49:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.749 ms - -
+2026-11-05T17:50:00 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.614 ms - 32
+2026-11-05T17:50:00 [apProvider.setMode] re-anchor: no measurement for ap.heading; sailor will nudge
+2026-11-05T17:50:00 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.676 ms - 53
+2026-11-05T17:50:00 [apProvider.setTarget] rad=4.0732 deg=233.38
+2026-11-05T17:50:00 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.236 ms - 53
+2026-11-05T17:50:02 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.927 ms - 34
+2026-11-05T17:50:04 GET /plugins/signalk-pypilot-newui/autowind 200 2.173 ms - 202
+2026-11-05T17:50:05 POST /plugins/signalk-pypilot-newui/watch/release 200 1.713 ms - 81
+2026-11-05T17:50:09 GET /plugins/signalk-pypilot-newui/autowind 304 2.059 ms - -
+2026-11-05T17:50:10 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.728 ms - 33
+2026-11-05T17:50:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.465 ms - 31
+2026-11-05T17:50:10 PUT /plugins/signalk-pypilot-newui/raw 200 1.823 ms - 66
+2026-11-05T17:50:10 [apProvider.setMode] re-anchor: no measurement for wind.true_direction; sailor will nudge
+2026-11-05T17:50:10 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.391 ms - 53
+2026-11-05T17:50:11 [apProvider.setTarget] rad=3.1406 deg=179.94
+2026-11-05T17:50:11 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.403 ms - 53
+2026-11-05T17:50:12 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.892 ms - 34
+2026-11-05T17:50:14 GET /plugins/signalk-pypilot-newui/autowind 200 1.665 ms - 209
+2026-11-05T17:50:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.875 ms - -
+2026-11-05T17:50:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.649 ms - -
+2026-11-05T17:50:29 GET /plugins/signalk-pypilot-newui/autowind 304 1.468 ms - -
+2026-11-05T17:50:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.425 ms - 31
+2026-11-05T17:50:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.369 ms - -
+2026-11-05T17:50:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.096 ms - -
+2026-11-05T17:50:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.573 ms - -
+2026-11-05T17:50:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.569 ms - -
+2026-11-05T17:50:50 POST /plugins/signalk-pypilot-newui/watch/release 200 1.415 ms - 81
+2026-11-05T17:50:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.321 ms - 31
+2026-11-05T17:50:53 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.697 ms - 33
+2026-11-05T17:50:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.759 ms - -
+2026-11-05T17:50:57 GET /plugins/signalk-pypilot-newui/tiles/16/31178/24259.png 200 351.639 ms - 699
+2026-11-05T17:50:57 GET /plugins/signalk-pypilot-newui/tiles/16/31178/24260.png 200 353.136 ms - 1057
+2026-11-05T17:50:57 POST /plugins/signalk-pypilot-newui/black-box/mark 200 1.401 ms - 46
+2026-11-05T17:50:57 GET /plugins/signalk-pypilot-newui/tiles/16/31177/24259.png 200 517.823 ms - 20390
+2026-11-05T17:50:57 GET /plugins/signalk-pypilot-newui/tiles/16/31179/24259.png 200 558.427 ms - 103
+2026-11-05T17:50:57 GET /plugins/signalk-pypilot-newui/tiles/16/31177/24260.png 200 982.800 ms - 23140
+2026-11-05T17:50:57 GET /plugins/signalk-pypilot-newui/tiles/16/31179/24260.png 200 984.955 ms - 103
+2026-11-05T17:50:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.408 ms - -
+2026-11-05T17:50:59 POST /plugins/signalk-pypilot-newui/black-box/mark 200 1.244 ms - 46
+2026-11-05T17:51:02 POST /plugins/signalk-pypilot-newui/black-box/mark 200 1.452 ms - 46
+2026-11-05T17:51:04 GET /plugins/signalk-pypilot-newui/autowind 304 1.737 ms - -
+2026-11-05T17:51:09 GET /plugins/signalk-pypilot-newui/autowind 304 2.061 ms - -
+2026-11-05T17:51:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.578 ms - 31
+2026-11-05T17:51:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.612 ms - -
+2026-11-05T17:51:15 PUT /plugins/signalk-pypilot-newui/raw 200 1.783 ms - 56
+2026-11-05T17:51:15 [apProvider.setMode] re-anchor: no measurement for ap.heading; sailor will nudge
+2026-11-05T17:51:15 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.632 ms - 53
+2026-11-05T17:51:16 [apProvider.setTarget] rad=1.3663 deg=78.28
+2026-11-05T17:51:16 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.124 ms - 53
+2026-11-05T17:51:17 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.157 ms - 34
+2026-11-05T17:51:19 GET /plugins/signalk-pypilot-newui/autowind 200 2.164 ms - 202
+2026-11-05T17:51:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.105 ms - -
+2026-11-05T17:51:24 [autowind] on (selected)
+2026-11-05T17:51:24 [apProvider.setMode] re-anchor: no measurement for wind.true_direction; sailor will nudge
+2026-11-05T17:51:24 [autowind] AUTOWIND on -> true wind / profile Popa TWS 10 SIN OLA
+2026-11-05T17:51:24 POST /plugins/signalk-pypilot-newui/autowind 200 3.938 ms - 189
+2026-11-05T17:51:26 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.810 ms - 34
+2026-11-05T17:51:29 GET /plugins/signalk-pypilot-newui/autowind 200 2.332 ms - 196
+2026-11-05T17:51:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.142 ms - 31
+2026-11-05T17:51:34 GET /plugins/signalk-pypilot-newui/autowind 304 2.023 ms - -
+2026-11-05T17:51:35 POST /plugins/signalk-pypilot-newui/watch/release 200 1.798 ms - 81
+2026-11-05T17:51:37 [apProvider.setTarget] rad=-2.1660 deg=-124.10
+2026-11-05T17:51:37 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.408 ms - 53
+2026-11-05T17:51:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.292 ms - -
+2026-11-05T17:51:39 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.635 ms - 33
+2026-11-05T17:51:41 [apProvider.setTarget] rad=-1.4678 deg=-84.10
+2026-11-05T17:51:41 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.272 ms - 53
+2026-11-05T17:51:43 [apProvider.setTarget] rad=-1.2933 deg=-74.10
+2026-11-05T17:51:43 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 4.030 ms - 53
+2026-11-05T17:51:43 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.718 ms - 33
+2026-11-05T17:51:44 GET /plugins/signalk-pypilot-newui/autowind 304 2.190 ms - -
+2026-11-05T17:51:49 GET /plugins/signalk-pypilot-newui/autowind 304 1.706 ms - -
+2026-11-05T17:51:50 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.894 ms - 33
+2026-11-05T17:51:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.579 ms - 31
+2026-11-05T17:51:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.268 ms - -
+2026-11-05T17:51:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.646 ms - -
+2026-11-05T17:52:04 GET /plugins/signalk-pypilot-newui/autowind 304 2.010 ms - -
+2026-11-05T17:52:09 GET /plugins/signalk-pypilot-newui/autowind 304 1.424 ms - -
+2026-11-05T17:52:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.692 ms - 31
+2026-11-05T17:52:14 GET /plugins/signalk-pypilot-newui/autowind 304 2.390 ms - -
+2026-11-05T17:52:19 GET /plugins/signalk-pypilot-newui/autowind 304 1.362 ms - -
+2026-11-05T17:52:20 POST /plugins/signalk-pypilot-newui/watch/release 200 1.312 ms - 81
+2026-11-05T17:52:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.674 ms - -
+2026-11-05T17:52:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.216 ms - -
+2026-11-05T17:52:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.329 ms - 31
+2026-11-05T17:52:33 POST /signalk/v2/api/vessels/self/autopilots/pypilot-newui/disengage 200 3.005 ms - 53
+2026-11-05T17:52:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.731 ms - -
+2026-11-05T17:52:34 POST /plugins/signalk-pypilot-newui/ap/engage?current=1 200 3.149 ms - 11
+2026-11-05T17:52:34 [apProvider.setTarget] rad=-1.2522 deg=-71.75
+2026-11-05T17:52:34 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.495 ms - 53
+2026-11-05T17:52:35 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.936 ms - 34
+2026-11-05T17:52:36 POST /signalk/v2/api/vessels/self/autopilots/pypilot-newui/disengage 200 2.311 ms - 53
+2026-11-05T17:52:37 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.646 ms - 33
+2026-11-05T17:52:38 POST /plugins/signalk-pypilot-newui/autowind 200 1.727 ms - 196
+2026-11-05T17:52:39 GET /plugins/signalk-pypilot-newui/autowind 200 1.939 ms - 196
+2026-11-05T17:52:41 POST /plugins/signalk-pypilot-newui/ap/engage?current=1 200 2.270 ms - 11
+2026-11-05T17:52:41 [apProvider.setTarget] rad=-0.7219 deg=-41.36
+2026-11-05T17:52:41 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.761 ms - 53
+2026-11-05T17:52:43 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.373 ms - 34
+2026-11-05T17:52:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.916 ms - -
+2026-11-05T17:52:48 POST /plugins/signalk-pypilot-newui/black-box/mark 200 1.795 ms - 39
+2026-11-05T17:52:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.250 ms - -
+2026-11-05T17:52:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.166 ms - 31
+2026-11-05T17:52:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.733 ms - -
+2026-11-05T17:52:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.672 ms - -
+2026-11-05T17:53:04 GET /plugins/signalk-pypilot-newui/autowind 304 1.835 ms - -
+2026-11-05T17:53:05 POST /plugins/signalk-pypilot-newui/watch/release 200 1.730 ms - 81
+2026-11-05T17:53:09 GET /plugins/signalk-pypilot-newui/autowind 304 1.914 ms - -
+2026-11-05T17:53:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.144 ms - 31
+2026-11-05T17:53:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.788 ms - -
+2026-11-05T17:53:19 GET /plugins/signalk-pypilot-newui/autowind 304 1.307 ms - -
+2026-11-05T17:53:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.667 ms - -
+2026-11-05T17:53:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.205 ms - -
+2026-11-05T17:53:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.311 ms - 31
+2026-11-05T17:53:33 [autowind] off (another mode selected)
+2026-11-05T17:53:33 POST /plugins/signalk-pypilot-newui/autowind 200 2.218 ms - 207
+2026-11-05T17:53:33 [apProvider.setMode] re-anchor: no measurement for ap.heading; sailor will nudge
+2026-11-05T17:53:33 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.658 ms - 53
+2026-11-05T17:53:33 [apProvider.setTarget] rad=4.7450 deg=271.87
+2026-11-05T17:53:33 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.724 ms - 53
+2026-11-05T17:53:34 GET /plugins/signalk-pypilot-newui/autowind 200 1.478 ms - 200
+2026-11-05T17:53:35 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.952 ms - 34
+2026-11-05T17:53:36 [autowind] on (selected)
+2026-11-05T17:53:36 [apProvider.setMode] re-anchor: no measurement for wind.direction; sailor will nudge
+2026-11-05T17:53:36 [autowind] AUTOWIND on -> wind / profile Ceñida fondo medio viento
+2026-11-05T17:53:36 POST /plugins/signalk-pypilot-newui/autowind 200 3.327 ms - 189
+2026-11-05T17:53:39 GET /plugins/signalk-pypilot-newui/autowind 200 1.717 ms - 191
+2026-11-05T17:53:39 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.989 ms - 34
+2026-11-05T17:53:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.961 ms - -
+2026-11-05T17:53:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.566 ms - -
+2026-11-05T17:53:50 POST /plugins/signalk-pypilot-newui/watch/release 200 1.677 ms - 81
+2026-11-05T17:53:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.342 ms - 31
+2026-11-05T17:53:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.581 ms - -
+2026-11-05T17:53:56 GET /skServer/plugins/ 401 0.415 ms - 91
+2026-11-05T17:53:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.341 ms - -
+2026-11-05T17:54:02 [apProvider.setTarget] rad=-2.1590 deg=-123.70
+2026-11-05T17:54:02 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.353 ms - 53
+2026-11-05T17:54:03 [apProvider.setTarget] rad=-2.3335 deg=-133.70
+2026-11-05T17:54:03 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.250 ms - 53
+2026-11-05T17:54:04 GET /plugins/signalk-pypilot-newui/autowind 304 1.485 ms - -
+2026-11-05T17:54:04 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.682 ms - 33
+2026-11-05T17:54:09 GET /plugins/signalk-pypilot-newui/autowind 304 1.595 ms - -
+2026-11-05T17:54:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.430 ms - 31
+2026-11-05T17:54:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.880 ms - -
+2026-11-05T17:54:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.477 ms - -
+2026-11-05T17:54:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.950 ms - -
+2026-11-05T17:54:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.092 ms - -
+2026-11-05T17:54:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.481 ms - 31
+2026-11-05T17:54:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.819 ms - -
+2026-11-05T17:54:35 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.248 ms - 33
+2026-11-05T17:54:35 POST /plugins/signalk-pypilot-newui/watch/release 200 1.357 ms - 81
+2026-11-05T17:54:39 GET /plugins/signalk-pypilot-newui/autowind 304 1.733 ms - -
+2026-11-05T17:54:41 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.945 ms - 33
+2026-11-05T17:54:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.984 ms - -
+2026-11-05T17:54:49 GET /plugins/signalk-pypilot-newui/autowind 304 1.821 ms - -
+2026-11-05T17:54:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.132 ms - 31
+2026-11-05T17:54:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.188 ms - -
+2026-11-05T17:54:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.833 ms - -
+2026-11-05T17:55:03 [autowind] off (another mode selected)
+2026-11-05T17:55:03 POST /plugins/signalk-pypilot-newui/autowind 200 2.920 ms - 202
+2026-11-05T17:55:03 [apProvider.setMode] re-anchor: no measurement for ap.heading; sailor will nudge
+2026-11-05T17:55:03 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.690 ms - 53
+2026-11-05T17:55:04 GET /plugins/signalk-pypilot-newui/autowind 200 2.938 ms - 202
+2026-11-05T17:55:04 [apProvider.setTarget] rad=1.0367 deg=59.40
+2026-11-05T17:55:04 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.138 ms - 53
+2026-11-05T17:55:05 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.955 ms - 34
+2026-11-05T17:55:09 GET /plugins/signalk-pypilot-newui/autowind 200 2.128 ms - 200
+2026-11-05T17:55:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.527 ms - 31
+2026-11-05T17:55:13 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.584 ms - 33
+2026-11-05T17:55:14 GET /plugins/signalk-pypilot-newui/autowind 304 6.689 ms - -
+2026-11-05T17:55:18 PUT /plugins/signalk-pypilot-newui/raw 200 1.851 ms - 56
+2026-11-05T17:55:19 GET /plugins/signalk-pypilot-newui/autowind 304 1.936 ms - -
+2026-11-05T17:55:20 POST /plugins/signalk-pypilot-newui/watch/release 200 1.952 ms - 81
+2026-11-05T17:55:21 [apProvider.setMode] re-anchor: no measurement for wind.true_direction; sailor will nudge
+2026-11-05T17:55:21 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.295 ms - 53
+2026-11-05T17:55:21 [apProvider.setTarget] rad=1.0821 deg=62.00
+2026-11-05T17:55:21 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.773 ms - 53
+2026-11-05T17:55:23 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.675 ms - 34
+2026-11-05T17:55:24 GET /plugins/signalk-pypilot-newui/autowind 200 1.345 ms - 207
+2026-11-05T17:55:29 GET /plugins/signalk-pypilot-newui/autowind 304 1.515 ms - -
+2026-11-05T17:55:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.157 ms - 31
+2026-11-05T17:55:33 [autowind] on (selected)
+2026-11-05T17:55:33 [autowind] AUTOWIND on -> true wind / profile Popa TWS 10 SIN OLA
+2026-11-05T17:55:33 POST /plugins/signalk-pypilot-newui/autowind 200 2.932 ms - 196
+2026-11-05T17:55:34 GET /plugins/signalk-pypilot-newui/autowind 200 1.437 ms - 196
+2026-11-05T17:55:36 POST /signalk/v2/api/vessels/self/autopilots/pypilot-newui/disengage 200 3.130 ms - 53
+2026-11-05T17:55:38 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.673 ms - 33
+2026-11-05T17:55:38 [autowind] off (another mode selected)
+2026-11-05T17:55:38 POST /plugins/signalk-pypilot-newui/autowind 200 2.150 ms - 207
+2026-11-05T17:55:38 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.086 ms - 53
+2026-11-05T17:55:39 GET /plugins/signalk-pypilot-newui/autowind 200 1.282 ms - 202
+2026-11-05T17:55:40 POST /plugins/signalk-pypilot-newui/ap/engage?current=1 200 2.451 ms - 11
+2026-11-05T17:55:40 [apProvider.setTarget] rad=0.7156 deg=41.00
+2026-11-05T17:55:40 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.698 ms - 53
+2026-11-05T17:55:40 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.785 ms - 34
+2026-11-05T17:55:42 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.244 ms - 33
+2026-11-05T17:55:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.649 ms - -
+2026-11-05T17:55:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.467 ms - -
+2026-11-05T17:55:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.431 ms - 31
+2026-11-05T17:55:51 POST /plugins/signalk-pypilot-newui/black-box/mark 200 1.441 ms - 39
+2026-11-05T17:55:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.954 ms - -
+2026-11-05T17:55:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.561 ms - -
+2026-11-05T17:55:59 [virtual-tack vt-1793897759689-8c9j5a] turning dir=starboard fromMode=wind angle=42.0deg delta=84.0deg steps=1
+2026-11-05T17:55:59 POST /plugins/signalk-pypilot-newui/virtual-tack/start 200 11.882 ms - 73
+2026-11-05T17:56:00 [apProvider.setTarget] rad=4.4476 deg=254.83
+2026-11-05T17:56:01 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.260 ms - 34
+2026-11-05T17:56:04 GET /plugins/signalk-pypilot-newui/autowind 200 2.108 ms - 200
+2026-11-05T17:56:05 POST /plugins/signalk-pypilot-newui/watch/release 200 1.648 ms - 81
+2026-11-05T17:56:09 GET /plugins/signalk-pypilot-newui/autowind 304 2.214 ms - -
+2026-11-05T17:56:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.126 ms - 31
+2026-11-05T17:56:14 GET /plugins/signalk-pypilot-newui/autowind 200 2.080 ms - 202
+2026-11-05T17:56:14 [apProvider.setTarget] rad=-0.7330 deg=-42.00
+2026-11-05T17:56:15 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.583 ms - 34
+2026-11-05T17:56:17 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.343 ms - 34
+2026-11-05T17:56:19 GET /plugins/signalk-pypilot-newui/autowind 304 1.773 ms - -
+2026-11-05T17:56:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.593 ms - -
+2026-11-05T17:56:27 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.694 ms - 33
+2026-11-05T17:56:29 GET /plugins/signalk-pypilot-newui/autowind 304 1.454 ms - -
+2026-11-05T17:56:29 [virtual-tack vt-1793897759689-8c9j5a] completed in 29.8s (settled=true)
+2026-11-05T17:56:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.140 ms - 31
+2026-11-05T17:56:31 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.355 ms - 34
+2026-11-05T17:56:34 GET /plugins/signalk-pypilot-newui/autowind 304 3.116 ms - -
+2026-11-05T17:56:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.207 ms - -
+2026-11-05T17:56:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.788 ms - -
+2026-11-05T17:56:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.182 ms - -
+2026-11-05T17:56:50 POST /plugins/signalk-pypilot-newui/watch/release 200 1.737 ms - 81
+2026-11-05T17:56:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.475 ms - 31
+2026-11-05T17:56:50 [virtual-tack vt-1793897810667-u60o33] turning dir=port fromMode=wind angle=-50.0deg delta=-100.0deg steps=1
+2026-11-05T17:56:50 POST /plugins/signalk-pypilot-newui/virtual-tack/start 200 4.040 ms - 73
+2026-11-05T17:56:51 [apProvider.setTarget] rad=3.7628 deg=215.59
+2026-11-05T17:56:52 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.466 ms - 34
+2026-11-05T17:56:54 GET /plugins/signalk-pypilot-newui/autowind 200 2.157 ms - 200
+2026-11-05T17:56:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.265 ms - -
+2026-11-05T17:57:04 GET /plugins/signalk-pypilot-newui/autowind 304 1.643 ms - -
+2026-11-05T17:57:07 [apProvider.setTarget] rad=0.8727 deg=50.00
+2026-11-05T17:57:09 GET /plugins/signalk-pypilot-newui/autowind 200 1.605 ms - 202
+2026-11-05T17:57:09 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.124 ms - 34
+2026-11-05T17:57:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.214 ms - 31
+2026-11-05T17:57:11 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.477 ms - 34
+2026-11-05T17:57:14 GET /plugins/signalk-pypilot-newui/autowind 304 2.020 ms - -
+2026-11-05T17:57:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.236 ms - -
+2026-11-05T17:57:22 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.809 ms - 33
+2026-11-05T17:57:23 [virtual-tack vt-1793897810667-u60o33] completed in 32.9s (settled=true)
+2026-11-05T17:57:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.358 ms - -
+2026-11-05T17:57:25 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.598 ms - 34
+2026-11-05T17:57:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.352 ms - -
+2026-11-05T17:57:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.166 ms - 31
+2026-11-05T17:57:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.824 ms - -
+2026-11-05T17:57:35 POST /plugins/signalk-pypilot-newui/watch/release 200 1.755 ms - 81
+2026-11-05T17:57:39 GET /plugins/signalk-pypilot-newui/autowind 304 1.493 ms - -
+2026-11-05T17:57:44 GET /plugins/signalk-pypilot-newui/autowind 304 9.514 ms - -
+2026-11-05T17:57:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.286 ms - -
+2026-11-05T17:57:50 POST /plugins/signalk-pypilot-newui/watch/release 200 1.741 ms - 81
+2026-11-05T17:57:50 GET /skServer/webapps 304 6.631 ms - -
+2026-11-05T17:57:50 GET /signalk/v2/api/resources/charts 304 6.330 ms - -
+2026-11-05T17:57:50 GET /signalk-mareas-ihm/api/build-info 200 10.732 ms - 188
+2026-11-05T17:57:50 GET /skServer/plugins 200 15.669 ms - -
+2026-11-05T17:57:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.550 ms - 31
+2026-11-05T17:57:52 POST /plugins/signalk-pypilot-newui/watch/release 200 1.385 ms - 81
+2026-11-05T17:57:52 GET /plugins/signalk-pypilot-newui/quality 200 1.445 ms - -
+2026-11-05T17:57:52 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.891 ms - -
+2026-11-05T17:57:52 GET /plugins/signalk-pypilot-newui/paths 304 2.978 ms - -
+2026-11-05T17:57:52 GET /plugins/signalk-pypilot-newui/prechecks 200 2.943 ms - -
+2026-11-05T17:57:52 GET /plugins/signalk-pypilot-newui/catalog 304 1.574 ms - -
+2026-11-05T17:57:53 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.395 ms - -
+2026-11-05T17:57:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.836 ms - -
+2026-11-05T17:57:54 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.361 ms - -
+2026-11-05T17:57:55 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.210 ms - -
+2026-11-05T17:57:55 GET /plugins/signalk-pypilot-newui/quality 200 1.405 ms - -
+2026-11-05T17:57:56 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.440 ms - -
+2026-11-05T17:57:57 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.884 ms - -
+2026-11-05T17:57:58 POST /plugins/signalk-pypilot-newui/watch/release 200 1.666 ms - 81
+2026-11-05T17:57:58 GET /plugins/signalk-pypilot-newui/quality 200 1.724 ms - -
+2026-11-05T17:57:58 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.653 ms - -
+2026-11-05T17:57:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.285 ms - -
+2026-11-05T17:57:59 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.800 ms - -
+2026-11-05T17:58:00 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.945 ms - -
+2026-11-05T17:58:01 GET /plugins/signalk-pypilot-newui/doctor/status 304 2.030 ms - -
+2026-11-05T17:58:01 GET /plugins/signalk-pypilot-newui/quality 200 1.907 ms - -
+2026-11-05T17:58:02 GET /plugins/signalk-pypilot-newui/prechecks 200 2.336 ms - -
+2026-11-05T17:58:02 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.852 ms - -
+2026-11-05T17:58:03 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.835 ms - -
+2026-11-05T17:58:04 GET /plugins/signalk-pypilot-newui/autowind 304 2.412 ms - -
+2026-11-05T17:58:04 GET /plugins/signalk-pypilot-newui/quality 200 2.138 ms - -
+2026-11-05T17:58:04 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.919 ms - -
+2026-11-05T17:58:05 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.693 ms - -
+2026-11-05T17:58:06 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.615 ms - -
+2026-11-05T17:58:07 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.667 ms - -
+2026-11-05T17:58:07 GET /plugins/signalk-pypilot-newui/quality 200 1.773 ms - -
+2026-11-05T17:58:08 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.745 ms - -
+2026-11-05T17:58:09 GET /plugins/signalk-pypilot-newui/autowind 304 2.348 ms - -
+2026-11-05T17:58:09 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.564 ms - -
+2026-11-05T17:58:10 POST /plugins/signalk-pypilot-newui/watch/release 200 1.495 ms - 81
+2026-11-05T17:58:10 GET /plugins/signalk-pypilot-newui/quality 200 1.536 ms - -
+2026-11-05T17:58:10 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.873 ms - -
+2026-11-05T17:58:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.325 ms - 31
+2026-11-05T17:58:11 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.473 ms - -
+2026-11-05T17:58:12 GET /plugins/signalk-pypilot-newui/prechecks 200 1.582 ms - -
+2026-11-05T17:58:12 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.460 ms - -
+2026-11-05T17:58:13 GET /plugins/signalk-pypilot-newui/doctor/status 304 2.462 ms - -
+2026-11-05T17:58:13 GET /plugins/signalk-pypilot-newui/quality 200 3.497 ms - -
+2026-11-05T17:58:14 GET /plugins/signalk-pypilot-newui/doctor/status 304 1.868 ms - -
+2026-11-05T17:58:14 GET /plugins/signalk-pypilot-newui/autowind 304 2.484 ms - -
+2026-11-05T17:58:15 POST /plugins/signalk-pypilot-newui/watch/release 200 1.942 ms - 81
+2026-11-05T17:58:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.374 ms - -
+2026-11-05T17:58:23 [apProvider.setMode] re-anchor: no measurement for ap.heading; sailor will nudge
+2026-11-05T17:58:23 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 1.781 ms - 53
+2026-11-05T17:58:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.804 ms - -
+2026-11-05T17:58:24 [apProvider.setTarget] rad=2.2189 deg=127.13
+2026-11-05T17:58:24 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.006 ms - 53
+2026-11-05T17:58:25 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.874 ms - 34
+2026-11-05T17:58:29 GET /plugins/signalk-pypilot-newui/autowind 200 2.210 ms - 200
+2026-11-05T17:58:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.443 ms - 31
+2026-11-05T17:58:34 GET /plugins/signalk-pypilot-newui/autowind 304 7.989 ms - -
+2026-11-05T17:58:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.030 ms - -
+2026-11-05T17:58:42 [apProvider.setTarget] rad=0.4735 deg=27.13
+2026-11-05T17:58:42 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.218 ms - 53
+2026-11-05T17:58:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.659 ms - -
+2026-11-05T17:58:44 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.316 ms - 33
+2026-11-05T17:58:47 [apProvider.setTarget] rad=6.2331 deg=357.13
+2026-11-05T17:58:47 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.059 ms - 53
+2026-11-05T17:58:49 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.509 ms - 33
+2026-11-05T17:58:49 GET /plugins/signalk-pypilot-newui/autowind 304 1.562 ms - -
+2026-11-05T17:58:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.541 ms - 31
+2026-11-05T17:58:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.288 ms - -
+2026-11-05T17:58:56 GET /skServer/plugins/ 401 0.340 ms - 91
+2026-11-05T17:58:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.009 ms - -
+2026-11-05T17:59:00 POST /plugins/signalk-pypilot-newui/watch/release 200 1.512 ms - 81
+2026-11-05T17:59:04 GET /plugins/signalk-pypilot-newui/autowind 304 3.328 ms - -
+2026-11-05T17:59:04 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.351 ms - 33
+2026-11-05T18:00:13 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.861 ms - 31
+2026-11-05T18:00:13 GET /signalk/v2/features 304 8.954 ms - -
+2026-11-05T18:00:13 GET /signalk/v2/api/resources 304 1.618 ms - -
+2026-11-05T18:00:13 GET /signalk/v2/api/vessels/self/navigation/course 304 1.512 ms - -
+2026-11-05T18:00:13 GET /signalk/v2/api/resources/routes 304 10.986 ms - -
+2026-11-05T18:00:13 GET /signalk/v1/api/vessels/self 200 15.719 ms - -
+2026-11-05T18:00:13 GET /signalk/v1/api/vessels/self/navigation/anchor 404 12.587 ms - 184
+2026-11-05T18:00:14 GET /plugins/signalk-pypilot-newui/autowind 304 2.699 ms - -
+2026-11-05T18:00:16 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.310 ms - 33
+2026-11-05T18:00:19 GET /plugins/signalk-pypilot-newui/autowind 304 1.292 ms - -
+2026-11-05T18:00:23 [apProvider.setTarget] rad=6.1808 deg=354.13
+2026-11-05T18:00:23 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.886 ms - 53
+2026-11-05T18:00:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.521 ms - -
+2026-11-05T18:00:25 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.298 ms - 33
+2026-11-05T18:00:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.196 ms - -
+2026-11-05T18:00:30 POST /plugins/signalk-pypilot-newui/watch/release 200 1.768 ms - 81
+2026-11-05T18:00:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.599 ms - 31
+2026-11-05T18:00:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.501 ms - -
+2026-11-05T18:00:39 GET /plugins/signalk-pypilot-newui/autowind 304 1.876 ms - -
+2026-11-05T18:00:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.663 ms - -
+2026-11-05T18:00:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.152 ms - -
+2026-11-05T18:00:49 [apProvider.setTarget] rad=0.0000 deg=0.00
+2026-11-05T18:00:49 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.316 ms - 53
+2026-11-05T18:00:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.282 ms - 31
+2026-11-05T18:00:51 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.597 ms - 33
+2026-11-05T18:00:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.093 ms - -
+2026-11-05T18:00:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.029 ms - -
+2026-11-05T18:01:04 GET /plugins/signalk-pypilot-newui/autowind 304 1.697 ms - -
+2026-11-05T18:01:07 [apProvider.setTarget] rad=6.1087 deg=350.00
+2026-11-05T18:01:07 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.349 ms - 53
+2026-11-05T18:01:09 GET /plugins/signalk-pypilot-newui/autowind 304 2.235 ms - -
+2026-11-05T18:01:09 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.703 ms - 33
+2026-11-05T18:01:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.467 ms - 31
+2026-11-05T18:01:13 [apProvider.setTarget] rad=5.9341 deg=340.00
+2026-11-05T18:01:13 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.465 ms - 53
+2026-11-05T18:01:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.335 ms - -
+2026-11-05T18:01:15 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.246 ms - 33
+2026-11-05T18:01:15 POST /plugins/signalk-pypilot-newui/watch/release 200 1.297 ms - 81
+2026-11-05T18:01:15 [apProvider.setTarget] rad=4.7124 deg=270.00
+2026-11-05T18:01:15 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.723 ms - 53
+2026-11-05T18:01:17 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.371 ms - 33
+2026-11-05T18:01:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.250 ms - -
+2026-11-05T18:01:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.321 ms - -
+2026-11-05T18:01:29 GET /plugins/signalk-pypilot-newui/autowind 304 1.951 ms - -
+2026-11-05T18:01:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.148 ms - 31
+2026-11-05T18:01:34 GET /plugins/signalk-pypilot-newui/autowind 304 2.103 ms - -
+2026-11-05T18:01:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.328 ms - -
+2026-11-05T18:01:44 GET /plugins/signalk-pypilot-newui/autowind 304 2.894 ms - -
+2026-11-05T18:01:46 [apProvider.setTarget] rad=2.9953 deg=171.62
+2026-11-05T18:01:46 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.338 ms - 53
+2026-11-05T18:01:48 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.784 ms - 33
+2026-11-05T18:01:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.297 ms - -
+2026-11-05T18:01:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.535 ms - 31
+2026-11-05T18:01:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.461 ms - -
+2026-11-05T18:01:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.665 ms - -
+2026-11-05T18:02:00 POST /plugins/signalk-pypilot-newui/watch/release 200 1.793 ms - 81
+2026-11-05T18:02:04 GET /plugins/signalk-pypilot-newui/autowind 304 2.436 ms - -
+2026-11-05T18:02:06 [apProvider.setTarget] rad=2.9604 deg=169.62
+2026-11-05T18:02:06 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.082 ms - 53
+2026-11-05T18:02:08 [apProvider.setTarget] rad=2.9080 deg=166.62
+2026-11-05T18:02:08 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.875 ms - 53
+2026-11-05T18:02:08 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.501 ms - 33
+2026-11-05T18:02:09 GET /plugins/signalk-pypilot-newui/autowind 304 1.371 ms - -
+2026-11-05T18:02:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.527 ms - 31
+2026-11-05T18:02:13 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.313 ms - 33
+2026-11-05T18:02:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.384 ms - -
+2026-11-05T18:02:19 GET /plugins/signalk-pypilot-newui/autowind 304 1.964 ms - -
+2026-11-05T18:02:22 [apProvider.setTarget] rad=2.2099 deg=126.62
+2026-11-05T18:02:22 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.947 ms - 53
+2026-11-05T18:02:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.116 ms - -
+2026-11-05T18:02:24 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.624 ms - 33
+2026-11-05T18:02:25 [apProvider.setTarget] rad=2.1052 deg=120.62
+2026-11-05T18:02:25 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.868 ms - 53
+2026-11-05T18:02:27 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.848 ms - 33
+2026-11-05T18:02:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.093 ms - -
+2026-11-05T18:02:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.537 ms - 31
+2026-11-05T18:02:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.804 ms - -
+2026-11-05T18:02:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.349 ms - -
+2026-11-05T18:02:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.901 ms - -
+2026-11-05T18:02:45 POST /plugins/signalk-pypilot-newui/watch/release 200 1.821 ms - 81
+2026-11-05T18:02:48 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.616 ms - 33
+2026-11-05T18:02:49 GET /plugins/signalk-pypilot-newui/autowind 304 1.406 ms - -
+2026-11-05T18:02:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.731 ms - 31
+2026-11-05T18:02:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.126 ms - -
+2026-11-05T18:02:54 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.347 ms - 33
+2026-11-05T18:02:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.391 ms - -
+2026-11-05T18:03:04 GET /plugins/signalk-pypilot-newui/autowind 304 2.635 ms - -
+2026-11-05T18:03:04 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.768 ms - 33
+2026-11-05T18:03:09 GET /plugins/signalk-pypilot-newui/autowind 304 1.606 ms - -
+2026-11-05T18:03:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.208 ms - 31
+2026-11-05T18:03:14 GET /plugins/signalk-pypilot-newui/autowind 304 3.032 ms - -
+2026-11-05T18:03:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.709 ms - -
+2026-11-05T18:03:19 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.709 ms - 33
+2026-11-05T18:03:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.402 ms - -
+2026-11-05T18:03:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.801 ms - -
+2026-11-05T18:03:30 POST /plugins/signalk-pypilot-newui/watch/release 200 1.869 ms - 81
+2026-11-05T18:03:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.810 ms - 31
+2026-11-05T18:03:34 GET /plugins/signalk-pypilot-newui/autowind 304 2.894 ms - -
+2026-11-05T18:03:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.873 ms - -
+2026-11-05T18:03:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.516 ms - -
+2026-11-05T18:03:47 [apProvider.setTarget] rad=3.5011 deg=200.60
+2026-11-05T18:03:47 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 3.359 ms - 53
+2026-11-05T18:03:49 [apProvider.setTarget] rad=4.5483 deg=260.60
+2026-11-05T18:03:49 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.210 ms - 53
+2026-11-05T18:03:49 GET /plugins/signalk-pypilot-newui/autowind 304 2.283 ms - -
+2026-11-05T18:03:49 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.992 ms - 33
+2026-11-05T18:03:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.711 ms - 31
+2026-11-05T18:03:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.406 ms - -
+2026-11-05T18:03:56 GET /skServer/plugins/ 401 0.452 ms - 91
+2026-11-05T18:03:59 GET /plugins/signalk-pypilot-newui/autowind 304 1.434 ms - -
+2026-11-05T18:04:04 GET /plugins/signalk-pypilot-newui/autowind 304 1.585 ms - -
+2026-11-05T18:04:07 [apProvider.setTarget] rad=5.7701 deg=330.60
+2026-11-05T18:04:07 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 2.703 ms - 53
+2026-11-05T18:04:09 GET /plugins/signalk-pypilot-newui/autowind 304 2.425 ms - -
+2026-11-05T18:04:09 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.692 ms - 33
+2026-11-05T18:04:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.531 ms - 31
+2026-11-05T18:04:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.730 ms - -
+2026-11-05T18:04:15 POST /plugins/signalk-pypilot-newui/watch/release 200 1.363 ms - 81
+2026-11-05T18:04:16 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.257 ms - 33
+2026-11-05T18:04:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.760 ms - -
+2026-11-05T18:04:24 GET /plugins/signalk-pypilot-newui/autowind 304 2.237 ms - -
+2026-11-05T18:04:25 [apProvider.setMode] re-anchor: no measurement for wind.direction; sailor will nudge
+2026-11-05T18:04:25 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/mode 200 2.103 ms - 53
+2026-11-05T18:04:25 [apProvider.setTarget] rad=-1.0472 deg=-60.00
+2026-11-05T18:04:25 PUT /signalk/v2/api/vessels/self/autopilots/pypilot-newui/target 200 1.792 ms - 53
+2026-11-05T18:04:27 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.072 ms - 34
+2026-11-05T18:04:27 [virtual-tack vt-1793898267718-xb1hfa] turning dir=port fromMode=wind angle=-52.0deg delta=-104.0deg steps=1
+2026-11-05T18:04:27 POST /plugins/signalk-pypilot-newui/virtual-tack/start 200 4.532 ms - 73
+2026-11-05T18:04:28 [apProvider.setTarget] rad=3.9960 deg=228.96
+2026-11-05T18:04:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.323 ms - -
+2026-11-05T18:04:29 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.594 ms - 34
+2026-11-05T18:04:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.535 ms - 31
+2026-11-05T18:04:34 GET /plugins/signalk-pypilot-newui/autowind 304 1.879 ms - -
+2026-11-05T18:04:39 GET /plugins/signalk-pypilot-newui/autowind 304 2.364 ms - -
+2026-11-05T18:04:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.762 ms - -
+2026-11-05T18:04:45 [apProvider.setTarget] rad=0.9076 deg=52.00
+2026-11-05T18:04:46 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 2.356 ms - 34
+2026-11-05T18:04:48 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.426 ms - 34
+2026-11-05T18:04:49 GET /plugins/signalk-pypilot-newui/autowind 200 1.899 ms - 202
+2026-11-05T18:04:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.233 ms - 31
+2026-11-05T18:04:54 GET /plugins/signalk-pypilot-newui/autowind 304 2.617 ms - -
+2026-11-05T18:04:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.737 ms - -
+2026-11-05T18:05:00 POST /plugins/signalk-pypilot-newui/watch/release 200 2.480 ms - 81
+2026-11-05T18:05:01 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.228 ms - 33
+2026-11-05T18:05:03 [virtual-tack vt-1793898267718-xb1hfa] completed in 35.5s (settled=true)
+2026-11-05T18:05:04 GET /plugins/signalk-pypilot-newui/autowind 304 2.202 ms - -
+2026-11-05T18:05:05 POST /plugins/signalk-pypilot-newui/maneuver-trace/events 200 1.739 ms - 34
+2026-11-05T18:05:09 GET /plugins/signalk-pypilot-newui/autowind 304 1.715 ms - -
+2026-11-05T18:05:10 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.438 ms - 31
+2026-11-05T18:05:14 GET /plugins/signalk-pypilot-newui/autowind 304 1.880 ms - -
+2026-11-05T18:05:19 GET /plugins/signalk-pypilot-newui/autowind 304 2.254 ms - -
+2026-11-05T18:05:24 GET /plugins/signalk-pypilot-newui/autowind 304 1.478 ms - -
+2026-11-05T18:05:29 GET /plugins/signalk-pypilot-newui/autowind 304 2.301 ms - -
+2026-11-05T18:05:30 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.476 ms - 31
+2026-11-05T18:05:34 GET /plugins/signalk-pypilot-newui/autowind 304 2.456 ms - -
+2026-11-05T18:05:39 GET /plugins/signalk-pypilot-newui/autowind 304 1.287 ms - -
+2026-11-05T18:05:44 GET /plugins/signalk-pypilot-newui/autowind 304 1.689 ms - -
+2026-11-05T18:05:45 POST /plugins/signalk-pypilot-newui/watch/release 200 1.961 ms - 81
+2026-11-05T18:05:49 GET /plugins/signalk-pypilot-newui/autowind 304 3.028 ms - -
+2026-11-05T18:05:50 POST /plugins/signalk-pypilot-newui/maneuver-state 200 1.448 ms - 31
+2026-11-05T18:05:54 GET /plugins/signalk-pypilot-newui/autowind 304 1.857 ms - -
+2026-11-05T18:05:59 GET /plugins/signalk-pypilot-newui/autowind 304 2.037 ms - -
+```
+
+### C. Visor action trace
+
+Time is CET, 17:44-18:06. These are actions the visor sent, as logged by
+the visor itself (`kind` plus payload). Mode and target echoes from
+pypilot are omitted.
+
+```text
+17:46:06.273 mode_change {"requested":"compass"}
+17:46:06.273 target_put {"rad":0.42139403993076296,"deg":"24.1","curTargetDeg":"24.1","headingDeg":"24.1","awaDeg":"-109.0","twaDeg":"-109.0","mode":"compass","engaged":true}
+17:46:14.446 target_put {"rad":2.1746802479849343,"deg":"124.6","curTargetDeg":"124.6","headingDeg":"51.6","awaDeg":"143.0","twaDeg":"142.0","mode":"compass","engaged":true}
+17:49:28.435 aproado_start {"mode":"compass","engaged":true}
+17:49:30.498 aproado_pick {"direction":"bow"}
+17:49:30.498 mode_change {"requested":"wind"}
+17:49:30.498 target_put {"rad":0,"deg":"0.0","curTargetDeg":"77.8","headingDeg":"125.5","awaDeg":"69.0","twaDeg":"141.7","mode":"wind","engaged":true}
+17:50:02.307 mode_change {"requested":"compass"}
+17:50:02.307 target_put {"rad":4.073211011060822,"deg":"233.4","curTargetDeg":"0.0","headingDeg":"233.4","awaDeg":"-3.0","twaDeg":"-16.6","mode":"compass","engaged":true}
+17:50:10.147 empopado_start {"mode":"compass","engaged":true}
+17:50:12.680 empopado_pick {"direction":"stern"}
+17:50:12.680 mode_change {"requested":"true wind"}
+17:50:12.680 target_put {"rad":3.1405926535897932,"deg":"179.9","curTargetDeg":null,"headingDeg":"234.4","awaDeg":"0.0","twaDeg":"5.3","mode":"true wind","engaged":true}
+17:51:17.718 mode_change {"requested":"compass"}
+17:51:17.719 target_put {"rad":1.366311806301989,"deg":"78.3","curTargetDeg":"74.0","headingDeg":"76.1","awaDeg":"102.0","twaDeg":"108.0","mode":"compass","engaged":true}
+17:51:39.315 target_put {"rad":4.117231705454622,"deg":"235.9","curTargetDeg":"235.9","headingDeg":"76.8","awaDeg":"146.0","twaDeg":"147.0","mode":"true wind","engaged":true}
+17:51:43.334 target_put {"rad":-1.4678219009272322,"deg":"-84.1","curTargetDeg":"-84.1","headingDeg":"70.3","awaDeg":"158.0","twaDeg":"162.0","mode":"true wind","engaged":true}
+17:51:43.335 target_put {"rad":-1.2932889757277992,"deg":"-74.1","curTargetDeg":"-74.1","headingDeg":"56.9","awaDeg":"-161.0","twaDeg":"158.0","mode":"true wind","engaged":true}
+17:52:35.426 disengage {"via":"apDisengage"}
+17:52:35.426 engage {"via":"apEngage"}
+17:52:35.426 target_put {"rad":-1.25224199152531,"deg":"-71.7","curTargetDeg":"-71.7","headingDeg":"297.3","awaDeg":"-45.0","twaDeg":"-71.7","mode":"true wind","engaged":true}
+17:52:37.448 disengage {"via":"apDisengage"}
+17:52:43.217 engage {"via":"apEngage"}
+17:52:43.217 target_put {"rad":-0.7219208796440909,"deg":"-41.4","curTargetDeg":"-41.4","headingDeg":"295.1","awaDeg":"-28.0","twaDeg":"-41.4","mode":"true wind","engaged":true}
+17:53:35.350 mode_change {"requested":"compass"}
+17:53:35.351 target_put {"rad":4.745044090689503,"deg":"271.9","curTargetDeg":"268.6","headingDeg":"272.3","awaDeg":"-26.0","twaDeg":"-52.4","mode":"compass","engaged":true}
+17:54:04.312 target_put {"rad":-2.1589722847169854,"deg":"-123.7","curTargetDeg":"-123.7","headingDeg":"271.2","awaDeg":"-30.0","twaDeg":"-58.9","mode":"wind","engaged":true}
+17:54:04.312 target_put {"rad":-2.333505209916418,"deg":"-133.7","curTargetDeg":"-133.7","headingDeg":"270.7","awaDeg":"-29.0","twaDeg":"-58.1","mode":"wind","engaged":true}
+17:55:05.806 mode_change {"requested":"compass"}
+17:55:05.806 target_put {"rad":1.0367290663431357,"deg":"59.4","curTargetDeg":"86.6","headingDeg":"59.4","awaDeg":"-149.0","twaDeg":"-150.0","mode":"compass","engaged":true}
+17:55:23.320 mode_change {"requested":"true wind"}
+17:55:23.320 target_put {"rad":1.0821041364835606,"deg":"62.0","curTargetDeg":"173.9","headingDeg":"60.1","awaDeg":"58.0","twaDeg":"57.0","mode":"true wind","engaged":true}
+17:55:38.427 disengage {"via":"apDisengage"}
+17:55:40.634 mode_change {"requested":"wind"}
+17:55:40.634 engage {"via":"apEngage"}
+17:55:40.634 target_put {"rad":0.7155849934810643,"deg":"41.0","curTargetDeg":"41.0","headingDeg":"168.3","awaDeg":"41.0","twaDeg":"96.3","mode":"wind","engaged":true}
+17:58:25.848 mode_change {"requested":"compass"}
+17:58:25.848 target_put {"rad":2.218877220633187,"deg":"127.1","curTargetDeg":"118.1","headingDeg":"127.1","awaDeg":"51.0","twaDeg":"134.6","mode":"compass","engaged":true}
+17:58:44.434 target_put {"rad":0.4735479686388573,"deg":"27.1","curTargetDeg":"27.1","headingDeg":"123.0","awaDeg":"53.0","twaDeg":"142.1","mode":"compass","engaged":true}
+17:58:49.060 target_put {"rad":-0.050050806959441585,"deg":"-2.9","curTargetDeg":"-2.9","headingDeg":"108.5","awaDeg":"65.0","twaDeg":"140.1","mode":"compass","engaged":true}
+18:00:25.030 target_put {"rad":6.180774622660316,"deg":"354.1","curTargetDeg":"354.1","headingDeg":"355.2","awaDeg":"-73.0","twaDeg":"-140.3","mode":"compass","engaged":true}
+18:00:51.464 target_put {"rad":6.3553075478597485,"deg":"364.1","curTargetDeg":"364.1","headingDeg":"355.2","awaDeg":"-62.0","twaDeg":"-122.6","mode":"compass","engaged":true}
+18:01:09.992 target_put {"rad":-0.17453292519943295,"deg":"-10.0","curTargetDeg":"-10.0","headingDeg":"6.1","awaDeg":"-61.0","twaDeg":"-127.1","mode":"compass","engaged":true}
+18:01:15.090 target_put {"rad":5.934119456780721,"deg":"340.0","curTargetDeg":"340.0","headingDeg":"355.0","awaDeg":"-60.0","twaDeg":"-126.0","mode":"compass","engaged":true}
+18:01:17.972 target_put {"rad":4.7123889803846915,"deg":"270.0","curTargetDeg":"270.0","headingDeg":"351.4","awaDeg":"-70.0","twaDeg":"-114.6","mode":"compass","engaged":true}
+18:01:48.512 target_put {"rad":2.9952729757488488,"deg":"171.6","curTargetDeg":"171.6","headingDeg":"268.6","awaDeg":"-22.0","twaDeg":"-48.0","mode":"compass","engaged":true}
+18:02:08.714 target_put {"rad":2.9603663907089626,"deg":"169.6","curTargetDeg":"169.6","headingDeg":"181.1","awaDeg":"20.0","twaDeg":"50.6","mode":"compass","engaged":true}
+18:02:08.714 target_put {"rad":2.9080065131491333,"deg":"166.6","curTargetDeg":"166.6","headingDeg":"178.7","awaDeg":"24.0","twaDeg":"64.7","mode":"compass","engaged":true}
+18:02:24.273 target_put {"rad":2.2098748123514023,"deg":"126.6","curTargetDeg":"126.6","headingDeg":"165.6","awaDeg":"40.0","twaDeg":"96.8","mode":"compass","engaged":true}
+18:02:27.772 target_put {"rad":2.1051550572317437,"deg":"120.6","curTargetDeg":"120.6","headingDeg":"161.1","awaDeg":"39.0","twaDeg":"85.6","mode":"compass","engaged":true}
+18:03:49.167 target_put {"rad":3.5011304795006253,"deg":"200.6","curTargetDeg":"200.6","headingDeg":"214.0","awaDeg":"24.0","twaDeg":"49.2","mode":"compass","engaged":true}
+18:03:49.167 target_put {"rad":4.548328030697222,"deg":"260.6","curTargetDeg":"260.6","headingDeg":"213.0","awaDeg":"19.0","twaDeg":"44.1","mode":"compass","engaged":true}
+18:04:09.507 target_put {"rad":5.7700585070932515,"deg":"330.6","curTargetDeg":"330.6","headingDeg":"256.8","awaDeg":"-17.0","twaDeg":"-37.7","mode":"compass","engaged":true}
+18:04:27.490 mode_change {"requested":"wind"}
+18:04:27.490 target_put {"rad":-1.047197551435704,"deg":"-60.0","curTargetDeg":"-53.7","headingDeg":"331.6","awaDeg":"-57.0","twaDeg":"-112.0","mode":"wind","engaged":true}
+```
+
+## Code
+
+Line numbers are the real ones in the repository (version 3.11.1 /
+Rev629). Some comments contain mis-encoded accented characters; ignore
+them.
+
+### src/autowind.ts lines 1-87 (AUTOWIND decision logic (whole file))
+
+```ts
+    1  // Rev518 (Carlos 2026-10-19): pseudo-mode AUTOWIND. Apparent wind
+    2  // (pypilot "wind") when |TWA| < threshold, true wind ("true wind") when
+    3  // above: downwind the apparent angle swings with boat speed and the
+    4  // pilot chases it (2026-10-19 18:48: +-40 deg in apparent at TWA ~140,
+    5  // steady in true wind). Each side has its own pypilot profile, so the
+    6  // true-wind side can be the more reactive one.
+    7  //
+    8  // Pure decision logic: fed once per second, no I/O.
+    9  
+   10  export type WindSubMode = "wind" | "true wind";
+   11  
+   12  export const AUTOWIND_DEFAULT_THRESHOLD_DEG = 120;
+   13  export const AUTOWIND_HYSTERESIS_DEG = 5;      // +-5 around the threshold
+   14  export const AUTOWIND_SUSTAIN_MS = 10_000;     // condition held this long
+   15  export const AUTOWIND_MIN_GAP_MS = 30_000;     // between two switches
+   16  // Rev521 (Carlos 2026-10-20, in port with the AP off: "no cambió de
+   17  // modo"): it now also switches with the AP disengaged, so engaging lands
+   18  // in the right mode, but only with a meaningful wind - below 3 kn TWS the
+   19  // true wind angle is noise (0.3 kn at the berth flips it side to side).
+   20  export const AUTOWIND_MIN_TWS_KN = 3;
+   21  
+   22  export interface AutowindInput {
+   23    nowMs: number;
+   24    /** True wind angle in degrees (signed or not), null if unknown. */
+   25    twaDeg: number | null;
+   26    /** pypilot's current mode. */
+   27    mode: string | null;
+   28    /** Kept for callers; no longer gates the decision (Rev521). */
+   29    engaged: boolean;
+   30    /** True wind speed in knots; null = unknown (no switch). */
+   31    twsKn?: number | null;
+   32    /** Virtual tack, pypilot tack, aproado / empopado: never switch then. */
+   33    blocked: boolean;
+   34    thresholdDeg?: number;
+   35  }
+   36  
+   37  /** Side of the threshold the wind is on, with hysteresis; null in the band. */
+   38  export function desiredSubMode(twaDeg: number, thresholdDeg = AUTOWIND_DEFAULT_THRESHOLD_DEG): WindSubMode | null {
+   39    // Rev532 (Gemini audit #11): a 0..360 source (330 = 30 to port) must
+   40    // not read as downwind.
+   41    const a = Math.abs((((twaDeg % 360) + 540) % 360) - 180);
+   42    if (a >= thresholdDeg + AUTOWIND_HYSTERESIS_DEG) return "true wind";
+   43    if (a <= thresholdDeg - AUTOWIND_HYSTERESIS_DEG) return "wind";
+   44    return null;
+   45  }
+   46  
+   47  export class AutowindDecider {
+   48    private pending: WindSubMode | null = null;
+   49    private pendingSince: number | null = null;
+   50    private lastSwitchMs: number | null = null;
+   51  
+   52    /** Returns the mode to switch to now, or null. */
+   53    tick(i: AutowindInput): WindSubMode | null {
+   54      const cur = String(i.mode || "").toLowerCase();
+   55      const curSub: WindSubMode | null = cur === "true wind" ? "true wind" : cur === "wind" ? "wind" : null;
+   56      const windOk = typeof i.twsKn === "number" && isFinite(i.twsKn) && i.twsKn >= AUTOWIND_MIN_TWS_KN;
+   57      if (i.blocked || !windOk || typeof i.twaDeg !== "number" || !isFinite(i.twaDeg)) {
+   58        this.pending = null; this.pendingSince = null;
+   59        return null;
+   60      }
+   61      const want = desiredSubMode(i.twaDeg, i.thresholdDeg);
+   62      if (want == null || want === curSub) {
+   63        this.pending = null; this.pendingSince = null;
+   64        return null;
+   65      }
+   66      if (this.pending !== want) {
+   67        this.pending = want; this.pendingSince = i.nowMs;
+   68        return null;
+   69      }
+   70      if (this.pendingSince != null && i.nowMs - this.pendingSince < AUTOWIND_SUSTAIN_MS) return null;
+   71      if (this.lastSwitchMs != null && i.nowMs - this.lastSwitchMs < AUTOWIND_MIN_GAP_MS) return null;
+   72      this.pending = null; this.pendingSince = null;
+   73      this.lastSwitchMs = i.nowMs;
+   74      return want;
+   75    }
+   76  
+   77    /** Called when Autowind is switched on: no sustain, no gap. */
+   78    initial(twaDeg: number | null, thresholdDeg?: number): WindSubMode {
+   79      this.pending = null; this.pendingSince = null;
+   80      if (typeof twaDeg !== "number" || !isFinite(twaDeg)) return "wind";
+   81      const a = Math.abs((((twaDeg % 360) + 540) % 360) - 180);
+   82      return a >= (thresholdDeg ?? AUTOWIND_DEFAULT_THRESHOLD_DEG) ? "true wind" : "wind";
+   83    }
+   84  
+   85    noteSwitch(nowMs: number): void { this.lastSwitchMs = nowMs; }
+   86  }
+   87  
+```
+
+### src/index.ts lines 280-291 (plugin options)
+
+```ts
+  280    // duty > 0.90, cut the AP. Opt-in - defaults OFF until validated at sea.
+  281    autoDisengageOnLostAuthority?: boolean;
+  282    // Rev508 (Carlos sea trial 2026-10-18): stuck-pilot recovery cycle
+  283    // (AP off -> on clears pypilot's false end stop). Opt-in.
+  284    steerRecoveryEnabled?: boolean;
+  285    // Rev518 (Carlos 2026-10-19): pseudo-mode AUTOWIND - apparent below
+  286    // the threshold, true wind above, one profile for each side.
+  287    autowindEnabled?: boolean;
+  288    autowindProfileApparent?: string;
+  289    autowindProfileTrue?: string;
+  290    autowindThresholdDeg?: number;
+  291  }
+```
+
+### src/index.ts lines 432-436 (AUTOWIND runtime state)
+
+```ts
+  432    // Rev518: AUTOWIND state.
+  433    let autowind = new AutowindDecider();
+  434    let _autowindLastSwitchTs: number | null = null;
+  435    let _autowindLastReason: string | null = null;
+  436    let _autowindOffFamilySince: number | null = null;
+```
+
+### src/index.ts lines 595-609 (visor manoeuvre flag)
+
+```ts
+  595    // Rev323 (Carlos, 2026-09-27): pseudo-modo visor-side. El visor lo
+  596    // posta a `/maneuver-state` al arrancar / cerrar Aproado o Empopado.
+  597    // Se usa para silenciar heading-deviation / cruise-drift / unable-
+  598    // to-steer durante la maniobra, INDEPENDIENTE de `ap.tack.state` â€”
+  599    // en modo wind pypilot NO obedece y ap.tack.state se queda en "none"
+  600    // aunque el visor estÃ© pilotando la maniobra por otras vÃ­as.
+  601    let _maneuverPseudoActive = false;
+  602    // Rev534 (GPT review 2 #1): the visor renews it every 20 s; a closed or
+  603    // disconnected browser must not silence the heading alarms (and block
+  604    // AUTO WIND) for ever.
+  605    // Self-audit Rev540: 180 s - with the screen off Chrome runs the 20 s
+  606    // renewal only about once a minute, and 60 s let it lapse mid-manoeuvre.
+  607    const MANEUVER_PSEUDO_TTL_MS = 180_000;
+  608    let _maneuverPseudoUntil = 0;
+  609    const _pseudoActive = (): boolean => _maneuverPseudoActive && Date.now() < _maneuverPseudoUntil;
+```
+
+### src/index.ts lines 1149-1152 (start())
+
+```ts
+ 1149        alarms = new AlarmEngine();
+ 1150        steerWatch = new SteerWatch();
+ 1151        autowind = new AutowindDecider();
+ 1152        setTimeout(() => { try { _autowindPublish(); } catch { /* silent */ } }, 5000);
+```
+
+### src/index.ts lines 1346-1350 (1 Hz historian tick (calls the AUTOWIND tick))
+
+```ts
+ 1346          try { _steerWatchTick(s); } catch (e: any) { app.debug?.(`[steer-watch] tick: ${e?.message || e}`); }
+ 1347          // Rev525: black box feed + automatic triggers.
+ 1348          try { _blackBoxTick(s); } catch (e: any) { app.debug?.(`[black-box] tick: ${e?.message || e}`); }
+ 1349          // Rev518: AUTOWIND (apparent <-> true wind by TWA).
+ 1350          try { _autowindTick(); } catch (e: any) { app.debug?.(`[autowind] tick: ${e?.message || e}`); }
+```
+
+### src/index.ts lines 2855-2888 (HTTP API /autowind)
+
+```ts
+ 2855        // toggles live in the visor, not in the SK Admin schema. Writes
+ 2856        // go through app.savePluginOptions so they survive restart.
+ 2857        // Rev518: AUTOWIND config + state.
+ 2858        router.get("/autowind", (_req: any, res: any) => {
+ 2859          res.json(_autowindState());
+ 2860        });
+ 2861        router.post("/autowind", async (req: any, res: any) => {
+ 2862          if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+ 2863          const b = req.body || {};
+ 2864          let changed = false;
+ 2865          if (typeof b.profileApparent === "string") { props.autowindProfileApparent = b.profileApparent.trim(); changed = true; }
+ 2866          if (typeof b.profileTrue === "string") { props.autowindProfileTrue = b.profileTrue.trim(); changed = true; }
+ 2867          if (typeof b.thresholdDeg === "number") {
+ 2868            props.autowindThresholdDeg = clampNumber(b.thresholdDeg, 90, 150, AUTOWIND_DEFAULT_THRESHOLD_DEG);
+ 2869            changed = true;
+ 2870          }
+ 2871          if (changed) { try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ } }
+ 2872          if (typeof b.enabled === "boolean") {
+ 2873            const was = !!props.autowindEnabled;
+ 2874            _autowindSetEnabled(b.enabled, b.enabled ? "selected" : "another mode selected");
+ 2875            if (b.enabled && !was) {
+ 2876              // Pick the side now, no waiting.
+ 2877              const sub = autowind.initial(_autowindTwaDeg(), props.autowindThresholdDeg);
+ 2878              await _autowindApply(sub, "AUTOWIND on");
+ 2879            }
+ 2880          }
+ 2881          // New profile for the side that is active right now: apply it.
+ 2882          if (props.autowindEnabled && changed && apProvider) {
+ 2883            const mode = String(apProvider.data.mode || "").toLowerCase();
+ 2884            if (mode === "wind" || mode === "true wind") _autowindApplyProfile(mode as WindSubMode, "profile chosen");
+ 2885          }
+ 2886          _autowindPublish();
+ 2887          res.json(_autowindState());
+ 2888        });
+```
+
+### src/index.ts lines 3440-3456 (HTTP API /maneuver-state)
+
+```ts
+ 3440          res.json({ entries: maneuverTrace.tail(n) });
+ 3441        });
+ 3442        // Rev323 (Carlos, 2026-09-27): visor-side pseudo-modo gate for
+ 3443        // heading-deviation / cruise-drift / unable-to-steer. Visor
+ 3444        // POSTs {active:true} on aproadoExecute / empopadoExecute and
+ 3445        // {active:false} on their teardowns. Independent of trace log.
+ 3446        router.get("/maneuver-state", (_req: any, res: any) => {
+ 3447          res.json({ pseudoActive: _pseudoActive() });
+ 3448        });
+ 3449        router.post("/maneuver-state", (req: any, res: any) => {
+ 3450          const body = req.body || {};
+ 3451          if (typeof body.active === "boolean") {
+ 3452            _maneuverPseudoActive = body.active;
+ 3453            _maneuverPseudoUntil = body.active ? Date.now() + MANEUVER_PSEUDO_TTL_MS : 0;
+ 3454          }
+ 3455          res.json({ ok: true, pseudoActive: _pseudoActive() });
+ 3456        });
+```
+
+### src/index.ts lines 4661-4670 (TWA source)
+
+```ts
+ 4661    function _readTwaRad(): number | null {
+ 4662      try {
+ 4663        // Rev534: angleTrueGround as the sampler does when Water is missing.
+ 4664        for (const p of ["environment.wind.angleTrueWater.value", "environment.wind.angleTrueGround.value"]) {
+ 4665          const v = app.getSelfPath ? app.getSelfPath(p) : null;
+ 4666          if (typeof v === "number" && isFinite(v)) return v;
+ 4667        }
+ 4668        return null;
+ 4669      } catch { return null; }
+ 4670    }
+```
+
+### src/index.ts lines 4983-5096 (AUTOWIND state, apply, tick)
+
+```ts
+ 4983    // Rev518 (Carlos 2026-10-19): AUTOWIND. See src/autowind.ts.
+ 4984    function _autowindState(): Record<string, unknown> {
+ 4985      const mode = apProvider ? String(apProvider.data.mode || "") : "";
+ 4986      return {
+ 4987        enabled: !!props.autowindEnabled,
+ 4988        subMode: mode === "wind" || mode === "true wind" ? mode : null,
+ 4989        profileApparent: props.autowindProfileApparent || "",
+ 4990        profileTrue: props.autowindProfileTrue || "",
+ 4991        thresholdDeg: props.autowindThresholdDeg ?? AUTOWIND_DEFAULT_THRESHOLD_DEG,
+ 4992        lastSwitchTs: _autowindLastSwitchTs,
+ 4993        lastReason: _autowindLastReason,
+ 4994      };
+ 4995    }
+ 4996    function _autowindPublish(): void {
+ 4997      try {
+ 4998        app.handleMessage(PLUGIN_ID, {
+ 4999          context: "vessels." + app.selfId,
+ 5000          updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [
+ 5001            { path: "steering.autopilot.autowind", value: _autowindState() },
+ 5002          ] }],
+ 5003        });
+ 5004      } catch { /* silent */ }
+ 5005    }
+ 5006    function _autowindProfileFor(sub: WindSubMode): string {
+ 5007      return (sub === "true wind" ? props.autowindProfileTrue : props.autowindProfileApparent) || "";
+ 5008    }
+ 5009    function _autowindApplyProfile(sub: WindSubMode, reason: string): void {
+ 5010      const want = _autowindProfileFor(sub);
+ 5011      if (!want || !client || !client.connected) return;
+ 5012      if (client.getValues()["profile"] === want) return;
+ 5013      try {
+ 5014        profileChangeLog.markPlannedWrite(want, "autowind", reason);
+ 5015        client.set("profile", want);
+ 5016      } catch { /* silent */ }
+ 5017    }
+ 5018    async function _autowindApply(sub: WindSubMode, reason: string): Promise<void> {
+ 5019      if (!apProvider) return;
+ 5020      _autowindLastReason = reason;
+ 5021      const cur = String(apProvider.data.mode || "").toLowerCase();
+ 5022      if (cur !== sub) {
+ 5023        // wind <-> true wind share the angle space: pypilot keeps the
+ 5024        // heading itself on the mode change, nothing else is written.
+ 5025        try { await (apProvider.toProviderInterface() as any).setMode(sub, apProvider.deviceId); }
+ 5026        catch (e: any) { app.debug?.(`[autowind] setMode ${sub}: ${e?.message || e}`); return; }
+ 5027        _autowindLastSwitchTs = Date.now();
+ 5028        autowind.noteSwitch(_autowindLastSwitchTs);
+ 5029      }
+ 5030      _autowindApplyProfile(sub, reason);
+ 5031      // eslint-disable-next-line no-console
+ 5032      console.log(`[autowind] ${reason} -> ${sub}${_autowindProfileFor(sub) ? ` / profile ${_autowindProfileFor(sub)}` : ""}`);
+ 5033      _autowindPublish();
+ 5034    }
+ 5035    function _autowindSetEnabled(on: boolean, why: string): void {
+ 5036      if (!!props.autowindEnabled === on) return;
+ 5037      props.autowindEnabled = on;
+ 5038      try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ }
+ 5039      // eslint-disable-next-line no-console
+ 5040      console.log(`[autowind] ${on ? "on" : "off"} (${why})`);
+ 5041      _autowindLastReason = why;
+ 5042      _autowindPublish();
+ 5043    }
+ 5044    function _autowindTwaDeg(): number | null {
+ 5045      const r = _readTwaRad();
+ 5046      return r == null ? null : r * 180 / Math.PI;
+ 5047    }
+ 5048    function _autowindTwsKn(): number | null {
+ 5049      try {
+ 5050        // Rev534 (GPT review 2 #6): same sources as the sampler.
+ 5051        for (const p of ["environment.wind.speedTrue.value", "environment.wind.speedOverGround.value"]) {
+ 5052          const v = app.getSelfPath ? app.getSelfPath(p) : null;
+ 5053          if (typeof v === "number" && isFinite(v)) return v * 1.94384;
+ 5054        }
+ 5055        return null;
+ 5056      } catch { return null; }
+ 5057    }
+ 5058    function _autowindTick(): void {
+ 5059      if (!props.autowindEnabled || !apProvider) return;
+ 5060      const mode = String(apProvider.data.mode || "").toLowerCase();
+ 5061      const blocked = apProvider.isVirtualTackActive()
+ 5062        || !!(_tackStatePrev && _tackStatePrev !== "none")
+ 5063        || _pseudoActive();
+ 5064      // Sailor (remote, TinyPilot, KIP) moved to compass/gps: AUTOWIND
+ 5065      // ends, like picking another mode in the visor. 5 s so a transient
+ 5066      // write race never switches it off.
+ 5067      // pypilot drops to compass on its own when it loses GPS / true wind
+ 5068      // (and returns when it is back): that is not the sailor leaving.
+ 5069      const trueWindAvailable = ((apProvider as any).pypilotModes || []).includes("true wind");
+ 5070      if (!blocked && trueWindAvailable && mode !== "wind" && mode !== "true wind" && mode !== "") {
+ 5071        if (_autowindOffFamilySince == null) _autowindOffFamilySince = Date.now();
+ 5072        else if (Date.now() - _autowindOffFamilySince > 5000) {
+ 5073          _autowindOffFamilySince = null;
+ 5074          _autowindSetEnabled(false, `mode changed to ${mode}`);
+ 5075        }
+ 5076        return;
+ 5077      }
+ 5078      _autowindOffFamilySince = null;
+ 5079      const want = autowind.tick({
+ 5080        nowMs: Date.now(),
+ 5081        twaDeg: _autowindTwaDeg(),
+ 5082        mode,
+ 5083        engaged: !!apProvider.data.engaged,
+ 5084        blocked,
+ 5085        twsKn: _autowindTwsKn(),
+ 5086        thresholdDeg: props.autowindThresholdDeg,
+ 5087      });
+ 5088      if (want) {
+ 5089        const twa = _autowindTwaDeg();
+ 5090        void _autowindApply(want, `TWA ${twa == null ? "?" : Math.abs(twa).toFixed(0)} deg`);
+ 5091      }
+ 5092    }
+ 5093    // Rev164/165/166: supervisor layer. Runs on every historian tick.
+ 5094    // Three independent responsibilities:
+ 5095    //   - Auto-profile switch by wind band (only while engaged, opt-in).
+ 5096    //   - Gust detector (advisory notification, no pilot command).
+```
+
+### src/index.ts lines 5555-5570 (pypilot tack state observer)
+
+```ts
+ 5555    function observeTackTransition(name: string, value: unknown): void {
+ 5556      if (!tackCatchup) return;
+ 5557      if (name === "ap.tack.direction" && typeof value === "string") {
+ 5558        // Pypilot spells starboard out; we keep our internal "stbd".
+ 5559        _tackDirection = value === "starboard" ? "stbd"
+ 5560                       : value === "port" ? "port"
+ 5561                       : _tackDirection;
+ 5562        return;
+ 5563      }
+ 5564      if (name !== "ap.tack.state" || typeof value !== "string") return;
+ 5565      const prev = _tackStatePrev;
+ 5566      _tackStatePrev = value;
+ 5567      if (prev == null) return; // seed only, do not fire on the first read
+ 5568      const wasTacking = prev === "tacking" || prev === "waiting";
+ 5569      const nowIdle = value === "none";
+ 5570      if (wasTacking && nowIdle && _tackDirection != null) {
+```
+
+### src/index.ts lines 5615-5630 (alarm engine context)
+
+```ts
+ 5615        },
+ 5616        // Rev311 (Carlos sea trial 2026-09-25): flag para las reglas
+ 5617        // de heading-error / drift / unable-to-steer. Durante una
+ 5618        // virada nativa de pypilot (ap.tack.state != "none") el error
+ 5619        // instantÃ¡neo es enorme por diseÃ±o; silenciamos esas alarmas.
+ 5620        // `_tackStatePrev` lo mantiene observeTackTransition() al dÃ­a en
+ 5621        // el mismo callback de client.on("value"), asÃ­ que siempre
+ 5622        // refleja el Ãºltimo valor conocido de pypilot.
+ 5623        maneuverInProgress: !!(_tackStatePrev && _tackStatePrev !== "none"),
+ 5624        // Rev323 (Carlos, 2026-09-27): flag pseudo-modo del visor.
+ 5625        maneuverPseudoActive: _pseudoActive(),
+ 5626        // Rev508: stuck pilot / recovery / external disengage.
+ 5627        steer: steerWatch.snapshot(),
+ 5628      };
+ 5629      const changed = alarms.tick(ctx);
+ 5630      // Rev525: every alarm that becomes active opens a black-box incident.
+```
+
+### src/alarms.ts lines 150-235 (steering alarms)
+
+```ts
+  150  // can drop sustainSec via /supervisor/config.
+  151  export const RULE_PYPILOT_DISC_SEC = 15;
+  152  
+  153  export const DEFAULT_RULES: RuleDef[] = [
+  154    {
+  155      id: "heading-deviation",
+  156      label: "Heading deviation",
+  157      severity: "warn",
+  158      defaultEnabled: true,
+  159      // Rev323 (Carlos, 2026-09-27): sustain subido de 15 s a 30 s. Con
+  160      // 15 s cualquier ola grande / racha corta metía la RMS 20 s por
+  161      // encima del umbral y disparaba la alarma; 30 s filtra el ruido
+  162      // legítimo de un mar entrecortado sin perder la señal de un AP
+  163      // realmente descolgado.
+  164      sustainSec: 30,
+  165      description: `RMS heading error exceeds ${(RULE_HEADING_ERR_RAD * 180 / Math.PI) | 0}° (compass) / 35° (wind) with the AP engaged.`,
+  166      evaluate: (c) => {
+  167        if (!c.kpis || !c.sample || !c.sample.engaged) return false;
+  168        // Rev311: durante una maniobra nativa del pypilot silenciamos.
+  169        if (c.maneuverInProgress) return false;
+  170        // Rev323 (Carlos, 2026-09-27): pseudo-modo visor-side (Aproado /
+  171        // Empopado) también silencia — el visor está pilotando la
+  172        // maniobra por su cuenta y el "error" que reporta pypilot es
+  173        // el gap intencionado durante el swing.
+  174        if (c.maneuverPseudoActive) return false;
+  175        // Rev323 mode-aware threshold. En wind / true-wind el heading
+  176        // command es un AWA/TWA target, que oscila naturalmente ±20-30°
+  177        // en olas y ráfagas mientras el AP sí está corrigiendo. Subir
+  178        // el umbral en esos modos elimina el disparo por doquier que
+  179        // Carlos reportó 2026-09-27.
+  180        const mode = (c.sample.mode || "").toLowerCase();
+  181        const isWind = mode.includes("wind");
+  182        const threshold = isWind ? (35 * Math.PI / 180) : RULE_HEADING_ERR_RAD;
+  183        const r = c.kpis.window1m.rmsErrorRad;
+  184        return typeof r === "number" && r > threshold;
+  185      },
+  186      message: (c) => {
+  187        const r = c.kpis?.window1m.rmsErrorRad ?? 0;
+  188        return `AP heading error ${(r * 180 / Math.PI).toFixed(1)}° sustained`;
+  189      },
+  190    },
+  191    {
+  192      // Rev160 (Carlos): cruise-drift catches the slow bleed the RMS
+  193      // rule cannot see - a boat that consistently sits 6-8° off the
+  194      // target because of an unbalanced sail plan or current. Uses
+  195      // meanErrorRad instead of RMS. Threshold 5° | 120 s so trimming
+  196      // manoeuvres (short excursions) don't trip it.
+  197      id: "cruise-drift",
+  198      label: "Sustained heading drift",
+  199      severity: "warn",
+  200      defaultEnabled: true,
+  201      sustainSec: 120,
+  202      description: "Signed mean heading error > 5° for over 2 min - possible sail imbalance, current, or misaligned target.",
+  203      evaluate: (c) => {
+  204        if (!c.kpis || !c.sample || !c.sample.engaged) return false;
+  205        if (c.maneuverInProgress) return false; // Rev311: silencio en maniobra
+  206        if (c.maneuverPseudoActive) return false; // Rev323: idem pseudo-modo
+  207        const mean = c.kpis.window1m.meanErrorRad;
+  208        return typeof mean === "number" && Math.abs(mean) > (5 * Math.PI / 180);
+  209      },
+  210      message: (c) => {
+  211        const m = (c.kpis?.window1m.meanErrorRad ?? 0) * 180 / Math.PI;
+  212        const side = m > 0 ? "starboard" : "port";
+  213        return `Boat drifting ${Math.abs(m).toFixed(1)}° to ${side} of target`;
+  214      },
+  215    },
+  216    {
+  217      id: "unable-to-steer",
+  218      label: "Unable to steer",
+  219      severity: "alarm",
+  220      defaultEnabled: true,
+  221      sustainSec: 20,
+  222      description: `Sustained high error AND servo running at ${(RULE_UNABLE_DUTY_MIN * 100) | 0}%+ duty (or stopped by an overcurrent fault) - the AP is losing authority.`,
+  223      evaluate: (c) => {
+  224        if (!c.kpis || !c.sample || !c.sample.engaged) return false;
+  225        if (c.maneuverInProgress) return false; // Rev311: silencio en maniobra
+  226        if (c.maneuverPseudoActive) return false; // Rev323: idem pseudo-modo
+  227        const r = c.kpis.window1m.rmsErrorRad;
+  228        const d = c.kpis.window1m.servoDutyPct;
+  229        if (typeof r !== "number" || !Number.isFinite(r) || r <= RULE_UNABLE_ERR_RAD) return false;   // Rev536 #4
+  230        // Rev508: servoDuty never arrives from Carlos's TinyPilot, so the
+  231        // rule could not fire on 2026-10-18. A directional overcurrent
+  232        // fault (false end stop) with the same error is the same verdict.
+  233        if (c.steer?.dirFault) return true;
+  234        return typeof d === "number" && d > RULE_UNABLE_DUTY_MIN;
+  235      },
+```
+
+### src/autopilot-provider.ts lines 606-680 (setMode)
+
+```ts
+  606    private async setMode(mode: string): Promise<void> {
+  607      // Rev547 (2026-10-25 22:14-22:16): pypilot accepts ap.mode="nav" even
+  608      // without a route (no APB); the route follower then found NAV with no
+  609      // route, went to compass and said "route lost" - twice. NAV only when
+  610      // pypilot offers it (= an active route is feeding APB).
+  611      if (String(mode).toLowerCase() === "nav" && !this.pypilotModes.includes("nav")) {
+  612        throw new Error("NAV needs an active route (activate one in Freeboard first)");
+  613      }
+  614      // Rev390: same guard as setTarget — reject external mode changes
+  615      // while the FSM is driving. If the sailor really wants to abort
+  616      // the maneuver, they tap TACK a second time or call /virtual-tack/
+  617      // cancel, which flows through cancelVirtualTack and rolls back
+  618      // cleanly.
+  619      if (this._virtualTack && !this._vtInternalWrite) {
+  620        const active = this._virtualTack.phase !== "idle"
+  621          && this._virtualTack.phase !== "completed"
+  622          && this._virtualTack.phase !== "cancelled"
+  623          && this._virtualTack.phase !== "failed";
+  624        if (active) {
+  625          // eslint-disable-next-line no-console
+  626          console.log(`[virtual-tack] rejected external setMode '${mode}' (FSM is driving)`);
+  627          return;
+  628        }
+  629      }
+  630      if (
+  631        this.data.options.modes.length > 0 &&
+  632        !this.data.options.modes.includes(mode)
+  633      ) {
+  634        throw new Error(`Invalid mode: ${mode}`);
+  635      }
+  636      // Rev292 (Carlos, navigating - bug C "piloto girando loco"):
+  637      // snapshot the OLD mode so we can decide whether the transition
+  638      // needs a heading_command re-anchor. Pypilot's ap.heading_command
+  639      // lives in different spaces depending on the mode:
+  640      //   compass/gps/nav   -> compass heading in degrees 0..360
+  641      //   wind              -> AWA in degrees -180..+180
+  642      //   true wind         -> TWA in degrees -180..+180
+  643      // A stale value from the previous mode (say a 90° heading) becomes
+  644      // a 90° AWA when we cross into wind mode, and pypilot promptly
+  645      // tries to swing the boat toward it — the "piloto se vuelve loco"
+  646      // symptom Carlos reported on Rev280 sea trial. The fix: right
+  647      // after ap.mode changes, force heading_command to the CURRENT
+  648      // measurement in the destination space, so the pilot has a
+  649      // sane target and never chases a value that meant something else.
+  650      const oldMode = String(this.data.mode || "").toLowerCase();
+  651      const newMode = String(mode || "").toLowerCase();
+  652      // Rev279 (audit follow-up B): bump modeGen so a stale mode retry
+  653      // aborts before overwriting a newer setMode / setState intent.
+  654      const gen = ++this.modeGen;
+  655      // Rev254 (Carlos audit): fail explicit when pypilot offline.
+  656      // Rev255: retry with backoff.
+  657      if (!(await this._setWithRetry("ap.mode", mode, () => this.modeGen !== gen))) {
+  658        if (this.modeGen !== gen) {
+  659          throw new Error("mode change superseded by newer order");
+  660        }
+  661        throw new Error("pypilot offline: mode change not delivered");
+  662      }
+  663      if (this.modeGen !== gen) {
+  664        throw new Error("mode change superseded after write");
+  665      }
+  666      // Rev292: re-anchor. Only when the mode's target-space actually
+  667      // changed (compass↔gps↔nav share the compass space and don't need
+  668      // it; wind↔true wind share the wind space; only compass-family ↔
+  669      // wind-family crossings trigger the re-anchor).
+  670      if (this.data.engaged) {
+  671        try {
+  672          if (this._reAnchorTargetAfterModeChange(oldMode, newMode)) {
+  673            void this._verifyReAnchor(mode, oldMode, newMode);
+  674          }
+  675        } catch (e: any) {
+  676          // Never fail the mode change on the re-anchor path — worst
+  677          // case we leave the stale target and the sailor corrects with
+  678          // a nudge. Log so the diagnostic captures it.
+  679          // eslint-disable-next-line no-console
+  680          console.log(`[apProvider.setMode] re-anchor failed: ${e?.message || e}`);
+```
+
+### public/app.js lines 5360-5368 (visor: AUTOWIND state from Signal K)
+
+```js
+ 5360          state.route = (value && typeof value === "object") ? value : null;
+ 5361          try { _routeOnUpdate(); } catch { /* silent */ }
+ 5362          break;
+ 5363        }
+ 5364        case "steering.autopilot.autowind": {
+ 5365          state.autowind = (value && typeof value === "object") ? value : null;
+ 5366          try { _renderModeSelectBtn(); } catch { /* silent */ }
+ 5367          try { _rebuildModePopupProfiles(); } catch { /* silent */ }
+ 5368          break;
+```
+
+### public/app.js lines 11330-11480 (visor: mode list, mode button, AUTOWIND helpers)
+
+```js
+11330      // inside the popup, not inside the hidden <select>'s options).
+11331      const el = document.getElementById("mode-select");
+11332      if (el) {
+11333        const prev = el.value;
+11334        const modeList = Array.isArray(state.modeList) ? state.modeList : [];
+11335        let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
+11336        if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
+11337        if (_autowindAvailable() && !withPseudo.includes("autowind")) withPseudo = _withAutowindAfterCompass(withPseudo);
+11338        el.textContent = "";
+11339        // Hidden placeholder (Rev250 race-guard carryover).
+11340        const ph = document.createElement("option");
+11341        ph.value = ""; ph.disabled = true; ph.hidden = true;
+11342        el.appendChild(ph);
+11343        for (const v of withPseudo) {
+11344          const o = document.createElement("option");
+11345          o.value = String(v);
+11346          o.textContent = _modeLabel(v);
+11347          el.appendChild(o);
+11348        }
+11349        const target = prev && prev !== "" && !prev.startsWith("@profile:")
+11350          ? prev : (state.mode || "");
+11351        try { el.value = target; } catch { /* silent */ }
+11352        if (el.value === "" && state.mode) { try { el.value = state.mode; } catch { /* silent */ } }
+11353      }
+11354      _renderModeSelectBtn();
+11355      _rebuildModePopupProfiles();
+11356    }
+11357    // Rev425: paint the visible mode button with the active mode's
+11358    // label (white). This is what the sailor reads at a glance.
+11359    function _renderModeSelectBtn() {
+11360      const btn = document.getElementById("mode-select-btn");
+11361      if (!btn) return;
+11362      // Rev510 (Carlos sea trial 2026-10-18, 18:07-18:12: "la tablet decia
+11363      // un modo y el telefono decia otro"): during a virtual tack pypilot is
+11364      // in compass on purpose. Every visor shows the wind mode of the tack,
+11365      // from the backend snapshot (same on every screen). Rev515 (Carlos
+11366      // 2026-10-19): no "TACKING ->" prefix, it read as a new mode.
+11367      const vt = state.virtualTack;
+11368      if (vt && vt.active) {
+11369        const txt = _modeLabel(vt.windMode || state.mode || "wind");
+11370        if (btn.textContent !== txt) btn.textContent = txt;
+11371        return;
+11372      }
+11373      const m = state.mode || "";
+11374      // Rev518: AUTOWIND -> "AUTO · REAL" / "AUTO · APARENTE".
+11375      if (state.autowind && state.autowind.enabled && (m === "wind" || m === "true wind")) {
+11376        btn.textContent = `${t("autowind.short")} · ${_modeLabel(m)}`;
+11377        return;
+11378      }
+11379      // Rev545: NAV -> "NAV · <waypoint> · 2.3 nm".
+11380      if (m === "nav" && state.route && state.route.active) {
+11381        const nm = typeof state.route.distanceM === "number" ? (state.route.distanceM / 1852).toFixed(1) : "?";
+11382        btn.textContent = `${t("route.navShort")} · ${state.route.name || "WP"} · ${nm} nm`;
+11383        return;
+11384      }
+11385      btn.textContent = m ? _modeLabel(m) : "—";
+11386    }
+11387    // Rev545 (Carlos 2026-10-23): route following. Voice announcement of each
+11388    // event (auto-advance, destination, NAV lost), once per event id.
+11389    // Rev550 (audit): the first update after page load is the snapshot (not
+11390    // replayed, even when it has no event); identity = id + ts, because the
+11391    // ids restart at 1 after a Signal K restart.
+11392    let _routeLastEventKey = null;
+11393    let _routeSeenFirst = false;
+11394    function _routeOnUpdate() {
+11395      try { _renderModeSelectBtn(); } catch { /* silent */ }
+11396      const ev = state.route && state.route.event;
+11397      const evKey = ev && ev.id != null ? `${ev.id}@${ev.ts}` : "";
+11398      if (!_routeSeenFirst) { _routeSeenFirst = true; _routeLastEventKey = evKey; return; }
+11399      if (!evKey || evKey === _routeLastEventKey) return;
+11400      _routeLastEventKey = evKey;
+11401      let msg = "";
+11402      if (ev.kind === "wp-reached") {
+11403        msg = ev.silentReach ? "" : t("route.say.wp").replace("{wp}", ev.reached || "");
+11404        if (ev.next) msg += (msg ? " " : "") + t("route.say.next").replace("{wp}", ev.next);
+11405        if (typeof ev.bearingDeg === "number") msg += " " + t("route.say.course").replace("{deg}", String(Math.round(ev.bearingDeg)));
+11406        if (typeof ev.distanceNm === "number") msg += " " + t("route.say.dist").replace("{nm}", String(ev.distanceNm).replace(".", t("route.decimal")));
+11407      } else if (ev.kind === "destination") {
+11408        msg = t("route.say.dest").replace("{wp}", ev.reached || "") + (ev.compass ? " " + t("route.say.compass") : "");
+11409      } else if (ev.kind === "nav-lost") {
+11410        msg = t(ev.reason === "no-route" ? "route.say.lostRoute" : "route.say.lostPos") + " " + t("route.say.compass");
+11411      }
+11412      if (!msg) return;
+11413      try { _alSpeak(msg); } catch { /* silent */ }
+11414      try {
+11415        let el = document.getElementById("pypilot-reconnect-toast");
+11416        if (!el) { el = document.createElement("div"); el.id = "pypilot-reconnect-toast"; el.className = "pypilot-reconnect-toast"; document.body.appendChild(el); }
+11417        el.classList.toggle("warn", ev.kind === "nav-lost");
+11418        el.textContent = msg;
+11419        el.classList.add("show");
+11420        clearTimeout(el._hideTimer);
+11421        el._hideTimer = setTimeout(() => el.classList.remove("show"), 8000);
+11422      } catch { /* silent */ }
+11423    }
+11424    async function _routeNext() {
+11425      try {
+11426        const r = await skFetch(`/plugins/${PLUGIN_ID}/route/next`, { method: "POST" });
+11427        if (!r.ok) throw new Error(String(r.status));
+11428      } catch (e) { console.warn("[route] next", e); }
+11429    }
+11430    // Rev520 (Carlos): AUTO WIND right below compass / GPS.
+11431    function _withAutowindAfterCompass(list) {
+11432      const out = list.slice();
+11433      let at = -1;
+11434      for (const m of ["compass", "gps"]) { const i = out.indexOf(m); if (i > at) at = i; }
+11435      out.splice(at + 1, 0, "autowind");
+11436      return out;
+11437    }
+11438    // Rev518: AUTOWIND needs both wind modes from pypilot.
+11439    function _autowindAvailable() {
+11440      const ml = Array.isArray(state.modeList) ? state.modeList : [];
+11441      return ml.includes("wind") && ml.includes("true wind");
+11442    }
+11443    async function _autowindPost(body) {
+11444      try {
+11445        const r = await skFetch(`/plugins/${PLUGIN_ID}/autowind`, {
+11446          method: "POST",
+11447          headers: { "Content-Type": "application/json" },
+11448          body: JSON.stringify(body),
+11449        });
+11450        if (r.ok) {
+11451          state.autowind = await r.json();
+11452          _renderModeSelectBtn();
+11453          _rebuildModePopupProfiles();
+11454        }
+11455      } catch (e) { console.warn("[autowind] post", e); }
+11456    }
+11457    async function _autowindFetch() {
+11458      try {
+11459        const r = await skFetch(`/plugins/${PLUGIN_ID}/autowind`);
+11460        if (r.ok) { state.autowind = await r.json(); _renderModeSelectBtn(); }
+11461      } catch { /* silent */ }
+11462    }
+11463    // Rev427 (Carlos QA Rev426, 2026-10-08): "es mejor que se abra una
+11464    // ventana grande centrada". Replaced the anchored popup with a
+11465    // centered modal (same backdrop pattern as the fork + unlock
+11466    // modals). Immune to viewport cropping, works on phone + 80% zoom
+11467    // laptop + tablet landscape without special placement logic.
+11468    function _rebuildModePopupProfiles() {
+11469      // Rev429 (Carlos QA Rev428): keep the button in sync with the
+11470      // active profile, and the nested list in sync with the list of
+11471      // profiles. Both are idempotent (don't repaint when nothing
+11472      // changed) so SK deltas arriving while the modal is open do not
+11473      // produce visible flashes (Rev428 lesson applied to the new DOM).
+11474      const btn = document.getElementById("mode-popup-profile-btn");
+11475      const list = document.getElementById("mode-popup-profile-list");
+11476      // Rev518: with AUTOWIND on, the profile area shows the pair.
+11477      const aw = document.getElementById("mode-popup-aw");
+11478      if (aw) {
+11479        const awOn = !!(state.autowind && state.autowind.enabled);
+11480        aw.hidden = !awOn;
+```
+
+### public/app.js lines 12185-12300 (visor: manoeuvre flag, write gate, engage/mode/target calls)
+
+```js
+12185    // Rev323 (Carlos, 2026-09-27): tell the backend a visor-side
+12186    // pseudo-modo is active/inactive. Backend uses this to silence the
+12187    // heading-deviation family of alarms during Aproado / Empopado. In
+12188    // the sea trial 2026-09-27 alarms disparaban por doquier durante
+12189    // esas maniobras porque `ap.tack.state` seguía en "none" y el gate
+12190    // Rev311 no las cazaba.
+12191    // Rev534: the backend forgets the flag after 60 s unless renewed, so a
+12192    // closed browser cannot leave the alarms silenced. Renew every 20 s.
+12193    let _maneuverPseudoTimer = null;
+12194    function _setManeuverPseudo(active) {
+12195      try { if (_maneuverPseudoTimer) { clearInterval(_maneuverPseudoTimer); _maneuverPseudoTimer = null; } } catch { /* silent */ }
+12196      if (active) _maneuverPseudoTimer = setInterval(() => _postManeuverPseudo(true), 20000);
+12197      _postManeuverPseudo(active);
+12198    }
+12199    function _postManeuverPseudo(active) {
+12200      try {
+12201        skFetch(`/plugins/${PLUGIN_ID}/maneuver-state`, {
+12202          method: "POST",
+12203          headers: { "Content-Type": "application/json" },
+12204          body: JSON.stringify({ active: !!active }),
+12205        }).catch(() => { /* silent - alarm gate is best-effort */ });
+12206      } catch { /* silent */ }
+12207    }
+12208    // Rev465 → Rev466 (Carlos safety audit 2026-10-12): belt-and-suspenders
+12209    // gate for every write that reaches pypilot. Reasons to block:
+12210    //   1. pypilot core reported offline by the plugin backend.
+12211    //   2. The SK WebSocket is not OPEN (we have no confirmation that
+12212    //      the server is reachable at all, so even if the HTTP side still
+12213    //      answered, we would be flying blind without delta feedback).
+12214    // In either case we abort BEFORE the HTTP POST, so the sailor's click
+12215    // produces zero traffic and zero potential stale command.
+12216    function _pypilotWriteBlocked(callerName) {
+12217      const wsOk = typeof ws !== "undefined" && ws && ws.readyState === WebSocket.OPEN;
+12218      const pypilotOk = !(state && state.pypilotHealthy === false);
+12219      if (wsOk && pypilotOk) return false;
+12220      const reason = !wsOk ? "ws_closed" : "pypilot_offline";
+12221      try {
+12222        console.warn(`[pypilot-newui] write blocked (${reason}): ${callerName}`);
+12223        if (typeof _mtLog === "function") {
+12224          _mtLog("other", { via: callerName, blocked: reason });
+12225        }
+12226      } catch { /* silent */ }
+12227      return true;
+12228    }
+12229    async function apEngage() {
+12230      if (_pypilotWriteBlocked("apEngage")) return { ok: false, blocked: true };
+12231      if (!await ensureAutopilotId()) return;
+12232      // Rev550 (audit): NAV already selected with the AP off -> engaging turns
+12233      // to the leg; same >60 deg confirmation as picking NAV with the AP on.
+12234      if (String(state.mode || "") === "nav" && state.route && typeof state.route.legBearingDeg === "number" && typeof state.heading === "number") {
+12235        const turn = Math.abs((((state.route.legBearingDeg - state.heading * RAD2DEG) % 360) + 540) % 360 - 180);
+12236        if (turn > 60 && !(await _pmConfirm(t("route.bigTurnQ").replace("{deg}", String(Math.round(turn))), t("route.bigTurnBody")))) {
+12237          return { ok: false, cancelled: true };
+12238        }
+12239      }
+12240      _mtLog("engage", { via: "apEngage" });
+12241      // Rev548 (Carlos 2026-10-25): the visor engages in the CURRENT mode. The
+12242      // Signal K API engage (Freeboard, KIP) switches to NAV when a route is
+12243      // active; here NAV is chosen in the mode list. Also keeps aproado /
+12244      // empopado (which engage at the end) in their wind mode with a route on.
+12245      return handleAuth(await skFetch(`/plugins/${PLUGIN_ID}/ap/engage?current=1`, { method: "POST" }));
+12246    }
+12247    async function apDisengage() {
+12248      if (_pypilotWriteBlocked("apDisengage")) return { ok: false, blocked: true };
+12249      if (!await ensureAutopilotId()) return;
+12250      _mtLog("disengage", { via: "apDisengage" });
+12251      const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
+12252      return handleAuth(await skFetch(url, { method: "POST" }));
+12253    }
+12254    async function apSetMode(mode) {
+12255      if (_pypilotWriteBlocked("apSetMode")) return { ok: false, blocked: true };
+12256      if (!await ensureAutopilotId()) return;
+12257      _mtLog("mode_change", { requested: mode });
+12258      const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/mode`;
+12259      return handleAuth(await skFetch(url, {
+12260        method: "PUT",
+12261        headers: { "Content-Type": "application/json" },
+12262        body: JSON.stringify({ value: mode }),
+12263      }));
+12264    }
+12265    // Rev359 (Carlos, 2026-09-30, Sprint K P0 #1): apSetMode returns
+12266    // when SK accepted the PUT (HTTP 200) — NOT when pypilot has
+12267    // actually applied the mode. Pypilot needs 100-500 ms to receive
+12268    // the set, process it, and emit the ap.mode delta back through
+12269    // our subscription. A subsequent apSetTargetRad sent inside that
+12270    // gap gets interpreted with the OLD mode: target=0 while still in
+12271    // compass mode means "steer to heading 0" instead of "AWA=0", so
+12272    // the boat swings to compass 0° instead of head-to-wind.
+12273    //
+12274    // Sea trial 2026-09-28 evidence (see [[sea-trial-bugs-2026-09-28]]
+12275    // bug #1): aproado_pick trace showed pre mode=compass tgt=126° →
+12276    // post mode=compass tgt=180° (still compass!). Boat rotated to
+12277    // 180° absolute, not head-to-wind.
+12278    //
+12279    // Fix: after PUT, poll state.mode (fed by the SK delta subscription)
+12280    // until it matches the requested value. Cap at timeoutMs so we do
+12281    // not block forever if pypilot never acknowledges. state.mode is
+12282    // updated by handleDelta's case "steering.autopilot.mode".
+12283    async function apSetModeAndWait(mode, timeoutMs = 2500) {
+12284      const r = await apSetMode(mode);
+12285      // Rev539 (GPT review 5 #3): a refused or unconfirmed mode change must
+12286      // stop the caller - the target that follows means something else in
+12287      // the old mode (AWA 0 in compass = steer north).
+12288      if (!r || r.ok === false) throw new Error(`mode ${mode} refused (${r && r.status ? r.status : "no response"})`);
+12289      const start = Date.now();
+12290      const target = String(mode).toLowerCase();
+12291      // Self-audit Rev541: wait for pypilot's echo, not state.mode - the mode
+12292      // selector sets state.mode = chosen BEFORE calling us, so the old check
+12293      // returned at once and the target still raced the mode change.
+12294      const confirmed = () => String(state._confirmedMode ?? state.mode ?? "").toLowerCase();
+12295      while (Date.now() - start < timeoutMs) {
+12296        if (confirmed() === target) {
+12297          console.info(`[apSetModeAndWait] mode="${mode}" confirmed in ${Date.now() - start} ms`);
+12298          return r;
+12299        }
+12300        await new Promise((res) => setTimeout(res, 50));
+```
+
+### public/app.js lines 12380-12730 (visor: Aproado)
+
+```js
+12380    // barco arranque YA a subir la proa al viento. Los 5 s previos
+12381    // restaban reactividad. Sigue configurable (0-5 s) por si alguien
+12382    // los quiere de vuelta.
+12383    const APROADO_COUNTDOWN_S = 0;
+12384    const APROADO_HUD_TICK_MS = 500;
+12385    const APROADO_SUMMARY_MS = 15000;    // Carlos Rev89: 15 s dwell (was 8)
+12386    // Rev90: |AWA| below this threshold (degrees) → the boat is considered
+12387    // "aproada" and the transit phase flips to the aproado phase (elapsed
+12388    // timer starts). Once achieved the phase LATCHES - a subsequent wind
+12389    // gust that pushes AWA above the threshold does NOT flip back.
+12390    const APROADO_ACHIEVED_DEG = 10;
+12391    // Rev311 (Carlos sea trial 2026-09-25): antes el latch a "active"
+12392    // ocurría en el primer tick que |AWA| < 10°. En oleaje eso disparaba
+12393    // el "logrado" durante una oscilación breve sin que el barco
+12394    // estuviera realmente aproado. Ahora exigimos que |AWA| esté por
+12395    // debajo del umbral SOSTENIDO al menos este tiempo antes de latch.
+12396    const APROADO_ACHIEVED_SUSTAIN_MS = 3000;
+12397  
+12398    function _distanceNm(a, b) {
+12399      if (!a || !b) return 0;
+12400      const R = 6371000;
+12401      const dLat = (b.lat - a.lat) * DEG2RAD;
+12402      const dLon = (b.lon - a.lon) * DEG2RAD;
+12403      const mid = ((a.lat + b.lat) / 2) * DEG2RAD;
+12404      const x = dLon * Math.cos(mid);
+12405      const y = dLat;
+12406      return Math.sqrt(x * x + y * y) * R / 1852;
+12407    }
+12408    function _formatElapsed(ms) {
+12409      const s = Math.max(0, Math.floor(ms / 1000));
+12410      const m = Math.floor(s / 60);
+12411      return `${m}:${String(s % 60).padStart(2, "0")}`;
+12412    }
+12413    function _twsKn() {
+12414      return state.windSpeedTrue != null ? state.windSpeedTrue * 1.94384 : null;
+12415    }
+12416    function _aproadoHud() { return document.getElementById("aproado-hud"); }
+12417    function _setPhase(phase) {
+12418      const hud = _aproadoHud();
+12419      if (hud) hud.setAttribute("data-phase", phase);
+12420    }
+12421    function _paintTws(hud) {
+12422      const twsEl = hud.querySelector("#aproado-choose-tws");
+12423      if (!twsEl) return false;
+12424      const twsKn = _twsKn();
+12425      const hot = twsKn != null && twsKn > APROADO_TWS_HOT_KN;
+12426      if (twsKn != null) {
+12427        twsEl.textContent = hot
+12428          ? t("aproado.tws.hot").replace("{tws}", twsKn.toFixed(0))
+12429          : t("aproado.tws.mild").replace("{tws}", twsKn.toFixed(0));
+12430      } else {
+12431        twsEl.textContent = "";
+12432      }
+12433      twsEl.classList.toggle("hot", hot);
+12434      hud.classList.toggle("hot", hot);
+12435      return hot;
+12436    }
+12437  
+12438    function aproadoStart() {
+12439      _mtLog("aproado_start", { mode: state.mode, engaged: state.engaged });
+12440      // Snapshot everything we may need to restore on SALIR / cancel.
+12441      const snapshot = {
+12442        mode: state.mode,
+12443        targetRad: state.target,
+12444        headingRad: state.heading,
+12445        engaged: state.engaged,
+12446        ts: Date.now(),
+12447      };
+12448      state.aproado = {
+12449        phase: "choosing",
+12450        direction: null,
+12451        snapshot,
+12452        startTs: null,
+12453        endTs: null,
+12454        startPos: null,
+12455        startHeadingDeg: null,
+12456        distanceNm: 0,
+12457      };
+12458      const hud = _aproadoHud();
+12459      if (!hud) return;
+12460      hud.classList.remove("summary");
+12461      _paintTws(hud);
+12462      // Default recommendation: PROA (Carlos Q-3: safer, especially > 10 kn).
+12463      const bowBtn = hud.querySelector('.aproado-choice[data-dir="bow"]');
+12464      const sternBtn = hud.querySelector('.aproado-choice[data-dir="stern"]');
+12465      if (bowBtn) bowBtn.classList.add("recommended");
+12466      if (sternBtn) sternBtn.classList.remove("recommended");
+12467      _setPhase("choosing");
+12468      hud.removeAttribute("hidden");
+12469    }
+12470  
+12471    // User picked bow or stern. Enter the 5 s countdown; the actual
+12472    // pypilot switch happens when the countdown reaches 0.
+12473    function aproadoPick(direction) {
+12474      const apr = state.aproado;
+12475      if (!apr || apr.phase !== "choosing") return;
+12476      apr.direction = direction === "stern" ? "stern" : "bow";
+12477      _mtLog("aproado_pick", { direction: apr.direction });
+12478      // Rev311 (Carlos sea trial 2026-09-25): sin countdown por default.
+12479      // Cuando APROADO_COUNTDOWN_S <= 0 vamos DIRECTO al execute. La
+12480      // maniobra arranca en el mismo tap que la elige. El bloque
+12481      // countdown-visual se salta sin pintar cero.
+12482      if (APROADO_COUNTDOWN_S <= 0) {
+12483        aproadoExecute();
+12484        return;
+12485      }
+12486      _setPhase("countdown");
+12487      const hud = _aproadoHud();
+12488      if (!hud) return;
+12489      const titleEl = hud.querySelector("#aproado-cd-title");
+12490      const numEl = hud.querySelector("#aproado-cd-num");
+12491      if (titleEl) {
+12492        titleEl.textContent = apr.direction === "bow"
+12493          ? t("aproado.cd.title.bow")
+12494          : t("aproado.cd.title.stern");
+12495      }
+12496      let secs = APROADO_COUNTDOWN_S;
+12497      if (numEl) numEl.textContent = String(secs);
+12498      apr._cdTimer = setInterval(() => {
+12499        secs -= 1;
+12500        if (secs <= 0) {
+12501          clearInterval(apr._cdTimer);
+12502          apr._cdTimer = null;
+12503          if (numEl) numEl.textContent = "0";
+12504          aproadoExecute();
+12505          return;
+12506        }
+12507        if (numEl) numEl.textContent = String(secs);
+12508      }, 1000);
+12509    }
+12510  
+12511    async function aproadoExecute() {
+12512      const apr = state.aproado;
+12513      if (!apr) return;
+12514      // Rev323 (Carlos, 2026-09-27): flag pseudo-modo activo para
+12515      // silenciar heading-deviation / cruise-drift / unable-to-steer
+12516      // durante la maniobra.
+12517      _setManeuverPseudo(true);
+12518      // Rev90: transit is a NEW phase between countdown and active. The
+12519      // boat starts rotating toward head-to-wind; only when |AWA| falls
+12520      // below APROADO_ACHIEVED_DEG do we consider it "aproada" and start
+12521      // the elapsed timer. Distance tracking, however, begins here so it
+12522      // covers the whole maneuver (transit + aproado).
+12523      apr.phase = "transit";
+12524      apr.executeTs = Date.now();
+12525      apr.startTs = null;                      // elapsed clock arms later
+12526      apr.startPos = state.position ? { ...state.position } : null;
+12527      apr.startHeadingDeg = state.heading != null
+12528        ? ((state.heading * RAD2DEG + 360) % 360)
+12529        : null;
+12530      setSelect("#mode-select", "aproado");
+12531      _setPhase("transit");
+12532      const hud = _aproadoHud();
+12533      if (hud) { hud.classList.add("transit"); hud.classList.remove("summary"); }
+12534      // Set the transit title now so it reflects the chosen direction.
+12535      const transitTitle = document.getElementById("aproado-transit-title");
+12536      if (transitTitle) {
+12537        transitTitle.textContent = apr.direction === "bow"
+12538          ? t("aproado.transit.title.bow")
+12539          : t("aproado.transit.title.stern");
+12540      }
+12541      try {
+12542        // Rev359: wait for state.mode="wind" echo before writing target,
+12543        // otherwise pypilot interprets target=0 as compass heading 0
+12544        // instead of AWA=0 (bug #1 Sprint K sea trial 2026-09-28).
+12545        await apSetModeAndWait("wind");
+12546        // Rev539 (GPT review 5 #2): cancelled while waiting -> write nothing.
+12547        if (state.aproado !== apr || apr.phase !== "transit") return;
+12548        if (apr.direction === "bow" || state.windAngle == null) {
+12549          // PROA: shortest path (pypilot's default) is bow-through when
+12550          // starting from close-hauled or reaching. Also fallback for POPA
+12551          // when we have no wind sensor - we cannot force the swing side
+12552          // without knowing which side the wind is on.
+12553          apr._targetIsFinal = true;
+12554          await apSetTargetRad(0);
+12555        } else {
+12556          // POR POPA (Rev92): pypilot has no jibe primitive - if we just
+12557          // command target = 0 it picks the SHORTEST arc, which for a
+12558          // close-hauled boat is the bow-through side. To force the swing
+12559          // to go through the stern we walk a chain of intermediate
+12560          // targets 60 deg apart around the LONG side of the circle. Each
+12561          // step waits for the boat to catch up before advancing, so
+12562          // pypilot never has an ambiguous or reversible shortest-path
+12563          // decision. When the chain wraps past the far side we release
+12564          // the final target = 0 and let _aproadoCheckAchieved latch into
+12565          // the active phase.
+12566          apr._targetIsFinal = false;
+12567          aproadoForceStern(state.windAngle);   // fire-and-forget async
+12568        }
+12569        if (state.aproado !== apr || apr.phase !== "transit") return;
+12570        if (!state.engaged) await apEngage();
+12571      } catch (e) {
+12572        console.warn("aproado: mode/target/engage failed", e);
+12573        // Self-audit Rev540: the mode did not change (refused / not
+12574        // confirmed): end the manoeuvre instead of a "transit" that does nothing.
+12575        if (state.aproado === apr) { aproadoTearDown(); setSelect("#mode-select", state.mode || ""); }
+12576        return;
+12577      }
+12578      updateAproadoHud();
+12579      apr._hudTimer = setInterval(updateAproadoHud, APROADO_HUD_TICK_MS);
+12580    }
+12581  
+12582    // Rev92: force POR POPA path by walking the target around the long
+12583    // side of the circle in ~60 deg steps. Runs in the background from
+12584    // aproadoExecute; aborts cleanly if the user hits SALIR (phase leaves
+12585    // "transit") or if the wind sensor drops out mid-swing.
+12586    async function aproadoForceStern(startWindAngleRad) {
+12587      const apr = state.aproado;
+12588      if (!apr || apr.direction !== "stern") return;
+12589      const startDeg = startWindAngleRad * RAD2DEG;
+12590      // If we start already near head-to-wind, no long path to force.
+12591      if (Math.abs(startDeg) < 15) {
+12592        try { await apSetTargetRad(0); } catch {}
+12593        apr._targetIsFinal = true;
+12594        return;
+12595      }
+12596      // Sign of rotation for stern-through swing. Wind on starboard (+):
+12597      // rotate CW so AWA grows through +180 and wraps to -180 then up to 0.
+12598      // Wind on port (-): rotate CCW.
+12599      const dir = startDeg > 0 ? 1 : -1;
+12600      // Rev311 (Carlos sea trial 2026-09-25): 60° steps con 15 s timeout
+12601      // eran "vagos" — pypilot perdía momentum entre steps y la maniobra
+12602      // se quedaba a medias. Steps más largos + timeout más corto: la
+12603      // trayectoria es menos "escalonada" y bail-out más temprano si
+12604      // pypilot no responde. Tolerance sube a 30° porque con steps
+12605      // mayores hay más overshoot posible.
+12606      const STEP_DEG = 90;
+12607      const STEP_TOL_DEG = 30;
+12608      const STEP_TIMEOUT_MS = 8000;
+12609      const totalRotation = 360 - Math.abs(startDeg);
+12610      let accumulated = 0;
+12611      console.info(`aproado stern: startAWA=${startDeg.toFixed(0)} dir=${dir} totalRot=${totalRotation.toFixed(0)}`);
+12612      while (accumulated + STEP_DEG < totalRotation &&
+12613             state.aproado === apr &&
+12614             apr.phase === "transit") {
+12615        // If wind swung around organically and we're already at head-to-wind,
+12616        // stop stepping and commit to the final target.
+12617        if (state.windAngle != null &&
+12618            Math.abs(state.windAngle * RAD2DEG) <= APROADO_ACHIEVED_DEG) {
+12619          console.info("aproado stern: achieved organically mid-chain");
+12620          break;
+12621        }
+12622        accumulated += STEP_DEG;
+12623        let nextDeg = startDeg + dir * accumulated;
+12624        while (nextDeg > 180) nextDeg -= 360;
+12625        while (nextDeg < -180) nextDeg += 360;
+12626        console.info(`aproado stern step: acc=${accumulated} target=${nextDeg.toFixed(0)}`);
+12627        try { await apSetTargetRad(nextDeg * DEG2RAD); }
+12628        catch (e) { console.warn("aproado stern: step PUT failed", e); }
+12629        const ok = await _waitForAWANear(nextDeg, STEP_TOL_DEG, STEP_TIMEOUT_MS, apr);
+12630        if (!ok && state.aproado === apr && apr.phase === "transit") {
+12631          // Rev280 (audit T13): before, a step timeout only logged a
+12632          // warn and the loop kept marching through every remaining
+12633          // 60° step even though no rotation was happening. That
+12634          // meant a stuck boat still received the whole target chain,
+12635          // which pypilot would then chase individually. Bail out now:
+12636          // one timeout = abort the stern chain and let the sailor
+12637          // decide what to do.
+12638          console.warn(`aproado stern: step timeout at target=${nextDeg.toFixed(0)} — aborting chain`);
+12639          break;
+12640        }
+12641      }
+12642      // Final: commit target = 0 and unlock the achieved check.
+12643      if (state.aproado === apr && apr.phase === "transit") {
+12644        try { await apSetTargetRad(0); console.info("aproado stern: final target = 0"); }
+12645        catch (e) { console.warn("aproado stern: final PUT failed", e); }
+12646        apr._targetIsFinal = true;
+12647      }
+12648    }
+12649  
+12650    // Resolves true when |AWA - targetDeg| < tolDeg (or wind sensor missing
+12651    // longer than timeoutMs), false on timeout. Aborts if the aproado
+12652    // state is torn down (user pressed SALIR).
+12653    function _waitForAWANear(targetDeg, tolDeg, timeoutMs, apr) {
+12654      return new Promise((resolve) => {
+12655        const started = Date.now();
+12656        const tick = () => {
+12657          if (state.aproado !== apr || apr.phase !== "transit") { resolve(false); return; }
+12658          if (Date.now() - started > timeoutMs) { resolve(false); return; }
+12659          if (state.windAngle == null) { setTimeout(tick, 500); return; }
+12660          const currentDeg = state.windAngle * RAD2DEG;
+12661          let delta = targetDeg - currentDeg;
+12662          while (delta > 180) delta -= 360;
+12663          while (delta < -180) delta += 360;
+12664          if (Math.abs(delta) < tolDeg) { resolve(true); return; }
+12665          setTimeout(tick, 500);
+12666        };
+12667        tick();
+12668      });
+12669    }
+12670  
+12671    // Called on every HUD tick. If we're still in transit and |AWA| has
+12672    // fallen below the achievement threshold, latch into the active phase.
+12673    // Rev92: for POR POPA we only allow the latch AFTER the forced-stern
+12674    // chain has committed the final target (apr._targetIsFinal). Otherwise
+12675    // an intermediate step that happens to cross near 0 could flip us
+12676    // into "active" prematurely mid-swing.
+12677    function _aproadoCheckAchieved() {
+12678      const apr = state.aproado;
+12679      if (!apr || apr.phase !== "transit") return;
+12680      if (!apr._targetIsFinal) return;
+12681      if (state.windAngle == null) return;
+12682      const awaDeg = Math.abs(state.windAngle * RAD2DEG);
+12683      // Rev311 (Carlos sea trial 2026-09-25): antes se latcheaba a
+12684      // "active" en el primer tick por debajo del umbral, lo que en
+12685      // oleaje disparaba el "logrado" en una oscilación breve. Ahora
+12686      // requerimos sostenimiento (APROADO_ACHIEVED_SUSTAIN_MS).
+12687      if (awaDeg > APROADO_ACHIEVED_DEG) {
+12688        apr._achievedSinceTs = null;
+12689        return;
+12690      }
+12691      if (apr._achievedSinceTs == null) apr._achievedSinceTs = Date.now();
+12692      if (Date.now() - apr._achievedSinceTs < APROADO_ACHIEVED_SUSTAIN_MS) return;
+12693      apr.phase = "active";
+12694      apr.startTs = Date.now();
+12695      _setPhase("active");
+12696      const hud = _aproadoHud();
+12697      if (hud) hud.classList.remove("transit");
+12698    }
+12699  
+12700    // Cancel from choosing OR countdown phase. Nothing was sent to pypilot
+12701    // yet in choosing; in countdown we clear the timer before firing.
+12702    function aproadoCancel() {
+12703      const apr = state.aproado;
+12704      if (!apr) return;
+12705      if (apr._cdTimer) { clearInterval(apr._cdTimer); apr._cdTimer = null; }
+12706      setSelect("#mode-select", apr.snapshot.mode || "");
+12707      hideAproadoHud();
+12708      state.aproado = null;
+12709    }
+12710  
+12711    // Tear down live timers + hide HUD but DO NOT restore the previous mode
+12712    // (used when the user picks another mode from the dropdown while active).
+12713    function aproadoTearDown() {
+12714      const apr = state.aproado;
+12715      if (!apr) return;
+12716      _mtLog("aproado_teardown", { phase: apr.phase, direction: apr.direction });
+12717      // Rev323: cerrar el gate pseudo-modo antes de nada; el backend
+12718      // vuelve a evaluar heading-deviation con el umbral normal.
+12719      _setManeuverPseudo(false);
+12720      if (apr._cdTimer) { clearInterval(apr._cdTimer); apr._cdTimer = null; }
+12721      if (apr._hudTimer) { clearInterval(apr._hudTimer); apr._hudTimer = null; }
+12722      if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
+12723      hideAproadoHud();
+12724      state.aproado = null;
+12725    }
+12726  
+12727    // Rev313 (Carlos sea trial 2026-09-25): pseudo-mode EMPOPADO — mirror
+12728    // of Aproado for the OTHER extreme: bring the boat to TWA ≈ 180°
+12729    // (viento por popa) so the mainsail flogs the least while striking
+12730    // sail. Minimum-scope implementation: sin HUD custom (usa el mismo
+```
+
+### public/app.js lines 12880-13310 (visor: Empopado, Aproado finish)
+
+```js
+12880      ap._hotGainSnapshot = null;
+12881      _empopadoSetHotBadge(null);
+12882    }
+12883    function _empopadoPickReactiveProfile() {
+12884      const list = Array.isArray(state.profiles) ? state.profiles : [];
+12885      if (list.length === 0) return null;
+12886      const preferred = ["heavy", "reactive", "aggressive", "storm"];
+12887      for (const p of preferred) if (list.includes(p)) return p;
+12888      return list.find((p) => p && p.toLowerCase() !== "default") || null;
+12889    }
+12890    function empopadoStart() {
+12891      if (state.empopado) return;
+12892      _mtLog("empopado_start", { mode: state.mode, engaged: state.engaged });
+12893      const snapshot = {
+12894        mode: state.mode,
+12895        targetRad: state.target,
+12896        headingRad: state.heading,
+12897        engaged: state.engaged,
+12898        profile: state.profile,
+12899        ts: Date.now(),
+12900      };
+12901      state.empopado = {
+12902        phase: "choosing",
+12903        direction: null,
+12904        snapshot,
+12905        startTs: null,
+12906        endTs: null,
+12907        startPos: null,
+12908        startHeadingDeg: null,
+12909        distanceNm: 0,
+12910        _achievedSinceTs: null,
+12911        _lostSinceTs: null,
+12912      };
+12913      const hud = _empopadoHud();
+12914      if (!hud) return;
+12915      hud.classList.remove("summary");
+12916      // Rev318: recomendado POR POPA (camino corto habitual al empopar
+12917      // desde ceñido/través — arribar hasta encaramar). BY BOW requiere
+12918      // cruzar el viento por proa, mucho más giro y sólo tiene sentido
+12919      // si estás ya de aleta al lado contrario.
+12920      const bowBtn  = hud.querySelector('.aproado-choice[data-empopado-dir="bow"]');
+12921      const sternBtn = hud.querySelector('.aproado-choice[data-empopado-dir="stern"]');
+12922      if (sternBtn) sternBtn.classList.add("recommended");
+12923      if (bowBtn)   bowBtn.classList.remove("recommended");
+12924      _empopadoSetPhase("choosing");
+12925      hud.removeAttribute("hidden");
+12926    }
+12927    function empopadoPick(direction) {
+12928      const ap = state.empopado;
+12929      if (!ap || ap.phase !== "choosing") return;
+12930      ap.direction = direction === "bow" ? "bow" : "stern";
+12931      _mtLog("empopado_pick", { direction: ap.direction });
+12932      // Rev318 (espejo Rev311): SIN countdown por default. Ejecución
+12933      // inmediata para maximizar reactividad.
+12934      empopadoExecute();
+12935    }
+12936    async function empopadoExecute() {
+12937      const ap = state.empopado;
+12938      if (!ap) return;
+12939      // Rev323 (Carlos, 2026-09-27): silenciar heading-deviation /
+12940      // cruise-drift / unable-to-steer durante la maniobra.
+12941      _setManeuverPseudo(true);
+12942      ap.phase = "transit";
+12943      ap.executeTs = Date.now();
+12944      ap.startTs = null;
+12945      ap.startPos = state.position ? { ...state.position } : null;
+12946      ap.startHeadingDeg = state.heading != null
+12947        ? ((state.heading * RAD2DEG + 360) % 360)
+12948        : null;
+12949      setSelect("#mode-select", "empopado");
+12950      _empopadoSetPhase("transit");
+12951      const hud = _empopadoHud();
+12952      if (hud) { hud.classList.add("transit"); hud.classList.remove("summary"); }
+12953      const transitTitle = document.getElementById("empopado-transit-title");
+12954      if (transitTitle) transitTitle.textContent = t("empopado.hud.title") || "EMPOPANDOSE";
+12955      // Cambio de perfil a uno reactivo (seguridad en popa).
+12956      const reactive = _empopadoPickReactiveProfile();
+12957      if (reactive && reactive !== state.profile) {
+12958        try {
+12959          await pluginRaw("profile", reactive);
+12960          ap._profileSwapped = reactive;
+12961          console.info(`empopado: profile swapped ${ap.snapshot.profile} → ${reactive} (reactive)`);
+12962        } catch (e) { console.warn("empopado: profile swap failed", e); }
+12963      }
+12964      try {
+12965        // Rev367 (Carlos, 2026-09-30, sea-trial feedback): empopado
+12966        // use TRUE WIND mode (TWA control) instead of "wind" (AWA
+12967        // control). En viento de popa el AWA es errático (viento
+12968        // relativo casi = velocidad del barco) y pypilot no puede
+12969        // fijarse. TWA es el ángulo respecto al viento real, estable
+12970        // aunque el barco varíe de rumbo. Pypilot core soporta "true
+12971        // wind" como mode string (con espacio; ver SW_MODE_MAP en
+12972        // src/index.ts). Rev359 apSetModeAndWait espera el eco antes
+12973        // del target write.
+12974        await apSetModeAndWait("true wind");
+12975        // Rev539 (GPT review 5 #2): cancelled while waiting -> write nothing.
+12976        if (state.empopado !== ap || ap.phase !== "transit") return;
+12977        // Target TWA = π - 0.001 (viento por popa). Usamos ligeramente
+12978        // menos de π para evitar que pypilot normalice al opuesto.
+12979        const targetRad = Math.PI - 0.001;
+12980        await apSetTargetRad(targetRad);
+12981        ap._targetIsFinal = true;
+12982        if (state.empopado !== ap || ap.phase !== "transit") return;
+12983        if (!state.engaged) await apEngage();
+12984        console.info(`empopado: dir=${ap.direction} mode="true wind" target=${targetRad.toFixed(3)} engage sent`);
+12985      } catch (e) {
+12986        console.warn("empopado: mode/target/engage failed", e);
+12987        // Self-audit Rev540: same as aproado.
+12988        if (state.empopado === ap) { empopadoTearDown({}); setSelect("#mode-select", state.mode || ""); }
+12989        return;
+12990      }
+12991      updateEmpopadoHud();
+12992      ap._hudTimer = setInterval(updateEmpopadoHud, APROADO_HUD_TICK_MS);
+12993    }
+12994    // Rev318 (Carlos correction mid-turn): Empopado evalúa "logrado" /
+12995    // "perdido" contra TWA (True Wind Angle), NO contra AWA. Pypilot en
+12996    // modo wind sigue controlando AWA (única señal que conoce) — el
+12997    // target enviado sigue siendo AWA=π-0.001 — pero la POSICIÓN REAL
+12998    // respecto al viento real que necesitamos para bajar vela sin
+12999    // flapping se juzga con TWA. A poca velocidad AWA≈TWA, pero
+13000    // navegando fuerte con corriente o mar la diferencia puede ser 30°+.
+13001    function _empopadoTwaSigned() {
+13002      // Fallback a AWA si el sensor de rumbo/velocidad todavía no publica
+13003      // TWA (raro pero puede pasar arrancando con SOG=0).
+13004      return typeof state.windAngleTrue === "number"
+13005        ? state.windAngleTrue
+13006        : (typeof state.windAngle === "number" ? state.windAngle : null);
+13007    }
+13008    function _empopadoCheckAchieved() {
+13009      const ap = state.empopado;
+13010      if (!ap) return;
+13011      const twa = _empopadoTwaSigned();
+13012      // Fase transit → active si logrado sostenido.
+13013      if (ap.phase === "transit") {
+13014        if (!ap._targetIsFinal) return;
+13015        if (twa == null) return;
+13016        const twaAbsDeg = Math.abs(twa * RAD2DEG);
+13017        if (twaAbsDeg < EMPOPADO_ACHIEVED_DEG) { ap._achievedSinceTs = null; return; }
+13018        if (ap._achievedSinceTs == null) ap._achievedSinceTs = Date.now();
+13019        if (Date.now() - ap._achievedSinceTs < APROADO_ACHIEVED_SUSTAIN_MS) return;
+13020        ap.phase = "active";
+13021        ap.startTs = Date.now();
+13022        _empopadoSetPhase("active");
+13023        const hud = _empopadoHud();
+13024        if (hud) hud.classList.remove("transit");
+13025        try { _alSpeak(t("empopado.done") || "Empopado, listo para arriar"); } catch { /* silent */ }
+13026        console.info(`empopado: achieved |TWA|=${twaAbsDeg.toFixed(0)}° sostenido`);
+13027        // Rev320: al entrar en active, disparar los hot gains "nerviosos"
+13028        // (P/D + slew) para reactividad máxima anti-trasluchada.
+13029        _empopadoApplyHotGains(ap).catch(() => { /* silent */ });
+13030        return;
+13031      }
+13032      // Fase active → warning pre-cancel + auto-cancel sostenido.
+13033      if (ap.phase === "active") {
+13034        if (twa == null) return;
+13035        const twaAbsDeg = Math.abs(twa * RAD2DEG);
+13036        // Rev320: aviso rápido cuando |TWA|<160° sostenido 1 s — antes del
+13037        // auto-cancel de EMPOPADO_LOST_DEG=140°. Da a la tripulación
+13038        // margen para tomar la caña manualmente si el AP no está siendo
+13039        // suficiente contra las olas.
+13040        if (twaAbsDeg < EMPOPADO_WARN_DEG) {
+13041          if (ap._warnSinceTs == null) ap._warnSinceTs = Date.now();
+13042          if (!ap._warnFired && Date.now() - ap._warnSinceTs >= EMPOPADO_WARN_SUSTAIN_MS) {
+13043            ap._warnFired = true;
+13044            console.warn(`empopado: WARN |TWA|=${twaAbsDeg.toFixed(0)}° <${EMPOPADO_WARN_DEG}° — inestable`);
+13045            try { _alSpeak(t("empopado.unstable") || "Empopado inestable"); } catch { /* silent */ }
+13046          }
+13047        } else {
+13048          // Salió de la zona de warning — resetea para que el próximo
+13049          // roll fuerte vuelva a avisar.
+13050          ap._warnSinceTs = null;
+13051          ap._warnFired = false;
+13052        }
+13053        if (twaAbsDeg > EMPOPADO_LOST_DEG) { ap._lostSinceTs = null; return; }
+13054        if (ap._lostSinceTs == null) ap._lostSinceTs = Date.now();
+13055        if (Date.now() - ap._lostSinceTs < EMPOPADO_LOST_SUSTAIN_MS) return;
+13056        console.warn(`empopado: lost stern (|TWA|=${twaAbsDeg.toFixed(0)}° <${EMPOPADO_LOST_DEG}°) — auto-cancel`);
+13057        try { _alSpeak(t("empopado.lost") || "Empopado cancelado, viento cambió"); } catch { /* silent */ }
+13058        // Rev415 (Carlos sea trial 2026-10-04, obs #11): "stern-lost"
+13059        // auto-cancel used to force restoreAll=true, i.e. snap the pilot
+13060        // back to the pre-empopado target. Carlos explicitly asked to
+13061        // disable that path — forcing a heading change the sailor was not
+13062        // expecting during an already-chaotic wind shift is dangerous.
+13063        // Stay on the current course; the voice toast tells the sailor
+13064        // what happened, they decide what to do next.
+13065        empopadoFinish({ restoreAll: false, silent: true });
+13066      }
+13067    }
+13068    function updateEmpopadoHud() {
+13069      const ap = state.empopado;
+13070      const hud = _empopadoHud();
+13071      if (!ap || !hud) return;
+13072      _empopadoCheckAchieved();
+13073      if ((ap.phase === "active" || ap.phase === "transit") &&
+13074          ap.startPos && state.position) {
+13075        ap.distanceNm = _distanceNm(ap.startPos, state.position);
+13076      }
+13077      const nowTs = ap.phase === "summary" ? (ap.endTs || Date.now()) : Date.now();
+13078      const elapsedMs = ap.startTs ? nowTs - ap.startTs : 0;
+13079      const hdgTxt = ap.startHeadingDeg != null
+13080        ? `${String(Math.round(ap.startHeadingDeg)).padStart(3, "0")}°`
+13081        : "---°";
+13082      if (ap.phase === "transit") {
+13083        const degEl   = document.getElementById("empopado-transit-deg");
+13084        const hdgTrEl = document.getElementById("empopado-transit-hdg");
+13085        if (degEl) {
+13086          // Rev318: error contra TWA (viento real). "Me faltan N° para
+13087          // popa" — un TWA=100° faltarían 80° para 180°.
+13088          const twa = _empopadoTwaSigned();
+13089          degEl.textContent = twa != null
+13090            ? `${Math.round(180 - Math.abs(twa * RAD2DEG))}°`
+13091            : "---°";
+13092        }
+13093        if (hdgTrEl) hdgTrEl.textContent = hdgTxt;
+13094      } else {
+13095        const elapsedEl = document.getElementById("empopado-hud-elapsed");
+13096        const distEl    = document.getElementById("empopado-hud-dist");
+13097        const hdgEl     = document.getElementById("empopado-hud-hdg");
+13098        const titleEl   = document.getElementById("empopado-active-title");
+13099        const endBtn    = document.getElementById("empopado-hud-end");
+13100        if (elapsedEl) elapsedEl.textContent = _formatElapsed(elapsedMs);
+13101        if (distEl)    distEl.textContent    = `${ap.distanceNm.toFixed(2)} nm`;
+13102        if (hdgEl)     hdgEl.textContent     = hdgTxt;
+13103        if (ap.phase === "summary") {
+13104          if (titleEl) titleEl.textContent = t("aproado.hud.summary") || "SUMMARY";
+13105          if (endBtn)  endBtn.textContent = t("close") || "Cerrar";
+13106        } else {
+13107          if (titleEl) titleEl.textContent = t("empopado.hud.title") || "EMPOPADO";
+13108          if (endBtn)  endBtn.textContent = t("aproado.hud.exit")  || "SALIR";
+13109        }
+13110      }
+13111    }
+13112    function empopadoCancel() {
+13113      // Cancel desde choosing (nada enviado a pypilot todavía).
+13114      const ap = state.empopado;
+13115      if (!ap) return;
+13116      if (ap._hudTimer) { clearInterval(ap._hudTimer); ap._hudTimer = null; }
+13117      hideEmpopadoHud();
+13118      state.empopado = null;
+13119      setSelect("#mode-select", ap.snapshot.mode || "");
+13120    }
+13121    async function empopadoFinish(opts) {
+13122      const ap = state.empopado;
+13123      if (!ap || (ap.phase !== "active" && ap.phase !== "transit")) return;
+13124      // Rev407 (Carlos sea trial 2026-10-03): default = no restore. The
+13125      // sailor stays on whatever heading the AP ended up at after the
+13126      // manoeuvre. Previously the default was true, which triggered an
+13127      // automatic mode+target+engage restore to the pre-empopado state.
+13128      // Carlos: "el salir del modo y volver a rumbo me parece peligrosísimo,
+13129      // es casi mejor quedarnos en el rumbo que estamos. [...] nos quedamos
+13130      // en ese rumbo" (sea trial 2026-10-03). The sailor explicitly opts in
+13131      // by passing { restoreAll: true } if they want the old behaviour.
+13132      const restoreAll = !!(opts && opts.restoreAll === true);
+13133      const silent = !!(opts && opts.silent);
+13134      if (ap._hudTimer) { clearInterval(ap._hudTimer); ap._hudTimer = null; }
+13135      ap.endTs = Date.now();
+13136      if (ap.startPos && state.position) {
+13137        ap.distanceNm = _distanceNm(ap.startPos, state.position);
+13138      }
+13139      if (ap.startTs == null) ap.startTs = ap.endTs;
+13140      ap.phase = silent ? "summary" : "summary";
+13141      const hud = _empopadoHud();
+13142      if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
+13143      _empopadoSetPhase("summary");
+13144      updateEmpopadoHud();
+13145      const snap = ap.snapshot;
+13146      if (snap.mode) setSelect("#mode-select", snap.mode);
+13147      // Rev320: restaurar gains hot ANTES del profile swap.
+13148      // El profile swap sobrescribe todos los gains — si hacemos primero
+13149      // el restore de nuestros hot gains y luego el profile restore, es
+13150      // idempotente. Si el orden fuera al revés, el profile pondría los
+13151      // gains del perfil original y nuestro restore (con valores ya
+13152      // sobrescritos por el profile) los pisaría con valores viejos.
+13153      await _empopadoRestoreHotGains(ap);
+13154      // Perfil siempre restaura si lo swapeamos.
+13155      if (ap._profileSwapped && snap.profile && snap.profile !== ap._profileSwapped) {
+13156        try { await pluginRaw("profile", snap.profile); console.info(`empopado: profile restored → ${snap.profile}`); }
+13157        catch (e) { console.warn("empopado: profile restore failed", e); }
+13158      }
+13159      if (restoreAll) {
+13160        if (snap.mode) {
+13161          try { await apSetMode(snap.mode); console.info(`empopado: mode restored → ${snap.mode}`); }
+13162          catch (e) { console.warn("empopado: mode restore failed", e); }
+13163        }
+13164        if (typeof snap.targetRad === "number") {
+13165          try { await apSetTargetRad(snap.targetRad); console.info(`empopado: target restored → ${snap.targetRad.toFixed(3)}`); }
+13166          catch (e) { console.warn("empopado: target restore failed", e); }
+13167        }
+13168        if (snap.engaged === false && state.engaged) {
+13169          try { await apDisengage(); console.info("empopado: AP disengaged (was OFF before empopado)"); }
+13170          catch (e) { console.warn("empopado: disengage restore failed", e); }
+13171        }
+13172      } else {
+13173        // Rev440 (Carlos 2026-10-10): salir dejando el pilot en "true wind"
+13174        // es menos estable que compass para mantener el rumbo actual.
+13175        // Conmutar a compass con target = heading actual: el barco se
+13176        // queda EXACTAMENTE donde está pero bajo el modo seguro. Si no
+13177        // hay sensor de heading, dejar como estaba.
+13178        const curHdg = (typeof state.heading === "number") ? state.heading : null;
+13179        if (curHdg != null) {
+13180          try {
+13181            await apSetModeAndWait("compass");
+13182            await apSetTargetRad(curHdg);
+13183            console.info(`empopado: safe-exit to compass @ ${(curHdg * RAD2DEG).toFixed(1)} deg (Rev440)`);
+13184          } catch (e) {
+13185            console.warn("empopado: safe-exit to compass failed", e);
+13186          }
+13187        } else {
+13188          console.info("empopado: finish without restore (Rev407 default) — no heading sensor, leaving pilot where it is");
+13189        }
+13190      }
+13191      // Auto-hide del summary igual que aproado (usa APROADO_SUMMARY_MS).
+13192      ap._summaryTimer = setTimeout(() => { empopadoTearDown(); }, APROADO_SUMMARY_MS);
+13193    }
+13194    function empopadoTearDown(opts) {
+13195      const ap = state.empopado;
+13196      if (!ap) return;
+13197      _mtLog("empopado_teardown", { phase: ap.phase, direction: ap.direction, restoreAll: !!(opts && opts.restoreAll) });
+13198      // Rev323: cerrar el gate pseudo-modo — el heading-deviation
+13199      // vuelve al umbral normal.
+13200      _setManeuverPseudo(false);
+13201      if (ap._hudTimer)     { clearInterval(ap._hudTimer);   ap._hudTimer = null; }
+13202      if (ap._summaryTimer) { clearTimeout(ap._summaryTimer); ap._summaryTimer = null; }
+13203      // Rev316: restore adicional si tearDown fue directo (sin pasar por
+13204      // finish, ej. mode-select change durante active).
+13205      const restoreAll = opts && opts.restoreAll === true;
+13206      const snap = ap.snapshot || {};
+13207      // Rev320: restaurar hot gains ANTES del profile (mismo orden que
+13208      // empopadoFinish; ver comentario allí para el racional).
+13209      // Rev539 (GPT review 5 #9): wait for the gain restore before switching
+13210      // profile, or the last gains land on the original profile.
+13211      const swapped = ap._profileSwapped;
+13212      _empopadoRestoreHotGains(ap).catch(() => {}).then(() => {
+13213        if (swapped && snap.profile && snap.profile !== swapped) {
+13214          try { pluginRaw("profile", snap.profile).catch(() => {}); } catch { /* silent */ }
+13215        }
+13216      });
+13217      if (restoreAll) {
+13218        if (snap.mode) { try { apSetMode(snap.mode).catch(() => {}); } catch {} }
+13219        if (typeof snap.targetRad === "number") { try { apSetTargetRad(snap.targetRad).catch(() => {}); } catch {} }
+13220        if (snap.engaged === false && state.engaged) { try { apDisengage().catch(() => {}); } catch {} }
+13221      }
+13222      hideEmpopadoHud();
+13223      state.empopado = null;
+13224    }
+13225  
+13226    // SALIR from the transit or active HUD: freeze counters, show the
+13227    // summary card for APROADO_SUMMARY_MS, and restore the pre-aproado
+13228    // mode + target + engaged state. Rev90: each restore step is guarded
+13229    // by its own try/catch so a failure in one does NOT skip the next
+13230    // (previously a single try/catch swallowed the rest of the chain -
+13231    // that was Carlos's "wind mode does not come back" bug). The dropdown
+13232    // is also updated optimistically so the UI reflects the restore even
+13233    // before pypilot's echo lands.
+13234    async function aproadoFinish(opts) {
+13235      const apr = state.aproado;
+13236      if (!apr || (apr.phase !== "active" && apr.phase !== "transit")) return;
+13237      if (apr._hudTimer) { clearInterval(apr._hudTimer); apr._hudTimer = null; }
+13238      apr.endTs = Date.now();
+13239      if (apr.startPos && state.position) {
+13240        apr.distanceNm = _distanceNm(apr.startPos, state.position);
+13241      }
+13242      // If we never reached the achieved phase, stamp startTs so the
+13243      // summary shows a meaningful "0:00" instead of NaN.
+13244      if (apr.startTs == null) apr.startTs = apr.endTs;
+13245      apr.phase = "summary";
+13246      // Rev539 (GPT review 5 #1): the manoeuvre is over - stop renewing the
+13247      // "manoeuvre active" flag that silences the heading alarms.
+13248      _setManeuverPseudo(false);
+13249      const hud = _aproadoHud();
+13250      if (hud) { hud.classList.remove("transit"); hud.classList.add("summary"); }
+13251      _setPhase("summary");
+13252      updateAproadoHud();
+13253      // Rev415 (Carlos sea trial 2026-10-04, obs #11): "hay que anular el
+13254      // restituir rumbo cuando salimos de aproado o empopado porque es
+13255      // peligroso". Default `restoreAll=false` matches what empopadoFinish
+13256      // did since Rev407 R. Keep the opt-in for the (rare) case where the
+13257      // sailor really wants the pre-aproado state back.
+13258      const restoreAll = !!(opts && opts.restoreAll === true);
+13259      // Optimistic dropdown update so UI does not stay stuck on "aproado".
+13260      const snap = apr.snapshot;
+13261      if (restoreAll) {
+13262        if (snap.mode) setSelect("#mode-select", snap.mode);
+13263        // Rev90: guard each step separately so one failure does not skip
+13264        // the others. Log successes for QA visibility.
+13265        if (snap.mode) {
+13266          try { await apSetMode(snap.mode); console.info("aproado: mode restored ->", snap.mode); }
+13267          catch (e) { console.warn("aproado: mode restore failed", e); }
+13268        }
+13269        if (snap.targetRad != null) {
+13270          try { await apSetTargetRad(snap.targetRad); console.info("aproado: target restored ->", snap.targetRad.toFixed(3), "rad"); }
+13271          catch (e) { console.warn("aproado: target restore failed", e); }
+13272        }
+13273        // If the AP was NOT engaged before aproado, disengage now (Rev88 #10).
+13274        if (!snap.engaged) {
+13275          try { await apDisengage(); console.info("aproado: AP disengaged (was OFF before aproado)"); }
+13276          catch (e) { console.warn("aproado: disengage failed", e); }
+13277        }
+13278      } else {
+13279        // Rev440 (Carlos 2026-10-10): "al salir queda en wind, mejor
+13280        // compass por estabilidad de rumbo". aproadoStart puso el pilot
+13281        // en modo "wind" para controlar AWA. Si no restauramos, el
+13282        // barco se queda en wind indefinidamente — menos estable que
+13283        // compass para mantener el rumbo actual. Fix: conmutar a
+13284        // compass con target = heading actual, de modo que el pilot
+13285        // sostenga EXACTAMENTE el rumbo donde quedó la maniobra pero
+13286        // en el modo seguro. Si falta sensor de heading, dejar como
+13287        // estaba (sin sacar al pilot de wind a ciegas).
+13288        const curHdg = (typeof state.heading === "number") ? state.heading : null;
+13289        if (curHdg != null) {
+13290          try {
+13291            await apSetModeAndWait("compass");
+13292            await apSetTargetRad(curHdg);
+13293            console.info(`aproado: safe-exit to compass @ ${(curHdg * RAD2DEG).toFixed(1)} deg (Rev440)`);
+13294          } catch (e) {
+13295            console.warn("aproado: safe-exit to compass failed", e);
+13296          }
+13297        } else {
+13298          console.info("aproado: finish without restore (Rev415 default) — no heading sensor, leaving pilot where it is");
+13299        }
+13300      }
+13301      apr._summaryTimer = setTimeout(() => {
+13302        if (state.aproado === apr) {
+13303          hideAproadoHud();
+13304          state.aproado = null;
+13305        }
+13306      }, APROADO_SUMMARY_MS);
+13307    }
+13308  
+13309    function hideAproadoHud() {
+13310      const hud = _aproadoHud();
+```
+
+### public/app.js lines 13840-14035 (visor: mode select handler, HUD exit buttons)
+
+```js
+13840      const _msBtn = document.getElementById("mode-select-btn");
+13841      if (_msBtn) {
+13842        _msBtn.addEventListener("click", () => {
+13843          const m = document.getElementById("mode-select-modal");
+13844          if (m && !m.hidden) { _modeSelectPopupClose(); }
+13845          else { _modeSelectPopupOpen(); }
+13846        });
+13847      }
+13848      // Mode change — fired by the custom popup via a synthetic Event
+13849      // on the hidden native <select>. Rev425 removed the "@profile:"
+13850      // branch (profiles are now a separate sub-select inside the popup
+13851      // and never land on the mode-select's value).
+13852      $("#mode-select").addEventListener("change", (e) => {
+13853        _msCollapse();
+13854        const chosen = e.target.value;
+13855        // Rev518: pseudo-mode AUTOWIND lives in the backend.
+13856        if (chosen === "autowind") {
+13857          _autowindPost({ enabled: true });
+13858          return;
+13859        }
+13860        if (state.autowind && state.autowind.enabled) {
+13861          _autowindPost({ enabled: false });
+13862        }
+13863        // Rev545 (Carlos #4): NAV that would turn more than 60 deg asks first.
+13864        if (chosen === "nav" && state.engaged && state.route && typeof state.route.legBearingDeg === "number" && typeof state.heading === "number") {
+13865          const turn = Math.abs((((state.route.legBearingDeg - state.heading * RAD2DEG) % 360) + 540) % 360 - 180);
+13866          if (turn > 60) {
+13867            (async () => {
+13868              const ok = await _pmConfirm(t("route.bigTurnQ").replace("{deg}", String(Math.round(turn))), t("route.bigTurnBody"));
+13869              if (ok) apSetMode("nav");
+13870              else setSelect("#mode-select", state.mode || "");
+13871            })();
+13872            return;
+13873          }
+13874        }
+13875        // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
+13876        // choice modal (bow / stern) and starts the maneuver on confirmation.
+13877        if (chosen === "aproado") {
+13878          aproadoStart();
+13879          return;
+13880        }
+13881        // Rev313 (Carlos sea trial 2026-09-25): pseudo-mode "empopado"
+13882        // (viento por popa para bajar vela).
+13883        if (chosen === "empopado") {
+13884          empopadoStart();
+13885          return;
+13886        }
+13887        // Picking another mode while a pseudo-mode is active ends the
+13888        // maneuver WITHOUT restoring the pre-* mode (usuario ya
+13889        // eligió qué quiere ahora). SÍ restaura el profile.
+13890        if (state.empopado && (state.empopado.phase === "transit" || state.empopado.phase === "active")) {
+13891          empopadoTearDown({ restoreAll: false });
+13892        }
+13893        // Picking another mode while aproado is active ends the maneuver
+13894        // WITHOUT restoring the pre-aproado mode - honor the user's new
+13895        // choice. (Use the SALIR button on the HUD to return to previous.)
+13896        if (state.aproado && (state.aproado.phase === "transit" || state.aproado.phase === "active")) {
+13897          aproadoTearDown();
+13898        }
+13899        // Rev170/171 (Carlos): fix target reference when switching
+13900        // between compass-family and wind-family modes without the
+13901        // brief "wrong then right" flash. Pypilot interprets
+13902        // ap.heading_command differently per mode - a heading value in
+13903        // compass/gps/nav, an APPARENT WIND ANGLE in wind, a TRUE WIND
+13904        // ANGLE in "true wind". If we just change mode, the old value
+13905        // is reinterpreted for one tick and the diamond leaps.
+13906        //
+13907        // Rev170 approach: apSetMode() then apSetTargetRad() 250 ms
+13908        // later. That produced the "duda" Carlos reported.
+13909        //
+13910        // Rev171 approach: compute the right target FIRST, apply it
+13911        // OPTIMISTICALLY to the visor, then send target + mode in
+13912        // parallel (Promise.all). The visor never renders the stale
+13913        // interpretation, and pypilot receives both PUTs at once so
+13914        // the AutopilotProvider echo-cancellation absorbs the swap.
+13915        const prevMode = String(state.mode || "").toLowerCase();
+13916        const newMode = String(chosen).toLowerCase();
+13917        const isNewTrueWind = newMode.includes("true") && newMode.includes("wind");
+13918        const isNewWind     = newMode.includes("wind") && !isNewTrueWind;
+13919        const isNewCompassFam = !newMode.includes("wind");
+13920        const wasWindFam    = prevMode.includes("wind");
+13921        // Rev249 (Carlos): family change is real regardless of engaged
+13922        // state. Before, if the AP was disengaged the code left the old
+13923        // target rad untouched and the diamond would reinterpret it
+13924        // under the new mode (e.g. a wind AWA target of 0.85 rad ends up
+13925        // painted as a 49 deg compass heading). Reajustar SIEMPRE.
+13926        const familyChanged = wasWindFam !== !isNewCompassFam;
+13927        let newTargetRad = null;
+13928        if (familyChanged) {
+13929          if (isNewTrueWind && state.windAngleTrue != null) newTargetRad = state.windAngleTrue;
+13930          else if (isNewWind && state.windAngle != null)    newTargetRad = state.windAngle;
+13931          else if (isNewCompassFam && state.heading != null) newTargetRad = state.heading;
+13932        }
+13933        // Rev249 (Carlos): guard against SK delta race. After the user
+13934        // picks a new mode the visor updates optimistically; a stale
+13935        // `steering.autopilot.mode` delta from the pre-change window
+13936        // could then arrive and revert the selector. Ignore mode deltas
+13937        // for a short window (see applyValue mode handler).
+13938        _modeChangePendingUntil = Date.now() + 1500;
+13939        _modeChangeChosen = chosen;
+13940        if (familyChanged) {
+13941          // Snap the visor first so the diamond never renders the
+13942          // stale value under the new mode. Then fire mode + target
+13943          // together to pypilot.
+13944          state.mode = chosen;
+13945          if (newTargetRad != null) {
+13946            state.target = newTargetRad;
+13947            state.localTargetRad = newTargetRad;
+13948          } else {
+13949            // Rev249: no reference reading available for the new mode -
+13950            // wipe the target rather than lie about it. Diamond
+13951            // disappears until pypilot echoes a fresh target.
+13952            state.target = null;
+13953            state.localTargetRad = null;
+13954          }
+13955          renderTargetArrow();
+13956          if (newTargetRad != null) {
+13957            // Rev539 (GPT review 5 #4): in sequence - a wind angle that lands
+13958            // before the mode is a compass heading for pypilot.
+13959            (async () => {
+13960              try { await apSetModeAndWait(chosen); await apSetTargetRad(newTargetRad); }
+13961              catch (e) {
+13962                console.warn("[mode-select]", e && e.message);
+13963                // Self-audit Rev541: pypilot did not take the mode - show the
+13964                // real one again instead of the optimistic choice.
+13965                if (state._confirmedMode && state.mode !== state._confirmedMode) {
+13966                  state.mode = state._confirmedMode;
+13967                  try { setSelect("#mode-select", state.mode); _renderModeSelectBtn(); renderTargetArrow(); } catch { /* silent */ }
+13968                }
+13969              }
+13970            })();
+13971          } else {
+13972            apSetMode(chosen);
+13973          }
+13974        } else {
+13975          apSetMode(chosen);
+13976        }
+13977      });
+13978  
+13979      // Rev88 / Rev89: aproado overlay wiring. The overlay has 3 phases;
+13980      // each phase has its own set of buttons. SALIR on the active phase
+13981      // restores the pre-aproado mode + target + engaged state.
+13982      const aproadoHud = document.getElementById("aproado-hud");
+13983      if (aproadoHud) {
+13984        aproadoHud.querySelectorAll('.aproado-choice[data-dir]').forEach((btn) => {
+13985          btn.addEventListener("click", () => aproadoPick(btn.getAttribute("data-dir")));
+13986        });
+13987        const cancelChoose = document.getElementById("aproado-cancel-btn");
+13988        if (cancelChoose) cancelChoose.addEventListener("click", () => aproadoCancel());
+13989        const cancelCd = document.getElementById("aproado-cd-cancel");
+13990        if (cancelCd) cancelCd.addEventListener("click", () => aproadoCancel());
+13991        const exitHandler = () => {
+13992          const apr = state.aproado;
+13993          if (!apr) return;
+13994          if (apr.phase === "summary") {
+13995            if (apr._summaryTimer) { clearTimeout(apr._summaryTimer); apr._summaryTimer = null; }
+13996            hideAproadoHud();
+13997            state.aproado = null;
+13998          } else if (apr.phase === "active" || apr.phase === "transit") {
+13999            aproadoFinish();
+14000          }
+14001        };
+14002        const exitBtn = document.getElementById("aproado-hud-end");
+14003        if (exitBtn) exitBtn.addEventListener("click", exitHandler);
+14004        const transitCancelBtn = document.getElementById("aproado-transit-cancel");
+14005        if (transitCancelBtn) transitCancelBtn.addEventListener("click", exitHandler);
+14006      }
+14007  
+14008      // Rev318: Empopado HUD wiring. Espejo del aproado (mismo CSS,
+14009      // IDs propios, data-empopado-* atributos). Todo va a las funciones
+14010      // empopado* correspondientes.
+14011      const empopadoHud = document.getElementById("empopado-hud");
+14012      if (empopadoHud) {
+14013        empopadoHud.querySelectorAll('.aproado-choice[data-empopado-dir]').forEach((btn) => {
+14014          btn.addEventListener("click", () => empopadoPick(btn.getAttribute("data-empopado-dir")));
+14015        });
+14016        const cancelChoose = document.getElementById("empopado-cancel-btn");
+14017        if (cancelChoose) cancelChoose.addEventListener("click", () => empopadoCancel());
+14018        const emExitHandler = () => {
+14019          const emp = state.empopado;
+14020          if (!emp) return;
+14021          if (emp.phase === "summary") {
+14022            if (emp._summaryTimer) { clearTimeout(emp._summaryTimer); emp._summaryTimer = null; }
+14023            hideEmpopadoHud();
+14024            state.empopado = null;
+14025          } else if (emp.phase === "active" || emp.phase === "transit") {
+14026            empopadoFinish();
+14027          }
+14028        };
+14029        const emExitBtn = document.getElementById("empopado-hud-end");
+14030        if (emExitBtn) emExitBtn.addEventListener("click", emExitHandler);
+14031        const emTransitCancelBtn = document.getElementById("empopado-transit-cancel");
+14032        if (emTransitCancelBtn) emTransitCancelBtn.addEventListener("click", emExitHandler);
+14033      }
+14034  
+14035      // Rev184 (Carlos): tack per side, with the "triple-tap = jibe"
+```
