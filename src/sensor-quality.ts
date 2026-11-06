@@ -36,6 +36,11 @@ export interface QualityThreshold {
    *  environment.wind.speedTrue OR .speedOverGround OR
    *  .speedOverWater - whichever the SK setup happens to publish. */
   alternatives?: string[];
+  /** Rev642 (Carlos 2026-11-06: "siempre me da COG missing"): null with a
+   *  fresh timestamp is a real reading for this path. A GPS at rest sends
+   *  RMC with an empty course every second; the sensor is alive, there is
+   *  just no course. A dead GPS stops updating the timestamp instead. */
+  nullIsReading?: boolean;
 }
 
 export interface PathQuality {
@@ -76,7 +81,7 @@ export const DEFAULT_QUALITY_WATCH: Record<string, QualityThreshold> = {
   "navigation.headingMagnetic":       { label: "Heading",     degradedAgeMs: 2000,  lostAgeMs: 8000 },
   "navigation.attitude":              { label: "IMU attitude", degradedAgeMs: 2000, lostAgeMs: 8000 },
   "navigation.speedOverGround":       { label: "SOG",         degradedAgeMs: 5000,  lostAgeMs: 30000 },
-  "navigation.courseOverGroundTrue":  { label: "COG",         degradedAgeMs: 5000,  lostAgeMs: 30000 },
+  "navigation.courseOverGroundTrue":  { label: "COG",         degradedAgeMs: 5000,  lostAgeMs: 30000, nullIsReading: true },
   "navigation.position":              { label: "GPS position", degradedAgeMs: 5000, lostAgeMs: 30000 },
   "environment.wind.angleApparent":   { label: "AWA",         degradedAgeMs: 5000,  lostAgeMs: 30000 },
   "environment.wind.speedApparent":   { label: "AWS",         degradedAgeMs: 5000,  lostAgeMs: 30000 },
@@ -184,7 +189,8 @@ export class SensorQualityMonitor {
     // Skip if value is undefined - the path exists in the store but has
     // never received a real update (a shell entry from another plugin).
     // Rev535 (GPT review 3 #7): null = "no data" in Signal K, not a reading.
-    if (entry.value === undefined || entry.value === null) return;
+    if (entry.value === undefined) return;
+    if (entry.value === null && !slot.threshold.nullIsReading) return;
     // Timestamp may arrive as ISO string, epoch ms, or Date. Normalise.
     const skTs = normaliseTs(entry.timestamp ?? entry.$source);
     slot.lastValue = entry.value;
