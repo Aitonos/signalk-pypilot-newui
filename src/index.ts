@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev635";
+const PLUGIN_REVISION = "Rev636";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2921,20 +2921,14 @@ module.exports = function (app: any) {
             const sub = usable ? autowind.initial(twa, props.autowindThresholdDeg) : "wind";
             const modeBefore = apProvider ? String(apProvider.data.mode || "").toLowerCase() : "";
             await _autowindApply(sub, usable ? "AUTOWIND on" : "AUTOWIND on (no usable true wind: apparent)", true);
-            // Rev635 (Carlos QA 2026-11-06 16:42): already in that mode, the
-            // target is whatever was there - an Empopado's TWA 180 (ended from
-            // another visor), an Aproado's AWA 0. AUTOWIND starts on the wind
-            // angle the boat has now. A mode change does this by itself in
-            // pypilot.
-            if (apProvider && apProvider.data.engaged && props.autowindEnabled && modeBefore === sub) {
-              // SK angles are radians; TWA from the same fresh sources AUTOWIND decides on.
-              const nowRad = sub === "true wind"
-                ? _autowindFresh(["environment.wind.angleTrueWater", "environment.wind.angleTrueGround"])
-                : _autowindFresh(["environment.wind.angleApparent"]);
-              if (nowRad != null) {
-                try { await (apProvider.toProviderInterface() as any).setTarget(nowRad, apProvider.deviceId); }
-                catch (e: any) { _autowindFail(`hold the current wind angle: ${e?.message || e}`); }
-              }
+            // Rev635/636 (Carlos QA 2026-11-06 16:42 and 16:58): AUTOWIND
+            // starts on the wind angle the boat has NOW. Without this the
+            // target was whatever was there - an Empopado's TWA 180 ended from
+            // another visor, an Aproado's AWA 0 - and on a mode change pypilot
+            // keeps the heading ERROR it had (61 deg off stayed 61 deg off),
+            // it does not re-centre on the wind.
+            if (apProvider && apProvider.data.engaged && props.autowindEnabled) {
+              await _autowindHoldCurrentAngle(sub, modeBefore !== sub);
             }
           }
         }
@@ -5095,6 +5089,38 @@ module.exports = function (app: any) {
   // (its outcome feeds the decider's gap / retry). An operation number:
   // turning AUTOWIND off, or a newer apply, makes an apply still waiting on
   // pypilot stop there - no profile, no "switched" afterwards.
+  // Rev636: target = the current wind angle in the mode AUTOWIND starts in.
+  // After a mode change pypilot rewrites heading_command in its own loop
+  // (same race as the tack cancel, Rev515): wait 400 ms, write, check at
+  // 1.2 s, rewrite once. A newer AUTOWIND order or "off" stops it.
+  async function _autowindHoldCurrentAngle(sub: WindSubMode, modeChanged: boolean): Promise<void> {
+    if (!apProvider) return;
+    const op = _autowindOp;
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    const iface = apProvider.toProviderInterface() as any;
+    if (modeChanged) await sleep(400);
+    let nowRad: number | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (op !== _autowindOp || !props.autowindEnabled || !apProvider.data.engaged) return;
+      if (String(apProvider.data.mode || "").toLowerCase() !== sub) return;
+      if (attempt === 0) {
+        // SK angles are radians; TWA from the same fresh sources AUTOWIND decides on.
+        nowRad = sub === "true wind"
+          ? _autowindFresh(["environment.wind.angleTrueWater", "environment.wind.angleTrueGround"])
+          : _autowindFresh(["environment.wind.angleApparent"]);
+        if (nowRad == null) { _autowindFail("no fresh wind angle to hold: target left as it was"); return; }
+      } else {
+        // pypilot kept what we wrote: done. Else it overwrote it: once more.
+        const cur = apProvider.data.target;
+        if (typeof cur === "number" && Math.abs(Math.atan2(Math.sin(cur - nowRad!), Math.cos(cur - nowRad!))) < 5 * Math.PI / 180) return;
+      }
+      try { await iface.setTarget(nowRad, apProvider.deviceId); }
+      catch (e: any) { _autowindFail(`hold the current wind angle: ${e?.message || e}`); return; }
+      // eslint-disable-next-line no-console
+      console.log(`[autowind] target = current ${sub === "true wind" ? "TWA" : "AWA"} ${((nowRad as number) * 180 / Math.PI).toFixed(0)} deg`);
+      await sleep(1200);
+    }
+  }
   // Rev633: why AUTOWIND must not switch now (tack or visor manoeuvre), or null.
   function _autowindBusyReason(): string | null {
     if (!apProvider) return null;

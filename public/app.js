@@ -532,6 +532,8 @@
       "autowind.blocked.no-wind-data": "no wind data",
       "autowind.blocked.wind-too-light": "wind too light",
       "autowind.refused": "AUTOWIND not started",
+      "autowind.refusedBody.manoeuvre": "A head-to-wind or dead-downwind manoeuvre is running, maybe on another screen. End it and choose AUTOWIND again.",
+      "autowind.refusedBody.tack": "A tack is in progress. When it is done, choose AUTOWIND again.",
       "mode.label.nav":       "NAV (ROUTE)",
       "mode.label.aproado":   "HEAD TO WIND",
       "mode.label.empopado":    "DEAD DOWNWIND",
@@ -1678,6 +1680,8 @@
       "autowind.blocked.no-wind-data": "sin datos de viento",
       "autowind.blocked.wind-too-light": "viento flojo",
       "autowind.refused": "AUTOWIND no arrancado",
+      "autowind.refusedBody.manoeuvre": "Hay un Aproado o un Empopado en marcha, quizá en otra pantalla. Termínalo y vuelve a elegir AUTOWIND.",
+      "autowind.refusedBody.tack": "Hay una virada en curso. Cuando termine, vuelve a elegir AUTOWIND.",
       "mode.label.nav":       "NAV (RUTA)",
       "mode.label.aproado":   "APROADO",
       "mode.label.empopado":    "EMPOPADO",
@@ -2907,6 +2911,8 @@
       "autowind.blocked.no-wind-data": "keine Winddaten",
       "autowind.blocked.wind-too-light": "Wind zu schwach",
       "autowind.refused": "AUTOWIND nicht gestartet",
+      "autowind.refusedBody.manoeuvre": "Ein Aufschießen oder Platt-vor-dem-Wind läuft, vielleicht auf einem anderen Bildschirm. Beende es und wähle AUTOWIND erneut.",
+      "autowind.refusedBody.tack": "Eine Wende läuft. Wenn sie fertig ist, wähle AUTOWIND erneut.",
       "mode.label.empopado": "PLATT VOR DEM WIND",
       "net.warn": "Netz unterbrochen",
       "net.ok": "Netz OK",
@@ -4028,6 +4034,8 @@
       "autowind.blocked.no-wind-data": "pas de données de vent",
       "autowind.blocked.wind-too-light": "vent trop faible",
       "autowind.refused": "AUTOWIND non démarré",
+      "autowind.refusedBody.manoeuvre": "Une manœuvre face au vent ou plein vent arrière est en cours, peut-être sur un autre écran. Terminez-la et choisissez de nouveau AUTOWIND.",
+      "autowind.refusedBody.tack": "Un virement est en cours. Quand il est terminé, choisissez de nouveau AUTOWIND.",
       "mode.label.empopado": "PLEIN VENT ARRIÈRE",
       "net.warn": "Réseau intermittent",
       "net.ok": "Réseau OK",
@@ -11515,8 +11523,11 @@
         const j = await r.json().catch(() => ({}));
         state.autowind = j && typeof j === "object" ? j : state.autowind;
         setSelect("#mode-select", state.mode || "");
-        const whyKey = `autowind.blocked.${j && j.refused}`;
-        _pmAlert(t("autowind.refused"), t(whyKey));
+        // Rev636 (Carlos QA 2026-11-06: "vaya mensaje más cutre"): a full
+        // sentence that says what is running and what to do.
+        const why = j && j.refused;
+        const bodyKey = why === "manoeuvre" ? "autowind.refusedBody.manoeuvre" : "autowind.refusedBody.tack";
+        _pmAlert(t("autowind.refused"), t(bodyKey));
       }
     } catch (e) { console.warn("[autowind] post", e); }
   }
