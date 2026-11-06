@@ -39,6 +39,16 @@ export class ManeuverGate {
     }
   }
 
+  /** Rev634 (Carlos QA 2026-11-06: the other tablet said REAL during an
+   *  Empopado): which manoeuvre runs, from the visor's id prefix. */
+  kind(nowMs: number): "aproado" | "empopado" | "manoeuvre" | null {
+    if (!this.active(nowMs)) return null;
+    const ids = [...this.until.keys()];
+    if (ids.some((k) => k.startsWith("emp-"))) return "empopado";
+    if (ids.some((k) => k.startsWith("apr-"))) return "aproado";
+    return "manoeuvre";
+  }
+
   active(nowMs: number): boolean {
     this.sweep(nowMs);
     return this.until.size > 0;

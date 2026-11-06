@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev633";
+const PLUGIN_REVISION = "Rev634";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -618,6 +618,22 @@ module.exports = function (app: any) {
   // Rev630: one entry per manoeuvre id, see src/maneuver-gate.ts.
   const maneuverGate = new ManeuverGate();
   const _pseudoActive = (): boolean => maneuverGate.active(Date.now());
+  // Rev634: every visor shows the running manoeuvre (path
+  // steering.autopilot.maneuver: "aproado" | "empopado" | "manoeuvre" | null).
+  let _maneuverKindSent: string | null | undefined;
+  const _publishManeuverKind = (): void => {
+    const k = maneuverGate.kind(Date.now());
+    if (k === _maneuverKindSent) return;
+    _maneuverKindSent = k;
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [
+          { path: "steering.autopilot.maneuver", value: k },
+        ] }],
+      });
+    } catch { /* silent */ }
+  };
   let lastNavState: string | null = null;
   let sessionSampleTimer: NodeJS.Timeout | null = null;
   let lastEngagedState = false;
@@ -1357,6 +1373,8 @@ module.exports = function (app: any) {
         try { _steerWatchTick(s); } catch (e: any) { app.debug?.(`[steer-watch] tick: ${e?.message || e}`); }
         // Rev525: black box feed + automatic triggers.
         try { _blackBoxTick(s); } catch (e: any) { app.debug?.(`[black-box] tick: ${e?.message || e}`); }
+        // Rev634: a manoeuvre that expired (visor gone) is shown as ended.
+        try { _publishManeuverKind(); } catch { /* silent */ }
         // Rev518: AUTOWIND (apparent <-> true wind by TWA).
         try { _autowindTick(); } catch (e: any) { app.debug?.(`[autowind] tick: ${e?.message || e}`); }
         // Rev545: route follower (APB for pypilot's NAV mode).
@@ -3475,6 +3493,7 @@ module.exports = function (app: any) {
       router.post("/maneuver-state", (req: any, res: any) => {
         const body = req.body || {};
         maneuverGate.update(body.active, body.id, Date.now());
+        _publishManeuverKind();
         res.json({ ok: true, pseudoActive: _pseudoActive() });
       });
       const validKinds: ManeuverEventKind[] = [

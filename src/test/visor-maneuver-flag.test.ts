@@ -187,3 +187,46 @@ describe("Empopado temporary gains (Rev633)", () => {
     assert.deepEqual(h.writes.map((w) => w.path), ["ap.pilot.basic.P"]);
   });
 });
+
+describe("manoeuvre left from another device (Rev634)", () => {
+  function load() {
+    const calls: string[] = [];
+    const ctx: any = {
+      state: { empopado: null, aproado: null, mode: "compass", engaged: true },
+      empopadoTearDown: () => { calls.push("empopadoTearDown"); ctx.state.empopado = null; },
+      aproadoTearDown: () => { calls.push("aproadoTearDown"); ctx.state.aproado = null; },
+      console: { info: () => {} },
+    };
+    vm.createContext(ctx);
+    vm.runInContext(fnSource("_endLocalManeuverIfLeft"), ctx);
+    return { ctx, calls };
+  }
+
+  it("does not end an Empopado still on its way into true wind", () => {
+    const { ctx, calls } = load();
+    ctx.state.empopado = { id: "emp-1", phase: "transit" };
+    ctx.state.mode = "compass";
+    ctx._endLocalManeuverIfLeft();
+    assert.deepEqual(calls, []);
+  });
+
+  it("ends it here when another device takes pypilot out of true wind", () => {
+    const { ctx, calls } = load();
+    ctx.state.empopado = { id: "emp-1", phase: "active" };
+    ctx.state.mode = "true wind";
+    ctx._endLocalManeuverIfLeft();            // reached its mode
+    ctx.state.mode = "compass";               // the tablet chose compass
+    ctx._endLocalManeuverIfLeft();
+    assert.deepEqual(calls, ["empopadoTearDown"]);
+  });
+
+  it("ends an Aproado when the AP is taken off from outside", () => {
+    const { ctx, calls } = load();
+    ctx.state.aproado = { id: "apr-1", phase: "active" };
+    ctx.state.mode = "wind";
+    ctx._endLocalManeuverIfLeft();
+    ctx.state.engaged = false;
+    ctx._endLocalManeuverIfLeft();
+    assert.deepEqual(calls, ["aproadoTearDown"]);
+  });
+});

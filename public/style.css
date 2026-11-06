@@ -1083,6 +1083,18 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
   border-radius: 6px;
   cursor: pointer;
 }
+/* Rev634 (Carlos QA 2026-11-06): why AUTOWIND waits, small, under the mode. */
+.mode-select-btn .mode-btn-why {
+  display: block;
+  font-size: 0.6em;
+  font-weight: 500;
+  line-height: 1.1;
+  margin-top: 3px;
+  color: var(--warn);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 /* Rev427 (Carlos QA Rev426): "es mejor que se abra una ventana grande
    centrada". Backdrop fills the viewport; card is centered via flex.
    Works consistently at 80% zoom laptop + phone portrait + tablet

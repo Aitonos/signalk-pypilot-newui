@@ -68,3 +68,18 @@ describe("ManeuverGate - late messages (Rev633)", () => {
     assert.equal(g.active(2000), true);
   });
 });
+
+describe("ManeuverGate.kind (Rev634)", () => {
+  it("names the running manoeuvre for every visor", () => {
+    const g = new ManeuverGate(180_000);
+    assert.equal(g.kind(0), null);
+    g.update(true, "emp-1", 0);
+    assert.equal(g.kind(0), "empopado");
+    g.update(false, "emp-1", 0);
+    g.update(true, "apr-2", 0);
+    assert.equal(g.kind(0), "aproado");
+    g.update(false, "apr-2", 0);
+    g.update(true, undefined, 0);
+    assert.equal(g.kind(0), "manoeuvre");
+  });
+});

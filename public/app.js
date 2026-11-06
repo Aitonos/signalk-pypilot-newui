@@ -5148,6 +5148,7 @@
       // Rev518: AUTOWIND state (enabled, sub-mode, profile pair).
       "steering.autopilot.autowind",
       "steering.autopilot.route",   // Rev545
+      "steering.autopilot.maneuver", // Rev634: manoeuvre run by any visor
       "steering.autopilot.pypilot.ap.tack.state",
       "steering.autopilot.pypilot.ap.tack.direction",
       "steering.autopilot.pypilot.ap.mode",
@@ -5347,6 +5348,7 @@
         // Self-audit Rev541: the mode pypilot really reported (state.mode
         // can be set optimistically by the selector before the echo).
         state._confirmedMode = value;
+        _endLocalManeuverIfLeft();
         // Rev425: keep the visible mode-button in sync on external
         // mode deltas.
         try { _renderModeSelectBtn(); } catch { /* silent */ }
@@ -5383,6 +5385,11 @@
         // Rev545: route follower status + spoken events.
         state.route = (value && typeof value === "object") ? value : null;
         try { _routeOnUpdate(); } catch { /* silent */ }
+        break;
+      }
+      case "steering.autopilot.maneuver": {
+        state.remoteManeuver = typeof value === "string" ? value : null;
+        try { _renderModeSelectBtn(); } catch { /* silent */ }
         break;
       }
       case "steering.autopilot.autowind": {
@@ -5545,6 +5552,7 @@
         // trasluchada". Any active countdown must be aborted when the
         // AP flips to disengaged - the maneuver cannot continue
         // without pilot authority.
+        if (wasEngaged !== state.engaged) _endLocalManeuverIfLeft();
         if (wasEngaged && !state.engaged) {
           try {
             const overlay = document.getElementById("tack-countdown-overlay");
@@ -11403,14 +11411,27 @@
         return;
       }
     }
+    // Rev634 (Carlos QA 2026-11-06): a manoeuvre run from another visor.
+    if (!state.empopado && !state.aproado && (state.remoteManeuver === "empopado" || state.remoteManeuver === "aproado")) {
+      btn.textContent = _modeLabel(state.remoteManeuver);
+      return;
+    }
     const m = state.mode || "";
     // Rev518: AUTOWIND -> "AUTO · REAL" / "AUTO · APARENTE".
     if (state.autowind && state.autowind.enabled && (m === "wind" || m === "true wind")) {
       // Rev630 (sea trial 2026-11-05: "AUTO · REAL" was on screen while the
       // backend could not switch): say why it is waiting, if it is.
+      // Rev634 (Carlos QA 2026-11-06: "no cabe en el botón"): the reason
+      // goes on a small second line.
       const why = state.autowind.blockedReason;
       const whyKey = `autowind.blocked.${why}`;
-      btn.textContent = `${t("autowind.short")} · ${_modeLabel(m)}${why ? ` (${t(whyKey)})` : ""}`;
+      btn.textContent = `${t("autowind.short")} · ${_modeLabel(m)}`;
+      if (why) {
+        const sub = document.createElement("span");
+        sub.className = "mode-btn-why";
+        sub.textContent = t(whyKey);
+        btn.appendChild(sub);
+      }
       btn.title = state.autowind.lastError || "";
       return;
     }
@@ -12242,6 +12263,23 @@
   // the three steering alarms silenced for ~48 min.
   let _maneuverPseudoTimer = null;
   let _maneuverPseudoId = null;
+  // Rev634 (Carlos QA 2026-11-06, 01:14: Empopado ended from the tablet,
+  // this laptop kept its window open): a manoeuvre is left when pypilot,
+  // after reaching the manoeuvre's mode, reports another mode or the AP
+  // off - from a remote, KIP or another visor. It ends here too, without
+  // touching mode or target (whoever left chose them). Empopado still
+  // restores its temporary gains/profile if the profile is still its own.
+  function _endLocalManeuverIfLeft() {
+    const pairs = [[state.empopado, "true wind"], [state.aproado, "wind"]];
+    for (const [man, own] of pairs) {
+      if (!man || (man.phase !== "transit" && man.phase !== "active")) continue;
+      if (state.mode === own && state.engaged) { man._modeReached = true; continue; }
+      if (!man._modeReached) continue;   // still on its way in
+      console.info(`[${own === "wind" ? "aproado" : "empopado"}] left from outside (mode=${state.mode}, engaged=${state.engaged}): ending here`);
+      if (man === state.empopado) empopadoTearDown({ restoreAll: false });
+      else aproadoTearDown();
+    }
+  }
   function _pseudoManeuverRunning(id) {
     for (const m of [state.aproado, state.empopado]) {
       if (m && m.id === id && (m.phase === "transit" || m.phase === "active")) return true;
