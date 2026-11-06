@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev638";
+const PLUGIN_REVISION = "Rev639";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -5101,34 +5101,53 @@ module.exports = function (app: any) {
   // Rev636: target = the current wind angle in the mode AUTOWIND starts in.
   // After a mode change pypilot rewrites heading_command in its own loop
   // (same race as the tack cancel, Rev515): wait 400 ms, write, check at
-  // 1.2 s, rewrite once. A newer AUTOWIND order or "off" stops it.
+  // 1.2 s, rewrite once.
+  // Rev639 (GPT re-audit of Rev638, C1-C3):
+  //  - every write and retry stops once AUTOWIND is off or overridden (C2);
+  //  - the check reads what pypilot REPORTS (client cache), not the
+  //    provider's optimistic target (C3);
+  //  - a target ordered by anyone else meanwhile wins: the rewrite happens
+  //    only when pypilot put back the value it had before ours (C1).
   async function _autowindHoldCurrentAngle(sub: WindSubMode, modeChanged: boolean): Promise<void> {
-    if (!apProvider) return;
+    if (!apProvider || !client) return;
     const op = _autowindOp;
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-    const iface = apProvider.toProviderInterface() as any;
+    const wanted = () => op === _autowindOp && !!props.autowindEnabled && !!apProvider && !!apProvider.data.engaged
+      && String(apProvider.data.mode || "").toLowerCase() === sub;
+    const reportedDeg = (): number | null => {
+      const v = Number(client ? client.getValues()["ap.heading_command"] : NaN);
+      return Number.isFinite(v) ? v : null;
+    };
+    const near = (a: number | null, b: number) => a != null && Math.abs(((a - b) % 360 + 540) % 360 - 180) < 5;
     if (modeChanged) await sleep(400);
-    let nowRad: number | null = null;
+    if (!wanted()) return;
+    // SK angles are radians; TWA from the same fresh sources AUTOWIND decides on.
+    const nowRad = sub === "true wind"
+      ? _autowindFresh(["environment.wind.angleTrueWater", "environment.wind.angleTrueGround"])
+      : _autowindFresh(["environment.wind.angleApparent"]);
+    if (nowRad == null) { _autowindFail("no fresh wind angle to hold: target left as it was"); return; }
+    const wantDeg = nowRad * 180 / Math.PI;
+    const before = reportedDeg();
     for (let attempt = 0; attempt < 2; attempt++) {
-      if (op !== _autowindOp || !props.autowindEnabled || !apProvider.data.engaged) return;
-      if (String(apProvider.data.mode || "").toLowerCase() !== sub) return;
-      if (attempt === 0) {
-        // SK angles are radians; TWA from the same fresh sources AUTOWIND decides on.
-        nowRad = sub === "true wind"
-          ? _autowindFresh(["environment.wind.angleTrueWater", "environment.wind.angleTrueGround"])
-          : _autowindFresh(["environment.wind.angleApparent"]);
-        if (nowRad == null) { _autowindFail("no fresh wind angle to hold: target left as it was"); return; }
-      } else {
-        // pypilot kept what we wrote: done. Else it overwrote it: once more.
-        const cur = apProvider.data.target;
-        if (typeof cur === "number" && Math.abs(Math.atan2(Math.sin(cur - nowRad!), Math.cos(cur - nowRad!))) < 5 * Math.PI / 180) return;
-      }
-      try { await iface.setTarget(nowRad, apProvider.deviceId); }
-      catch (e: any) { _autowindFail(`hold the current wind angle: ${e?.message || e}`); return; }
+      try { await apProvider.setTargetIfWanted(nowRad, wanted); }
+      catch (e: any) { if (wanted()) _autowindFail(`hold the current wind angle: ${e?.message || e}`); return; }
+      const gen = apProvider.targetGeneration();
       // eslint-disable-next-line no-console
-      console.log(`[autowind] target = current ${sub === "true wind" ? "TWA" : "AWA"} ${((nowRad as number) * 180 / Math.PI).toFixed(0)} deg`);
+      console.log(`[autowind] target = current ${sub === "true wind" ? "TWA" : "AWA"} ${wantDeg.toFixed(0)} deg`);
       await sleep(1200);
+      if (!wanted()) return;
+      if (apProvider.targetGeneration() !== gen) return;      // a newer target order: it wins
+      const now = reportedDeg();
+      if (near(now, wantDeg)) return;                        // pypilot reports ours: done
+      if (!(before != null && near(now, before))) {
+        // Neither ours nor what was there: someone set it on pypilot directly.
+        // eslint-disable-next-line no-console
+        console.log(`[autowind] target now ${now == null ? "?" : now.toFixed(0)} deg, set elsewhere: left as is`);
+        return;
+      }
+      // pypilot put its own value back over ours: once more.
     }
+    _autowindFail(`target ${wantDeg.toFixed(0)} deg not confirmed by pypilot`);
   }
   // Rev633: why AUTOWIND must not switch now (tack or visor manoeuvre), or null.
   function _autowindBusyReason(): string | null {

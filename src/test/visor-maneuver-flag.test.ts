@@ -45,6 +45,7 @@ function loadVisor(): Visor {
     setTimeout: () => 0,
     clearTimeout: () => {},
     hideEmpopadoHud: () => {},
+    _endLocalManeuverIfLeft: () => {},
     console,
   };
   vm.createContext(ctx);
@@ -173,6 +174,18 @@ describe("Empopado temporary gains (Rev633)", () => {
       [["ap.pilot.basic.P", 0.15], ["ap.pilot.basic.P", 0.1]]);
   });
 
+  it("Rev639: a refused restore stays pending and visible", async () => {
+    const h = loadHotGains();
+    let badge: any = "x";
+    h.ctx._empopadoSetHotBadge = (v: any) => { badge = v; };
+    h.ctx.pluginRaw = async () => ({ ok: false, status: 503 });
+    const ap: any = { id: "emp-1", phase: "active", _hotGainProfile: "HEAVY",
+      _hotGainSnapshot: { "ap.pilot.basic.D": 0.2 } };
+    await h.ctx._empopadoRestoreHotGains(ap);
+    assert.deepEqual({ ...ap._hotGainSnapshot }, { "ap.pilot.basic.D": 0.2 });
+    assert.equal(badge, "failed");
+  });
+
   it("an old gain is never written into a profile chosen meanwhile", async () => {
     const h = loadHotGains();
     const ap: any = {
@@ -197,6 +210,7 @@ describe("manoeuvre left from another device (Rev634)", () => {
       empopadoTearDown: () => { calls.push("empopadoTearDown"); ctx.state.empopado = null; },
       aproadoTearDown: () => { calls.push("aproadoTearDown"); ctx.state.aproado = null; },
       setTimeout: (fn: () => void) => { timers.push(fn); return timers.length; },
+      Date,
       clearTimeout: () => {},
       console: { info: () => {} },
     };
@@ -226,14 +240,32 @@ describe("manoeuvre left from another device (Rev634)", () => {
 
   it("ends an Aproado when the AP is taken off from outside and stays off 3 s", () => {
     const { ctx, calls, elapse } = load();
+    let now = 0;
+    ctx.Date = { now: () => now };
     ctx.state.aproado = { id: "apr-1", phase: "active" };
     ctx.state.mode = "wind";
     ctx._endLocalManeuverIfLeft();
     ctx.state.engaged = false;
     ctx._endLocalManeuverIfLeft();
     assert.deepEqual(calls, [], "not at once");
-    elapse();
+    now = 3100; elapse();
     assert.deepEqual(calls, ["aproadoTearDown"]);
+  });
+
+  it("Rev639: off, on, off - the 3 s count restarts at the second off", () => {
+    const { ctx, calls, elapse } = load();
+    let now = 0;
+    ctx.Date = { now: () => now };
+    ctx.state.empopado = { id: "emp-1", phase: "active" };
+    ctx.state.mode = "true wind";
+    ctx._endLocalManeuverIfLeft();
+    ctx.state.engaged = false; now = 0;    ctx._endLocalManeuverIfLeft();
+    ctx.state.engaged = true;  now = 500;  ctx._endLocalManeuverIfLeft();
+    ctx.state.engaged = false; now = 2500; ctx._endLocalManeuverIfLeft();
+    now = 3100; elapse();                  // 3 s after the FIRST off only
+    assert.deepEqual(calls, []);
+    now = 5600; elapse();                  // 3 s after the second off
+    assert.deepEqual(calls, ["empopadoTearDown"]);
   });
 
   it("Rev635: the stuck-pilot recovery (AP off and on within a second) does not end it", () => {

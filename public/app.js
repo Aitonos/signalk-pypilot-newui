@@ -5397,6 +5397,14 @@
       }
       case "steering.autopilot.maneuver": {
         state.remoteManeuver = typeof value === "string" ? value : null;
+        // Rev639 (C7): the backend says no manoeuvre runs (taken over from
+        // another screen, or pypilot left it): end ours too. Not in its
+        // first seconds, before the backend has registered it.
+        if (state.remoteManeuver == null) {
+          for (const [man, own] of [[state.empopado, "true wind"], [state.aproado, "wind"]]) {
+            if (man && (man.phase === "transit" || man.phase === "active") && man.executeTs && Date.now() - man.executeTs > 3000) _endManeuverHere(man, own);
+          }
+        }
         try { _renderModeSelectBtn(); } catch { /* silent */ }
         break;
       }
@@ -12288,19 +12296,28 @@
   // lasts - the backend's own stuck-pilot recovery takes it off and on in
   // under a second, and that ended an Empopado. Another mode counts at once.
   const MANEUVER_AP_OFF_GRACE_MS = 3000;
+  let _modeSelectGen = 0;   // Rev639: bumped by every mode choice
   function _endLocalManeuverIfLeft() {
     const pairs = [[state.empopado, "true wind"], [state.aproado, "wind"]];
     for (const [man, own] of pairs) {
       if (!man || (man.phase !== "transit" && man.phase !== "active")) continue;
-      if (state.mode === own && state.engaged) { man._modeReached = true; continue; }
+      if (state.mode === own && state.engaged) {
+        man._modeReached = true;
+        man._apOffSince = null;          // Rev639 (C6): the AP is back - the count restarts
+        continue;
+      }
       if (!man._modeReached) continue;   // still on its way in
       if (state.mode === own && !state.engaged) {
-        if (!man._apOffTimer) {
-          man._apOffTimer = setTimeout(() => {
-            man._apOffTimer = null;
-            if (!state.engaged) _endManeuverHere(man, own);
-          }, MANEUVER_AP_OFF_GRACE_MS);
-        }
+        // Rev639 (GPT re-audit of Rev638 C6): one measure of CONTINUOUS
+        // AP-off time; the timer only re-checks it. An off-on-off no longer
+        // ends the manoeuvre 3 s after the FIRST off.
+        if (man._apOffSince == null) man._apOffSince = Date.now();
+        if (Date.now() - man._apOffSince >= MANEUVER_AP_OFF_GRACE_MS) { _endManeuverHere(man, own); continue; }
+        if (man._apOffTimer) clearTimeout(man._apOffTimer);
+        man._apOffTimer = setTimeout(() => {
+          man._apOffTimer = null;
+          _endLocalManeuverIfLeft();
+        }, MANEUVER_AP_OFF_GRACE_MS - (Date.now() - man._apOffSince) + 50);
         continue;
       }
       _endManeuverHere(man, own);
@@ -12330,9 +12347,8 @@
       _maneuverPseudoTimer = setInterval(() => {
         // Rev638: second chance for the "left from outside" check, in case
         // its 3 s timer did not run (tab in the background).
-        for (const [man, own] of [[state.empopado, "true wind"], [state.aproado, "wind"]]) {
-          if (man && man.id === id && man._modeReached && (state.mode !== own || !state.engaged)) _endManeuverHere(man, own);
-        }
+        // Rev639 (C6): the same rule as the deltas (3 s of continuous AP off).
+        _endLocalManeuverIfLeft();
         if (_pseudoManeuverRunning(id)) _postManeuverPseudo(true, id);
         else _setManeuverPseudo(false, id);
       }, 20000);
@@ -13039,13 +13055,20 @@
         console.warn(`empopado: profile is now "${state.profile}", not "${ap._hotGainProfile}": ${path} and the rest left as they are`);
         break;
       }
+      // Rev639 (GPT re-audit of Rev638 C5): a refused or failed restore is
+      // not "restored": it stays in the snapshot and the badge says so.
+      let ok = false;
       try {
-        await pluginRaw(path, val);
-        console.info(`empopado: hot gain ${path} restored → ${val.toFixed(3)}`);
+        const resp = await pluginRaw(path, val);
+        ok = !(resp && resp.ok === false);
+        if (ok) console.info(`empopado: hot gain ${path} restored → ${val.toFixed(3)}`);
+        else console.warn(`empopado: hot gain ${path} restore refused (status=${resp.status})`);
       } catch (e) { console.warn(`empopado: hot gain ${path} restore failed`, e); }
+      if (ok) delete snap[path];
     }
-    ap._hotGainSnapshot = null;
-    _empopadoSetHotBadge(null);
+    const left = Object.keys(snap).length;
+    ap._hotGainSnapshot = left ? snap : null;
+    _empopadoSetHotBadge(left ? "failed" : null);
   }
   function _empopadoPickReactiveProfile() {
     const list = Array.isArray(state.profiles) ? state.profiles : [];
@@ -13124,14 +13147,21 @@
     const reactive = _empopadoPickReactiveProfile();
     if (reactive && reactive !== state.profile) {
       try {
-        await pluginRaw("profile", reactive);
-        ap._profileSwapped = reactive;
-        console.info(`empopado: profile swapped ${ap.snapshot.profile} → ${reactive} (reactive)`);
+        const resp = await pluginRaw("profile", reactive);
+        // Rev639 (GPT re-audit of Rev638 C4): a refused swap (HTTP error,
+        // pypilot offline) is not a swap - nothing to restore later.
+        if (resp && resp.ok === false) console.warn(`empopado: profile swap to ${reactive} refused (status=${resp.status})`);
+        else {
+          ap._profileSwapped = reactive;
+          console.info(`empopado: profile swapped ${ap.snapshot.profile} → ${reactive} (reactive)`);
+        }
       } catch (e) { console.warn("empopado: profile swap failed", e); }
       // Rev633 (GPT re-audit 2026-11-06 R03): ended while swapping: put the
-      // profile back and send nothing else.
+      // profile back and send nothing else. Rev639 (C4): only over our own
+      // swap - a profile the sailor chose meanwhile stays.
       if (state.empopado !== ap || ap.phase !== "transit") {
-        if (ap._profileSwapped && ap.snapshot.profile) { try { pluginRaw("profile", ap.snapshot.profile).catch(() => {}); } catch { /* silent */ } }
+        const ours = state.profile === ap._profileSwapped || state.profile === ap.snapshot.profile;
+        if (ap._profileSwapped && ap.snapshot.profile && ours) { try { pluginRaw("profile", ap.snapshot.profile).catch(() => {}); } catch { /* silent */ } }
         return;
       }
     }
@@ -14054,6 +14084,9 @@
     $("#mode-select").addEventListener("change", (e) => {
       _msCollapse();
       const chosen = e.target.value;
+      // Rev639 (GPT re-audit of Rev638 C8): a choice still waiting (AUTOWIND
+      // holding the wind angle) must not act after a newer choice.
+      const selGen = ++_modeSelectGen;
       // Picking another mode while a pseudo-mode is active ends the
       // maneuver WITHOUT restoring the pre-* mode (usuario ya
       // eligió qué quiere ahora). SÍ restaura el profile (Empopado).
@@ -14074,6 +14107,10 @@
         if (apr && (apr.phase === "transit" || apr.phase === "active")) { aproadoTearDown(); endedManoeuvre = true; }
         else if (apr) aproadoTearDown();
       }
+      // Rev639 (GPT re-audit of Rev638 C7): a manoeuvre run from ANOTHER
+      // screen ends too - choosing a mode here is taking over, even when
+      // the new choice keeps pypilot in the same wind mode.
+      if (!state.empopado && !state.aproado && state.remoteManeuver) _postManeuverPseudo(false, "*");
       // Rev633 (Gemini 2.1): the manoeuvre left pypilot on its extreme
       // target (AWA 0 / TWA 180). Going on in a wind mode (AUTOWIND
       // included) holds the wind angle the boat has NOW instead.
@@ -14085,6 +14122,7 @@
             const now = state.mode === "true wind" ? state.windAngleTrue : state.windAngle;
             if (typeof now === "number") { try { await apSetTargetRad(now); } catch (e) { console.warn("[mode-select] hold wind angle", e); } }
           }
+          if (selGen !== _modeSelectGen) return;   // another mode chosen meanwhile
           _autowindPost({ enabled: true });
         })();
         return;
@@ -14180,7 +14218,11 @@
           // Rev539 (GPT review 5 #4): in sequence - a wind angle that lands
           // before the mode is a compass heading for pypilot.
           (async () => {
-            try { await apSetModeAndWait(chosen); await apSetTargetRad(newTargetRad); }
+            try {
+              await apSetModeAndWait(chosen);
+              if (selGen !== _modeSelectGen) return;   // Rev639 C8: superseded by a newer choice
+              await apSetTargetRad(newTargetRad);
+            }
             catch (e) {
               console.warn("[mode-select]", e && e.message);
               // Self-audit Rev541: pypilot did not take the mode - show the

@@ -33,14 +33,22 @@ export class ManeuverGate {
 
   /** Applies one visor message: {active: true|false, id?}. */
   update(active: unknown, id: unknown, nowMs: number): void {
-    const key = typeof id === "string" && id ? id.slice(0, 64) : LEGACY;
     this.sweep(nowMs);
+    // Rev639 (GPT re-audit of Rev638 C7): {active:false, id:"*"} = a sailor
+    // chose a mode on any screen: every running manoeuvre ends (explicit
+    // hand-over, even when the new choice keeps the same wind mode).
+    if (active === false && id === "*") {
+      for (const key of [...this.until.keys()]) this.end(key, nowMs);
+      return;
+    }
+    const key = typeof id === "string" && id ? id.slice(0, 64) : LEGACY;
     if (active === true) {
       if (this.ended.has(key)) return;
       if (!this.until.has(key)) this.startedAt.set(key, nowMs);
       this.until.delete(key);
       this.until.set(key, nowMs + this.ttlMs);
-      while (this.until.size > MANEUVER_GATE_MAX) this.until.delete(this.until.keys().next().value as string);
+      // Rev639 (C9): evicting an entry clears its side maps too.
+      while (this.until.size > MANEUVER_GATE_MAX) this.forget(this.until.keys().next().value as string);
     } else if (active === false) {
       this.end(key, nowMs);
     }
@@ -63,10 +71,14 @@ export class ManeuverGate {
     return out;
   }
 
-  private end(key: string, nowMs: number): void {
+  private forget(key: string): void {
     this.until.delete(key);
     this.startedAt.delete(key);
     this.mismatchSince.delete(key);
+  }
+
+  private end(key: string, nowMs: number): void {
+    this.forget(key);
     if (key !== LEGACY) {
       this.ended.set(key, nowMs + this.ttlMs);
       while (this.ended.size > MANEUVER_GATE_MAX * 4) this.ended.delete(this.ended.keys().next().value as string);
@@ -90,7 +102,7 @@ export class ManeuverGate {
 
   private sweep(nowMs: number): void {
     for (const [key, until] of this.until) {
-      if (until <= nowMs) { this.until.delete(key); this.startedAt.delete(key); this.mismatchSince.delete(key); }
+      if (until <= nowMs) this.forget(key);
     }
     for (const [key, until] of this.ended) if (until <= nowMs) this.ended.delete(key);
   }

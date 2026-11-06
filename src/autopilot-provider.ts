@@ -768,7 +768,18 @@ export class AutopilotProvider {
    *  external-write guard below can tell our FSM's writes from frontend
    *  writes (nudges, adjust target, legacy countdown) that would compete
    *  with the maneuver. Rev633: per call, see setMode. */
-  private async setTarget(rad: number, internal = false): Promise<void> {
+  /** Rev639 (GPT re-audit Rev638 C2): a target that only stands while
+   *  `stillWanted()` says so - checked before the write and before every
+   *  retry, like setModeIfWanted. */
+  async setTargetIfWanted(rad: number, stillWanted: () => boolean): Promise<void> {
+    return this.setTarget(rad, false, stillWanted);
+  }
+
+  /** Rev639 (C1): bumped by every target order that goes through here, so a
+   *  caller can tell whether anyone ordered another target since its own. */
+  targetGeneration(): number { return this.targetGen; }
+
+  private async setTarget(rad: number, internal = false, stillWanted?: () => boolean): Promise<void> {
     // Rev390 (Carlos, 2026-10-01, QA Rev389): reject external target
     // writes while a virtual tack is driving the pilot. Rev389 QA
     // caught a mid-maneuver `setTarget rad=0.9250 deg=53.00` that
@@ -817,7 +828,9 @@ export class AutopilotProvider {
     // Rev532 (GPT audit #1): a mode change also makes the retry stale -
     // a compass 120 retried after the switch to wind would be AWA 120.
     const mg = this.modeGen;
-    const stale = () => this.targetGen !== gen || this.modeGen !== mg;
+    const unwanted = () => !!stillWanted && !stillWanted();
+    if (unwanted()) throw new Error("target no longer wanted");
+    const stale = () => this.targetGen !== gen || this.modeGen !== mg || unwanted();
     // Rev254 (Carlos audit): reject BEFORE mutating optimistic target.
     // Rev255: retry with backoff.
     if (!(await this._setWithRetry("ap.heading_command", deg, stale))) {

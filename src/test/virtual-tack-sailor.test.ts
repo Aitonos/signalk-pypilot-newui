@@ -572,3 +572,29 @@ describe("setModeIfWanted (Rev633)", () => {
     } finally { sim.stop(); }
   });
 });
+
+describe("setTargetIfWanted (Rev639)", () => {
+  it("no target retry goes out once the caller no longer wants it", async () => {
+    // GPT re-audit of Rev638 C2: AUTOWIND off while its target waits for a retry.
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const realSet = sim.client.set.bind(sim.client);
+    const targets: unknown[] = [];
+    let first = true;
+    (sim.client as any).set = (name: string, value: unknown) => {
+      if (name === "ap.heading_command") targets.push(value);
+      if (name === "ap.heading_command" && first) { first = false; return false; }
+      return realSet(name, value);
+    };
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      let wanted = true;
+      const writing = p.setTargetIfWanted(30 * D, () => wanted);
+      await sleep(50);
+      wanted = false;
+      await assert.rejects(writing);
+      await sleep(1200);
+      assert.equal(targets.length, 1, "only the first, failed write");
+    } finally { sim.stop(); }
+  });
+});

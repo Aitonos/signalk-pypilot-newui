@@ -114,3 +114,23 @@ describe("ManeuverGate.reconcile (Rev638)", () => {
     assert.equal(g.active(60_000), true);
   });
 });
+
+describe("ManeuverGate hand-over and memory (Rev639)", () => {
+  it("'*' ends every running manoeuvre (a mode chosen on another screen)", () => {
+    const g = new ManeuverGate(180_000);
+    g.update(true, "apr-1", 0);
+    g.update(true, "emp-2", 0);
+    g.update(false, "*", 1000);
+    assert.equal(g.active(1000), false);
+    g.update(true, "apr-1", 2000);       // its late renewal cannot reopen it
+    assert.equal(g.active(2000), false);
+  });
+
+  it("evicted and expired entries leave nothing behind", () => {
+    const g = new ManeuverGate(1000);
+    for (let i = 0; i < 80; i++) g.update(true, `apr-${i}`, 0);
+    assert.equal(g.active(5000), false);
+    const sizes = (g as any).startedAt.size + (g as any).mismatchSince.size;
+    assert.equal(sizes, 0);
+  });
+});
