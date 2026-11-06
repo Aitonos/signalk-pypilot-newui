@@ -4885,6 +4885,7 @@
       _lastPingErrTs = Date.now();
     }
   }
+  let _netDismissed = null;   // Rev644: which banner the sailor tapped away
   function _netHealthTick() {
     const banner = document.getElementById("net-health-banner");
     if (!banner) return;
@@ -4900,6 +4901,15 @@
     // expected to be reopening - no warning for a few seconds, but no
     // "Red OK" either until real deltas arrive.
     if (badNow && now < _netGraceUntil && _netBannerState !== "warn") return;
+    // Rev644 (Carlos 2026-11-06): one tap hides the banner so the menu
+    // under it can be used; it comes back once the state changes.
+    if (!banner.__tapWired) {
+      banner.__tapWired = true;
+      banner.style.cursor = "pointer";
+      banner.addEventListener("click", () => { _netDismissed = _netBannerState || "slow"; banner.hidden = true; });
+    }
+    if (_netDismissed && ((badNow && _netDismissed === "warn") || (!badNow && _netDismissed === "slow" && rttBad))) return;
+    if (_netDismissed && !badNow && !rttBad) _netDismissed = null;
     const veryBadRtt = rttBad;
     if (badNow) {
       const gapSec = Math.floor(gapMs / 1000);
@@ -8380,6 +8390,14 @@
     // the toggle from per-node to `body.pypilot-offline` so the CSS
     // selector list stays in one place.
     document.body.classList.toggle("pypilot-offline", state.pypilotHealthy === false);
+    // Rev644 (Carlos 2026-11-06): the red box can be tapped away (the
+    // controls stay disabled while offline); it is shown again next time.
+    if (state.pypilotHealthy !== false) document.body.classList.remove("pypilot-offline-dismissed");
+    const offBox = document.getElementById("pypilot-offline-banner");
+    if (offBox && !offBox.__tapWired) {
+      offBox.__tapWired = true;
+      offBox.addEventListener("click", () => document.body.classList.add("pypilot-offline-dismissed"));
+    }
   }
   // Rev261 (Carlos): green toast on false->true edge of pypilotHealthy.
   // Fades in immediately, autohides in 4 s.
@@ -18555,13 +18573,18 @@
       const det = document.createElement("details");
       det.className = "adv-group";
       det.dataset.group = g;
-      if (_advOpen.has(g) || filter) det.open = true;
+      if (_advOpen.has(g)) det.open = true;
+      // Rev644: a group opened by the filter shows its rows but is not
+      // watched (the filter used to open - and watch - every group at once).
+      else if (filter) { det.open = true; det.dataset.auto = "1"; }
       const sum = document.createElement("summary");
       sum.textContent = `${g} (${names.length})`;
       det.appendChild(sum);
       det.addEventListener("toggle", () => {
+        if (det.dataset.auto === "1") { delete det.dataset.auto; return; }
+        if (det.open === _advOpen.has(g)) return;
         if (det.open) _advOpen.add(g); else _advOpen.delete(g);
-        if (typeof _watchFocusForTab === "function") _watchFocusForTab("setup");
+        _advFocusSoon();
         _advRefreshSoon();
       });
       const tbl = document.createElement("table");
@@ -18571,6 +18594,24 @@
       mount.appendChild(det);
     }
     _advPaintValues();
+    _advApplyLock();
+  }
+  // Rev644 (Carlos QA: "puedo cambiar valores sin permitir cambios"): no
+  // write ever went out, but the controls looked editable. Now they are
+  // disabled until "Allow changes" is ticked.
+  function _advApplyLock() {
+    const unlocked = !!document.getElementById("adv-unlock")?.checked;
+    document.querySelectorAll("#adv-groups .adv-edit input, #adv-groups .adv-edit select, #adv-groups .adv-edit button")
+      .forEach((el) => { el.disabled = !unlocked; });
+  }
+  // One focus update for several group changes in a row.
+  let _advFocusTimer = null;
+  function _advFocusSoon() {
+    if (_advFocusTimer) clearTimeout(_advFocusTimer);
+    _advFocusTimer = setTimeout(() => {
+      _advFocusTimer = null;
+      if (typeof _watchFocusForTab === "function") _watchFocusForTab("setup");
+    }, 400);
   }
   function _advRow(name, meta) {
     const tr = document.createElement("tr");
@@ -18701,6 +18742,7 @@
   }
   try {
     document.addEventListener("input", (e) => { if (e.target && e.target.id === "adv-search") _advRender(); });
+    document.addEventListener("change", (e) => { if (e.target && e.target.id === "adv-unlock") _advApplyLock(); });
   } catch { /* silent */ }
   function _setupFocusKeys() {
     // Rev149 (Carlos, per Sean D'Epagnier): the launcher grid alone

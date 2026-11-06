@@ -4196,6 +4196,9 @@ body.pypilot-offline .pypilot-write {
   line-height: 1.3;
 }
 body.pypilot-offline #pypilot-offline-banner { display: block; }
+/* Rev644: tapped away by the sailor; the controls stay disabled. */
+body.pypilot-offline.pypilot-offline-dismissed #pypilot-offline-banner { display: none; }
+#pypilot-offline-banner { cursor: pointer; }
 #pypilot-offline-banner .subtle {
   display: block;
   margin-top: 6px;
