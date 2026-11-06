@@ -12328,6 +12328,11 @@
     if (active) {
       _maneuverPseudoId = id;
       _maneuverPseudoTimer = setInterval(() => {
+        // Rev638: second chance for the "left from outside" check, in case
+        // its 3 s timer did not run (tab in the background).
+        for (const [man, own] of [[state.empopado, "true wind"], [state.aproado, "wind"]]) {
+          if (man && man.id === id && man._modeReached && (state.mode !== own || !state.engaged)) _endManeuverHere(man, own);
+        }
         if (_pseudoManeuverRunning(id)) _postManeuverPseudo(true, id);
         else _setManeuverPseudo(false, id);
       }, 20000);
