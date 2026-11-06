@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev634";
+const PLUGIN_REVISION = "Rev635";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2919,7 +2919,23 @@ module.exports = function (app: any) {
             const tws = _autowindTwsKn();
             const usable = twa != null && tws != null && tws >= AUTOWIND_MIN_TWS_KN;
             const sub = usable ? autowind.initial(twa, props.autowindThresholdDeg) : "wind";
+            const modeBefore = apProvider ? String(apProvider.data.mode || "").toLowerCase() : "";
             await _autowindApply(sub, usable ? "AUTOWIND on" : "AUTOWIND on (no usable true wind: apparent)", true);
+            // Rev635 (Carlos QA 2026-11-06 16:42): already in that mode, the
+            // target is whatever was there - an Empopado's TWA 180 (ended from
+            // another visor), an Aproado's AWA 0. AUTOWIND starts on the wind
+            // angle the boat has now. A mode change does this by itself in
+            // pypilot.
+            if (apProvider && apProvider.data.engaged && props.autowindEnabled && modeBefore === sub) {
+              // SK angles are radians; TWA from the same fresh sources AUTOWIND decides on.
+              const nowRad = sub === "true wind"
+                ? _autowindFresh(["environment.wind.angleTrueWater", "environment.wind.angleTrueGround"])
+                : _autowindFresh(["environment.wind.angleApparent"]);
+              if (nowRad != null) {
+                try { await (apProvider.toProviderInterface() as any).setTarget(nowRad, apProvider.deviceId); }
+                catch (e: any) { _autowindFail(`hold the current wind angle: ${e?.message || e}`); }
+              }
+            }
           }
         }
         // New profile for the side that is active right now: apply it.

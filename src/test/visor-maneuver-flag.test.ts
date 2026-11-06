@@ -191,15 +191,19 @@ describe("Empopado temporary gains (Rev633)", () => {
 describe("manoeuvre left from another device (Rev634)", () => {
   function load() {
     const calls: string[] = [];
+    const timers: Array<() => void> = [];
     const ctx: any = {
       state: { empopado: null, aproado: null, mode: "compass", engaged: true },
       empopadoTearDown: () => { calls.push("empopadoTearDown"); ctx.state.empopado = null; },
       aproadoTearDown: () => { calls.push("aproadoTearDown"); ctx.state.aproado = null; },
+      setTimeout: (fn: () => void) => { timers.push(fn); return timers.length; },
+      clearTimeout: () => {},
       console: { info: () => {} },
     };
     vm.createContext(ctx);
-    vm.runInContext(fnSource("_endLocalManeuverIfLeft"), ctx);
-    return { ctx, calls };
+    vm.runInContext(["const MANEUVER_AP_OFF_GRACE_MS = 3000;", fnSource("_endLocalManeuverIfLeft"), fnSource("_endManeuverHere")].join("\n"), ctx);
+    const elapse = () => { for (const fn of timers.splice(0)) fn(); };   // = 3 s later
+    return { ctx, calls, elapse };
   }
 
   it("does not end an Empopado still on its way into true wind", () => {
@@ -220,13 +224,28 @@ describe("manoeuvre left from another device (Rev634)", () => {
     assert.deepEqual(calls, ["empopadoTearDown"]);
   });
 
-  it("ends an Aproado when the AP is taken off from outside", () => {
-    const { ctx, calls } = load();
+  it("ends an Aproado when the AP is taken off from outside and stays off 3 s", () => {
+    const { ctx, calls, elapse } = load();
     ctx.state.aproado = { id: "apr-1", phase: "active" };
     ctx.state.mode = "wind";
     ctx._endLocalManeuverIfLeft();
     ctx.state.engaged = false;
     ctx._endLocalManeuverIfLeft();
+    assert.deepEqual(calls, [], "not at once");
+    elapse();
     assert.deepEqual(calls, ["aproadoTearDown"]);
+  });
+
+  it("Rev635: the stuck-pilot recovery (AP off and on within a second) does not end it", () => {
+    const { ctx, calls, elapse } = load();
+    ctx.state.empopado = { id: "emp-1", phase: "transit" };
+    ctx.state.mode = "true wind";
+    ctx._endLocalManeuverIfLeft();
+    ctx.state.engaged = false;
+    ctx._endLocalManeuverIfLeft();
+    ctx.state.engaged = true;
+    ctx._endLocalManeuverIfLeft();
+    elapse();
+    assert.deepEqual(calls, []);
   });
 });

@@ -12269,16 +12269,35 @@
   // off - from a remote, KIP or another visor. It ends here too, without
   // touching mode or target (whoever left chose them). Empopado still
   // restores its temporary gains/profile if the profile is still its own.
+  // Rev635 (Carlos QA 2026-11-06 16:42): the AP off counts only when it
+  // lasts - the backend's own stuck-pilot recovery takes it off and on in
+  // under a second, and that ended an Empopado. Another mode counts at once.
+  const MANEUVER_AP_OFF_GRACE_MS = 3000;
   function _endLocalManeuverIfLeft() {
     const pairs = [[state.empopado, "true wind"], [state.aproado, "wind"]];
     for (const [man, own] of pairs) {
       if (!man || (man.phase !== "transit" && man.phase !== "active")) continue;
       if (state.mode === own && state.engaged) { man._modeReached = true; continue; }
       if (!man._modeReached) continue;   // still on its way in
-      console.info(`[${own === "wind" ? "aproado" : "empopado"}] left from outside (mode=${state.mode}, engaged=${state.engaged}): ending here`);
-      if (man === state.empopado) empopadoTearDown({ restoreAll: false });
-      else aproadoTearDown();
+      if (state.mode === own && !state.engaged) {
+        if (!man._apOffTimer) {
+          man._apOffTimer = setTimeout(() => {
+            man._apOffTimer = null;
+            if (!state.engaged) _endManeuverHere(man, own);
+          }, MANEUVER_AP_OFF_GRACE_MS);
+        }
+        continue;
+      }
+      _endManeuverHere(man, own);
     }
+  }
+  function _endManeuverHere(man, own) {
+    if (man !== state.empopado && man !== state.aproado) return;
+    if (man.phase !== "transit" && man.phase !== "active") return;
+    if (man._apOffTimer) { clearTimeout(man._apOffTimer); man._apOffTimer = null; }
+    console.info(`[${own === "wind" ? "aproado" : "empopado"}] left from outside (mode=${state.mode}, engaged=${state.engaged}): ending here`);
+    if (man === state.empopado) empopadoTearDown({ restoreAll: false });
+    else aproadoTearDown();
   }
   function _pseudoManeuverRunning(id) {
     for (const m of [state.aproado, state.empopado]) {
