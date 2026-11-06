@@ -771,15 +771,19 @@ export class AutopilotProvider {
   /** Rev639 (GPT re-audit Rev638 C2): a target that only stands while
    *  `stillWanted()` says so - checked before the write and before every
    *  retry, like setModeIfWanted. */
-  async setTargetIfWanted(rad: number, stillWanted: () => boolean): Promise<void> {
-    return this.setTarget(rad, false, stillWanted);
+  /** Rev645 (GPT re-audit Rev641 B1): `expectedGen` = the generation the
+   *  caller saw when it took its intent. It is compared and the new
+   *  generation reserved in one synchronous step, so the caller's own order
+   *  is not mistaken for a newer one. Returns the order's generation. */
+  async setTargetIfWanted(rad: number, stillWanted: () => boolean, expectedGen?: number): Promise<number> {
+    return this.setTarget(rad, false, stillWanted, expectedGen);
   }
 
   /** Rev639 (C1): bumped by every target order that goes through here, so a
    *  caller can tell whether anyone ordered another target since its own. */
   targetGeneration(): number { return this.targetGen; }
 
-  private async setTarget(rad: number, internal = false, stillWanted?: () => boolean): Promise<void> {
+  private async setTarget(rad: number, internal = false, stillWanted?: () => boolean, expectedGen?: number): Promise<number> {
     // Rev390 (Carlos, 2026-10-01, QA Rev389): reject external target
     // writes while a virtual tack is driving the pilot. Rev389 QA
     // caught a mid-maneuver `setTarget rad=0.9250 deg=53.00` that
@@ -794,7 +798,7 @@ export class AutopilotProvider {
       if (active) {
         // eslint-disable-next-line no-console
         console.log(`[virtual-tack] rejected external setTarget rad=${rad.toFixed(4)} (FSM is driving)`);
-        return;
+        return this.targetGen;
       }
     }
     // Rev272 (audit R07): reject at the boundary. Downstream callers
@@ -824,6 +828,8 @@ export class AutopilotProvider {
     // retry aborts before overwriting a newer setTarget. Without this
     // guard, target=1 rad → 2 rad → retry(1 rad) ended up leaving
     // 1 rad on pypilot.
+    // Rev645 (B1): compare and reserve with nothing async in between.
+    if (expectedGen !== undefined && this.targetGen !== expectedGen) throw new Error("target superseded by newer order");
     const gen = ++this.targetGen;
     // Rev532 (GPT audit #1): a mode change also makes the retry stale -
     // a compass 120 retried after the switch to wind would be AWA 120.
@@ -848,6 +854,7 @@ export class AutopilotProvider {
     this._noteTargetWrite(rad, prevTarget);
     this._scheduleTargetReconcile();
     this.notifyChanged("target");
+    return gen;
   }
 
   /** Rev532: compass / gps / nav targets in [0, 2pi), wind / true wind in (-pi, pi]. */

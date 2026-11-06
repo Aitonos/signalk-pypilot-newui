@@ -597,4 +597,57 @@ describe("setTargetIfWanted (Rev639)", () => {
       assert.equal(targets.length, 1, "only the first, failed write");
     } finally { sim.stop(); }
   });
+
+  // GPT re-audit of Rev641 B1: the caller's own order bumped the generation
+  // before the check, so AUTOWIND refused its own target and wrote nothing.
+  function recordTargets(sim: ReturnType<typeof makeSim>): unknown[] {
+    const realSet = sim.client.set.bind(sim.client);
+    const targets: unknown[] = [];
+    (sim.client as any).set = (name: string, value: unknown) => {
+      if (name === "ap.heading_command") targets.push(value);
+      return realSet(name, value);
+    };
+    return targets;
+  }
+
+  it("with no one else ordering, exactly one target goes out (B1)", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const targets = recordTargets(sim);
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      const atStart = p.targetGeneration();
+      const gen = await p.setTargetIfWanted(30 * D, () => true, atStart);
+      assert.equal(gen, atStart + 1);
+      assert.equal(targets.length, 1);
+      assert.ok(Math.abs(Number(targets[0]) - 30) < 0.01);
+    } finally { sim.stop(); }
+  });
+
+  it("a target ordered after the intent was taken wins; ours is not sent (B1)", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const targets = recordTargets(sim);
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      const atStart = p.targetGeneration();
+      await (p as any).setTarget(60 * D);                       // the sailor, during the mode wait
+      await assert.rejects(p.setTargetIfWanted(30 * D, () => true, atStart), /superseded/);
+      assert.equal(targets.length, 1);
+      assert.ok(Math.abs(Number(targets[0]) - 60) < 0.01, "only the sailor's 60");
+    } finally { sim.stop(); }
+  });
+
+  it("a sailor's correction after our write moves the generation on (B1)", async () => {
+    const sim = makeSim({ twdDeg: 0, headingDeg: 315 });
+    const targets = recordTargets(sim);
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      const ours = await p.setTargetIfWanted(30 * D, () => true, p.targetGeneration());
+      await (p as any).setTarget(45 * D);
+      assert.notEqual(p.targetGeneration(), ours, "the caller sees a newer order and leaves it");
+      assert.ok(Math.abs(Number(targets[targets.length - 1]) - 45) < 0.01);
+    } finally { sim.stop(); }
+  });
 });

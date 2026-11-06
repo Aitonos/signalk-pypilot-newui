@@ -91,7 +91,26 @@ export interface DoctorStatus {
   progressPct: number;      // 0..1
   message: string;
   result: DoctorResult | null;
+  /** Rev645 (Carlos 2026-11-06): the name the visor offers for the new
+   *  profile before the first apply ("<active profile> - Doc 001"). */
+  suggestedProfileName: string | null;
 }
+
+/** Rev645 (Carlos 2026-11-06): "<profile> - Doc NNN", NNN one above the
+ *  highest already used for that profile. */
+export function doctorDefaultProfileName(orig: string | null, profiles: unknown): string {
+  const base = (orig && String(orig).trim()) || "profile";
+  const list = Array.isArray(profiles) ? profiles.map(String) : [];
+  const prefix = `${base} - Doc `;
+  let n = 0;
+  for (const p of list) {
+    if (!p.startsWith(prefix)) continue;
+    const tail = p.slice(prefix.length);
+    if (/^\d+$/.test(tail)) n = Math.max(n, Number(tail));
+  }
+  return `${prefix}${String(n + 1).padStart(3, "0")}`;
+}
+export const DOCTOR_PROFILE_NAME_MAX = 40;
 
 interface Session {
   id: string;
@@ -177,6 +196,9 @@ export class DoctorEngine {
       progressPct: Math.min(1, elapsed / target),
       message: this.stateMessage(elapsed, target),
       result: (this.state === "completed") ? this.result : null,
+      suggestedProfileName: (this.state === "completed" && this.result && !this.result.newProfileName)
+        ? doctorDefaultProfileName(this.result.originalProfile, this.client ? (this.client.getValues() as any)["profiles"] : null)
+        : null,
     };
   }
 
@@ -672,15 +694,22 @@ export class DoctorEngine {
   /** Rev535 (GPT review 3 #2/#5): fork into a uniquely named profile and
    *  WAIT until pypilot reports it active - writing the gain before that
    *  changed the original profile while saying "in new profile". */
-  private async ensureForkedProfile(res: DoctorResult): Promise<{ name: string | null; error?: string }> {
+  // Rev645 (Carlos 2026-11-06): the sailor names the new profile (the visor
+  // offers "<profile> - Doc NNN"). An existing name is refused: writing it to
+  // pypilot would switch to that profile and the gain would land there.
+  private async ensureForkedProfile(res: DoctorResult, wantedName?: string): Promise<{ name: string | null; error?: string }> {
     if (res.newProfileName) return { name: res.newProfileName };
     if (!this.client) return { name: null, error: "pypilot client not initialised." };
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     const profiles = (this.client.getValues() as any)["profiles"];
-    let name = `doctor-${stamp}`;
-    if (Array.isArray(profiles) && profiles.includes(name)) name = `${name}-${Math.random().toString(36).slice(2, 5)}`;
+    const list: string[] = Array.isArray(profiles) ? profiles.map(String) : [];
+    let name = doctorDefaultProfileName(res.originalProfile, list);
+    if (wantedName !== undefined) {
+      const w = String(wantedName).trim().replace(/\s+/g, " ");
+      if (!w) return { name: null, error: "The new profile needs a name - nothing applied." };
+      if (w.length > DOCTOR_PROFILE_NAME_MAX) return { name: null, error: `Profile name longer than ${DOCTOR_PROFILE_NAME_MAX} characters - nothing applied.` };
+      if (list.some((p) => p.trim().toLowerCase() === w.toLowerCase())) return { name: null, error: `A profile called '${w}' already exists - nothing applied.` };
+      name = w;
+    }
     // pypilot: writing to `profile` with a name that does NOT exist
     // creates it as a copy of the currently-active profile.
     try { this.profileWriteHook?.(name, `Doctor forked from ${res.originalProfile ?? "?"}`); }
@@ -699,7 +728,7 @@ export class DoctorEngine {
     return { name: null, error: `pypilot did not switch to the new profile '${name}' - nothing applied.` };
   }
 
-  async applySuggestion(id: string): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
+  async applySuggestion(id: string, profileName?: string): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
     if (!this.result) return { ok: false, message: "No result available. Run a diagnostic session first." };
     if (!this.client) return { ok: false, message: "pypilot client not initialised." };
     const s = this.result.suggestions.find((x) => x.id === id);
@@ -734,7 +763,7 @@ export class DoctorEngine {
     if (this.applying) return { ok: false, message: "Another change is being applied. Try again in a few seconds." };
     this.applying = true;
     try {
-      return await this.applyChecked(s, this.result);
+      return await this.applyChecked(s, this.result, profileName);
     } finally {
       this.applying = false;
     }
@@ -745,10 +774,10 @@ export class DoctorEngine {
   // Rev577 (GPT audit A08): works on the result it started with; a reset
   // or a new diagnostic during any wait makes it stop instead of writing
   // into (or crashing on) the new state.
-  private async applyChecked(s: Suggestion, res: DoctorResult): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
+  private async applyChecked(s: Suggestion, res: DoctorResult, profileName?: string): Promise<{ ok: boolean; message: string; suggestion?: Suggestion; newProfile?: string | null; mustRunFreshSession?: boolean }> {
     if (!this.client) return { ok: false, message: "pypilot client not initialised." };
     // Fork the profile before the first write so the original stays intact.
-    const fork = await this.ensureForkedProfile(res);
+    const fork = await this.ensureForkedProfile(res, profileName);
     if (this.result !== res) return { ok: false, message: "The diagnostic was reset while applying - nothing applied." };
     if (!fork.name) return { ok: false, message: fork.error || "Profile fork failed - nothing applied." };
     const forked = fork.name;
@@ -798,6 +827,13 @@ export class DoctorEngine {
     }
   }
 
+  /** Rev645: the sailor renamed the Doctor's profile from the result card. */
+  noteProfileRenamed(from: string, to: string): boolean {
+    if (!this.result || this.result.newProfileName !== from || !to) return false;
+    this.result.newProfileName = to;
+    return true;
+  }
+
   // Rev121: mark a suggestion as dismissed (user rejected it). Kept in
   // the result so the frontend can render it greyed-out or hide it.
   dismissSuggestion(id: string): { ok: boolean; message: string } {
@@ -818,7 +854,7 @@ export class DoctorEngine {
   // applies it, and marks the rest as "waiting for a fresh Doctor
   // session before the next change". The visor uses `mustRunFreshSession`
   // in the response to render the banner.
-  async applyAll(): Promise<{
+  async applyAll(profileName?: string): Promise<{
     ok: boolean;
     applied: string[];
     failed: { id: string; message: string }[];
@@ -853,7 +889,7 @@ export class DoctorEngine {
     }
     const first = pending[0];
     const res = this.result;
-    const r = await this.applySuggestion(first.id);
+    const r = await this.applySuggestion(first.id, profileName);
     if (r.ok) applied.push(first.id);
     else failed.push({ id: first.id, message: r.message });
     const remaining = pending.length - 1;

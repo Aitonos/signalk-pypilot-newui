@@ -1072,6 +1072,9 @@
       "pm.title": "Manage profiles",
       "pm.new": "+ New",
       "pm.rename": "✎ Rename",
+      "setup.doctor.nameQ": "Name of the new profile",
+      "setup.doctor.nameHint": "The change goes into a copy of '{orig}', which stays as it is.",
+      "setup.doctor.applyFailed": "Not applied",
       "pm.export": "↓ Export",
       "pm.import": "↑ Import",
       "pm.delete": "🗑 Delete",
@@ -2246,6 +2249,9 @@
       "pm.title": "Gestionar perfiles",
       "pm.new": "+ Nuevo",
       "pm.rename": "✎ Renombrar",
+      "setup.doctor.nameQ": "Nombre del perfil nuevo",
+      "setup.doctor.nameHint": "El cambio va a una copia de '{orig}', que queda como está.",
+      "setup.doctor.applyFailed": "No se aplicó",
       "pm.export": "↓ Exportar",
       "pm.import": "↑ Importar",
       "pm.delete": "🗑 Eliminar",
@@ -3403,6 +3409,9 @@
       "pm.title": "Profile verwalten",
       "pm.new": "+ Neu",
       "pm.rename": "✎ Umbenennen",
+      "setup.doctor.nameQ": "Name des neuen Profils",
+      "setup.doctor.nameHint": "Die Änderung geht in eine Kopie von '{orig}', das unverändert bleibt.",
+      "setup.doctor.applyFailed": "Nicht übernommen",
       "pm.export": "↓ Exportieren",
       "pm.import": "↑ Importieren",
       "pm.delete": "🗑 Löschen",
@@ -4547,6 +4556,9 @@
       "pm.title": "Gérer les profils",
       "pm.new": "+ Nouveau",
       "pm.rename": "✎ Renommer",
+      "setup.doctor.nameQ": "Nom du nouveau profil",
+      "setup.doctor.nameHint": "La modification va dans une copie de « {orig} », qui reste inchangé.",
+      "setup.doctor.applyFailed": "Non appliqué",
       "pm.export": "↓ Exporter",
       "pm.import": "↑ Importer",
       "pm.delete": "🗑 Supprimer",
@@ -13128,6 +13140,7 @@
     // further gain is raised once it ended or the profile changed.
     ap._hotGainProfile = state.profile;
     ap._hotGainSnapshot = {};
+    ap._hotGainSet = {};   // Rev645 (B3): the value each gain was raised to
     const cat = state.catalog || {};
     const vals = state.pypilotValues || {};
     const targets = [
@@ -13146,6 +13159,7 @@
       if (Math.abs(next - cur) < 1e-6) continue;
       if (!_empopadoHotGainsOwned(ap)) { console.info("empopado: ended or profile changed - no more hot gains"); break; }
       ap._hotGainSnapshot[t.path] = cur;
+      ap._hotGainSet[t.path] = next;
       try {
         const resp = await pluginRaw(t.path, next);
         if (resp && resp.ok === false) {
@@ -13171,33 +13185,62 @@
   // Rev641 (GPT re-audit of Rev640 #6): gains Empopado raised and could not
   // put back. Retried every 15 s while the profile is still the one they
   // belong to, 4 times; then the sailor is told which ones to check.
-  let _empopadoPendingGains = null;   // { profile, gains: {path: value}, tries, timer }
-  function _empopadoKeepPendingGains(profile, gains) {
-    if (_empopadoPendingGains && _empopadoPendingGains.timer) clearInterval(_empopadoPendingGains.timer);
-    const p = { profile, gains: { ...gains }, tries: 0, timer: null };
+  // Rev645 (GPT re-audit of Rev641 B2/B3): one entry per manoeuvre, never a
+  // shared slot, and each gain remembers the value the manoeuvre put there:
+  // it is restored only while pypilot still reports that value - a gain the
+  // sailor changed since is theirs and is left alone.
+  const _empopadoPendingGains = new Map();   // id -> { profile, gains: {path: {restore, hot}}, tries, timer, busy }
+  let _empopadoPendingSeq = 0;
+  function _empopadoKeepPendingGains(profile, gains, hot) {
+    const mine = {};
+    for (const [path, restore] of Object.entries(gains)) {
+      mine[path] = { restore, hot: hot && typeof hot[path] === "number" ? hot[path] : null };
+    }
+    // An older manoeuvre on the same profile still owes a gain whose raised
+    // value is the one this manoeuvre started from: one restore, to the
+    // older original, instead of two that would undo each other.
+    for (const old of _empopadoPendingGains.values()) {
+      if (old.profile !== profile) continue;
+      for (const [path, g] of Object.entries(mine)) {
+        const o = old.gains[path];
+        if (o && typeof o.hot === "number" && Math.abs(o.hot - g.restore) < 1e-6) { g.restore = o.restore; delete old.gains[path]; }
+      }
+    }
+    const id = ++_empopadoPendingSeq;
+    const p = { id, profile, gains: mine, tries: 0, timer: null, busy: false };
     p.timer = setInterval(() => { _empopadoRetryPendingGains(p).catch(() => { /* silent */ }); }, 15000);
-    _empopadoPendingGains = p;
+    _empopadoPendingGains.set(id, p);
   }
   async function _empopadoRetryPendingGains(p) {
-    if (_empopadoPendingGains !== p || p.busy) return;
+    if (_empopadoPendingGains.get(p.id) !== p || p.busy) return;
     p.busy = true;
     try {
       if (p.profile === undefined || state.profile === p.profile) {
-        for (const [path, val] of Object.entries(p.gains)) {
+        try { await refreshPypilotValues(); } catch { /* use what we have */ }
+        for (const [path, g] of Object.entries(p.gains)) {
+          if (_empopadoPendingGains.get(p.id) !== p) return;
           if (p.profile !== undefined && state.profile !== p.profile) break;
+          const now = (state.pypilotValues || {})[path];
+          if (typeof g.hot === "number" && typeof now === "number" && Math.abs(now - g.hot) > 1e-6) {
+            delete p.gains[path];
+            console.info(`empopado: ${path} is now ${now.toFixed(3)}, not the manoeuvre's ${g.hot.toFixed(3)} - the sailor's value, left as it is`);
+            continue;
+          }
+          if (typeof g.hot === "number" && typeof now !== "number") continue;   // unknown now: next try
           try {
-            const resp = await pluginRaw(path, val);
-            if (!(resp && resp.ok === false)) { delete p.gains[path]; console.info(`empopado: pending gain ${path} restored → ${val.toFixed(3)}`); }
+            const resp = await pluginRaw(path, g.restore);
+            if (!(resp && resp.ok === false)) { delete p.gains[path]; console.info(`empopado: pending gain ${path} restored → ${g.restore.toFixed(3)}`); }
           } catch { /* next try */ }
         }
       }
+      if (_empopadoPendingGains.get(p.id) !== p) return;
       p.tries++;
       const left = Object.keys(p.gains);
       if (!left.length || p.tries >= 4) {
         clearInterval(p.timer);
-        _empopadoPendingGains = null;
+        _empopadoPendingGains.delete(p.id);
         if (left.length) {
-          const list = left.map((k) => `${k} = ${Number(p.gains[k]).toFixed(3)}`).join(", ");
+          const list = left.map((k) => `${k} = ${Number(p.gains[k].restore).toFixed(3)}`).join(", ");
           _pmAlert(t("empopado.gainsNotRestored.title"), t("empopado.gainsNotRestored.body").replace("{profile}", String(p.profile || "")).replace("{list}", list));
         }
       }
@@ -13232,7 +13275,7 @@
     _empopadoSetHotBadge(left ? "failed" : null);
     // Rev641 (GPT re-audit of Rev640 #6): what failed outlives the
     // manoeuvre's window - kept here and retried on the same profile.
-    if (left) _empopadoKeepPendingGains(ap._hotGainProfile, snap);
+    if (left) _empopadoKeepPendingGains(ap._hotGainProfile, snap, ap._hotGainSet);
   }
   function _empopadoPickReactiveProfile() {
     const list = Array.isArray(state.profiles) ? state.profiles : [];
@@ -14261,16 +14304,18 @@
       // Rev633 (GPT R10 / Gemini 2.2, re-audit 2026-11-06): Aproado ends an
       // Empopado and vice versa - only one manoeuvre at a time.
       let endedManoeuvre = false;
-      if (chosen !== "empopado") {
-        const emp = state.empopado;
-        if (emp && (emp.phase === "transit" || emp.phase === "active")) { empopadoTearDown({ restoreAll: false }); endedManoeuvre = true; }
-        else if (emp) empopadoClose();
-      }
-      if (chosen !== "aproado") {
-        const apr = state.aproado;
-        if (apr && (apr.phase === "transit" || apr.phase === "active")) { aproadoTearDown(); endedManoeuvre = true; }
-        else if (apr) aproadoTearDown();
-      }
+      const endLocal = () => {
+        if (chosen !== "empopado") {
+          const emp = state.empopado;
+          if (emp && (emp.phase === "transit" || emp.phase === "active")) { empopadoTearDown({ restoreAll: false }); endedManoeuvre = true; }
+          else if (emp) empopadoClose();
+        }
+        if (chosen !== "aproado") {
+          const apr = state.aproado;
+          if (apr && (apr.phase === "transit" || apr.phase === "active")) { aproadoTearDown(); endedManoeuvre = true; }
+          else if (apr) aproadoTearDown();
+        }
+      };
       // Rev639 (GPT re-audit of Rev638 C7): a manoeuvre run from ANOTHER
       // screen ends too - choosing a mode here is taking over, even when
       // the new choice keeps pypilot in the same wind mode.
@@ -14283,7 +14328,10 @@
       };
       const navAsks = chosen === "nav" && state.engaged && state.route && typeof state.route.legBearingDeg === "number" && typeof state.heading === "number"
         && Math.abs((((state.route.legBearingDeg - state.heading * RAD2DEG) % 360) + 540) % 360 - 180) > 60;
-      if (!navAsks) handOver();
+      // Rev645 (GPT re-audit of Rev641 B4): with NAV asking first, nothing is
+      // ended - the local manoeuvre, the other screen's, AUTOWIND - until the
+      // sailor says yes; a "no" leaves everything as it was.
+      if (!navAsks) { endLocal(); handOver(); }
       // Rev633 (Gemini 2.1): the manoeuvre left pypilot on its extreme
       // target (AWA 0 / TWA 180). Going on in a wind mode (AUTOWIND
       // included) holds the wind angle the boat has NOW instead.
@@ -14300,20 +14348,23 @@
         })();
         return;
       }
-      if (state.autowind && state.autowind.enabled) {
+      if (!navAsks && state.autowind && state.autowind.enabled) {
         _autowindPost({ enabled: false });
       }
       // Rev545 (Carlos #4): NAV that would turn more than 60 deg asks first.
-      if (chosen === "nav" && state.engaged && state.route && typeof state.route.legBearingDeg === "number" && typeof state.heading === "number") {
+      if (navAsks) {
         const turn = Math.abs((((state.route.legBearingDeg - state.heading * RAD2DEG) % 360) + 540) % 360 - 180);
-        if (turn > 60) {
-          (async () => {
-            const ok = await _pmConfirm(t("route.bigTurnQ").replace("{deg}", String(Math.round(turn))), t("route.bigTurnBody"));
-            if (ok && selGen === _modeSelectGen) { handOver(); apSetMode("nav"); }
-            else setSelect("#mode-select", state.mode || "");
-          })();
-          return;
-        }
+        (async () => {
+          const ok = await _pmConfirm(t("route.bigTurnQ").replace("{deg}", String(Math.round(turn))), t("route.bigTurnBody"));
+          if (ok && selGen === _modeSelectGen) {
+            endLocal();
+            handOver();
+            if (state.autowind && state.autowind.enabled) _autowindPost({ enabled: false });
+            apSetMode("nav");
+          }
+          else setSelect("#mode-select", state.mode || "");
+        })();
+        return;
       }
       // Rev88: pseudo-mode "aproado" is intercepted locally - opens the
       // choice modal (bow / stern) and starts the maneuver on confirmation.
@@ -19471,14 +19522,19 @@
     if (_pmSelected.size !== 1) return;
     const oldName = Array.from(_pmSelected)[0];
     if (_pmIsReserved(oldName)) return;
+    if (await _pmRenameProfile(oldName)) _pmSelected.clear();
+  }
+  // Rev645: shared by the profile manager and the Doctor's result card.
+  // Returns the new name, or null when nothing was renamed.
+  async function _pmRenameProfile(oldName) {
     const label = (t("prompt.profileRenameTo") || "Nuevo nombre para '{old}':").replace("{old}", oldName);
     const raw = await _pmPrompt(label, oldName);
-    if (raw == null) return;
+    if (raw == null) return null;
     const newName = raw.trim().replace(/\s+/g, " ");
-    if (!newName || newName === oldName) return;
+    if (!newName || newName === oldName) return null;
     if (_pmNameTaken(newName, oldName)) {
       await _pmAlert(t("profile.rename.exists") || "Ya existe un perfil con ese nombre.");
-      return;
+      return null;
     }
     try {
       // If the renamed profile is NOT active, switch first (pluginRaw
@@ -19492,12 +19548,13 @@
       await new Promise((r) => setTimeout(r, 400));
       const remaining = (state.profiles || []).filter((p) => p !== oldName);
       await pluginRaw("profiles", remaining);
-      _pmSelected.clear();
       setTimeout(_pmRender, 300);
       setTimeout(_pmRender, 6000);   // Rev569: the rename lands in the history ~4 s later
+      return newName;
     } catch (e) {
       console.warn("[pm] rename failed:", e);
       await _pmAlert(t("profile.rename.failed") || "No se pudo renombrar el perfil.");
+      return null;
     }
   }
   async function _pmActionExport() {
@@ -20854,6 +20911,22 @@
       pn.innerHTML = `${t("setup.doctor.forkedProfile")
         .replace("{new}", `<b>${r.newProfileName}</b>`)
         .replace("{orig}", `<b>${orig}</b>`)}`;
+      // Rev645 (Carlos 2026-11-06): rename the Doctor's profile right here.
+      const rn = document.createElement("button");
+      rn.type = "button";
+      rn.className = "doctor-sug-discard";
+      rn.textContent = t("pm.rename");
+      rn.addEventListener("click", async () => {
+        const from = r.newProfileName;
+        const to = await _pmRenameProfile(from);
+        if (!to) return;
+        try {
+          await fetch(`/plugins/${PLUGIN_ID}/doctor/renamed`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from, to }) });
+        } catch { /* silent */ }
+        _docFetch();
+      });
+      pn.appendChild(document.createTextNode(" "));
+      pn.appendChild(rn);
       root.appendChild(pn);
     }
     // Findings
@@ -20935,8 +21008,7 @@
         all.addEventListener("click", async () => {
           // Rev170: helm-manned confirm removed.
           try {
-            const res = await fetch(`/plugins/${PLUGIN_ID}/doctor/apply-all`, { method: "POST" });
-            const j = await res.json().catch(() => ({}));
+            const j = (await _docPostApply(`/plugins/${PLUGIN_ID}/doctor/apply-all`)) || {};
             if (j.mustRunFreshSession && (j.remaining || 0) > 0) {
               alert((t("setup.doctor.freshRequired") || "Applied 1 gain. Run a fresh Doctor session before applying the next {n}.")
                 .replace("{n}", String(j.remaining)));
@@ -21055,13 +21127,35 @@
       apply.disabled = true;
       apply.textContent = "...";
       try {
-        await fetch(`/plugins/${PLUGIN_ID}/doctor/apply/${s.id}`, { method: "POST" });
-        _docFetch();
+        await _docPostApply(`/plugins/${PLUGIN_ID}/doctor/apply/${s.id}`);
       } catch { /* silent */ }
+      _docFetch();
     });
     actions.appendChild(apply);
     card.appendChild(actions);
     return card;
+  }
+  // Rev645 (Carlos 2026-11-06): the first apply creates a new profile; ask
+  // its name, offering "<active profile> - Doc NNN". undefined = no name
+  // needed (a profile was already created), null = the sailor cancelled.
+  async function _docAskProfileName() {
+    const st = _doc.last;
+    const r = st && st.result;
+    if (!r || r.newProfileName) return undefined;
+    const raw = await _pmPrompt(t("setup.doctor.nameQ"), st.suggestedProfileName || "", t("setup.doctor.nameHint").replace("{orig}", r.originalProfile || "?"));
+    if (raw == null) return null;
+    const name = raw.trim().replace(/\s+/g, " ");
+    if (!name) return null;
+    if (_pmNameTaken(name)) { await _pmAlert(t("profile.rename.exists")); return null; }
+    return name;
+  }
+  async function _docPostApply(url) {
+    const name = await _docAskProfileName();
+    if (name === null) return null;
+    const resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(name === undefined ? {} : { profileName: name }) });
+    const j = await resp.json().catch(() => ({}));
+    if (j && j.ok === false && j.message && !j.mustRunFreshSession) _pmAlert(t("setup.doctor.applyFailed"), j.message);
+    return j;
   }
   function wireDoctor() {
     const startBtn = _docStartBtn();

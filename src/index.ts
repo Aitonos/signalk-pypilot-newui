@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev644";
+const PLUGIN_REVISION = "Rev645";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2038,12 +2038,20 @@ module.exports = function (app: any) {
       });
       router.post("/doctor/apply/:id", async (req: any, res: any) => {
         if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
-        const r = await doctor.applySuggestion(String(req.params?.id || ""));
+        // Rev645: optional { profileName } for the new profile of the first apply.
+        const pn = typeof req.body?.profileName === "string" ? req.body.profileName : undefined;
+        const r = await doctor.applySuggestion(String(req.params?.id || ""), pn);
         res.json({ ...r, status: doctor.status() });
       });
-      router.post("/doctor/apply-all", async (_req: any, res: any) => {
+      router.post("/doctor/renamed", (req: any, res: any) => {
         if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
-        const r = await doctor.applyAll();
+        const ok = doctor.noteProfileRenamed(String(req.body?.from || ""), String(req.body?.to || ""));
+        res.json({ ok, status: doctor.status() });
+      });
+      router.post("/doctor/apply-all", async (req: any, res: any) => {
+        if (!doctor) { res.status(503).json({ error: "doctor not initialised" }); return; }
+        const pn = typeof req.body?.profileName === "string" ? req.body.profileName : undefined;
+        const r = await doctor.applyAll(pn);
         res.json({ ...r, status: doctor.status() });
       });
       // Rev121: dismiss one suggestion (user explicitly ignores it).
@@ -5146,9 +5154,12 @@ module.exports = function (app: any) {
     if (!apProvider || !client) return;
     const op = _autowindOp;
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-    const noNewerOrder = () => !!apProvider && apProvider.targetGeneration() === targetGenAtStart;
-    const wanted = () => op === _autowindOp && !!props.autowindEnabled && !!apProvider && !!apProvider.data.engaged
-      && String(apProvider.data.mode || "").toLowerCase() === sub && noNewerOrder();
+    // Rev645 (GPT re-audit Rev641 B1): `stillOn` carries no generation check -
+    // the provider compares targetGenAtStart and reserves our own generation in
+    // one step, then judges staleness against that generation.
+    const stillOn = () => op === _autowindOp && !!props.autowindEnabled && !!apProvider && !!apProvider.data.engaged
+      && String(apProvider.data.mode || "").toLowerCase() === sub;
+    const wanted = () => stillOn() && !!apProvider && apProvider.targetGeneration() === targetGenAtStart;
     const reportedDeg = (): number | null => {
       const v = client ? client.getValues()["ap.heading_command"] : undefined;
       return typeof v === "number" && Number.isFinite(v) ? v : null;
@@ -5161,9 +5172,9 @@ module.exports = function (app: any) {
       : _autowindFresh(["environment.wind.angleApparent"]);
     if (nowRad == null) { _autowindFail("no fresh wind angle to hold: target left as it was"); return; }
     const wantDeg = nowRad * 180 / Math.PI;
-    try { await apProvider.setTargetIfWanted(nowRad, wanted); }
+    let ourGen: number;
+    try { ourGen = await apProvider.setTargetIfWanted(nowRad, stillOn, targetGenAtStart); }
     catch (e: any) { if (op === _autowindOp && props.autowindEnabled) _autowindFail(`hold the current wind angle: ${e?.message || e}`); return; }
-    const ourGen = apProvider.targetGeneration();
     // eslint-disable-next-line no-console
     console.log(`[autowind] target = current ${sub === "true wind" ? "TWA" : "AWA"} ${wantDeg.toFixed(0)} deg`);
     await sleep(1200);

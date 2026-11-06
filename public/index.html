@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev644" />
+  <link rel="stylesheet" href="style.css?v=Rev645" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2242,7 +2242,7 @@
               <li><b>Autopilot Check</b> (pre-departure): aggregates every sensor / servo / voltage / connectivity signal into a single verdict (ready / caveats / do not engage). Recomputes every 3 s.</li>
               <li><b>Alarms</b>: on / off / mute per rule; heading deviation, cruise drift, unable-to-steer, servo overcurrent, servo temp, motor temp, servo load high, low voltage, sensor lost, pypilot disconnected. Publishes canonical SK <code>notifications.*</code> for downstream SK clients, speaks the alarm out loud, and pushes a banner to the top of the app.</li>
               <li><b>Sensor Quality</b>: freshness + update rate + jitter + source for every AP-critical SK path. Green / amber / red so you spot a stuck compass or a slow rudder in one glance. Ignore / restore per sensor.</li>
-              <li><b>Diagnostics &amp; Advice (Doctor)</b>: engage the AP, press DIAGNOSE, and the plugin records the heading error + servo response. Proposes P / I / D adjustments with a plain-English rationale. Nothing applies automatically &mdash; APPLY forks the current profile into <code>doctor-YYYYMMDD-HHMM</code> so the original stays untouched.</li>
+              <li><b>Diagnostics &amp; Advice (Doctor)</b>: engage the AP, press DIAGNOSE, and the plugin records the heading error + servo response. Proposes P / I / D adjustments with a plain-English rationale. Nothing applies automatically &mdash; APPLY asks a name (offering <code>&lt;profile&gt; - Doc 001</code>) and copies the current profile into it, so the original stays untouched; Rename on the result changes it later.</li>
               <li><b>Smart Pilot</b>: three optional layers on top of pypilot &mdash; auto-select the pypilot profile by wind band, react to gusts (freeze target / boost D / heavy profile / warn), and auto-disengage on lost authority (RMS &gt; 30&deg; and duty &gt; 90%).</li>
               <li><b>Navigation Session recorder</b>: every AP engaged run stores JSONL on the Pi 5. Tag with wind / sea / propulsion / crew, share the file with the plugin author for personalized tuning advice.</li>
               <li><b>Log capture (Pi Zero)</b>: piCore keeps <code>/var/log</code> in RAM. Turn it ON to spool pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.</li>
@@ -2317,7 +2317,7 @@
               <li><b>Comprobaci&oacute;n del piloto</b> (pre-departure): agrega cada sensor / servo / voltaje / conectividad en un veredicto &uacute;nico (listo / con reservas / no activar). Recalcula cada 3 s.</li>
               <li><b>Alarmas</b>: on / off / silenciar por regla; desv&iacute;o de rumbo, deriva sostenida, sin autoridad, sobrecorriente servo, temperatura servo, temperatura motor, carga alta, tensi&oacute;n baja, sensor perdido, pypilot desconectado. Publica <code>notifications.*</code> can&oacute;nicas SK para clientes SK externos, lee la alarma en voz alta y ense&ntilde;a un banner arriba de la app.</li>
               <li><b>Calidad de sensores</b>: frescura + frecuencia + jitter + fuente de cada path SK cr&iacute;tico para el AP. Verde / &aacute;mbar / rojo para detectar de un vistazo un comp&aacute;s congelado o un tim&oacute;n lento. Ignorar / restaurar por sensor.</li>
-              <li><b>Asesoramiento y diagn&oacute;stico (Doctor)</b>: engancha el AP, pulsa DIAGNOSTICAR y el plugin graba el error de rumbo + la respuesta del servo. Propone ajustes P / I / D con una explicaci&oacute;n en lenguaje llano. Nada se aplica autom&aacute;ticamente &mdash; APLICAR bifurca el perfil actual en <code>doctor-YYYYMMDD-HHMM</code> para dejar el original intacto.</li>
+              <li><b>Asesoramiento y diagn&oacute;stico (Doctor)</b>: engancha el AP, pulsa DIAGNOSTICAR y el plugin graba el error de rumbo + la respuesta del servo. Propone ajustes P / I / D con una explicaci&oacute;n en lenguaje llano. Nada se aplica autom&aacute;ticamente &mdash; APLICAR pide un nombre (propone <code>&lt;perfil&gt; - Doc 001</code>) y copia ah&iacute; el perfil actual, para dejar el original intacto; Renombrar en el resultado lo cambia despu&eacute;s.</li>
               <li><b>Piloto Inteligente</b>: tres capas opcionales sobre pypilot &mdash; auto seleccionar el perfil pypilot por banda de viento, reaccionar a las r&aacute;fagas (congelar target / subir D / perfil pesado / avisar) y auto-desenganchar por p&eacute;rdida de autoridad (RMS &gt; 30&deg; y duty &gt; 90%).</li>
               <li><b>Grabador de sesiones de navegaci&oacute;n</b>: cada rato de AP enganchado se guarda como JSONL en el Pi 5. Etiqu&eacute;talo con viento / mar / propulsi&oacute;n / tripulaci&oacute;n y comparte con el autor del plugin para asesoramiento de ajustes personalizado.</li>
               <li><b>Captura de logs (Pi Zero)</b>: piCore guarda <code>/var/log</code> en RAM. Actívala para volcar los logs pypilot / pypilot_web / pypilot_hat a un archivo persistente en el Pi 5.</li>
@@ -2824,6 +2824,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev644"></script>
+  <script src="app.js?v=Rev645"></script>
 </body>
 </html>
