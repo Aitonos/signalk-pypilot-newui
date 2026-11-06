@@ -417,7 +417,7 @@
       "watch.detailsToggle": "Show focus detail",
       "watch.noFocus":       "(no focus active)",
       "sess.title":          "Navigation session recorder",
-      "sess.hint":           "Every engaged AP session is saved as a JSONL file on the Pi 5. Share it with the plugin author to receive personalized tuning advice back.",
+      "sess.hint":           "Every engaged AP session is saved as a JSONL file on your Raspberry Pi. Share it with the plugin author to receive personalized tuning advice back.",
       "sess.tag":            "Tag current session",
       "sess.list":           "See recorded sessions",
       "sess.advice":         "Received advice",
@@ -648,7 +648,7 @@
       "tune.gain.truewind.offset.short":      "Same idea as wind.offset but applied to the computed true wind angle.",
       "tune.gain.truewind.offset.long":       "Leave 0 unless you have a documented true-wind bias from a polar test.",
       "lc.title":    "Log capture (Pi Zero)",
-      "lc.hint":     "piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.",
+      "lc.hint":     "piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on your Raspberry Pi.",
       "lc.toggle":   "Enable log capture",
       "lc.view":     "Show recent",
       "lc.download": "Download today",
@@ -876,6 +876,8 @@
       "bb.marked":       "Moment marked",
       "bb.recording":    "recording the minute after…",
       "bb.empty":        "No incidents yet.",
+      "bb.ack": "Reviewed",
+      "bb.ackAll": "Mark all reviewed ({n})",
       "bb.view":         "View",
       "bb.note":         "Note",
       "bb.noteHint":     "What happened? Tap the microphone on the keyboard to dictate.",
@@ -1589,7 +1591,7 @@
       "watch.detailsToggle": "Ver detalle del focus",
       "watch.noFocus":       "(sin focus activo)",
       "sess.title":          "Grabador de sesiones de navegación",
-      "sess.hint":           "Cada sesión con el AP enganchado se guarda en el Pi 5 como JSONL. Comparte con el autor del plugin para recibir consejos de ajuste personalizados.",
+      "sess.hint":           "Cada sesión con el AP enganchado se guarda en tu Raspberry como JSONL. Comparte con el autor del plugin para recibir consejos de ajuste personalizados.",
       "sess.tag":            "Etiquetar sesión actual",
       "sess.list":           "Ver sesiones grabadas",
       "sess.advice":         "Consejos recibidos",
@@ -1825,7 +1827,7 @@
       "tune.gain.truewind.offset.short":      "Igual que wind.offset pero aplicado al viento real calculado.",
       "tune.gain.truewind.offset.long":       "Dejar en 0 salvo que tengas un sesgo documentado del viento real por análisis de polar.",
       "lc.title":    "Captura de logs (Pi Zero)",
-      "lc.hint":     "piCore guarda /var/log solo en RAM, un hard reset los pierde. Actívalo para que el plugin guarde pypilot / pypilot_web / pypilot_hat en un archivo persistente del Pi 5.",
+      "lc.hint":     "piCore guarda /var/log solo en RAM, un hard reset los pierde. Actívalo para que el plugin guarde pypilot / pypilot_web / pypilot_hat en un archivo persistente de tu Raspberry.",
       "lc.toggle":   "Activar captura",
       "lc.view":     "Ver reciente",
       "lc.download": "Descargar hoy",
@@ -2054,6 +2056,8 @@
       "bb.marked":       "Momento marcado",
       "bb.recording":    "grabando el minuto siguiente…",
       "bb.empty":        "Ningún incidente todavía.",
+      "bb.ack": "Revisado",
+      "bb.ackAll": "Marcar todas como revisadas ({n})",
       "bb.view":         "Ver",
       "bb.note":         "Nota",
       "bb.noteHint":     "¿Qué ha pasado? Toca el micrófono del teclado para dictar.",
@@ -2539,7 +2543,7 @@
       "tune.gain.ap.tack.rate.short":         "Geschwindigkeit einer automatischen Wende (Grad/Sekunde).",
       "tune.gain.ap.tack.rate.long":          "Anheben für schnellere Wende. Senken, wenn das Boot zu stark krängt oder die Crew nicht mitkommt.",
       "lc.title":    "Log-Erfassung (Pi Zero)",
-      "lc.hint":     "piCore hält /var/log nur im RAM - ein Hard Reset löscht sie. Aktivieren, um pypilot / pypilot_web / pypilot_hat in einer Datei auf dem Pi 5 zu speichern.",
+      "lc.hint":     "piCore hält /var/log nur im RAM - ein Hard Reset löscht sie. Aktivieren, um pypilot / pypilot_web / pypilot_hat in einer Datei auf deinem Raspberry Pi zu speichern.",
       "lc.toggle":   "Erfassung aktivieren",
       "lc.view":     "Neueste zeigen",
       "lc.download": "Heute laden",
@@ -2850,7 +2854,7 @@
       "alarmscfg.allOff": "Alle aus",
       "alarmscfg.allOn": "Alle an",
       "sess.title": "Navigations-Sitzungsrekorder",
-      "sess.hint": "Jede Sitzung mit eingeschaltetem AP wird als JSONL-Datei auf dem Pi 5 gespeichert. Teile sie mit dem Autor des Plugins, um persönliche Einstellungstipps zu bekommen.",
+      "sess.hint": "Jede Sitzung mit eingeschaltetem AP wird als JSONL-Datei auf deinem Raspberry Pi gespeichert. Teile sie mit dem Autor des Plugins, um persönliche Einstellungstipps zu bekommen.",
       "sess.tag": "Aktuelle Sitzung beschriften",
       "sess.list": "Aufgezeichnete Sitzungen",
       "sess.advice": "Erhaltene Tipps",
@@ -3228,6 +3232,8 @@
       "bb.marked": "Moment markiert",
       "bb.recording": "zeichne die Minute danach auf…",
       "bb.empty": "Noch keine Vorfälle.",
+      "bb.ack": "Gesehen",
+      "bb.ackAll": "Alle als gesehen markieren ({n})",
       "bb.view": "Ansehen",
       "bb.note": "Notiz",
       "bb.noteHint": "Was ist passiert? Tippe auf das Mikrofon der Tastatur zum Diktieren.",
@@ -3686,7 +3692,7 @@
       "tune.gain.ap.tack.rate.short":         "Vitesse d'un virement automatique (degrés par seconde).",
       "tune.gain.ap.tack.rate.long":          "Augmentez pour un virement plus rapide. Diminuez si le bateau gîte trop ou si l'équipage ne suit pas.",
       "lc.title":    "Capture des logs (Pi Zero)",
-      "lc.hint":     "piCore garde /var/log uniquement en RAM - un hard reset les efface. Activez pour sauvegarder pypilot / pypilot_web / pypilot_hat dans un fichier persistant du Pi 5.",
+      "lc.hint":     "piCore garde /var/log uniquement en RAM - un hard reset les efface. Activez pour sauvegarder pypilot / pypilot_web / pypilot_hat dans un fichier persistant de votre Raspberry Pi.",
       "lc.toggle":   "Activer la capture",
       "lc.view":     "Voir les récents",
       "lc.download": "Télécharger aujourd'hui",
@@ -3997,7 +4003,7 @@
       "alarmscfg.allOff": "Toutes désactivées",
       "alarmscfg.allOn": "Toutes activées",
       "sess.title": "Enregistreur de sessions de navigation",
-      "sess.hint": "Chaque session avec AP engagé est enregistrée en fichier JSONL sur le Pi 5. Partagez-la avec l'auteur du plugin pour recevoir des conseils de réglage personnalisés.",
+      "sess.hint": "Chaque session avec AP engagé est enregistrée en fichier JSONL sur votre Raspberry Pi. Partagez-la avec l'auteur du plugin pour recevoir des conseils de réglage personnalisés.",
       "sess.tag": "Étiqueter la session en cours",
       "sess.list": "Voir les sessions enregistrées",
       "sess.advice": "Conseils reçus",
@@ -4375,6 +4381,8 @@
       "bb.marked": "Instant marqué",
       "bb.recording": "enregistrement de la minute suivante…",
       "bb.empty": "Aucun incident.",
+      "bb.ack": "Vu",
+      "bb.ackAll": "Tout marquer comme vu ({n})",
       "bb.view": "Voir",
       "bb.note": "Note",
       "bb.noteHint": "Que s'est-il passé ? Touchez le micro du clavier pour dicter.",
@@ -6830,14 +6838,43 @@
       const d = document.createElement("div"); d.className = "hint"; d.textContent = t("bb.empty"); list.appendChild(d);
       return;
     }
+    // Rev646 (Carlos 2026-11-06): acknowledge entries without opening each
+    // one - "Reviewed" per row and "Mark all reviewed"; reviewed ones dimmed.
+    const ackSeen = async (url) => {
+      try { await skFetch(url, { method: "POST" }); } catch { /* silent */ }
+      _bbRefresh();
+    };
+    if (unseen) {
+      const all = document.createElement("button");
+      all.type = "button";
+      all.className = "doctor-sug-discard";
+      all.style.alignSelf = "flex-end";
+      all.textContent = t("bb.ackAll").replace("{n}", String(unseen));
+      all.addEventListener("click", () => { all.disabled = true; ackSeen(`/plugins/${PLUGIN_ID}/black-box/seen-all`); });
+      list.appendChild(all);
+    }
     for (const it of inc) {
       const row = document.createElement("div");
       row.className = "trip-row";
-      row.style.cssText = "padding:12px 14px;border-radius:10px;background:var(--bg-3);border:1px solid var(--border);cursor:pointer";
+      row.style.cssText = "position:relative;padding:12px 14px;border-radius:10px;background:var(--bg-3);border:1px solid var(--border);cursor:pointer";
+      if (it.seen) row.style.opacity = "0.6";
+      if (!it.seen) {
+        const ack = document.createElement("button");
+        ack.type = "button";
+        ack.className = "doctor-sug-discard";
+        ack.style.cssText = "position:absolute;top:8px;right:8px";
+        ack.textContent = t("bb.ack");
+        ack.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          ack.disabled = true;
+          ackSeen(`/plugins/${PLUGIN_ID}/black-box/seen/${encodeURIComponent(it.id)}`);
+        });
+        row.appendChild(ack);
+      }
       const title = document.createElement("div");
       title.style.cssText = "font-size:15px;font-weight:700;color:var(--fg)";
       title.textContent = `${it.seen ? "" : "● "}${_bbFmtTime(it.ts)} · ${_bbKind(it.kind)}`;
-      if (!it.seen) title.style.color = "var(--warn)";
+      if (!it.seen) { title.style.color = "var(--warn)"; title.style.paddingRight = "110px"; }
       const det = document.createElement("div");
       det.style.cssText = "font-size:12px;color:var(--fg-dim);margin-top:3px";
       det.textContent = `${it.detail}${it.events > 1 ? `  (+${it.events - 1})` : ""}`;

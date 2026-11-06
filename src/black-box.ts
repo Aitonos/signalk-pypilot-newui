@@ -137,6 +137,14 @@ export class BlackBox {
     return this.writeAtomic(inc);
   }
 
+  /** Rev646 (Carlos 2026-11-06): "mark all reviewed". Returns how many
+   *  were marked. */
+  markAllSeen(): number {
+    let n = 0;
+    for (const s of this.list()) if (!s.seen && this.markSeen(s.id)) n++;
+    return n;
+  }
+
   /** Rev544: attach / replace the sailor's note. Works on the incident
    *  still recording (written when it closes) and on saved ones.
    *  Rev551 (audit): `append` - a second Mark inside the same incident adds

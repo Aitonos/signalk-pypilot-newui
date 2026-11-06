@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev645";
+const PLUGIN_REVISION = "Rev646";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1902,6 +1902,10 @@ module.exports = function (app: any) {
       // Rev528: opened in the visor -> no longer "new" (shared by every device).
       router.post("/black-box/seen/:id", (req: any, res: any) => {
         res.json({ ok: !!blackBox?.markSeen(String(req.params?.id || "")) });
+      });
+      // Rev646 (Carlos): "Marcar todas como revisadas".
+      router.post("/black-box/seen-all", (_req: any, res: any) => {
+        res.json({ ok: !!blackBox, marked: blackBox ? blackBox.markAllSeen() : 0 });
       });
       router.delete("/black-box/incident/:id", (req: any, res: any) => {
         if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }

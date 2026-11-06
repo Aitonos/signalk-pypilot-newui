@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev645" />
+  <link rel="stylesheet" href="style.css?v=Rev646" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1924,7 +1924,7 @@
           </div>
           <div class="conn-sub log-capture-panel">
             <div class="conn-sub-title" data-i18n="lc.title">Log capture (Pi Zero)</div>
-            <div class="hint" data-i18n="lc.hint">piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.</div>
+            <div class="hint" data-i18n="lc.hint">piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on your Raspberry Pi.</div>
             <div class="row">
               <label style="display:flex;align-items:center;gap:6px">
                 <input type="checkbox" id="lc-enabled" />
@@ -2219,7 +2219,7 @@
             <h5 style="margin:14px 0 4px">Chart tab</h5>
             <ul class="info-list">
               <li><b>Trip Stats</b> cards for the current session: AP engaged time, distance, energy consumed, mean / RMS / p95 heading error, servo runtime, tacks / gybes count, max servo current.</li>
-              <li><b>History</b>: last hour of heading error, servo duty, wind, SOG plotted from the Pi 5 recorder (JSONL).</li>
+              <li><b>History</b>: last hour of heading error, servo duty, wind, SOG plotted from the recorder on your Raspberry Pi (JSONL).</li>
               <li><b>Servo Health</b>: learns a baseline for typical duty at sea, then flags <i>Recent avg</i> / <i>Peak 30 s</i> / temp / voltage deviations from that baseline &mdash; a first warning of drag, weed, or bearing wear.</li>
             </ul>
 
@@ -2244,8 +2244,8 @@
               <li><b>Sensor Quality</b>: freshness + update rate + jitter + source for every AP-critical SK path. Green / amber / red so you spot a stuck compass or a slow rudder in one glance. Ignore / restore per sensor.</li>
               <li><b>Diagnostics &amp; Advice (Doctor)</b>: engage the AP, press DIAGNOSE, and the plugin records the heading error + servo response. Proposes P / I / D adjustments with a plain-English rationale. Nothing applies automatically &mdash; APPLY asks a name (offering <code>&lt;profile&gt; - Doc 001</code>) and copies the current profile into it, so the original stays untouched; Rename on the result changes it later.</li>
               <li><b>Smart Pilot</b>: three optional layers on top of pypilot &mdash; auto-select the pypilot profile by wind band, react to gusts (freeze target / boost D / heavy profile / warn), and auto-disengage on lost authority (RMS &gt; 30&deg; and duty &gt; 90%).</li>
-              <li><b>Navigation Session recorder</b>: every AP engaged run stores JSONL on the Pi 5. Tag with wind / sea / propulsion / crew, share the file with the plugin author for personalized tuning advice.</li>
-              <li><b>Log capture (Pi Zero)</b>: piCore keeps <code>/var/log</code> in RAM. Turn it ON to spool pypilot / pypilot_web / pypilot_hat logs to a persistent file on the Pi 5.</li>
+              <li><b>Navigation Session recorder</b>: every AP engaged run stores JSONL on your Raspberry Pi. Tag with wind / sea / propulsion / crew, share the file with the plugin author for personalized tuning advice.</li>
+              <li><b>Log capture (Pi Zero)</b>: piCore keeps <code>/var/log</code> in RAM. Turn it ON to spool pypilot / pypilot_web / pypilot_hat logs to a persistent file on your Raspberry Pi.</li>
               <li><b>Debug console</b>: free-form SSH plus 14 preset buttons (logs, dmesg, top, uptime, df, free, ps, ip, iw, temp, who, ver, restart pypilot_web). BusyBox / piCore-safe fallbacks.</li>
               <li><b>Remote Control Console (Emergency)</b>: escalated restart triad &mdash; <i>restart pypilot_web</i> (~3&ndash;5 s, AP keeps steering), <i>RESTART pypilot</i> (~10&ndash;15 s, AP drops the heading), <i>reboot Pi</i> (~35&ndash;60 s full outage). Every action asks for a <i>helm-manned</i> confirmation first.</li>
               <li><b>Watchdog + reconnect</b> (Rev258&ndash;268): pong-based heartbeat detects a dead pypilot inside 20 s, greys out AP-affecting controls, hides the target, and speaks "Pypilot disconnected for N seconds". On reconnect: <i>Pypilot operational</i> voice + toast. If the outage lasted 20 s to 5 min, offers to restore the last target with a banner.</li>
@@ -2294,7 +2294,7 @@
             <h5 style="margin:14px 0 4px">Pesta&ntilde;a Gr&aacute;fica</h5>
             <ul class="info-list">
               <li><b>Estad&iacute;sticas de sesi&oacute;n</b>: tiempo con AP activo, distancia, energ&iacute;a consumida, error medio / RMS / p95 del rumbo, tiempo activo del servo, viradas / trasluchadas, corriente m&aacute;x del servo.</li>
-              <li><b>Hist&oacute;rico</b>: &uacute;ltima hora de error de rumbo, actividad del servo, viento y SOG dibujados desde el grabador del Pi 5 (JSONL).</li>
+              <li><b>Hist&oacute;rico</b>: &uacute;ltima hora de error de rumbo, actividad del servo, viento y SOG dibujados desde el grabador de tu Raspberry (JSONL).</li>
               <li><b>Salud del servo</b>: aprende un baseline de trabajo t&iacute;pico en el mar y luego avisa de desviaciones (<i>Media reciente</i>, <i>Pico 30 s</i>, temperatura, voltaje) &mdash; primer aviso de arrastre, algas o rodamientos gastados.</li>
             </ul>
 
@@ -2319,8 +2319,8 @@
               <li><b>Calidad de sensores</b>: frescura + frecuencia + jitter + fuente de cada path SK cr&iacute;tico para el AP. Verde / &aacute;mbar / rojo para detectar de un vistazo un comp&aacute;s congelado o un tim&oacute;n lento. Ignorar / restaurar por sensor.</li>
               <li><b>Asesoramiento y diagn&oacute;stico (Doctor)</b>: engancha el AP, pulsa DIAGNOSTICAR y el plugin graba el error de rumbo + la respuesta del servo. Propone ajustes P / I / D con una explicaci&oacute;n en lenguaje llano. Nada se aplica autom&aacute;ticamente &mdash; APLICAR pide un nombre (propone <code>&lt;perfil&gt; - Doc 001</code>) y copia ah&iacute; el perfil actual, para dejar el original intacto; Renombrar en el resultado lo cambia despu&eacute;s.</li>
               <li><b>Piloto Inteligente</b>: tres capas opcionales sobre pypilot &mdash; auto seleccionar el perfil pypilot por banda de viento, reaccionar a las r&aacute;fagas (congelar target / subir D / perfil pesado / avisar) y auto-desenganchar por p&eacute;rdida de autoridad (RMS &gt; 30&deg; y duty &gt; 90%).</li>
-              <li><b>Grabador de sesiones de navegaci&oacute;n</b>: cada rato de AP enganchado se guarda como JSONL en el Pi 5. Etiqu&eacute;talo con viento / mar / propulsi&oacute;n / tripulaci&oacute;n y comparte con el autor del plugin para asesoramiento de ajustes personalizado.</li>
-              <li><b>Captura de logs (Pi Zero)</b>: piCore guarda <code>/var/log</code> en RAM. Actívala para volcar los logs pypilot / pypilot_web / pypilot_hat a un archivo persistente en el Pi 5.</li>
+              <li><b>Grabador de sesiones de navegaci&oacute;n</b>: cada rato de AP enganchado se guarda como JSONL en tu Raspberry. Etiqu&eacute;talo con viento / mar / propulsi&oacute;n / tripulaci&oacute;n y comparte con el autor del plugin para asesoramiento de ajustes personalizado.</li>
+              <li><b>Captura de logs (Pi Zero)</b>: piCore guarda <code>/var/log</code> en RAM. Actívala para volcar los logs pypilot / pypilot_web / pypilot_hat a un archivo persistente en tu Raspberry.</li>
               <li><b>Consola de debug</b>: SSH libre + 14 botones de preset (logs, dmesg, top, uptime, df, free, ps, ip, iw, temp, who, ver, restart pypilot_web). Fallbacks compatibles con BusyBox / piCore.</li>
               <li><b>Consola de control remoto (Emergencia)</b>: tr&iacute;ada de reinicio escalado &mdash; <i>restart pypilot_web</i> (~3&ndash;5 s, el AP sigue pilotando), <i>REINICIAR pypilot</i> (~10&ndash;15 s, el AP suelta el rumbo), <i>reboot Pi</i> (~35&ndash;60 s, corte total). Cada acci&oacute;n pide confirmaci&oacute;n <i>tim&oacute;n atendido</i> antes de ejecutar.</li>
               <li><b>Watchdog + reconexi&oacute;n</b> (Rev258&ndash;268): heartbeat basado en pong detecta un pypilot muerto en menos de 20 s, engrisece los controles que afectan al AP, oculta el target y locuta "Pypilot desconectado desde hace N segundos". Al reconectar: voz + toast "Pypilot operativo". Si la interrupci&oacute;n dur&oacute; entre 20 s y 5 min, ofrece restaurar el &uacute;ltimo target con un banner.</li>
@@ -2824,6 +2824,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev645"></script>
+  <script src="app.js?v=Rev646"></script>
 </body>
 </html>

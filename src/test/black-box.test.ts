@@ -35,6 +35,23 @@ describe("black box (Rev525)", () => {
     assert.equal(bb.list()[0].seen, true, "seen survives on disk");
   });
 
+  it("marks every unseen incident reviewed at once (Rev646)", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bb-"));
+    const bb = new BlackBox(dir);
+    const t0 = Date.UTC(2026, 10, 6, 12, 0, 0);
+    for (let k = 0; k < 3; k++) {
+      const base = t0 + k * 600_000;
+      bb.push(S(base));
+      assert.ok(bb.trigger("mark", `m${k}`, base + 1000));
+      bb.flush(base + 2000);
+    }
+    assert.equal(bb.list().filter((x) => !x.seen).length, 3);
+    assert.ok(bb.markSeen(bb.list()[0].id));
+    assert.equal(bb.markAllSeen(), 2);
+    assert.equal(bb.list().filter((x) => !x.seen).length, 0);
+    assert.equal(bb.markAllSeen(), 0);
+  });
+
   it("rate-limits the same kind when idle, never the Mark button", () => {
     const bb = new BlackBox(null);
     const t0 = 1_000_000;
