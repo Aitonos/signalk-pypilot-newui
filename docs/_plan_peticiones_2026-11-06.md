@@ -1,0 +1,138 @@
+# Peticiones de Carlos del 2026-11-06 (noche): estado y plan
+
+## Hecho (Rev644, en la Pi)
+
+1. **Avisos que tapan el menú.** "Red intermitente / lenta" y "SIN
+   CONEXIÓN AL AUTOPILOTO" se cierran con un toque. Vuelven a salir si
+   la situación cambia. Con el aviso rojo cerrado, los controles siguen
+   bloqueados mientras no haya conexión.
+2. **Cambiar valores sin "Permitir cambios".** Nunca salió ninguna
+   escritura a pypilot (no hay ni un `PUT /raw` en el registro), pero los
+   controles parecían editables. Ahora están desactivados hasta marcar la
+   casilla. También se corrigió que el buscador mandara ~20 peticiones de
+   vigilancia en un segundo.
+
+## Pendiente: plan
+
+### A. Caja negra: marcar entradas como revisadas (ack)
+
+**Hoy:** el backend ya guarda "visto" por entrada (`POST /black-box/seen/:id`)
+y el resumen de la baldosa se pone en ámbar si hay alguna sin ver.
+
+**Propuesta:**
+- botón "Revisado" en cada entrada;
+- "Marcar todas como revisadas";
+- las revisadas, atenuadas.
+
+Tamaño: pequeño.
+
+### B. Bitácora: parar, pausar, borrar o reiniciar el viaje en curso
+
+**Hoy:** el viaje empieza y acaba solo con `navigation.state`
+(navegando / amarrado). Solo se pueden borrar viajes ya cerrados.
+
+**Propuesta,** en la cabecera del viaje en curso:
+- **Parar:** lo cierra ahora, con su resumen.
+- **Pausar / seguir:** no cuenta tiempo ni distancia mientras está en
+  pausa.
+- **Borrar:** lo descarta, con confirmación.
+- **Reiniciar:** lo borra y empieza uno nuevo desde ahora.
+
+Tamaño: medio (backend `trip-recorder` y visor).
+
+### C. Doctor: nombre del perfil al aplicar consejos
+
+**Hoy:** al aplicar el primer consejo, el Doctor copia el perfil activo en
+uno nuevo llamado `doctor-AAAAMMDD-HHMMSS`, sin preguntar. Se puede
+renombrar después desde el gestor de perfiles, pero no en el momento.
+
+**Propuesta:**
+- al aplicar el primer consejo, preguntar el nombre con una propuesta
+  ya puesta, por ejemplo "Ceñida fondo medio viento (Doctor 6/11)";
+- después, un botón "Renombrar" en el resultado del Doctor.
+
+Tamaño: pequeño-medio.
+
+### D. Agrupar las tarjetas de Setup y PIN de administrador
+
+**Hoy:** 14 baldosas sueltas en Setup.
+
+**Grupos propuestos:**
+- **Navegación:** Comprobación del piloto, Doctor, Piloto inteligente,
+  Alarmas, Calidad de sensores, Bitácora, Caja negra.
+- **Ajustes:** Calibración, Idioma, Conexión.
+- **Técnico (con PIN):** Ajustes avanzados de pypilot, Paths & API,
+  Emergencia (reinicios), registros (log capture, maneuver trace),
+  copia de seguridad.
+
+**PIN:** el mismo modelo que en mareas. Un PIN maestro que lo abre todo;
+sin PIN, el grupo Técnico se ve bloqueado. El PIN se comprueba en el
+backend, no solo en el visor, para que no baste con abrir la consola del
+navegador.
+
+Tamaño: medio-grande.
+
+**Decidir:**
+- ¿Qué entra en "Técnico"?
+- ¿Se reutiliza el PIN de mareas o va uno propio para pypilot-newui?
+
+### E. Copia de seguridad de los ajustes
+
+**Qué entra:**
+- opciones del plugin;
+- **todos los perfiles de pypilot con sus ganancias**;
+- los ajustes de pypilot que se guardan (los que exporta ya
+  `/config/export`);
+- preferencias del visor;
+- presets de pantalla;
+- zonas de puerto;
+- vigilante de ganancias;
+- referencia del servo.
+
+**Qué no entra:** viajes, sesiones, registros, histórico de la gráfica y
+caja negra. Son datos, no ajustes.
+
+**Tamaño estimado:**
+
+| Parte | Tamaño |
+|---|---|
+| Opciones del plugin | ~2 KB (medido: 1,9 KB) |
+| Perfiles y ajustes de pypilot (~14 perfiles) | ~30-60 KB |
+| Preferencias, presets, zonas, servo, vigilante | ~10 KB |
+| Base de datos de navegación (si se incluye) | ~110 KB (medido) |
+| **Total** | **~50-80 KB; con la base de datos, ~200 KB. Comprimido, ~15-50 KB** |
+
+**Propuesta:**
+- **diaria:** una copia en la Pi cada noche; se guardan las últimas 30
+  (unos 1,5-6 MB en total);
+- **mensual:** el día 1, aviso en el visor ("Descarga la copia del
+  mes"), porque el plugin no puede guardar fuera de la Pi por sí solo;
+- **a petición:** botón "Descargar copia ahora" (ya existe
+  `/config/export`; se amplía a todo lo de arriba);
+- **restaurar:** desde un archivo o desde una de las 30 copias diarias,
+  con resumen previo de qué cambia.
+
+Tamaño: medio.
+
+**Decidir:** ¿la exportación mensual basta con avisar y descargar? Si
+quieres que salga sola fuera del barco (por correo, Telegram o una
+carpeta en red), hay que elegir el canal.
+
+### F. Disco: registros de la TinyPilot (descubierto al medir)
+
+La captura de registros de la TinyPilot ocupa **708 MB** en la Pi
+(`pizero-logs`), con días de hasta 290 MB. No hay rotación ni límite.
+
+**Propuesta:**
+- comprimir los días anteriores (un registro de texto queda en ~10 %);
+- borrar los de más de 30 días;
+- tope total, por ejemplo 300 MB.
+
+Tamaño: pequeño. **Prioridad alta:** en una SD puede llenar el disco.
+
+## Orden propuesto
+
+1. F (disco), A (caja negra) y C (Doctor): pequeños y útiles ya.
+2. E (copia de seguridad).
+3. B (bitácora).
+4. D (agrupar y PIN): necesita las decisiones de arriba.
