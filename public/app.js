@@ -5560,7 +5560,11 @@
         // trasluchada". Any active countdown must be aborted when the
         // AP flips to disengaged - the maneuver cannot continue
         // without pilot authority.
-        if (wasEngaged !== state.engaged) _endLocalManeuverIfLeft();
+        // Rev637 (Carlos QA 2026-11-06 17:27): on every engaged delta, not
+        // only on a change - the visor's own AP button sets state.engaged
+        // before pypilot's echo, so the echo was no change and the
+        // Empopado window stayed open. The check is idempotent.
+        _endLocalManeuverIfLeft();
         if (wasEngaged && !state.engaged) {
           try {
             const overlay = document.getElementById("tack-countdown-overlay");

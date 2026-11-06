@@ -249,3 +249,12 @@ describe("manoeuvre left from another device (Rev634)", () => {
     assert.deepEqual(calls, []);
   });
 });
+
+describe("AP off from the visor that runs the manoeuvre (Rev637)", () => {
+  it("every engaged delta checks the manoeuvre, even when the visor already set state.engaged", () => {
+    const start = APP.indexOf('case "steering.autopilot.engaged": {');
+    const body = APP.slice(start, APP.indexOf("break;", start));
+    assert.match(body, /\n\s*_endLocalManeuverIfLeft\(\);/);
+    assert.doesNotMatch(body, /if \(wasEngaged !== state\.engaged\) _endLocalManeuverIfLeft\(\)/);
+  });
+});
