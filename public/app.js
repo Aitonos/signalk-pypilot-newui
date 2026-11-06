@@ -534,6 +534,23 @@
       "autowind.blocked.no-wind-data": "no wind data",
       "autowind.blocked.wind-too-light": "wind too light",
       "autowind.refused": "AUTOWIND not started",
+      "adv.title": "pypilot advanced settings",
+      "adv.hint": "Everything pypilot exposes, as in its own web client, grouped. Values are read only for the groups you open. To change anything tick 'Allow changes'; settings in amber can leave pypilot without sensors and ask first.",
+      "adv.unlock": "Allow changes",
+      "adv.search.ph": "filter settings...",
+      "adv.native": "pypilot's own client (boat network only)",
+      "adv.apply": "Set",
+      "adv.reset": "Reset",
+      "adv.yes": "yes",
+      "adv.no": "no",
+      "adv.noCatalog": "Waiting for pypilot's list of settings...",
+      "adv.noMatch": "Nothing matches the filter.",
+      "adv.outOfRange": "Out of range",
+      "adv.locked.title": "Changes not allowed",
+      "adv.locked.body": "Tick 'Allow changes' first.",
+      "adv.caution.title": "Installation setting",
+      "adv.caution.body": "{name} is part of how pypilot is installed; a wrong value can leave it without sensors. Set it to {value}?",
+      "adv.writeFailed": "pypilot did not take the change",
       "empopado.gainsNotRestored.title": "Gains not restored",
       "empopado.gainsNotRestored.body": "Empopado could not put back these gains in profile {profile}: {list}. Check them in Tune.",
       "autowind.refusedBody.manoeuvre": "A head-to-wind or dead-downwind manoeuvre is running, maybe on another screen. End it and choose AUTOWIND again.",
@@ -1686,6 +1703,23 @@
       "autowind.blocked.no-wind-data": "sin datos de viento",
       "autowind.blocked.wind-too-light": "viento flojo",
       "autowind.refused": "AUTOWIND no arrancado",
+      "adv.title": "Ajustes avanzados de pypilot",
+      "adv.hint": "Todo lo que ofrece pypilot, como en su propio cliente web, agrupado. Los valores solo se leen de los grupos que abras. Para cambiar algo marca 'Permitir cambios'; los ajustes en ámbar pueden dejar a pypilot sin sensores y piden confirmación.",
+      "adv.unlock": "Permitir cambios",
+      "adv.search.ph": "filtrar ajustes...",
+      "adv.native": "Cliente propio de pypilot (solo en la red del barco)",
+      "adv.apply": "Poner",
+      "adv.reset": "Reiniciar",
+      "adv.yes": "sí",
+      "adv.no": "no",
+      "adv.noCatalog": "Esperando la lista de ajustes de pypilot...",
+      "adv.noMatch": "Nada coincide con el filtro.",
+      "adv.outOfRange": "Fuera de rango",
+      "adv.locked.title": "Cambios no permitidos",
+      "adv.locked.body": "Marca antes 'Permitir cambios'.",
+      "adv.caution.title": "Ajuste de instalación",
+      "adv.caution.body": "{name} forma parte de cómo está instalado pypilot; un valor equivocado puede dejarlo sin sensores. ¿Ponerlo a {value}?",
+      "adv.writeFailed": "pypilot no aceptó el cambio",
       "empopado.gainsNotRestored.title": "Ganancias sin restaurar",
       "empopado.gainsNotRestored.body": "El Empopado no pudo devolver estas ganancias del perfil {profile}: {list}. Revísalas en Ajustes.",
       "autowind.refusedBody.manoeuvre": "Hay un Aproado o un Empopado en marcha, quizá en otra pantalla. Termínalo y vuelve a elegir AUTOWIND.",
@@ -2921,6 +2955,23 @@
       "autowind.blocked.no-wind-data": "keine Winddaten",
       "autowind.blocked.wind-too-light": "Wind zu schwach",
       "autowind.refused": "AUTOWIND nicht gestartet",
+      "adv.title": "Erweiterte pypilot-Einstellungen",
+      "adv.hint": "Alles, was pypilot anbietet, wie in seinem eigenen Web-Client, gruppiert. Werte werden nur für geöffnete Gruppen gelesen. Zum Ändern 'Änderungen erlauben' anhaken; gelb markierte Einstellungen können pypilot ohne Sensoren lassen und fragen vorher.",
+      "adv.unlock": "Änderungen erlauben",
+      "adv.search.ph": "Einstellungen filtern...",
+      "adv.native": "pypilots eigener Client (nur im Bordnetz)",
+      "adv.apply": "Setzen",
+      "adv.reset": "Zurücksetzen",
+      "adv.yes": "ja",
+      "adv.no": "nein",
+      "adv.noCatalog": "Warte auf pypilots Einstellungsliste...",
+      "adv.noMatch": "Nichts passt zum Filter.",
+      "adv.outOfRange": "Außerhalb des Bereichs",
+      "adv.locked.title": "Änderungen nicht erlaubt",
+      "adv.locked.body": "Zuerst 'Änderungen erlauben' anhaken.",
+      "adv.caution.title": "Installationseinstellung",
+      "adv.caution.body": "{name} gehört zur Installation von pypilot; ein falscher Wert kann es ohne Sensoren lassen. Auf {value} setzen?",
+      "adv.writeFailed": "pypilot hat die Änderung nicht übernommen",
       "empopado.gainsNotRestored.title": "Verstärkungen nicht zurückgesetzt",
       "empopado.gainsNotRestored.body": "Platt vor dem Wind konnte diese Werte im Profil {profile} nicht zurücksetzen: {list}. Bitte unter Einstellungen prüfen.",
       "autowind.refusedBody.manoeuvre": "Ein Aufschießen oder Platt-vor-dem-Wind läuft, vielleicht auf einem anderen Bildschirm. Beende es und wähle AUTOWIND erneut.",
@@ -4048,6 +4099,23 @@
       "autowind.blocked.no-wind-data": "pas de données de vent",
       "autowind.blocked.wind-too-light": "vent trop faible",
       "autowind.refused": "AUTOWIND non démarré",
+      "adv.title": "Réglages avancés de pypilot",
+      "adv.hint": "Tout ce que propose pypilot, comme dans son propre client web, par groupes. Les valeurs ne sont lues que pour les groupes ouverts. Pour modifier, cochez « Autoriser les modifications » ; les réglages en orange peuvent priver pypilot de capteurs et demandent confirmation.",
+      "adv.unlock": "Autoriser les modifications",
+      "adv.search.ph": "filtrer les réglages...",
+      "adv.native": "Client de pypilot (réseau du bateau seulement)",
+      "adv.apply": "Appliquer",
+      "adv.reset": "Réinitialiser",
+      "adv.yes": "oui",
+      "adv.no": "non",
+      "adv.noCatalog": "En attente de la liste des réglages de pypilot...",
+      "adv.noMatch": "Aucun résultat pour ce filtre.",
+      "adv.outOfRange": "Hors limites",
+      "adv.locked.title": "Modifications non autorisées",
+      "adv.locked.body": "Cochez d'abord « Autoriser les modifications ».",
+      "adv.caution.title": "Réglage d'installation",
+      "adv.caution.body": "{name} fait partie de l'installation de pypilot ; une mauvaise valeur peut le priver de capteurs. Le régler à {value} ?",
+      "adv.writeFailed": "pypilot n'a pas accepté la modification",
       "empopado.gainsNotRestored.title": "Gains non restaurés",
       "empopado.gainsNotRestored.body": "Plein vent arrière n'a pas pu rétablir ces gains du profil {profile} : {list}. Vérifiez-les dans Réglages.",
       "autowind.refusedBody.manoeuvre": "Une manœuvre face au vent ou plein vent arrière est en cours, peut-être sur un autre écran. Terminez-la et choisissez de nouveau AUTOWIND.",
@@ -15569,6 +15637,7 @@
       if (sst) sst.innerHTML = j.sshPasswordSet
         ? `<span style="color:#2ecc71">${t("setup.ssh.status.set")}</span> — <code>${j.sshUser || "tc"}@${j.host}</code>. ${t("setup.ssh.status.enabled")}`
         : `<span style="color:#f3c812">${t("setup.ssh.status.notset")}</span> ${t("setup.ssh.status.reconnectOnly")}`;
+      if (j.host) state.pypilotWebUrl = `http://${j.host}:${j.port}`;   // Rev643
       if (j.host) {
         const a = $("#link-oldui-a");
         a.href = `http://${j.host}:${j.port}/`;
@@ -18428,6 +18497,211 @@
     }
     return keys;
   }
+  // Rev643 (Carlos 2026-11-06): "pypilot advanced settings" - everything
+  // pypilot's own web client shows (pypilot_web /client), in our style,
+  // through the plugin's connection (works off the boat network too).
+  // Values are watched only for the groups the sailor opens (pypilot's
+  // author advises well under ~40 watched paths on the Pi Zero), and only
+  // while the card is open. Writes need the "allow changes" box; keys
+  // that can leave pypilot without sensors or identity ask first.
+  const _advOpen = new Set();
+  let _advTimer = null;
+  const ADV_CAUTION = /^(nmea\.|signalk\.|gps\.filtered\.|imu\.(accel|compass)\.calibration$|servo\.use_eeprom$|servo\.calibration$)/;
+  function _advKind(meta) {
+    const ty = String((meta && meta.type) || "");
+    if (/Range/.test(ty)) return "range";
+    if (/Boolean/.test(ty)) return "bool";
+    if (/Enum/.test(ty)) return "enum";
+    if (/Resettable/.test(ty)) return "reset";
+    return "read";
+  }
+  function _advGroupOf(name) { return String(name).split(".")[0]; }
+  function _advValueText(v) {
+    if (v == null) return "—";
+    if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(Math.round(v * 10000) / 10000);
+    if (typeof v === "boolean") return v ? t("adv.yes") : t("adv.no");
+    if (typeof v === "object") { try { return JSON.stringify(v); } catch { return String(v); } }
+    return String(v);
+  }
+  function _advFocusKeys() {
+    const cat = state.catalog || {};
+    return Object.keys(cat).filter((k) => _advOpen.has(_advGroupOf(k))).slice(0, 80);
+  }
+  function _advOpenNow() {
+    const b = document.querySelector('.setup-block[data-block-key="advanced"]');
+    return !!(b && b.dataset.fullscreen === "1");
+  }
+  function _advRender() {
+    const mount = document.getElementById("adv-groups");
+    if (!mount) return;
+    const cat = state.catalog || {};
+    const filter = (document.getElementById("adv-search")?.value || "").toLowerCase().trim();
+    const byGroup = new Map();
+    for (const name of Object.keys(cat).sort()) {
+      if (filter && !name.toLowerCase().includes(filter)) continue;
+      const g = _advGroupOf(name);
+      if (!byGroup.has(g)) byGroup.set(g, []);
+      byGroup.get(g).push(name);
+    }
+    mount.textContent = "";
+    if (!byGroup.size) {
+      const p = document.createElement("div");
+      p.className = "hint";
+      p.textContent = Object.keys(cat).length ? t("adv.noMatch") : t("adv.noCatalog");
+      mount.appendChild(p);
+      return;
+    }
+    for (const [g, names] of byGroup) {
+      const det = document.createElement("details");
+      det.className = "adv-group";
+      det.dataset.group = g;
+      if (_advOpen.has(g) || filter) det.open = true;
+      const sum = document.createElement("summary");
+      sum.textContent = `${g} (${names.length})`;
+      det.appendChild(sum);
+      det.addEventListener("toggle", () => {
+        if (det.open) _advOpen.add(g); else _advOpen.delete(g);
+        if (typeof _watchFocusForTab === "function") _watchFocusForTab("setup");
+        _advRefreshSoon();
+      });
+      const tbl = document.createElement("table");
+      tbl.className = "sq-table adv-table";
+      for (const name of names) tbl.appendChild(_advRow(name, cat[name]));
+      det.appendChild(tbl);
+      mount.appendChild(det);
+    }
+    _advPaintValues();
+  }
+  function _advRow(name, meta) {
+    const tr = document.createElement("tr");
+    tr.dataset.name = name;
+    const kind = _advKind(meta);
+    const tdName = document.createElement("td");
+    tdName.className = "adv-name";
+    tdName.textContent = name;
+    if (ADV_CAUTION.test(name)) tdName.classList.add("adv-caution");
+    const tdVal = document.createElement("td");
+    tdVal.className = "adv-val";
+    const tdEdit = document.createElement("td");
+    tdEdit.className = "adv-edit";
+    const units = meta && meta.units ? String(meta.units) : "";
+    if (kind === "range") {
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.step = "any";
+      if (typeof meta.min === "number") inp.min = String(meta.min);
+      if (typeof meta.max === "number") inp.max = String(meta.max);
+      inp.className = "adv-input";
+      const ok = document.createElement("button");
+      ok.type = "button";
+      ok.textContent = t("adv.apply");
+      ok.addEventListener("click", () => {
+        const v = Number(inp.value);
+        if (!Number.isFinite(v)) return;
+        if ((typeof meta.min === "number" && v < meta.min) || (typeof meta.max === "number" && v > meta.max)) {
+          _pmAlert(t("adv.outOfRange"), `${name}: ${meta.min} … ${meta.max}`);
+          return;
+        }
+        _advWrite(name, v);
+      });
+      tdEdit.append(inp, ok);
+    } else if (kind === "bool") {
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "adv-check";
+      cb.addEventListener("change", () => { _advWrite(name, cb.checked, () => { cb.checked = !cb.checked; }); });
+      tdEdit.appendChild(cb);
+    } else if (kind === "enum") {
+      const sel = document.createElement("select");
+      sel.className = "adv-select";
+      for (const c of (Array.isArray(meta.choices) ? meta.choices : [])) {
+        const o = document.createElement("option");
+        o.value = String(c);
+        o.textContent = String(c);
+        sel.appendChild(o);
+      }
+      sel.addEventListener("change", () => { _advWrite(name, sel.value, () => _advPaintValues()); });
+      tdEdit.appendChild(sel);
+    } else if (kind === "reset") {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = t("adv.reset");
+      b.addEventListener("click", () => _advWrite(name, 0));
+      tdEdit.appendChild(b);
+    }
+    const tdUnits = document.createElement("td");
+    tdUnits.className = "adv-units";
+    tdUnits.textContent = units;
+    tr.append(tdName, tdVal, tdEdit, tdUnits);
+    return tr;
+  }
+  async function _advWrite(name, value, undo) {
+    const unlocked = !!document.getElementById("adv-unlock")?.checked;
+    if (!unlocked) {
+      _pmAlert(t("adv.locked.title"), t("adv.locked.body"));
+      if (undo) undo();
+      return;
+    }
+    if (ADV_CAUTION.test(name)) {
+      const ok = await _pmConfirm(t("adv.caution.title"), t("adv.caution.body").replace("{name}", name).replace("{value}", _advValueText(value)));
+      if (!ok) { if (undo) undo(); return; }
+    }
+    const resp = await pluginRaw(name, value);
+    if (resp && resp.ok === false) {
+      _pmAlert(t("adv.writeFailed"), `${name}${resp.status ? ` (${resp.status})` : ""}`);
+      if (undo) undo();
+    }
+    _advRefreshSoon();
+  }
+  function _advPaintValues() {
+    const vals = state.pypilotValues || {};
+    const cat = state.catalog || {};
+    document.querySelectorAll("#adv-groups tr[data-name]").forEach((tr) => {
+      const name = tr.dataset.name;
+      const v = vals[name];
+      const kind = _advKind(cat[name]);
+      const vc = tr.querySelector(".adv-val");
+      if (vc) vc.textContent = _advValueText(v);
+      if (v === undefined) return;
+      const active = document.activeElement;
+      if (kind === "range") {
+        const inp = tr.querySelector(".adv-input");
+        if (inp && inp !== active && typeof v === "number") inp.value = String(v);
+      } else if (kind === "bool") {
+        const cb = tr.querySelector(".adv-check");
+        if (cb && cb !== active) cb.checked = !!v;
+      } else if (kind === "enum") {
+        const sel = tr.querySelector(".adv-select");
+        if (sel && sel !== active) sel.value = String(v);
+      }
+    });
+  }
+  let _advSoon = null;
+  function _advRefreshSoon() {
+    if (_advSoon) clearTimeout(_advSoon);
+    _advSoon = setTimeout(async () => {
+      _advSoon = null;
+      try { await refreshPypilotValues(); } catch { /* silent */ }
+      _advPaintValues();
+    }, 800);
+  }
+  // Called when the Setup card opens or closes (see _setupFullscreenOn/Off).
+  function _advOnOpenChange() {
+    if (_advTimer) { clearInterval(_advTimer); _advTimer = null; }
+    if (!_advOpenNow()) return;
+    const native = document.getElementById("adv-native");
+    if (native && state.pypilotWebUrl) { native.href = `${state.pypilotWebUrl}/client`; native.hidden = false; }
+    _advRender();
+    _advRefreshSoon();
+    _advTimer = setInterval(async () => {
+      if (!_advOpenNow()) { clearInterval(_advTimer); _advTimer = null; return; }
+      try { await refreshPypilotValues(); } catch { /* silent */ }
+      _advPaintValues();
+    }, 2000);
+  }
+  try {
+    document.addEventListener("input", (e) => { if (e.target && e.target.id === "adv-search") _advRender(); });
+  } catch { /* silent */ }
   function _setupFocusKeys() {
     // Rev149 (Carlos, per Sean D'Epagnier): the launcher grid alone
     // (no card fullscreen) needs NO focus - the tile chips read
@@ -18450,6 +18724,8 @@
       ];
       for (const k of DOCUMENTED) if (cat[k]) keys.push(k);
     }
+    // Rev643: the advanced-settings card asks for the groups that are open.
+    if (blockKey === "advanced") keys.push(..._advFocusKeys());
     // Doctor / Sensor Quality / Paths / Language / Emergency / Connection
     // do not depend on any pypilot value the core set doesn't already
     // subscribe to. Adding them here would just re-inflate the count.
@@ -18467,6 +18743,8 @@
       } else if (_focusCurrentTab === "setup") {
         keys = _setupFocusKeys();
         period = 1.0;
+        // Rev643: up to 80 settings at once - every 2 s is plenty to read them.
+        if (document.querySelector('.setup-block[data-fullscreen="1"][data-block-key="advanced"]')) period = 2.0;
       }
       // Rev149 (Carlos, per Sean D'Epagnier): if this tab / card
       // combination needs no focus, actively release whatever the
@@ -22765,6 +23043,7 @@
     // fullscreen block is known, so the relevant card's paths get
     // bumped immediately instead of waiting for the 45 s heartbeat.
     if (typeof _watchFocusForTab === "function") _watchFocusForTab("setup");
+    try { _advOnOpenChange(); } catch { /* silent */ }
   }
   function _setupFullscreenOff(block) {
     if (!block) {
@@ -22790,6 +23069,7 @@
     // the previously bumped subscriptions drop back to the core set
     // immediately rather than after the 60 s TTL.
     if (typeof _watchFocusForTab === "function") _watchFocusForTab("setup");
+    try { _advOnOpenChange(); } catch { /* silent */ }
   }
   function initSetupTiles() {
     const setup = document.getElementById("tab-setup");

@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev642" />
+  <link rel="stylesheet" href="style.css?v=Rev643" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2057,6 +2057,17 @@
            DOM (id="tab-paths") lives further up in the document; on boot
            app.js relocates it into this mount so the user still sees it,
            without duplicating the markup. -->
+      <!-- Rev643 (Carlos 2026-11-06): everything pypilot's own web client shows, in our style. -->
+      <div class="setup-block" data-setup-order="165" data-block-key="advanced">
+        <div class="section-title" data-i18n="adv.title">pypilot advanced settings</div>
+        <div class="hint" data-i18n="adv.hint">Everything pypilot exposes, as in its own web client, grouped.</div>
+        <div class="row adv-bar">
+          <label class="adv-unlock-label"><input type="checkbox" id="adv-unlock" /> <span data-i18n="adv.unlock">Allow changes</span></label>
+          <input type="search" id="adv-search" data-i18n-placeholder="adv.search.ph" placeholder="filter settings..." />
+          <a id="adv-native" target="_blank" rel="noopener" hidden data-i18n="adv.native">pypilot's own client (boat network only)</a>
+        </div>
+        <div id="adv-groups"></div>
+      </div>
       <div class="setup-block" data-setup-order="170" data-block-key="paths">
         <div class="section-title" data-i18n="setup.paths.title">Paths &amp; API</div>
         <div class="setup-block-status" id="setup-status-paths"></div>
@@ -2813,6 +2824,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev642"></script>
+  <script src="app.js?v=Rev643"></script>
 </body>
 </html>

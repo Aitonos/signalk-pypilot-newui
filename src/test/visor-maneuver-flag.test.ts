@@ -293,3 +293,32 @@ describe("AP off from the visor that runs the manoeuvre (Rev637)", () => {
     assert.doesNotMatch(body, /if \(wasEngaged !== state\.engaged\) _endLocalManeuverIfLeft\(\)/);
   });
 });
+
+describe("pypilot advanced settings card (Rev643)", () => {
+  const ctx: any = { console };
+  vm.createContext(ctx);
+  vm.runInContext([fnSource("_advKind"), fnSource("_advGroupOf")].join("\n"), ctx);
+
+  it("picks an editor from pypilot's own value types", () => {
+    assert.equal(ctx._advKind({ type: "RangeSetting" }), "range");
+    assert.equal(ctx._advKind({ type: "RangeProperty" }), "range");
+    assert.equal(ctx._advKind({ type: "BooleanProperty" }), "bool");
+    assert.equal(ctx._advKind({ type: "EnumProperty" }), "enum");
+    assert.equal(ctx._advKind({ type: "ResettableValue" }), "reset");
+    assert.equal(ctx._advKind({ type: "SensorValue" }), "read");
+    assert.equal(ctx._advKind(undefined), "read");
+  });
+
+  it("groups by the first part of the name", () => {
+    assert.equal(ctx._advGroupOf("servo.max_current"), "servo");
+    assert.equal(ctx._advGroupOf("profile"), "profile");
+  });
+
+  it("asks before installation settings", () => {
+    const src = APP.slice(APP.indexOf("const ADV_CAUTION ="), APP.indexOf("function _advKind"));
+    const re = new Function(src.replace("const ADV_CAUTION =", "return") )();
+    assert.ok(re.test("nmea.client"));
+    assert.ok(re.test("signalk.uid"));
+    assert.ok(!re.test("servo.max_current"));
+  });
+});
