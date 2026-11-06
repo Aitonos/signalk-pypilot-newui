@@ -31,19 +31,20 @@ export class ManeuverGate {
 
   constructor(private readonly ttlMs = MANEUVER_GATE_TTL_MS) {}
 
-  /** Applies one visor message: {active: true|false, id?}. */
-  update(active: unknown, id: unknown, nowMs: number): void {
+  /** Applies one visor message: {active: true|false, id?}. Returns
+   *  "ended" when a renewal names a manoeuvre that was ended (by its
+   *  visor, a hand-over from another screen or reconcile): that visor must
+   *  end it too. */
+  update(active: unknown, id: unknown, nowMs: number): "ok" | "ended" {
     this.sweep(nowMs);
-    // Rev639 (GPT re-audit of Rev638 C7): {active:false, id:"*"} = a sailor
-    // chose a mode on any screen: every running manoeuvre ends (explicit
-    // hand-over, even when the new choice keeps the same wind mode).
-    if (active === false && id === "*") {
-      for (const key of [...this.until.keys()]) this.end(key, nowMs);
-      return;
-    }
     const key = typeof id === "string" && id ? id.slice(0, 64) : LEGACY;
     if (active === true) {
-      if (this.ended.has(key)) return;
+      if (this.ended.has(key)) {
+        // Rev641 (GPT re-audit of Rev640 #3): while its visor keeps renewing
+        // an ended id, it stays ended - the TTL no longer lets it back in.
+        this.ended.set(key, nowMs + this.ttlMs);
+        return "ended";
+      }
       if (!this.until.has(key)) this.startedAt.set(key, nowMs);
       this.until.delete(key);
       this.until.set(key, nowMs + this.ttlMs);
@@ -52,6 +53,24 @@ export class ManeuverGate {
     } else if (active === false) {
       this.end(key, nowMs);
     }
+    return "ok";
+  }
+
+  /** Rev641 (GPT re-audit of Rev640 #3/#4): a hand-over ends exactly the
+   *  manoeuvres the other screen saw, by id - a late hand-over never ends
+   *  one that started after it. */
+  endIds(ids: unknown, nowMs: number): void {
+    this.sweep(nowMs);
+    if (!Array.isArray(ids)) return;
+    for (const id of ids.slice(0, MANEUVER_GATE_MAX)) {
+      if (typeof id === "string" && id && id !== LEGACY) this.end(id.slice(0, 64), nowMs);
+    }
+  }
+
+  /** The running manoeuvre ids (for the visors' hand-over). */
+  ids(nowMs: number): string[] {
+    this.sweep(nowMs);
+    return [...this.until.keys()].filter((k) => k !== LEGACY);
   }
 
   /** Rev638: ends Aproado / Empopado entries pypilot is no longer doing.

@@ -144,6 +144,7 @@ function loadHotGains() {
       return new Promise<any>((r) => pending.push({ resolve: () => r({ ok: true }) }));
     },
     _empopadoSetHotBadge: () => {},
+    _empopadoKeepPendingGains: (profile: any, gains: any) => { ctx.kept = { profile, gains: { ...gains } }; },
     console: { info: () => {}, warn: () => {} },
   };
   vm.createContext(ctx);
@@ -184,6 +185,8 @@ describe("Empopado temporary gains (Rev633)", () => {
     await h.ctx._empopadoRestoreHotGains(ap);
     assert.deepEqual({ ...ap._hotGainSnapshot }, { "ap.pilot.basic.D": 0.2 });
     assert.equal(badge, "failed");
+    // Rev641: and it outlives the manoeuvre's window
+    assert.deepEqual(h.ctx.kept, { profile: "HEAVY", gains: { "ap.pilot.basic.D": 0.2 } });
   });
 
   it("an old gain is never written into a profile chosen meanwhile", async () => {

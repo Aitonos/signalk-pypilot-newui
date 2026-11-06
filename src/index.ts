@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev640";
+const PLUGIN_REVISION = "Rev641";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -622,14 +622,20 @@ module.exports = function (app: any) {
   // steering.autopilot.maneuver: "aproado" | "empopado" | "manoeuvre" | null).
   let _maneuverKindSent: string | null | undefined;
   const _publishManeuverKind = (): void => {
-    const k = maneuverGate.kind(Date.now());
-    if (k === _maneuverKindSent) return;
-    _maneuverKindSent = k;
+    const now = Date.now();
+    const k = maneuverGate.kind(now);
+    // Rev641: the ids too, so a hand-over from another screen ends exactly
+    // those (GPT re-audit of Rev640 #3/#4).
+    const ids = maneuverGate.ids(now);
+    const sig = `${k}|${ids.join(",")}`;
+    if (sig === _maneuverKindSent) return;
+    _maneuverKindSent = sig;
     try {
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
         updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [
           { path: "steering.autopilot.maneuver", value: k },
+          { path: "steering.autopilot.maneuverIds", value: ids },
         ] }],
       });
     } catch { /* silent */ }
@@ -2929,6 +2935,8 @@ module.exports = function (app: any) {
             const usable = twa != null && tws != null && tws >= AUTOWIND_MIN_TWS_KN;
             const sub = usable ? autowind.initial(twa, props.autowindThresholdDeg) : "wind";
             const modeBefore = apProvider ? String(apProvider.data.mode || "").toLowerCase() : "";
+            // Rev641: the target intent at switch-on; any later order wins.
+            const targetGenAtStart = apProvider ? apProvider.targetGeneration() : -1;
             await _autowindApply(sub, usable ? "AUTOWIND on" : "AUTOWIND on (no usable true wind: apparent)", true);
             // Rev635/636 (Carlos QA 2026-11-06 16:42 and 16:58): AUTOWIND
             // starts on the wind angle the boat has NOW. Without this the
@@ -2937,7 +2945,7 @@ module.exports = function (app: any) {
             // keeps the heading ERROR it had (61 deg off stayed 61 deg off),
             // it does not re-centre on the wind.
             if (apProvider && apProvider.data.engaged && props.autowindEnabled) {
-              await _autowindHoldCurrentAngle(sub, modeBefore !== sub);
+              await _autowindHoldCurrentAngle(sub, modeBefore !== sub, targetGenAtStart);
             }
           }
         }
@@ -3511,9 +3519,11 @@ module.exports = function (app: any) {
       });
       router.post("/maneuver-state", (req: any, res: any) => {
         const body = req.body || {};
-        maneuverGate.update(body.active, body.id, Date.now());
+        let ended = false;
+        if (body.active === false && Array.isArray(body.ids)) maneuverGate.endIds(body.ids, Date.now());
+        else ended = maneuverGate.update(body.active, body.id, Date.now()) === "ended";
         _publishManeuverKind();
-        res.json({ ok: true, pseudoActive: _pseudoActive() });
+        res.json({ ok: true, pseudoActive: _pseudoActive(), ended });
       });
       const validKinds: ManeuverEventKind[] = [
         "aproado_start", "aproado_pick", "aproado_teardown",
@@ -5106,40 +5116,43 @@ module.exports = function (app: any) {
     try {
       const tree = app.getSelfPath ? app.getSelfPath("notifications.security.accessRequest") : null;
       let pending = false;
-      const walk = (o: any, depth: number): void => {
+      // Rev641 (GPT re-audit of Rev640): the request's own key first (Signal
+      // K files it under the client id, "pypilot-<n>"), the text as a
+      // fallback.
+      const walk = (o: any, key: string, depth: number): void => {
         if (!o || typeof o !== "object" || depth > 4 || pending) return;
         const v = o.value;
         if (v && typeof v === "object" && typeof v.state === "string") {
-          if (v.state !== "normal" && /"pypilot"/i.test(String(v.message || ""))) pending = true;
+          const fromPypilot = /^pypilot-/i.test(key) || /"pypilot"/i.test(String(v.message || ""));
+          if (v.state !== "normal" && fromPypilot) pending = true;
           return;
         }
-        for (const k of Object.keys(o)) walk(o[k], depth + 1);
+        for (const k of Object.keys(o)) walk(o[k], k, depth + 1);
       };
-      walk(tree, 0);
+      walk(tree, "", 0);
       return pending;
     } catch { return false; }
   }
   // Rev636: target = the current wind angle in the mode AUTOWIND starts in.
-  // After a mode change pypilot rewrites heading_command in its own loop
-  // (same race as the tack cancel, Rev515): wait 400 ms, write, check at
-  // 1.2 s, rewrite once.
-  // Rev639 (GPT re-audit of Rev638, C1-C3):
-  //  - every write and retry stops once AUTOWIND is off or overridden (C2);
-  //  - the check reads what pypilot REPORTS (client cache), not the
-  //    provider's optimistic target (C3);
-  //  - a target ordered by anyone else meanwhile wins: the rewrite happens
-  //    only when pypilot put back the value it had before ours (C1).
-  async function _autowindHoldCurrentAngle(sub: WindSubMode, modeChanged: boolean): Promise<void> {
+  // Rev639 (GPT re-audit of Rev638, C1-C3): writes stop once AUTOWIND is off
+  // or overridden; the check reads what pypilot REPORTS.
+  // Rev641 (GPT re-audit of Rev640 #1/#2): the intent is taken when AUTOWIND
+  // is switched on (`targetGenAtStart`): any target order after that, even
+  // during the mode wait, wins and nothing is written. One write only - when
+  // pypilot then reports another value we cannot tell a sailor's order from
+  // pypilot's own, so it is left as it is and said (lastError), never
+  // rewritten. A missing report is "not confirmed", never 0.
+  async function _autowindHoldCurrentAngle(sub: WindSubMode, modeChanged: boolean, targetGenAtStart: number): Promise<void> {
     if (!apProvider || !client) return;
     const op = _autowindOp;
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    const noNewerOrder = () => !!apProvider && apProvider.targetGeneration() === targetGenAtStart;
     const wanted = () => op === _autowindOp && !!props.autowindEnabled && !!apProvider && !!apProvider.data.engaged
-      && String(apProvider.data.mode || "").toLowerCase() === sub;
+      && String(apProvider.data.mode || "").toLowerCase() === sub && noNewerOrder();
     const reportedDeg = (): number | null => {
-      const v = Number(client ? client.getValues()["ap.heading_command"] : NaN);
-      return Number.isFinite(v) ? v : null;
+      const v = client ? client.getValues()["ap.heading_command"] : undefined;
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
     };
-    const near = (a: number | null, b: number) => a != null && Math.abs(((a - b) % 360 + 540) % 360 - 180) < 5;
     if (modeChanged) await sleep(400);
     if (!wanted()) return;
     // SK angles are radians; TWA from the same fresh sources AUTOWIND decides on.
@@ -5148,27 +5161,19 @@ module.exports = function (app: any) {
       : _autowindFresh(["environment.wind.angleApparent"]);
     if (nowRad == null) { _autowindFail("no fresh wind angle to hold: target left as it was"); return; }
     const wantDeg = nowRad * 180 / Math.PI;
-    const before = reportedDeg();
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try { await apProvider.setTargetIfWanted(nowRad, wanted); }
-      catch (e: any) { if (wanted()) _autowindFail(`hold the current wind angle: ${e?.message || e}`); return; }
-      const gen = apProvider.targetGeneration();
-      // eslint-disable-next-line no-console
-      console.log(`[autowind] target = current ${sub === "true wind" ? "TWA" : "AWA"} ${wantDeg.toFixed(0)} deg`);
-      await sleep(1200);
-      if (!wanted()) return;
-      if (apProvider.targetGeneration() !== gen) return;      // a newer target order: it wins
-      const now = reportedDeg();
-      if (near(now, wantDeg)) return;                        // pypilot reports ours: done
-      if (!(before != null && near(now, before))) {
-        // Neither ours nor what was there: someone set it on pypilot directly.
-        // eslint-disable-next-line no-console
-        console.log(`[autowind] target now ${now == null ? "?" : now.toFixed(0)} deg, set elsewhere: left as is`);
-        return;
-      }
-      // pypilot put its own value back over ours: once more.
-    }
-    _autowindFail(`target ${wantDeg.toFixed(0)} deg not confirmed by pypilot`);
+    try { await apProvider.setTargetIfWanted(nowRad, wanted); }
+    catch (e: any) { if (op === _autowindOp && props.autowindEnabled) _autowindFail(`hold the current wind angle: ${e?.message || e}`); return; }
+    const ourGen = apProvider.targetGeneration();
+    // eslint-disable-next-line no-console
+    console.log(`[autowind] target = current ${sub === "true wind" ? "TWA" : "AWA"} ${wantDeg.toFixed(0)} deg`);
+    await sleep(1200);
+    if (op !== _autowindOp || !props.autowindEnabled) return;
+    if (apProvider.targetGeneration() !== ourGen) return;      // a newer target order: it wins
+    const now = reportedDeg();
+    if (now != null && Math.abs(((now - wantDeg) % 360 + 540) % 360 - 180) < 2) return;   // confirmed
+    _autowindFail(now == null
+      ? `target ${wantDeg.toFixed(0)} deg not confirmed by pypilot`
+      : `target ${wantDeg.toFixed(0)} deg not kept: pypilot reports ${now.toFixed(0)} deg - left as it is`);
   }
   // Rev633: why AUTOWIND must not switch now (tack or visor manoeuvre), or null.
   function _autowindBusyReason(): string | null {

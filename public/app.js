@@ -534,6 +534,8 @@
       "autowind.blocked.no-wind-data": "no wind data",
       "autowind.blocked.wind-too-light": "wind too light",
       "autowind.refused": "AUTOWIND not started",
+      "empopado.gainsNotRestored.title": "Gains not restored",
+      "empopado.gainsNotRestored.body": "Empopado could not put back these gains in profile {profile}: {list}. Check them in Tune.",
       "autowind.refusedBody.manoeuvre": "A head-to-wind or dead-downwind manoeuvre is running, maybe on another screen. End it and choose AUTOWIND again.",
       "autowind.refusedBody.tack": "A tack is in progress. When it is done, choose AUTOWIND again.",
       "mode.label.nav":       "NAV (ROUTE)",
@@ -1684,6 +1686,8 @@
       "autowind.blocked.no-wind-data": "sin datos de viento",
       "autowind.blocked.wind-too-light": "viento flojo",
       "autowind.refused": "AUTOWIND no arrancado",
+      "empopado.gainsNotRestored.title": "Ganancias sin restaurar",
+      "empopado.gainsNotRestored.body": "El Empopado no pudo devolver estas ganancias del perfil {profile}: {list}. Revísalas en Ajustes.",
       "autowind.refusedBody.manoeuvre": "Hay un Aproado o un Empopado en marcha, quizá en otra pantalla. Termínalo y vuelve a elegir AUTOWIND.",
       "autowind.refusedBody.tack": "Hay una virada en curso. Cuando termine, vuelve a elegir AUTOWIND.",
       "mode.label.nav":       "NAV (RUTA)",
@@ -2917,6 +2921,8 @@
       "autowind.blocked.no-wind-data": "keine Winddaten",
       "autowind.blocked.wind-too-light": "Wind zu schwach",
       "autowind.refused": "AUTOWIND nicht gestartet",
+      "empopado.gainsNotRestored.title": "Verstärkungen nicht zurückgesetzt",
+      "empopado.gainsNotRestored.body": "Platt vor dem Wind konnte diese Werte im Profil {profile} nicht zurücksetzen: {list}. Bitte unter Einstellungen prüfen.",
       "autowind.refusedBody.manoeuvre": "Ein Aufschießen oder Platt-vor-dem-Wind läuft, vielleicht auf einem anderen Bildschirm. Beende es und wähle AUTOWIND erneut.",
       "autowind.refusedBody.tack": "Eine Wende läuft. Wenn sie fertig ist, wähle AUTOWIND erneut.",
       "mode.label.empopado": "PLATT VOR DEM WIND",
@@ -4042,6 +4048,8 @@
       "autowind.blocked.no-wind-data": "pas de données de vent",
       "autowind.blocked.wind-too-light": "vent trop faible",
       "autowind.refused": "AUTOWIND non démarré",
+      "empopado.gainsNotRestored.title": "Gains non restaurés",
+      "empopado.gainsNotRestored.body": "Plein vent arrière n'a pas pu rétablir ces gains du profil {profile} : {list}. Vérifiez-les dans Réglages.",
       "autowind.refusedBody.manoeuvre": "Une manœuvre face au vent ou plein vent arrière est en cours, peut-être sur un autre écran. Terminez-la et choisissez de nouveau AUTOWIND.",
       "autowind.refusedBody.tack": "Un virement est en cours. Quand il est terminé, choisissez de nouveau AUTOWIND.",
       "mode.label.empopado": "PLEIN VENT ARRIÈRE",
@@ -5165,6 +5173,7 @@
       "steering.autopilot.autowind",
       "steering.autopilot.route",   // Rev545
       "steering.autopilot.maneuver", // Rev634: manoeuvre run by any visor
+      "steering.autopilot.maneuverIds", // Rev641: their ids, for a hand-over
       "steering.autopilot.pypilot.ap.tack.state",
       "steering.autopilot.pypilot.ap.tack.direction",
       "steering.autopilot.pypilot.ap.mode",
@@ -5401,6 +5410,10 @@
         // Rev545: route follower status + spoken events.
         state.route = (value && typeof value === "object") ? value : null;
         try { _routeOnUpdate(); } catch { /* silent */ }
+        break;
+      }
+      case "steering.autopilot.maneuverIds": {
+        state.remoteManeuverIds = Array.isArray(value) ? value.filter((x) => typeof x === "string") : [];
         break;
       }
       case "steering.autopilot.maneuver": {
@@ -12373,7 +12386,26 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !!active, id }),
+      }).then(async (r) => {
+        // Rev641 (GPT re-audit of Rev640 #3): the backend says this
+        // manoeuvre was ended (hand-over from another screen, or pypilot
+        // left it): end it here too.
+        if (!active || !r || !r.ok) return;
+        const j = await r.json().catch(() => null);
+        if (!j || j.ended !== true) return;
+        for (const [man, own] of [[state.empopado, "true wind"], [state.aproado, "wind"]]) {
+          if (man && man.id === id) _endManeuverHere(man, own);
+        }
       }).catch(() => { /* silent - alarm gate is best-effort */ });
+    } catch { /* silent */ }
+  }
+  function _postManeuverHandOver(ids) {
+    try {
+      skFetch(`/plugins/${PLUGIN_ID}/maneuver-state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: false, ids }),
+      }).catch(() => { /* silent */ });
     } catch { /* silent */ }
   }
   // Rev465 → Rev466 (Carlos safety audit 2026-10-12): belt-and-suspenders
@@ -13050,6 +13082,41 @@
       _empopadoSetHotBadge(anyFailed ? "failed" : "on");
     }
   }
+  // Rev641 (GPT re-audit of Rev640 #6): gains Empopado raised and could not
+  // put back. Retried every 15 s while the profile is still the one they
+  // belong to, 4 times; then the sailor is told which ones to check.
+  let _empopadoPendingGains = null;   // { profile, gains: {path: value}, tries, timer }
+  function _empopadoKeepPendingGains(profile, gains) {
+    if (_empopadoPendingGains && _empopadoPendingGains.timer) clearInterval(_empopadoPendingGains.timer);
+    const p = { profile, gains: { ...gains }, tries: 0, timer: null };
+    p.timer = setInterval(() => { _empopadoRetryPendingGains(p).catch(() => { /* silent */ }); }, 15000);
+    _empopadoPendingGains = p;
+  }
+  async function _empopadoRetryPendingGains(p) {
+    if (_empopadoPendingGains !== p || p.busy) return;
+    p.busy = true;
+    try {
+      if (p.profile === undefined || state.profile === p.profile) {
+        for (const [path, val] of Object.entries(p.gains)) {
+          if (p.profile !== undefined && state.profile !== p.profile) break;
+          try {
+            const resp = await pluginRaw(path, val);
+            if (!(resp && resp.ok === false)) { delete p.gains[path]; console.info(`empopado: pending gain ${path} restored → ${val.toFixed(3)}`); }
+          } catch { /* next try */ }
+        }
+      }
+      p.tries++;
+      const left = Object.keys(p.gains);
+      if (!left.length || p.tries >= 4) {
+        clearInterval(p.timer);
+        _empopadoPendingGains = null;
+        if (left.length) {
+          const list = left.map((k) => `${k} = ${Number(p.gains[k]).toFixed(3)}`).join(", ");
+          _pmAlert(t("empopado.gainsNotRestored.title"), t("empopado.gainsNotRestored.body").replace("{profile}", String(p.profile || "")).replace("{list}", list));
+        }
+      }
+    } finally { p.busy = false; }
+  }
   async function _empopadoRestoreHotGains(ap) {
     const snap = ap && ap._hotGainSnapshot;
     if (!snap) {
@@ -13077,6 +13144,9 @@
     const left = Object.keys(snap).length;
     ap._hotGainSnapshot = left ? snap : null;
     _empopadoSetHotBadge(left ? "failed" : null);
+    // Rev641 (GPT re-audit of Rev640 #6): what failed outlives the
+    // manoeuvre's window - kept here and retried on the same profile.
+    if (left) _empopadoKeepPendingGains(ap._hotGainProfile, snap);
   }
   function _empopadoPickReactiveProfile() {
     const list = Array.isArray(state.profiles) ? state.profiles : [];
@@ -14118,7 +14188,16 @@
       // Rev639 (GPT re-audit of Rev638 C7): a manoeuvre run from ANOTHER
       // screen ends too - choosing a mode here is taking over, even when
       // the new choice keeps pypilot in the same wind mode.
-      if (!state.empopado && !state.aproado && state.remoteManeuver) _postManeuverPseudo(false, "*");
+      // Rev641 (GPT re-audit of Rev640 #3/#4/#5): it ends exactly the ids
+      // this screen saw (a late hand-over never ends a newer manoeuvre),
+      // and only once the choice is really made (NAV asks first).
+      const seenIds = Array.isArray(state.remoteManeuverIds) ? state.remoteManeuverIds.slice() : [];
+      const handOver = () => {
+        if (!state.empopado && !state.aproado && seenIds.length) _postManeuverHandOver(seenIds);
+      };
+      const navAsks = chosen === "nav" && state.engaged && state.route && typeof state.route.legBearingDeg === "number" && typeof state.heading === "number"
+        && Math.abs((((state.route.legBearingDeg - state.heading * RAD2DEG) % 360) + 540) % 360 - 180) > 60;
+      if (!navAsks) handOver();
       // Rev633 (Gemini 2.1): the manoeuvre left pypilot on its extreme
       // target (AWA 0 / TWA 180). Going on in a wind mode (AUTOWIND
       // included) holds the wind angle the boat has NOW instead.
@@ -14144,7 +14223,7 @@
         if (turn > 60) {
           (async () => {
             const ok = await _pmConfirm(t("route.bigTurnQ").replace("{deg}", String(Math.round(turn))), t("route.bigTurnBody"));
-            if (ok) apSetMode("nav");
+            if (ok && selGen === _modeSelectGen) { handOver(); apSetMode("nav"); }
             else setSelect("#mode-select", state.mode || "");
           })();
           return;

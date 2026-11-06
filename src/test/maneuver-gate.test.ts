@@ -116,14 +116,32 @@ describe("ManeuverGate.reconcile (Rev638)", () => {
 });
 
 describe("ManeuverGate hand-over and memory (Rev639)", () => {
-  it("'*' ends every running manoeuvre (a mode chosen on another screen)", () => {
+  it("a hand-over ends the ids the other screen saw (Rev641)", () => {
     const g = new ManeuverGate(180_000);
     g.update(true, "apr-1", 0);
     g.update(true, "emp-2", 0);
-    g.update(false, "*", 1000);
+    assert.deepEqual(g.ids(0).sort(), ["apr-1", "emp-2"]);
+    g.endIds(["apr-1", "emp-2"], 1000);
     assert.equal(g.active(1000), false);
-    g.update(true, "apr-1", 2000);       // its late renewal cannot reopen it
+    assert.equal(g.update(true, "apr-1", 2000), "ended", "its owner learns it was ended");
     assert.equal(g.active(2000), false);
+  });
+
+  it("Rev641 (GPT #3): an owner that keeps renewing an ended id never brings it back", () => {
+    const g = new ManeuverGate(180_000);
+    g.update(true, "apr-1", 0);
+    g.endIds(["apr-1"], 1000);
+    for (let t = 20_000; t <= 400_000; t += 20_000) g.update(true, "apr-1", t);
+    assert.equal(g.active(400_000), false);
+  });
+
+  it("Rev641 (GPT #4): a late hand-over does not end a manoeuvre started after it", () => {
+    const g = new ManeuverGate(180_000);
+    g.update(true, "apr-1", 0);
+    g.update(false, "apr-1", 1000);       // A closed by its own visor
+    g.update(true, "emp-2", 2000);        // B starts
+    g.endIds(["apr-1"], 3000);            // the old hand-over arrives late
+    assert.equal(g.kind(3000), "empopado");
   });
 
   it("evicted and expired entries leave nothing behind", () => {
