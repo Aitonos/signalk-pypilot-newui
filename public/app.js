@@ -329,6 +329,8 @@
       "alarm.rule.sensor-lost.label":          "Sensor lost",
       "alarm.rule.sensor-lost.msg":            "Sensor lost: {list}",
       "alarm.rule.pypilot-disconnected.label": "Pypilot disconnected",
+      "alarm.rule.pypilot-sk-access.label": "pypilot asks for Signal K access",
+      "alarm.rule.pypilot-sk-access.msg": "pypilot is asking for access to Signal K: approve it in Security, Access Requests",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
       // Setup tab
@@ -1478,6 +1480,8 @@
       "alarm.rule.sensor-lost.label":          "Sensor perdido",
       "alarm.rule.sensor-lost.msg":            "Sensor perdido: {list}",
       "alarm.rule.pypilot-disconnected.label": "Pypilot desconectado",
+      "alarm.rule.pypilot-sk-access.label": "pypilot pide acceso a Signal K",
+      "alarm.rule.pypilot-sk-access.msg": "pypilot pide acceso a Signal K: apruébalo en Seguridad, Solicitudes de acceso",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
       // Setup tab
@@ -2521,6 +2525,8 @@
       "alarm.rule.sensor-lost.label":          "Sensor verloren",
       "alarm.rule.sensor-lost.msg":            "Sensor verloren: {list}",
       "alarm.rule.pypilot-disconnected.label": "pypilot getrennt",
+      "alarm.rule.pypilot-sk-access.label": "pypilot bittet um Signal-K-Zugang",
+      "alarm.rule.pypilot-sk-access.msg": "pypilot bittet um Zugang zu Signal K: in Sicherheit, Zugriffsanfragen freigeben",
       "alarm.rule.pypilot-disconnected.msg":   "pypilot_web {sec}s getrennt",
       "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
       "doctor.summary.notedOnly":  "{issues} Punkt(e) notiert (keine Gain-Änderung vorgeschlagen).",
@@ -3644,6 +3650,8 @@
       "alarm.rule.sensor-lost.label":          "Capteur perdu",
       "alarm.rule.sensor-lost.msg":            "Capteur perdu : {list}",
       "alarm.rule.pypilot-disconnected.label": "pypilot déconnecté",
+      "alarm.rule.pypilot-sk-access.label": "pypilot demande l'accès à Signal K",
+      "alarm.rule.pypilot-sk-access.msg": "pypilot demande l'accès à Signal K : approuvez-le dans Sécurité, Demandes d'accès",
       "alarm.rule.pypilot-disconnected.msg":   "pypilot_web déconnecté depuis {sec}s",
       "doctor.summary.clean":      "Aucun problème majeur. Les gains semblent sains.",
       "doctor.summary.notedOnly":  "{issues} point(s) noté(s) (aucun changement de gain suggéré).",

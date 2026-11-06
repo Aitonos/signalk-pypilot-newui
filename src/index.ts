@@ -83,7 +83,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev639";
+const PLUGIN_REVISION = "Rev640";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -5098,6 +5098,27 @@ module.exports = function (app: any) {
   // (its outcome feeds the decider's gap / retry). An operation number:
   // turning AUTOWIND off, or a newer apply, makes an apply still waiting on
   // pypilot stop there - no profile, no "switched" afterwards.
+  // Rev640: a Signal K access request from the device "pypilot" not yet
+  // approved. Signal K publishes each request under
+  // notifications.security.accessRequest.<permission>.<clientId> and sets
+  // it back to "normal" once approved or denied.
+  function _pypilotAccessPending(): boolean {
+    try {
+      const tree = app.getSelfPath ? app.getSelfPath("notifications.security.accessRequest") : null;
+      let pending = false;
+      const walk = (o: any, depth: number): void => {
+        if (!o || typeof o !== "object" || depth > 4 || pending) return;
+        const v = o.value;
+        if (v && typeof v === "object" && typeof v.state === "string") {
+          if (v.state !== "normal" && /"pypilot"/i.test(String(v.message || ""))) pending = true;
+          return;
+        }
+        for (const k of Object.keys(o)) walk(o[k], depth + 1);
+      };
+      walk(tree, 0);
+      return pending;
+    } catch { return false; }
+  }
   // Rev636: target = the current wind angle in the mode AUTOWIND starts in.
   // After a mode change pypilot rewrites heading_command in its own loop
   // (same race as the tack cancel, Rev515): wait 400 ms, write, check at
@@ -5810,6 +5831,7 @@ module.exports = function (app: any) {
       disconnectedSinceMs = null;
     }
     const ctx = {
+      pypilotAccessPending: _pypilotAccessPending(),
       sample,
       kpis: kpis ? kpis.snapshot() : null,
       quality: sensorQuality ? sensorQuality.snapshot() : null,

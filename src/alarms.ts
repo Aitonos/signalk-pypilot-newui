@@ -61,6 +61,9 @@ export interface EvalContext {
   // (src/steer-watch.ts). Feeds steer-stuck / steer-gave-up /
   // steer-dropped and the servo-fault branch of unable-to-steer.
   steer?: SteerWatchSnapshot;
+  // Rev640 (Carlos 2026-11-06): pypilot (the TinyPilot) has a Signal K
+  // access request waiting for approval.
+  pypilotAccessPending?: boolean;
 }
 
 /** Per-install threshold overrides. Any field left undefined keeps
@@ -470,6 +473,20 @@ export const DEFAULT_RULES: RuleDef[] = [
       }
       return `Pypilot desconectado desde hace ${tail}`;
     },
+  },
+  // Rev640 (Carlos 2026-11-06): pypilot drops its Signal K token when a
+  // Signal K restart answers its handshake with 503, and asks for access
+  // again; until someone approves it in the Signal K admin, pypilot gets
+  // nothing from Signal K. Nobody noticed for 40 min on 2026-11-06.
+  {
+    id: "pypilot-sk-access",
+    label: "pypilot pide acceso a Signal K",
+    severity: "warn",
+    defaultEnabled: true,
+    sustainSec: 30,
+    description: "pypilot (the TinyPilot) has a Signal K access request waiting for approval.",
+    evaluate: (c) => c.pypilotAccessPending === true,
+    message: () => "pypilot pide acceso a Signal K: apruébalo en Seguridad, Solicitudes de acceso",
   },
   // Rev299 (I1): attitude safety envelope. These rules watch what the
   // sailor cares about — is the boat pinned on its side, is the bow
