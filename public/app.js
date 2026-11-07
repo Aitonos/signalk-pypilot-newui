@@ -545,6 +545,26 @@
       "bk.failed": "Backup failed",
       "bk.working": "Copying...",
       "bk.done": "Copy made at {time} (it replaces today's)",
+      "setup.group.nav": "Sailing",
+      "setup.group.settings": "Settings",
+      "setup.group.tech": "Technical",
+      "admin.setPin": "Set admin PIN",
+      "admin.unlock": "🔒 Unlock",
+      "admin.lock": "Lock",
+      "admin.changePin": "Change PIN",
+      "admin.unlockQ": "Admin PIN",
+      "admin.unlockHint": "Unlocks the Technical group for 12 hours on this screen.",
+      "admin.wrong": "Wrong PIN",
+      "admin.waitUntil": "Too many tries: wait until {time}.",
+      "admin.currentQ": "Current PIN",
+      "admin.newQ": "New admin PIN",
+      "admin.newHint": "4 to 8 digits. If you forget it, it can be reset from the plugin settings in the Signal K admin.",
+      "admin.againQ": "Repeat the new PIN",
+      "admin.mismatch": "The two PINs differ - nothing changed",
+      "admin.pinSet": "Admin PIN set",
+      "admin.pinSetBody": "The Technical group now asks for it. It stays unlocked on this screen for 12 hours.",
+      "admin.needTitle": "Technical group locked",
+      "admin.needBody": "Unlock it with the admin PIN (Setup, Technical) to do this.",
       "adv.title": "pypilot advanced settings",
       "adv.hint": "Everything pypilot exposes, as in its own web client, grouped. Values are read only for the groups you open. To change anything tick 'Allow changes'; settings in amber can leave pypilot without sensors and ask first.",
       "adv.unlock": "Allow changes",
@@ -1746,6 +1766,26 @@
       "bk.failed": "La copia falló",
       "bk.working": "Copiando...",
       "bk.done": "Copia hecha a las {time} (sustituye a la de hoy)",
+      "setup.group.nav": "Navegación",
+      "setup.group.settings": "Ajustes",
+      "setup.group.tech": "Técnico",
+      "admin.setPin": "Poner PIN de administrador",
+      "admin.unlock": "🔒 Desbloquear",
+      "admin.lock": "Bloquear",
+      "admin.changePin": "Cambiar PIN",
+      "admin.unlockQ": "PIN de administrador",
+      "admin.unlockHint": "Desbloquea el grupo Técnico 12 horas en esta pantalla.",
+      "admin.wrong": "PIN incorrecto",
+      "admin.waitUntil": "Demasiados intentos: espera hasta las {time}.",
+      "admin.currentQ": "PIN actual",
+      "admin.newQ": "PIN de administrador nuevo",
+      "admin.newHint": "De 4 a 8 cifras. Si lo olvidas, se puede borrar desde la configuración del plugin en el admin de Signal K.",
+      "admin.againQ": "Repite el PIN nuevo",
+      "admin.mismatch": "Los dos PIN no coinciden: no se ha cambiado nada",
+      "admin.pinSet": "PIN de administrador puesto",
+      "admin.pinSetBody": "El grupo Técnico lo pedirá a partir de ahora. En esta pantalla queda desbloqueado 12 horas.",
+      "admin.needTitle": "Grupo Técnico bloqueado",
+      "admin.needBody": "Desbloquéalo con el PIN de administrador (Setup, Técnico) para hacer esto.",
       "adv.title": "Ajustes avanzados de pypilot",
       "adv.hint": "Todo lo que ofrece pypilot, como en su propio cliente web, agrupado. Los valores solo se leen de los grupos que abras. Para cambiar algo marca 'Permitir cambios'; los ajustes en ámbar pueden dejar a pypilot sin sensores y piden confirmación.",
       "adv.unlock": "Permitir cambios",
@@ -3030,6 +3070,26 @@
       "bk.failed": "Sicherung fehlgeschlagen",
       "bk.working": "Sichere...",
       "bk.done": "Kopie um {time} erstellt (ersetzt die von heute)",
+      "setup.group.nav": "Segeln",
+      "setup.group.settings": "Einstellungen",
+      "setup.group.tech": "Technik",
+      "admin.setPin": "Admin-PIN festlegen",
+      "admin.unlock": "🔒 Entsperren",
+      "admin.lock": "Sperren",
+      "admin.changePin": "PIN ändern",
+      "admin.unlockQ": "Admin-PIN",
+      "admin.unlockHint": "Entsperrt die Gruppe Technik für 12 Stunden auf diesem Bildschirm.",
+      "admin.wrong": "Falsche PIN",
+      "admin.waitUntil": "Zu viele Versuche: warte bis {time}.",
+      "admin.currentQ": "Aktuelle PIN",
+      "admin.newQ": "Neue Admin-PIN",
+      "admin.newHint": "4 bis 8 Ziffern. Vergessen? In den Plugin-Einstellungen im Signal-K-Admin zurücksetzen.",
+      "admin.againQ": "Neue PIN wiederholen",
+      "admin.mismatch": "Die PINs stimmen nicht überein - nichts geändert",
+      "admin.pinSet": "Admin-PIN festgelegt",
+      "admin.pinSetBody": "Die Gruppe Technik fragt ab jetzt danach. Auf diesem Bildschirm bleibt sie 12 Stunden entsperrt.",
+      "admin.needTitle": "Gruppe Technik gesperrt",
+      "admin.needBody": "Mit der Admin-PIN entsperren (Setup, Technik), um das zu tun.",
       "adv.title": "Erweiterte pypilot-Einstellungen",
       "adv.hint": "Alles, was pypilot anbietet, wie in seinem eigenen Web-Client, gruppiert. Werte werden nur für geöffnete Gruppen gelesen. Zum Ändern 'Änderungen erlauben' anhaken; gelb markierte Einstellungen können pypilot ohne Sensoren lassen und fragen vorher.",
       "adv.unlock": "Änderungen erlauben",
@@ -4206,6 +4266,26 @@
       "bk.failed": "Échec de la sauvegarde",
       "bk.working": "Sauvegarde...",
       "bk.done": "Copie faite à {time} (remplace celle du jour)",
+      "setup.group.nav": "Navigation",
+      "setup.group.settings": "Réglages",
+      "setup.group.tech": "Technique",
+      "admin.setPin": "Définir le PIN admin",
+      "admin.unlock": "🔒 Déverrouiller",
+      "admin.lock": "Verrouiller",
+      "admin.changePin": "Changer le PIN",
+      "admin.unlockQ": "PIN administrateur",
+      "admin.unlockHint": "Déverrouille le groupe Technique 12 heures sur cet écran.",
+      "admin.wrong": "PIN incorrect",
+      "admin.waitUntil": "Trop d'essais : attendez jusqu'à {time}.",
+      "admin.currentQ": "PIN actuel",
+      "admin.newQ": "Nouveau PIN administrateur",
+      "admin.newHint": "4 à 8 chiffres. En cas d'oubli, il se réinitialise dans la configuration du plugin, dans l'admin Signal K.",
+      "admin.againQ": "Répétez le nouveau PIN",
+      "admin.mismatch": "Les deux PIN diffèrent - rien n'a changé",
+      "admin.pinSet": "PIN administrateur défini",
+      "admin.pinSetBody": "Le groupe Technique le demandera désormais. Sur cet écran il reste déverrouillé 12 heures.",
+      "admin.needTitle": "Groupe Technique verrouillé",
+      "admin.needBody": "Déverrouillez-le avec le PIN administrateur (Setup, Technique) pour faire ceci.",
       "adv.title": "Réglages avancés de pypilot",
       "adv.hint": "Tout ce que propose pypilot, comme dans son propre client web, par groupes. Les valeurs ne sont lues que pour les groupes ouverts. Pour modifier, cochez « Autoriser les modifications » ; les réglages en orange peuvent priver pypilot de capteurs et demandent confirmation.",
       "adv.unlock": "Autoriser les modifications",
@@ -7227,7 +7307,7 @@
       list.textContent = "";
       for (const c of st.copies || []) {
         const a = document.createElement("a");
-        a.href = `/plugins/${PLUGIN_ID}/backup/download/${encodeURIComponent(c.name)}`;
+        a.href = _adminUrl(`/plugins/${PLUGIN_ID}/backup/download/${encodeURIComponent(c.name)}`);
         a.download = c.name;
         a.textContent = `↓ ${c.name}  ·  ${fmt(c.ts)}  ·  ${Math.max(1, Math.round(c.size / 1024))} KB`;
         list.appendChild(a);
@@ -7256,7 +7336,7 @@
     if (dl) dl.addEventListener("click", (ev) => {
       ev.stopPropagation();
       const a = document.createElement("a");
-      a.href = `/plugins/${PLUGIN_ID}/backup/download/latest`;
+      a.href = _adminUrl(`/plugins/${PLUGIN_ID}/backup/download/latest`);
       a.download = "";
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(_bkpRefresh, 1500);
@@ -16092,7 +16172,7 @@
   function _lcDownload() {
     // Force a real browser download - the endpoint sets Content-Disposition.
     const a = document.createElement("a");
-    a.href = `/plugins/${PLUGIN_ID}/log-capture/download?t=${Date.now()}`;
+    a.href = _adminUrl(`/plugins/${PLUGIN_ID}/log-capture/download?t=${Date.now()}`);
     a.download = "";
     document.body.appendChild(a);
     a.click();
@@ -23419,6 +23499,14 @@
   // Default collapse state: top-of-list navigation tools open, the
   // rest closed. Reduces the wall-of-config the user complained about.
 
+  // Rev653 (Carlos 2026-11-07): three groups with a header; the Technical
+  // one is behind the admin PIN (checked by the backend too).
+  const SETUP_GROUPS = [
+    { id: "nav", i18n: "setup.group.nav", blocks: ["precheck", "doctor", "smartpilot", "alarms", "quality", "trips", "blackbox"] },
+    { id: "settings", i18n: "setup.group.settings", blocks: ["calibration", "language", "connection"] },
+    { id: "tech", i18n: "setup.group.tech", blocks: ["advanced", "paths", "emergency", "backup"] },
+  ];
+  const TECH_BLOCKS = new Set(SETUP_GROUPS[2].blocks);
   function reorderSetupBlocks() {
     const setup = document.getElementById("tab-setup");
     if (!setup) return;
@@ -23428,7 +23516,146 @@
       const ob = Number(b.dataset.setupOrder || 999);
       return oa - ob;
     });
-    for (const b of blocks) setup.appendChild(b);
+    const groupOf = (b) => {
+      const k = b.dataset.blockKey || "";
+      const g = SETUP_GROUPS.find((x) => x.blocks.includes(k));
+      return g ? g.id : "settings";
+    };
+    setup.querySelectorAll(":scope > .setup-group-head").forEach((h) => h.remove());
+    for (const g of SETUP_GROUPS) {
+      const head = document.createElement("div");
+      head.className = "setup-group-head";
+      head.dataset.group = g.id;
+      const title = document.createElement("span");
+      title.className = "setup-group-title";
+      title.dataset.i18n = g.i18n;
+      title.textContent = t(g.i18n);
+      head.appendChild(title);
+      if (g.id === "tech") {
+        const tools = document.createElement("span");
+        tools.id = "admin-tools";
+        tools.className = "setup-group-tools";
+        head.appendChild(tools);
+      }
+      setup.appendChild(head);
+      for (const b of blocks) if (groupOf(b) === g.id) setup.appendChild(b);
+    }
+  }
+  // ---- Rev653: admin PIN ----
+  let _admin = { set: false, unlocked: false, lockedUntil: null };
+  const ADMIN_KEY_STORE = "pypilot-newui.adminKey";
+  function _adminKey() { try { return sessionStorage.getItem(ADMIN_KEY_STORE) || ""; } catch { return ""; } }
+  function _adminSetKey(k) { try { if (k) sessionStorage.setItem(ADMIN_KEY_STORE, k); else sessionStorage.removeItem(ADMIN_KEY_STORE); } catch { /* silent */ } }
+  // Every request to this plugin carries the key, so each technical
+  // action is allowed by the backend while the group is unlocked. Plain
+  // download links get it as ?admin= (see _adminUrl).
+  (function _adminWrapFetch() {
+    const orig = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      try {
+        const url = typeof input === "string" ? input : (input && input.url) || "";
+        const k = _adminKey();
+        if (k && url.includes(`/plugins/${PLUGIN_ID}/`) && typeof input === "string") {
+          const o = init || {};
+          const h = new Headers(o.headers || {});
+          h.set("x-pnu-admin", k);
+          init = { ...o, headers: h };
+        }
+      } catch { /* untouched */ }
+      const p = orig(input, init);
+      p.then((r) => {
+        if (r && r.status === 403 && String(r.url || "").includes(`/plugins/${PLUGIN_ID}/`)) {
+          r.clone().json().then((j) => {
+            if (j && j.adminRequired) { _adminSetKey(""); _adminRefresh(); _pmAlert(t("admin.needTitle"), t("admin.needBody")); }
+          }).catch(() => { /* not json */ });
+        }
+      }).catch(() => { /* caller handles */ });
+      return p;
+    };
+  })();
+  function _adminUrl(url) {
+    const k = _adminKey();
+    return k ? `${url}${url.includes("?") ? "&" : "?"}admin=${encodeURIComponent(k)}` : url;
+  }
+  async function _adminRefresh() {
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/admin/status`, { headers: authHeaders() });
+      if (r.ok) _admin = await r.json();
+    } catch { /* keep the last state */ }
+    if (_admin.set && !_admin.unlocked) _adminSetKey("");
+    _adminPaint();
+  }
+  function _adminLocked() { return !!(_admin.set && !_admin.unlocked); }
+  function _adminPaint() {
+    document.querySelectorAll("#tab-setup > .setup-block, body > .setup-block").forEach((b) => {
+      if (TECH_BLOCKS.has(b.dataset.blockKey || "")) b.classList.toggle("setup-locked", _adminLocked());
+    });
+    const tools = document.getElementById("admin-tools");
+    if (!tools) return;
+    tools.textContent = "";
+    const btn = (key, fn) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "doctor-sug-discard";
+      b.textContent = t(key);
+      b.addEventListener("click", (ev) => { ev.stopPropagation(); fn(); });
+      tools.appendChild(b);
+    };
+    if (!_admin.set) btn("admin.setPin", _adminSetPinFlow);
+    else if (!_admin.unlocked) btn("admin.unlock", _adminUnlockFlow);
+    else { btn("admin.lock", _adminLockNow); btn("admin.changePin", _adminSetPinFlow); }
+  }
+  async function _adminUnlockFlow() {
+    const pin = await _pmPrompt(t("admin.unlockQ"), "", t("admin.unlockHint"));
+    if (pin == null || !String(pin).trim()) return false;
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/admin/unlock`, { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ pin: String(pin).trim() }) });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok && j.key) { _adminSetKey(j.key); await _adminRefresh(); return true; }
+      const wait = j.lockedUntil ? t("admin.waitUntil").replace("{time}", new Date(j.lockedUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "";
+      _pmAlert(t("admin.wrong"), wait);
+    } catch (e) { _pmAlert(t("admin.wrong"), String(e)); }
+    return false;
+  }
+  async function _adminSetPinFlow() {
+    let current;
+    if (_admin.set) {
+      current = await _pmPrompt(t("admin.currentQ"), "", "");
+      if (current == null) return;
+    }
+    const pin = await _pmPrompt(t("admin.newQ"), "", t("admin.newHint"));
+    if (pin == null) return;
+    if (!/^\d{4,8}$/.test(String(pin).trim())) { _pmAlert(t("admin.newQ"), t("admin.newHint")); return; }
+    const again = await _pmPrompt(t("admin.againQ"), "", "");
+    if (again == null) return;
+    if (String(again).trim() !== String(pin).trim()) { _pmAlert(t("admin.mismatch"), ""); return; }
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/admin/pin`, { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ pin: String(pin).trim(), current: current != null ? String(current).trim() : undefined }) });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok && j.key) { _adminSetKey(j.key); _pmAlert(t("admin.pinSet"), t("admin.pinSetBody")); }
+      else _pmAlert(t("admin.wrong"), j.error || `HTTP ${r.status}`);
+    } catch (e) { _pmAlert(t("admin.wrong"), String(e)); }
+    _adminRefresh();
+  }
+  async function _adminLockNow() {
+    try { await fetch(`/plugins/${PLUGIN_ID}/admin/lock`, { method: "POST", headers: authHeaders() }); } catch { /* silent */ }
+    _adminSetKey("");
+    _setupFullscreenOff();
+    _adminRefresh();
+  }
+  // A locked Technical tile asks the PIN instead of opening.
+  function _adminWireTiles() {
+    document.querySelectorAll("#tab-setup > .setup-block").forEach((b) => {
+      if (!TECH_BLOCKS.has(b.dataset.blockKey || "")) return;
+      b.addEventListener("click", async (ev) => {
+        if (b.dataset.fullscreen === "1" || !_adminLocked()) return;
+        ev.stopPropagation();
+        ev.preventDefault();
+        if (await _adminUnlockFlow()) _setupFullscreenOn(b);
+      }, true);
+    });
+    _adminRefresh();
+    setInterval(() => { if (document.visibilityState === "visible") _adminRefresh(); }, 60000);
   }
 
   // Rev108/109: Setup as a launcher grid. Every .setup-block is a tile;
@@ -23615,6 +23842,7 @@
     // fullscreen on click (Rev108 replaced the in-place collapsible).
     reorderSetupBlocks();
     initSetupTiles();
+    try { _adminWireTiles(); } catch (e) { console.warn("[admin] wire", e); }
     wireChart();
     wireHelmChart();
     // Rev620: guided tour - replay buttons + first-run start.

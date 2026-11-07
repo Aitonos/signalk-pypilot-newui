@@ -75,6 +75,7 @@ import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder"
 import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
+import { AdminPin } from "./admin-pin";
 import { backupDir, listBackups, writeBackup, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -85,7 +86,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev652";
+const PLUGIN_REVISION = "Rev653";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -169,6 +170,8 @@ interface PluginProps {
   // recording. When OFF, the plugin skips every tripRecorder.start() /
   // sample() call â€” the historian and other subsystems keep running.
   tripRecorderEnabled?: boolean;
+  /** Rev653: tick in the Signal K admin to forget the admin PIN. */
+  adminPinReset?: boolean;
   // Rev322 (Carlos, 2026-09-27): maneuver trace log. Records every
   // user-driven maneuver event posted by the visor (aproado_pick,
   // empopado_pick, tack_tap, mode_change, target_put, engage,
@@ -596,6 +599,24 @@ module.exports = function (app: any) {
   // so it also covers motor legs and tender rides. Independent of the
   // session recorder.
   let tripRecorder: TripRecorder | null = null;
+  // Rev653 (Carlos 2026-11-07): admin PIN of the Technical Setup group.
+  let adminPin: AdminPin | null = null;
+  const _adminPinOf = (): AdminPin => {
+    if (!adminPin) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      adminPin = new AdminPin(require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "admin-pin.json"));
+    }
+    return adminPin;
+  };
+  /** Rev653: false (and the 403 already sent) when the Technical group is
+   *  locked. The key comes in the x-pnu-admin header, or ?admin= for plain
+   *  download links. */
+  const requireAdmin = (req: any, res: any): boolean => {
+    const key = req.headers?.["x-pnu-admin"] || req.query?.admin;
+    if (_adminPinOf().allows(key)) return true;
+    res.status(403).json({ error: "admin PIN required", adminRequired: true });
+    return false;
+  };
   // Rev648 (Carlos 2026-11-06): after the sailor stops or deletes the trip
   // in progress, no new one opens by itself until the boat is moored or
   // anchored again (navigation.state still says "sailing").
@@ -820,6 +841,12 @@ module.exports = function (app: any) {
           items: { type: "string" },
           default: [],
         },
+        adminPinReset: {
+          type: "boolean",
+          title: "Forget the admin PIN",
+          description: "Tick and save if the admin PIN of the visor's Technical group was forgotten. The PIN is deleted (the box clears itself); set a new one from Setup.",
+          default: false,
+        },
         tripRecorderEnabled: {
           type: "boolean",
           title: "Record logbook (bitÃ¡cora) trips",
@@ -853,6 +880,12 @@ module.exports = function (app: any) {
 
     start: (options: PluginProps) => {
       props = normalizeProps(options);
+      if (props.adminPinReset) {
+        _adminPinOf().clear();
+        props.adminPinReset = false;
+        try { (app as any).savePluginOptions?.({ ...props, adminPinReset: false }, () => { /* silent */ }); } catch { /* silent */ }
+        app.setPluginStatus("Admin PIN forgotten - set a new one from Setup");
+      }
       // Rev647 (Carlos 2026-11-06): retention of the captured logs - past
       // days gzipped, 30 days, 300 MB. Runs even with the capture off (the
       // files are there anyway); first pass 2 min after start, then 6-hourly.
@@ -1685,7 +1718,26 @@ module.exports = function (app: any) {
       //                                   new pluginOptions is triggered
       //                                   asynchronously - the client
       //                                   should reconnect after ~2 s.
-      router.get("/config/export", (_req: any, res: any) => {
+      // Rev653: admin PIN.
+      router.get("/admin/status", (req: any, res: any) => {
+        const p = _adminPinOf();
+        const key = req.headers?.["x-pnu-admin"];
+        res.json({ set: p.isSet(), unlocked: p.isSet() && p.allows(key), lockedUntil: p.lockedUntilMs() || null });
+      });
+      router.post("/admin/unlock", (req: any, res: any) => {
+        const r = _adminPinOf().unlock(String(req.body?.pin ?? ""));
+        res.status(r.ok ? 200 : 403).json(r);
+      });
+      router.post("/admin/lock", (req: any, res: any) => {
+        _adminPinOf().lock(String(req.headers?.["x-pnu-admin"] || ""));
+        res.json({ ok: true });
+      });
+      router.post("/admin/pin", (req: any, res: any) => {
+        const r = _adminPinOf().setPin(String(req.body?.pin ?? ""), req.body?.current != null ? String(req.body.current) : undefined);
+        res.status(r.ok ? 200 : 403).json(r);
+      });
+      router.get("/config/export", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
         if (!client) { res.status(503).json({ error: "pypilot client not connected" }); return; }
         try {
           const bundle = captureBundle({
@@ -1704,6 +1756,7 @@ module.exports = function (app: any) {
         }
       });
       router.post("/config/import", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
         // Rev534 (GPT review 2 #4): importing writes to pypilot and to the
         // plugin options; it needs writes enabled.
         if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
@@ -2139,6 +2192,7 @@ module.exports = function (app: any) {
       // the call worked and reports persistence status back to the webapp
       // so a failure is visible in the UI (Carlos: "no se guardan").
       router.post("/publish", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const ep = req.body?.enabledPaths;
         if (!ep || typeof ep !== "object") return res.status(400).json({ error: "enabledPaths object required" });
@@ -2198,6 +2252,9 @@ module.exports = function (app: any) {
         if (typeof name !== "string") {
           return res.status(400).json({ error: "missing 'name' string" });
         }
+        // Rev653: installation settings (the amber ones of the advanced card)
+        // need the Technical group unlocked; gains and controls do not.
+        if (/^(nmea\.|signalk\.|gps\.filtered\.|imu\.(accel|compass)\.calibration$|servo\.use_eeprom$|servo\.calibration$)/.test(name) && !requireAdmin(req, res)) return;
         // Rev280 (audit T22): previously only `servo.command` was
         // guarded, so a PUT with name="servo.position" or any other
         // direct-servo pypilot key slipped through and moved the rudder
@@ -2535,7 +2592,8 @@ module.exports = function (app: any) {
       // the ssh2 npm package - no reliance on external ssh/sshpass binaries.
       // Falls back to local socket reconnect if credentials are missing
       // or the SSH connection fails.
-      router.post("/restart-pypilot", async (_req: any, res: any) => {
+      router.post("/restart-pypilot", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const host = props.host;
         const sshUser = props.sshUser || "tc";
@@ -2967,10 +3025,12 @@ module.exports = function (app: any) {
           tinypilotNote: _bkLastTinypilot,
         });
       });
-      router.post("/backup/now", async (_req: any, res: any) => {
+      router.post("/backup/now", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         res.json(await _bkRun());
       });
       router.get("/backup/download/:name", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         let name = String(req.params?.name || "");
         if (name === "latest") name = listBackups(backupDir())[0]?.name || "";
         if (!isBackupName(name)) { res.status(404).json({ error: "not found" }); return; }
@@ -3558,7 +3618,8 @@ module.exports = function (app: any) {
           bufferedLines: logCaptureTailBuffer.length,
         });
       });
-      router.post("/log-capture/start", (_req: any, res: any) => {
+      router.post("/log-capture/start", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         if (!props.sshPassword) return res.status(400).json({ error: "sshPassword not set" });
         _lcStart();
@@ -3569,7 +3630,8 @@ module.exports = function (app: any) {
         } catch {}
         res.json({ ok: true, enabled: true });
       });
-      router.post("/log-capture/stop", (_req: any, res: any) => {
+      router.post("/log-capture/stop", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         _lcStop();
         try {
@@ -3583,7 +3645,8 @@ module.exports = function (app: any) {
         const lines = logCaptureTailBuffer.slice(-n);
         res.type("text/plain").send(lines.join("\n"));
       });
-      router.get("/log-capture/download", (_req: any, res: any) => {
+      router.get("/log-capture/download", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -3630,7 +3693,8 @@ module.exports = function (app: any) {
         if (!maneuverTrace) { res.status(503).json({ error: "not initialised" }); return; }
         res.json(maneuverTrace.status());
       });
-      router.post("/maneuver-trace/start", (_req: any, res: any) => {
+      router.post("/maneuver-trace/start", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
         maneuverTrace.start();
         // Persist opt-in so the trace survives a plugin restart during
@@ -3643,7 +3707,8 @@ module.exports = function (app: any) {
         } catch {}
         res.json({ ok: true, ...maneuverTrace.status() });
       });
-      router.post("/maneuver-trace/stop", (_req: any, res: any) => {
+      router.post("/maneuver-trace/stop", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!maneuverTrace) return res.status(503).json({ error: "not initialised" });
         maneuverTrace.stop();
         try {
@@ -4206,7 +4271,8 @@ module.exports = function (app: any) {
       // right primitive. Useful when the socket buffer looks jammed
       // and a full hard reset would be overkill. Guarded by
       // allowWrites + a saved SSH password, same as /debug-cmd.
-      router.post("/pypilot-web-restart", async (_req: any, res: any) => {
+      router.post("/pypilot-web-restart", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         if (!props.sshPassword) return res.status(400).json({ error: "sshPassword not set" });
         const r = await _runSsh("sv restart pypilot_web 2>&1", 15000);
@@ -4224,6 +4290,7 @@ module.exports = function (app: any) {
       // this is the deliberate escape hatch for the Remote Control
       // Console when a preset does not cover the diagnostic they need.
       router.post("/ssh-exec", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const cmd = String(req.body?.cmd || "").trim();
         if (!cmd) return res.status(400).json({ error: "cmd required in body" });
@@ -4240,6 +4307,7 @@ module.exports = function (app: any) {
       });
 
       router.post("/debug-cmd", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const preset = (req.body && req.body.preset) || "";
         const cmd = DEBUG_PRESETS[preset];
@@ -4416,6 +4484,7 @@ module.exports = function (app: any) {
             .slice(0, 100)
         : [],
       tripRecorderEnabled: options.tripRecorderEnabled !== false,
+      adminPinReset: options.adminPinReset === true,
       autoProfileEnabled: options.autoProfileEnabled === true,
       autoProfileLight:   typeof options.autoProfileLight  === "string" ? options.autoProfileLight.trim()  : "",
       autoProfileMedium:  typeof options.autoProfileMedium === "string" ? options.autoProfileMedium.trim() : "",

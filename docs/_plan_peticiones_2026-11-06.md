@@ -63,7 +63,7 @@ renombrar después desde el gestor de perfiles, pero no en el momento.
 
 Tamaño: pequeño-medio.
 
-### D. Agrupar las tarjetas de Setup y PIN de administrador
+### D. Agrupar las tarjetas de Setup y PIN de administrador — HECHO Rev653 (ver _diseno_pin_admin_2026-11-07.md)
 
 **Hoy:** 14 baldosas sueltas en Setup.
 

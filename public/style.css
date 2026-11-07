@@ -2845,7 +2845,9 @@ main { touch-action: pan-y; overflow-x: hidden; }
 #tab-setup {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 130px;
+  /* Rev653: rows size to content; tiles set their own 130 px height, so the
+     group headers are short rows. */
+  grid-auto-rows: auto;
   gap: 10px;
   padding: 10px;
   align-content: start;
@@ -4918,3 +4920,17 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
 .bk-dir { font-family: ui-monospace, monospace; font-size: 15px; font-weight: 700; color: var(--accent); word-break: break-all; margin: 8px 0 4px; }
 .bk-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
 .bk-list a { color: var(--fg); font-family: ui-monospace, monospace; font-size: 13px; text-decoration: none; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-3); }
+
+/* Rev653: Setup groups + admin PIN. */
+#tab-setup > .setup-block:not([data-fullscreen="1"]) { height: 130px; }
+.setup-group-head {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 10px 2px 0;
+  font-size: 13px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.setup-group-head:first-child { margin-top: 0; }
+.setup-group-tools { display: inline-flex; gap: 8px; text-transform: none; letter-spacing: 0; }
+#tab-setup .setup-block.setup-locked { opacity: 0.45; }
+#tab-setup .setup-block.setup-locked .section-title::after { content: " 🔒"; }
