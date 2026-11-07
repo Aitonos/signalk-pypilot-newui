@@ -116,7 +116,9 @@ export function captureBundle(args: {
     capturedTs: Date.now(),
     revision: args.revision,
     note: args.note,
-    pluginOptions: JSON.parse(JSON.stringify(args.props)),
+    // Rev650: never the TinyPilot's SSH password - backups and exports are
+    // files people keep, copy and send. A restore keeps the current one.
+    pluginOptions: (() => { const o = JSON.parse(JSON.stringify(args.props)); delete o.sshPassword; return o; })(),
     pypilotSettings,
   };
 }

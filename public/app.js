@@ -17376,7 +17376,10 @@
     if (!bar) {
       bar = document.createElement("div");
       bar.id = "trips-control";
-      bar.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px";
+      // Rev650 (Carlos QA Rev649): layout in style.css, never inline - an
+      // inline display beat the rule that hides card content in tile mode
+      // and pushed the status box up.
+      bar.className = "trips-control";
       list.parentNode.insertBefore(bar, list);
     }
     const key = stat.enabled === false ? "off" : `${!!stat.recording}|${!!stat.paused}|${!!stat.hold}`;
@@ -17425,8 +17428,7 @@
       if (!hint) {
         hint = document.createElement("div");
         hint.id = "trips-hold-hint";
-        hint.className = "hint";
-        hint.style.margin = "4px 0 8px";
+        hint.className = "setup-tile-note";
       }
       hint.textContent = t("trips.ctl.holdHint");
       if (chip && chip.parentNode && hint.nextSibling !== chip) chip.parentNode.insertBefore(hint, chip);

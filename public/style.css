@@ -2890,9 +2890,24 @@ main { touch-action: pan-y; overflow-x: hidden; }
 /* Hint / pc-header controls / body content are HIDDEN in tile mode.
    Only the title, summary pill and (in the two structured blocks) the
    pc-header title survive. Everything else appears when fullscreen. */
-#tab-setup .setup-block:not([data-fullscreen="1"]) > *:not(.section-title):not(.pc-header):not(.setup-block-summary):not(.setup-block-close) {
+#tab-setup .setup-block:not([data-fullscreen="1"]) > *:not(.section-title):not(.pc-header):not(.setup-block-summary):not(.setup-block-close):not(.setup-tile-note) {
   display: none;
 }
+/* Rev650 (Carlos QA Rev649): a short state note (e.g. "trip stopped by
+   hand") between the title and the status box, in tile and full screen.
+   The box stays at the bottom like every other card. */
+.setup-tile-note {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--warn);
+  margin: 0;
+}
+#tab-setup .setup-block:not([data-fullscreen="1"]) > .setup-tile-note {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.trips-control { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 10px; }
 #tab-setup .setup-block:not([data-fullscreen="1"]) .pc-header > *:not(.section-title) {
   display: none;
 }
