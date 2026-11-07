@@ -21,14 +21,14 @@ describe("trip controls (Rev648)", () => {
     const t0 = Date.now();
     for (let i = 0; i < 30; i++) r.sample(sample(t0 + i * 1000, 42.27 + i * 0.0001));
     const before = r.summary(id) as any;
-    assert.ok(r.pause());
+    assert.ok(r.pause(t0 + 30_000));
     assert.equal(r.isPaused(), true);
-    assert.equal(r.pause(), false, "already paused");
+    assert.equal(r.pause(t0 + 31_000), false, "already paused");
     for (let i = 30; i < 60; i++) r.sample(sample(t0 + i * 1000, 42.30 + i * 0.0001));
     const during = r.summary(id) as any;
     assert.equal(during.sampleCount, 30);
     assert.equal(during.distanceNm, before.distanceNm);
-    assert.ok(r.resume());
+    assert.ok(r.resume(t0 + 60_000));   // explicit times: on a fast CI runner pause and resume fell in the same ms
     r.sample(sample(t0 + 61_000, 42.40));          // 7 nm away: not joined
     const after = r.summary(id) as any;
     assert.equal(after.distanceNm, before.distanceNm);
