@@ -124,9 +124,36 @@ caja negra. Son datos, no ajustes.
 
 Tamaño: medio.
 
-**Decidir:** ¿la exportación mensual basta con avisar y descargar? Si
-quieres que salga sola fuera del barco (por correo, Telegram o una
-carpeta en red), hay que elegir el canal.
+**Decidido (Carlos, 2026-11-07):** "una copia que no sabes que tienes no
+sirve para nada". Las copias diarias van a una carpeta muy visible en la
+carpeta personal del usuario de la Pi, no escondidas en `~/.signalk`:
+`~/Backups-pypilot-newui/` (se ve nada más abrir el gestor de archivos).
+Además, la tarjeta muestra la ruta, la fecha de la última copia y un aviso
+si la última tiene más de 2 días.
+
+**Salir del barco: Google Drive / Dropbox (fase 2, a decidir).**
+
+- **Dropbox:** lo más sencillo. API HTTP simple (subir un archivo es una
+  llamada), sin dependencias (fetch de Node). Autorización: el usuario
+  pulsa "Conectar Dropbox", inicia sesión en una pestaña, copia un código y
+  lo pega (PKCE, sin servidor propio ni URL pública). El plugin guarda un
+  token de refresco. Hay que registrar una app en Dropbox (gratis) con
+  permiso solo a su propia carpeta (App folder). Para un plugin público, la
+  app empieza en modo desarrollo (hasta 500 usuarios) y luego se pide paso
+  a producción.
+- **Google Drive:** posible, pero más pesado. Sin URL pública hay que usar
+  el flujo para dispositivos (el usuario mete un código en otra pantalla).
+  Con el permiso mínimo (`drive.file`, solo los archivos que crea la app)
+  no hace falta la verificación de seguridad completa de Google, pero sí un
+  proyecto de Google Cloud y una pantalla de consentimiento publicada.
+- **Telegram:** mareas-ihm ya tiene un bot de Telegram en el barco. Enviar
+  la copia mensual como documento (`sendDocument`) sería lo más rápido de
+  hacer, sin cuentas nuevas, aunque el chat no es un sitio pensado para
+  guardar copias.
+
+Recomendación: fase 1 sin nube (carpeta visible + aviso mensual para
+descargar + botón "descargar ahora"); fase 2, Dropbox como primer destino
+en la nube.
 
 ### F. Disco: registros de la TinyPilot — HECHO Rev647
 
