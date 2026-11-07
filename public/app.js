@@ -976,7 +976,7 @@
       "trips.ctl.restartQ.body": "What was recorded of this trip is deleted and a new one starts now.",
       "trips.ctl.discardQ.title": "Delete this trip?",
       "trips.ctl.discardQ.body": "What was recorded of this trip is deleted. It cannot be undone.",
-      "trips.ctl.holdHint": "Trip stopped by hand: the next one starts after mooring or anchoring, or now with the button.",
+      "trips.ctl.holdHint": "Trip stopped by hand: the next one starts by itself after mooring or anchoring.",
       "trips.ctl.tooShort": "Too short to keep (under 1 min or 0.1 nm): it was not saved.",
       "trips.ctl.failed": "Logbook",
       "tackStats.hdg":          "HDG",
@@ -2172,7 +2172,7 @@
       "trips.ctl.restartQ.body": "Se borra lo grabado de este viaje y empieza uno nuevo ahora.",
       "trips.ctl.discardQ.title": "¿Borrar este viaje?",
       "trips.ctl.discardQ.body": "Se borra lo grabado de este viaje. No se puede deshacer.",
-      "trips.ctl.holdHint": "Viaje parado a mano: el siguiente empieza al amarrar o fondear, o ahora con el botón.",
+      "trips.ctl.holdHint": "Viaje parado a mano: el siguiente empezará solo después de amarrar o fondear.",
       "trips.ctl.tooShort": "Demasiado corto para guardarlo (menos de 1 min o 0,1 mn): no se ha guardado.",
       "trips.ctl.failed": "Bitácora",
       "tackStats.hdg":          "RUMBO",
@@ -3356,7 +3356,7 @@
       "trips.ctl.restartQ.body": "Das Aufgezeichnete dieser Fahrt wird gelöscht und eine neue startet jetzt.",
       "trips.ctl.discardQ.title": "Diese Fahrt löschen?",
       "trips.ctl.discardQ.body": "Das Aufgezeichnete dieser Fahrt wird gelöscht. Das lässt sich nicht rückgängig machen.",
-      "trips.ctl.holdHint": "Fahrt von Hand beendet: die nächste startet nach dem Festmachen oder Ankern, oder jetzt mit der Taste.",
+      "trips.ctl.holdHint": "Fahrt von Hand beendet: die nächste startet von selbst nach dem Festmachen oder Ankern.",
       "trips.ctl.tooShort": "Zu kurz zum Speichern (unter 1 min oder 0,1 sm): nicht gespeichert.",
       "trips.ctl.failed": "Logbuch",
       "tackStats.hdg": "KURS",
@@ -4521,7 +4521,7 @@
       "trips.ctl.restartQ.body": "Ce qui a été enregistré de cette sortie est supprimé et une nouvelle démarre maintenant.",
       "trips.ctl.discardQ.title": "Supprimer cette sortie ?",
       "trips.ctl.discardQ.body": "Ce qui a été enregistré de cette sortie est supprimé. C'est irréversible.",
-      "trips.ctl.holdHint": "Sortie arrêtée à la main : la suivante démarre après l'amarrage ou le mouillage, ou maintenant avec le bouton.",
+      "trips.ctl.holdHint": "Sortie arrêtée à la main : la suivante démarrera seule après l'amarrage ou le mouillage.",
       "trips.ctl.tooShort": "Trop courte pour être gardée (moins de 1 min ou 0,1 mille) : non enregistrée.",
       "trips.ctl.failed": "Journal de bord",
       "tackStats.hdg": "CAP",
@@ -17416,15 +17416,22 @@
       add("trips.ctl.stop", "stop", "trips.ctl.stopQ");
       add("trips.ctl.restart", "restart", "trips.ctl.restartQ");
       add("trips.ctl.discard", "discard", "trips.ctl.discardQ");
-    } else {
-      if (stat.hold) {
-        const st = document.createElement("span");
-        st.className = "hint";
-        st.textContent = t("trips.ctl.holdHint");
-        bar.appendChild(st);
-      }
-      add("trips.ctl.start", "start");
     }
+    // Rev649 (Carlos QA Rev648): no "start a trip now" button; the hint after
+    // a manual stop sits between the card title and its status box.
+    const chip = document.querySelector('.setup-block-summary[data-block-key="trips"]');
+    let hint = document.getElementById("trips-hold-hint");
+    if (!stat.recording && stat.hold) {
+      if (!hint) {
+        hint = document.createElement("div");
+        hint.id = "trips-hold-hint";
+        hint.className = "hint";
+        hint.style.margin = "4px 0 8px";
+      }
+      hint.textContent = t("trips.ctl.holdHint");
+      if (chip && chip.parentNode && hint.nextSibling !== chip) chip.parentNode.insertBefore(hint, chip);
+      else if (!chip && !hint.parentNode) bar.appendChild(hint);
+    } else if (hint) hint.remove();
   }
   // Rev327 (Carlos, 2026-09-28): rename a trip. Prompt + PATCH + refresh.
   // Empty name clears the sidecar so the fallback (date) shows again.
