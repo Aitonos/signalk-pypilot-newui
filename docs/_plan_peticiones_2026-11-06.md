@@ -36,7 +36,7 @@ y el resumen de la baldosa se pone en ámbar si hay alguna sin ver.
 
 Tamaño: pequeño.
 
-### B. Bitácora: parar, pausar, borrar o reiniciar el viaje en curso
+### B. Bitácora: parar, pausar, borrar o reiniciar el viaje en curso — HECHO Rev648
 
 **Hoy:** el viaje empieza y acaba solo con `navigation.state`
 (navegando / amarrado). Solo se pueden borrar viajes ya cerrados.

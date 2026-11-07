@@ -84,7 +84,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev647";
+const PLUGIN_REVISION = "Rev648";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -595,6 +595,10 @@ module.exports = function (app: any) {
   // so it also covers motor legs and tender rides. Independent of the
   // session recorder.
   let tripRecorder: TripRecorder | null = null;
+  // Rev648 (Carlos 2026-11-06): after the sailor stops or deletes the trip
+  // in progress, no new one opens by itself until the boat is moored or
+  // anchored again (navigation.state still says "sailing").
+  let tripManualHold = false;
   // Rev525: autopilot black box (1 min before + 1 min after an incident).
   let blackBox: BlackBox | null = null;
   let _bbPrevDirFault = false;
@@ -1321,6 +1325,7 @@ module.exports = function (app: any) {
       blackBox = new BlackBox(app.getDataDirPath ? app.getDataDirPath() : ".",
         (m: string) => { try { (app as any).debug?.(m); } catch { /* silent */ } });
       // Rev178 (Carlos): trip recorder. Same data dir, own subfolder.
+      tripManualHold = false;   // Rev648
       tripRecorder = new TripRecorder({
         dataDir: (app.getDataDirPath ? app.getDataDirPath() : "."),
         log: (level: string, msg: string) => { try { (app as any).debug?.(`${level} ${msg}`); } catch {} },
@@ -3776,6 +3781,8 @@ module.exports = function (app: any) {
           tripId: tripRecorder ? tripRecorder.currentTripId() : null,
           startTs: tripRecorder ? tripRecorder.currentStartTs() : null,
           samples: tripRecorder ? tripRecorder.currentSampleCount() : 0,
+          paused: tripRecorder ? tripRecorder.isPaused() : false,   // Rev648
+          hold: tripManualHold,
           navState: lastNavState,
         });
       });
@@ -3840,6 +3847,36 @@ module.exports = function (app: any) {
         if (!fs.existsSync(file)) return res.status(404).json({ error: "not found" });
         res.setHeader("Content-Disposition", `attachment; filename="trip-${id}.jsonl"`);
         res.type("application/x-ndjson").sendFile(file);
+      });
+      // Rev648 (Carlos 2026-11-06): the sailor drives the trip in progress.
+      //   stop    - close it now, with its summary
+      //   pause / resume
+      //   discard - throw it away (needs allowWrites, like delete)
+      //   restart - throw it away and start a new one now
+      //   start   - start one now (after a manual stop, or moored)
+      router.post("/trip-recorder/control", (req: any, res: any) => {
+        if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
+        if (props.tripRecorderEnabled === false) return res.status(409).json({ error: "logbook disabled" });
+        const action = String(req.body?.action || "");
+        if ((action === "discard" || action === "restart") && !props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const stateRaw = app.getSelfPath ? app.getSelfPath("navigation.state.value") : null;
+        const navState = typeof stateRaw === "string" ? stateRaw : "moored";
+        let ok = false;
+        let summary: unknown = null;
+        if (action === "stop") {
+          ok = tripRecorder.isRecording();
+          if (ok) { summary = tripRecorder.stop(); tripManualHold = true; }
+        } else if (action === "pause") ok = tripRecorder.pause();
+        else if (action === "resume") ok = tripRecorder.resume();
+        else if (action === "discard") {
+          ok = tripRecorder.discardCurrent();
+          if (ok) tripManualHold = true;
+        } else if (action === "restart" || action === "start") {
+          if (action === "restart") tripRecorder.discardCurrent();
+          if (!tripRecorder.isRecording()) { _tripOpen(navState); tripManualHold = false; }
+          ok = tripRecorder.isRecording();
+        } else return res.status(400).json({ error: "unknown action" });
+        res.json({ ok, action, summary, discardedShort: action === "stop" && ok && summary == null });
       });
       router.delete("/trip-recorder/trip/:id", (req: any, res: any) => {
         if (!tripRecorder) return res.status(503).json({ error: "recorder not initialised" });
@@ -4566,7 +4603,21 @@ module.exports = function (app: any) {
     // anchor watch dropped in the marina recorded 21 h at the dock on
     // 23/10. A trip opens when the boat actually gets under way (also
     // anchored -> sailing); anchoring during an open trip stays in it.
-    if (navState !== "moored" && navState !== "anchored" && !tripRecorder.isRecording()) {
+    if (navState === "moored" || navState === "anchored") tripManualHold = false;   // Rev648
+    if (navState !== "moored" && navState !== "anchored" && !tripRecorder.isRecording() && !tripManualHold) {
+      _tripOpen(navState);
+    } else if (navState === "moored" && lastNavState !== null && lastNavState !== "moored") {
+      // Closing. Compute + write summary.
+      try { tripRecorder.stop(); } catch { /* silent */ }
+    }
+    lastNavState = navState;
+    _tripSample(s, navState);
+  }
+  // Rev648: opening a trip, shared by the automatic path and the sailor's
+  // "start now" / "restart".
+  function _tripOpen(navState: string): void {
+    if (!tripRecorder) return;
+    {
       // Opening. Snapshot the current pypilot gains so the trip header
       // records how the pilot was tuned when the boat left the dock.
       const pv = (client && client.connected) ? client.getValues() : {};
@@ -4585,12 +4636,11 @@ module.exports = function (app: any) {
         gainsAtStart: Object.keys(gains).length > 0 ? gains : null,
         revision: PLUGIN_REVISION,
       });
-    } else if (navState === "moored" && lastNavState !== null && lastNavState !== "moored") {
-      // Closing. Compute + write summary.
-      try { tripRecorder.stop(); } catch { /* silent */ }
     }
-    lastNavState = navState;
-    if (tripRecorder.isRecording()) {
+  }
+  function _tripSample(s: Sample, navState: string): void {
+    if (!tripRecorder) return;
+    if (tripRecorder.isRecording() && !tripRecorder.isPaused()) {
       const lat = app.getSelfPath ? app.getSelfPath("navigation.position.value.latitude") : null;
       const lon = app.getSelfPath ? app.getSelfPath("navigation.position.value.longitude") : null;
       const heel = app.getSelfPath ? app.getSelfPath("navigation.attitude.value.roll") : null;

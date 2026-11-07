@@ -963,6 +963,22 @@
       "trips.caption.sags":     "sags",
       "trips.status.recording": "LOGBOOK ENTRY IN PROGRESS for",
       "trips.live":             "IN PROGRESS",
+      "trips.ctl.pause": "Pause",
+      "trips.ctl.resume": "Resume",
+      "trips.ctl.stop": "Stop trip",
+      "trips.ctl.restart": "Restart",
+      "trips.ctl.discard": "Delete trip",
+      "trips.ctl.start": "Start a trip now",
+      "trips.ctl.pausedNow": "Paused",
+      "trips.ctl.stopQ.title": "Stop the trip?",
+      "trips.ctl.stopQ.body": "It is closed now with its summary. A new one starts by itself only after the boat has been moored or anchored.",
+      "trips.ctl.restartQ.title": "Restart the trip?",
+      "trips.ctl.restartQ.body": "What was recorded of this trip is deleted and a new one starts now.",
+      "trips.ctl.discardQ.title": "Delete this trip?",
+      "trips.ctl.discardQ.body": "What was recorded of this trip is deleted. It cannot be undone.",
+      "trips.ctl.holdHint": "Trip stopped by hand: the next one starts after mooring or anchoring, or now with the button.",
+      "trips.ctl.tooShort": "Too short to keep (under 1 min or 0.1 nm): it was not saved.",
+      "trips.ctl.failed": "Logbook",
       "tackStats.hdg":          "HDG",
       "trips.status.navState":  "Nav state",
       "trips.status.noneOpen":  "no logbook entry in progress.",
@@ -2143,6 +2159,22 @@
       "trips.caption.sags":     "caidas",
       "trips.status.recording": "BITÁCORA EN CURSO desde hace",
       "trips.live":             "EN CURSO",
+      "trips.ctl.pause": "Pausar",
+      "trips.ctl.resume": "Seguir",
+      "trips.ctl.stop": "Parar viaje",
+      "trips.ctl.restart": "Reiniciar",
+      "trips.ctl.discard": "Borrar viaje",
+      "trips.ctl.start": "Empezar un viaje ahora",
+      "trips.ctl.pausedNow": "En pausa",
+      "trips.ctl.stopQ.title": "¿Parar el viaje?",
+      "trips.ctl.stopQ.body": "Se cierra ahora con su resumen. Uno nuevo solo empezará solo cuando el barco haya estado amarrado o fondeado.",
+      "trips.ctl.restartQ.title": "¿Reiniciar el viaje?",
+      "trips.ctl.restartQ.body": "Se borra lo grabado de este viaje y empieza uno nuevo ahora.",
+      "trips.ctl.discardQ.title": "¿Borrar este viaje?",
+      "trips.ctl.discardQ.body": "Se borra lo grabado de este viaje. No se puede deshacer.",
+      "trips.ctl.holdHint": "Viaje parado a mano: el siguiente empieza al amarrar o fondear, o ahora con el botón.",
+      "trips.ctl.tooShort": "Demasiado corto para guardarlo (menos de 1 min o 0,1 mn): no se ha guardado.",
+      "trips.ctl.failed": "Bitácora",
       "tackStats.hdg":          "RUMBO",
       "trips.status.navState":  "Estado nav",
       "trips.status.noneOpen":  "sin bitácora en curso.",
@@ -3311,6 +3343,22 @@
       "trips.caption.sags": "Einbrüche",
       "trips.status.recording": "LOGBUCHEINTRAG LÄUFT seit",
       "trips.live": "LÄUFT",
+      "trips.ctl.pause": "Pause",
+      "trips.ctl.resume": "Weiter",
+      "trips.ctl.stop": "Fahrt beenden",
+      "trips.ctl.restart": "Neu starten",
+      "trips.ctl.discard": "Fahrt löschen",
+      "trips.ctl.start": "Jetzt eine Fahrt starten",
+      "trips.ctl.pausedNow": "Pausiert",
+      "trips.ctl.stopQ.title": "Fahrt beenden?",
+      "trips.ctl.stopQ.body": "Sie wird jetzt mit Zusammenfassung abgeschlossen. Eine neue startet von selbst erst, nachdem das Boot festgemacht oder geankert hat.",
+      "trips.ctl.restartQ.title": "Fahrt neu starten?",
+      "trips.ctl.restartQ.body": "Das Aufgezeichnete dieser Fahrt wird gelöscht und eine neue startet jetzt.",
+      "trips.ctl.discardQ.title": "Diese Fahrt löschen?",
+      "trips.ctl.discardQ.body": "Das Aufgezeichnete dieser Fahrt wird gelöscht. Das lässt sich nicht rückgängig machen.",
+      "trips.ctl.holdHint": "Fahrt von Hand beendet: die nächste startet nach dem Festmachen oder Ankern, oder jetzt mit der Taste.",
+      "trips.ctl.tooShort": "Zu kurz zum Speichern (unter 1 min oder 0,1 sm): nicht gespeichert.",
+      "trips.ctl.failed": "Logbuch",
       "tackStats.hdg": "KURS",
       "trips.status.navState": "Fahrtzustand",
       "trips.status.noneOpen": "kein Logbucheintrag läuft.",
@@ -4460,6 +4508,22 @@
       "trips.caption.sags": "chutes",
       "trips.status.recording": "JOURNAL EN COURS depuis",
       "trips.live": "EN COURS",
+      "trips.ctl.pause": "Pause",
+      "trips.ctl.resume": "Reprendre",
+      "trips.ctl.stop": "Arrêter la sortie",
+      "trips.ctl.restart": "Recommencer",
+      "trips.ctl.discard": "Supprimer la sortie",
+      "trips.ctl.start": "Démarrer une sortie maintenant",
+      "trips.ctl.pausedNow": "En pause",
+      "trips.ctl.stopQ.title": "Arrêter la sortie ?",
+      "trips.ctl.stopQ.body": "Elle est close maintenant avec son résumé. Une nouvelle ne démarre seule qu'après que le bateau a été amarré ou au mouillage.",
+      "trips.ctl.restartQ.title": "Recommencer la sortie ?",
+      "trips.ctl.restartQ.body": "Ce qui a été enregistré de cette sortie est supprimé et une nouvelle démarre maintenant.",
+      "trips.ctl.discardQ.title": "Supprimer cette sortie ?",
+      "trips.ctl.discardQ.body": "Ce qui a été enregistré de cette sortie est supprimé. C'est irréversible.",
+      "trips.ctl.holdHint": "Sortie arrêtée à la main : la suivante démarre après l'amarrage ou le mouillage, ou maintenant avec le bouton.",
+      "trips.ctl.tooShort": "Trop courte pour être gardée (moins de 1 min ou 0,1 mille) : non enregistrée.",
+      "trips.ctl.failed": "Journal de bord",
       "tackStats.hdg": "CAP",
       "trips.status.navState": "État de navigation",
       "trips.status.noneOpen": "aucune entrée de journal en cours.",
@@ -17268,7 +17332,7 @@
       _updateSetupSummary("trips", t("trips.status.disabled") || "OFF", "");
     } else if (stat.recording) {
       const durMin = Math.floor((Date.now() - (stat.startTs || Date.now())) / 60000);
-      const recLbl = (t("trips.status.recording") || "RECORDING").toUpperCase();
+      const recLbl = (stat.paused ? t("trips.ctl.pausedNow") : (t("trips.status.recording") || "RECORDING")).toUpperCase();
       _updateSetupSummary("trips", `${recLbl} · ${durMin} min`, "warn");
     } else if (newest && newest.summary) {
       const s = newest.summary;
@@ -17282,6 +17346,7 @@
     } else {
       _updateSetupSummary("trips", t("trips.empty") || "—", "");
     }
+    _tripsRenderControls(list, stat);
     if (trips.length === 0) {
       list.innerHTML = `<div style="opacity:0.6;font-size:13px;padding:14px 0">${t("trips.empty")}</div>`;
       _tripsCache = [];
@@ -17302,6 +17367,64 @@
     }
     list.textContent = "";
     for (const trip of filtered) _tripsAppendRow(list, trip);
+  }
+  // Rev648 (Carlos 2026-11-06): stop / pause / resume / delete / restart the
+  // trip in progress, and start one by hand. The backend decides; the bar is
+  // redrawn from /trip-recorder/status on every refresh.
+  function _tripsRenderControls(list, stat) {
+    let bar = document.getElementById("trips-control");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "trips-control";
+      bar.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px";
+      list.parentNode.insertBefore(bar, list);
+    }
+    const key = stat.enabled === false ? "off" : `${!!stat.recording}|${!!stat.paused}|${!!stat.hold}`;
+    if (bar.dataset.key === key) return;
+    bar.dataset.key = key;
+    bar.textContent = "";
+    if (stat.enabled === false) return;
+    const add = (labelKey, action, confirmKey) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "doctor-sug-discard";
+      b.textContent = t(labelKey);
+      b.addEventListener("click", async () => {
+        if (confirmKey && !(await _pmConfirm(t(`${confirmKey}.title`), t(`${confirmKey}.body`)))) return;
+        b.disabled = true;
+        try {
+          const r = await skFetch(`/plugins/${PLUGIN_ID}/trip-recorder/control`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+          });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok || j.ok === false) _pmAlert(t("trips.ctl.failed"), j.error || `HTTP ${r.status}`);
+          else if (j.discardedShort) _pmAlert(t("trips.ctl.stop"), t("trips.ctl.tooShort"));
+        } catch (e) { _pmAlert(t("trips.ctl.failed"), String(e)); }
+        bar.dataset.key = "";
+        _tripsRefresh();
+      });
+      bar.appendChild(b);
+    };
+    if (stat.recording) {
+      if (stat.paused) {
+        const st = document.createElement("span");
+        st.style.cssText = "font-weight:700;color:var(--warn)";
+        st.textContent = t("trips.ctl.pausedNow");
+        bar.appendChild(st);
+        add("trips.ctl.resume", "resume");
+      } else add("trips.ctl.pause", "pause");
+      add("trips.ctl.stop", "stop", "trips.ctl.stopQ");
+      add("trips.ctl.restart", "restart", "trips.ctl.restartQ");
+      add("trips.ctl.discard", "discard", "trips.ctl.discardQ");
+    } else {
+      if (stat.hold) {
+        const st = document.createElement("span");
+        st.className = "hint";
+        st.textContent = t("trips.ctl.holdHint");
+        bar.appendChild(st);
+      }
+      add("trips.ctl.start", "start");
+    }
   }
   // Rev327 (Carlos, 2026-09-28): rename a trip. Prompt + PATCH + refresh.
   // Empty name clears the sidecar so the fallback (date) shows again.

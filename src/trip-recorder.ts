@@ -104,6 +104,8 @@ export interface TripSummary {
   navStateAtStart: string;
   revision: string;
   sampleCount: number;
+  /** Rev648: time the trip spent paused (not in durationMs). */
+  pausedMs?: number;
 }
 
 interface Options {
@@ -127,6 +129,10 @@ export class TripRecorder {
   private buffer: string[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private sampleCount = 0;
+  // Rev648 (Carlos 2026-11-06): pause / resume. While paused no sample is
+  // kept and neither time nor distance counts.
+  private pausedSince: number | null = null;
+  private pausedMs = 0;
 
   // Rolling stats accumulated live so stop() is cheap.
   private twsSum = 0; private twsN = 0; private twsMax: number | null = null;
@@ -160,6 +166,46 @@ export class TripRecorder {
   currentTripId(): string | null { return this.currentId; }
   currentStartTs(): number | null { return this.startTs; }
   currentSampleCount(): number { return this.sampleCount; }
+  isPaused(): boolean { return this.pausedSince != null; }
+
+  /** Rev648: pause the trip in progress. */
+  pause(now = Date.now()): boolean {
+    if (!this.currentFile || this.pausedSince != null) return false;
+    this.pausedSince = now;
+    this.buffer.push(JSON.stringify({ type: "pause", ts: now }));
+    this.flush();
+    this.log("info", `[trip] paused ${this.currentId}`);
+    return true;
+  }
+  /** Rev648: resume. The leg sailed while paused is not joined to the track. */
+  resume(now = Date.now()): boolean {
+    if (!this.currentFile || this.pausedSince == null) return false;
+    this.pausedMs += Math.max(0, now - this.pausedSince);
+    this.pausedSince = null;
+    this.lastLat = null; this.lastLon = null; this.lastAmpTs = null;
+    this.buffer.push(JSON.stringify({ type: "resume", ts: now }));
+    this.flush();
+    this.log("info", `[trip] resumed ${this.currentId}`);
+    return true;
+  }
+  /** Rev648: throw the trip in progress away (its files deleted). */
+  discardCurrent(): boolean {
+    if (!this.currentFile) return false;
+    if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
+    const id = this.currentId;
+    const file = this.currentFile;
+    const sumFile = this.currentSummaryFile;
+    this.buffer = [];
+    try { fs.unlinkSync(file); } catch { /* silent */ }
+    try { if (sumFile) fs.unlinkSync(sumFile); } catch { /* silent */ }
+    if (id) { try { fs.unlinkSync(this._namePath(id)); } catch { /* absent */ } }
+    this.log("info", `[trip] discarded by the sailor ${id}`);
+    this._resetActive();
+    return true;
+  }
+  private _pausedTotal(now: number): number {
+    return this.pausedMs + (this.pausedSince != null ? Math.max(0, now - this.pausedSince) : 0);
+  }
 
   start(header: TripHeader): void {
     if (this.currentFile) return;
@@ -197,7 +243,7 @@ export class TripRecorder {
   }
 
   sample(s: TripSample): void {
-    if (!this.currentFile) return;
+    if (!this.currentFile || this.pausedSince != null) return;
     this.buffer.push(JSON.stringify({ type: "sample", ...s }));
     this.sampleCount += 1;
     this.allTicks += 1;
@@ -291,7 +337,8 @@ export class TripRecorder {
   stop(): TripSummary | null {
     if (!this.currentFile || this.startTs == null) return null;
     const endTs = Date.now();
-    const durMs = endTs - this.startTs;
+    if (this.pausedSince != null) this.resume(endTs);
+    const durMs = endTs - this.startTs - this._pausedTotal(endTs);
     // Guard: too short (< 60 s) or too few samples (< 60) - discard.
     // A short outing that autostate flagged for a moment is not a trip.
     // Rev553: same for one that never left the dock (< 0.1 nm).
@@ -327,7 +374,7 @@ export class TripRecorder {
 
   // Rev516: shared by stop() and liveSummary().
   private _buildSummary(endTs: number): TripSummary {
-    const durMs = endTs - (this.startTs as number);
+    const durMs = endTs - (this.startTs as number) - this._pausedTotal(endTs);
     return {
       id: this.currentId!,
       startTs: this.startTs as number,
@@ -371,6 +418,7 @@ export class TripRecorder {
       navStateAtStart: this.header?.navStateAtStart ?? "?",
       revision: this.header?.revision ?? "?",
       sampleCount: this.sampleCount,
+      ...(this._pausedTotal(endTs) > 0 ? { pausedMs: this._pausedTotal(endTs) } : {}),
     };
   }
 
@@ -405,6 +453,8 @@ export class TripRecorder {
     this.startTs = null;
     this.sampleCount = 0;
     this.buffer = [];
+    this.pausedSince = null;
+    this.pausedMs = 0;
     this._resetStats();
   }
 
