@@ -543,6 +543,8 @@
       "bk.monthDue": "DOWNLOAD THIS MONTH'S COPY",
       "bk.copies": "copies",
       "bk.failed": "Backup failed",
+      "bk.working": "Copying...",
+      "bk.done": "Copy made at {time} (it replaces today's)",
       "adv.title": "pypilot advanced settings",
       "adv.hint": "Everything pypilot exposes, as in its own web client, grouped. Values are read only for the groups you open. To change anything tick 'Allow changes'; settings in amber can leave pypilot without sensors and ask first.",
       "adv.unlock": "Allow changes",
@@ -1742,6 +1744,8 @@
       "bk.monthDue": "DESCARGA LA COPIA DEL MES",
       "bk.copies": "copias",
       "bk.failed": "La copia falló",
+      "bk.working": "Copiando...",
+      "bk.done": "Copia hecha a las {time} (sustituye a la de hoy)",
       "adv.title": "Ajustes avanzados de pypilot",
       "adv.hint": "Todo lo que ofrece pypilot, como en su propio cliente web, agrupado. Los valores solo se leen de los grupos que abras. Para cambiar algo marca 'Permitir cambios'; los ajustes en ámbar pueden dejar a pypilot sin sensores y piden confirmación.",
       "adv.unlock": "Permitir cambios",
@@ -3024,6 +3028,8 @@
       "bk.monthDue": "KOPIE DES MONATS HERUNTERLADEN",
       "bk.copies": "Kopien",
       "bk.failed": "Sicherung fehlgeschlagen",
+      "bk.working": "Sichere...",
+      "bk.done": "Kopie um {time} erstellt (ersetzt die von heute)",
       "adv.title": "Erweiterte pypilot-Einstellungen",
       "adv.hint": "Alles, was pypilot anbietet, wie in seinem eigenen Web-Client, gruppiert. Werte werden nur für geöffnete Gruppen gelesen. Zum Ändern 'Änderungen erlauben' anhaken; gelb markierte Einstellungen können pypilot ohne Sensoren lassen und fragen vorher.",
       "adv.unlock": "Änderungen erlauben",
@@ -4198,6 +4204,8 @@
       "bk.monthDue": "TÉLÉCHARGEZ LA COPIE DU MOIS",
       "bk.copies": "copies",
       "bk.failed": "Échec de la sauvegarde",
+      "bk.working": "Sauvegarde...",
+      "bk.done": "Copie faite à {time} (remplace celle du jour)",
       "adv.title": "Réglages avancés de pypilot",
       "adv.hint": "Tout ce que propose pypilot, comme dans son propre client web, par groupes. Les valeurs ne sont lues que pour les groupes ouverts. Pour modifier, cochez « Autoriser les modifications » ; les réglages en orange peuvent priver pypilot de capteurs et demandent confirmation.",
       "adv.unlock": "Autoriser les modifications",
@@ -7196,6 +7204,9 @@
   // Rev651 (Carlos 2026-11-07): settings backup card. The copies live on
   // the Signal K Raspberry in a visible folder; the tile says where, how
   // old the last one is, and once a month asks to download one.
+  // Rev652 (Carlos QA Rev651: "no hace nada el botón" - it did, silently,
+  // replacing today's file with one of the same name and size): say so.
+  let _bkpDoneMsg = "";
   async function _bkpRefresh() {
     let st = null;
     try { const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/status`); if (r.ok) st = await r.json(); } catch { /* silent */ }
@@ -7210,7 +7221,7 @@
     const dir = document.getElementById("bk-dir");
     if (dir) dir.textContent = st.dir;
     const note = document.getElementById("bk-note");
-    if (note) note.textContent = [st.lastError ? `${t("bk.failed")}: ${st.lastError}` : "", st.tinypilotNote ? `TinyPilot: ${st.tinypilotNote}` : ""].filter(Boolean).join(" · ");
+    if (note) note.textContent = [_bkpDoneMsg, st.lastError ? `${t("bk.failed")}: ${st.lastError}` : "", st.tinypilotNote ? `TinyPilot: ${st.tinypilotNote}` : ""].filter(Boolean).join(" · ");
     const list = document.getElementById("bk-list");
     if (list) {
       list.textContent = "";
@@ -7218,7 +7229,7 @@
         const a = document.createElement("a");
         a.href = `/plugins/${PLUGIN_ID}/backup/download/${encodeURIComponent(c.name)}`;
         a.download = c.name;
-        a.textContent = `↓ ${c.name}  ·  ${Math.max(1, Math.round(c.size / 1024))} KB`;
+        a.textContent = `↓ ${c.name}  ·  ${fmt(c.ts)}  ·  ${Math.max(1, Math.round(c.size / 1024))} KB`;
         list.appendChild(a);
       }
     }
@@ -7228,11 +7239,16 @@
     if (now) now.addEventListener("click", async (ev) => {
       ev.stopPropagation();
       now.disabled = true;
+      const label = now.textContent;
+      now.textContent = t("bk.working");
+      _bkpDoneMsg = "";
       try {
         const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/now`, { method: "POST" });
         const j = await r.json().catch(() => ({}));
         if (!j.ok) _pmAlert(t("bk.failed"), j.error || `HTTP ${r.status}`);
+        else _bkpDoneMsg = t("bk.done").replace("{time}", new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       } catch (e) { _pmAlert(t("bk.failed"), String(e)); }
+      now.textContent = label;
       now.disabled = false;
       _bkpRefresh();
     });
