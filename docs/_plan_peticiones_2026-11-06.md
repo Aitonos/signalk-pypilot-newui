@@ -12,9 +12,19 @@
    casilla. También se corrigió que el buscador mandara ~20 peticiones de
    vigilancia en un segundo.
 
+3. **Caja negra (A)**, Rev646: botón "Revisado" por entrada y "Marcar
+   todas como revisadas"; las revisadas, atenuadas.
+4. **Doctor (C)**, Rev645: pide el nombre del perfil nuevo, propone
+   "<perfil activo> - Doc NNN"; botón Renombrar en el resultado.
+5. **Registros de la TinyPilot (F)**, Rev647: días anteriores comprimidos,
+   30 días, tope 300 MB. Primera pasada en la Pi: 692 MB -> 8 MB. Copia de
+   lo anterior en `/home/pi/pizero-logs-backup-20261107.tar.gz` (12,6 MB).
+   Nota: la Pi de Tunatunes tiene NVMe (136 GB libres); era urgente para
+   instalaciones con SD, no para esta.
+
 ## Pendiente: plan
 
-### A. Caja negra: marcar entradas como revisadas (ack)
+### A. Caja negra: marcar entradas como revisadas (ack) — HECHO Rev646
 
 **Hoy:** el backend ya guarda "visto" por entrada (`POST /black-box/seen/:id`)
 y el resumen de la baldosa se pone en ámbar si hay alguna sin ver.
@@ -40,7 +50,7 @@ Tamaño: pequeño.
 
 Tamaño: medio (backend `trip-recorder` y visor).
 
-### C. Doctor: nombre del perfil al aplicar consejos
+### C. Doctor: nombre del perfil al aplicar consejos — HECHO Rev645
 
 **Hoy:** al aplicar el primer consejo, el Doctor copia el perfil activo en
 uno nuevo llamado `doctor-AAAAMMDD-HHMMSS`, sin preguntar. Se puede
@@ -118,7 +128,7 @@ Tamaño: medio.
 quieres que salga sola fuera del barco (por correo, Telegram o una
 carpeta en red), hay que elegir el canal.
 
-### F. Disco: registros de la TinyPilot (descubierto al medir)
+### F. Disco: registros de la TinyPilot — HECHO Rev647
 
 La captura de registros de la TinyPilot ocupa **708 MB** en la Pi
 (`pizero-logs`), con días de hasta 290 MB. No hay rotación ni límite.

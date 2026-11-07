@@ -16,6 +16,7 @@ import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
 import { DisplayPresets } from "./display-presets";
 import { BlackBox, BlackBoxSample } from "./black-box";
+import { pruneLogDir } from "./log-retention";
 import { legState, buildApb, wpLabel, isLatLon, M_PER_NM, LatLon } from "./route-nav";
 import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
@@ -83,7 +84,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev646";
+const PLUGIN_REVISION = "Rev647";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -645,6 +646,8 @@ module.exports = function (app: any) {
   let lastEngagedState = false;
   // Rev138 (Carlos): Pi Zero log capture runtime state.
   let logCaptureTimer: NodeJS.Timeout | null = null;
+  let logRetentionTimer: NodeJS.Timeout | null = null;   // Rev647
+  let logRetentionFirst: NodeJS.Timeout | null = null;
   let logCaptureLastRunTs: number | null = null;
   let logCaptureLastError: string | null = null;
   let logCaptureLastAppendedBytes = 0;
@@ -845,6 +848,21 @@ module.exports = function (app: any) {
 
     start: (options: PluginProps) => {
       props = normalizeProps(options);
+      // Rev647 (Carlos 2026-11-06): retention of the captured logs - past
+      // days gzipped, 30 days, 300 MB. Runs even with the capture off (the
+      // files are there anyway); first pass 2 min after start, then 6-hourly.
+      const _lcRetention = () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const dir = require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "pizero-logs");
+        pruneLogDir(dir).then((r) => {
+          // eslint-disable-next-line no-console
+          if (r.gzipped.length || r.deleted.length) console.log(`[log-capture] retention: gzipped ${r.gzipped.length}, deleted ${r.deleted.length}, now ${(r.totalBytes / 1048576).toFixed(0)} MB`);
+        }).catch(() => { /* next pass */ });
+      };
+      if (logRetentionTimer) clearInterval(logRetentionTimer);
+      if (logRetentionFirst) clearTimeout(logRetentionFirst);
+      logRetentionFirst = setTimeout(_lcRetention, 120_000);
+      logRetentionTimer = setInterval(_lcRetention, 6 * 3600_000);
       if (!props.host) {
         app.setPluginStatus(
           "Not configured - open Plugin Config and set host:port, or use the SETUP tab of the webapp."
@@ -1485,6 +1503,8 @@ module.exports = function (app: any) {
         try { clearInterval(logCaptureTimer); } catch {}
         logCaptureTimer = null;
       }
+      if (logRetentionTimer) { clearInterval(logRetentionTimer); logRetentionTimer = null; }   // Rev647
+      if (logRetentionFirst) { clearTimeout(logRetentionFirst); logRetentionFirst = null; }
       // Rev140: stop the watch sweep timer and drop focus state so a
       // subsequent enable does not resurrect stale subscriptions.
       _stopWatchSweep();
