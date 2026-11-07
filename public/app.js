@@ -23502,9 +23502,11 @@
   // Rev653 (Carlos 2026-11-07): three groups with a header; the Technical
   // one is behind the admin PIN (checked by the backend too).
   const SETUP_GROUPS = [
-    { id: "nav", i18n: "setup.group.nav", blocks: ["precheck", "doctor", "smartpilot", "alarms", "quality", "trips", "blackbox"] },
-    { id: "settings", i18n: "setup.group.settings", blocks: ["calibration", "language", "connection"] },
-    { id: "tech", i18n: "setup.group.tech", blocks: ["advanced", "paths", "emergency", "backup"] },
+    { id: "nav", i18n: "setup.group.nav", blocks: ["precheck", "doctor", "smartpilot", "alarms", "quality", "trips"] },
+    { id: "settings", i18n: "setup.group.settings", blocks: ["language"] },
+    // Rev654 (Carlos QA Rev653): black box, calibration and the pypilot
+    // connection only confuse a normal user - Technical.
+    { id: "tech", i18n: "setup.group.tech", blocks: ["blackbox", "calibration", "connection", "advanced", "paths", "emergency", "backup"] },
   ];
   const TECH_BLOCKS = new Set(SETUP_GROUPS[2].blocks);
   function reorderSetupBlocks() {

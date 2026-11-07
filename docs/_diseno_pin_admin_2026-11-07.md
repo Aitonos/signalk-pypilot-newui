@@ -9,9 +9,9 @@ Las tarjetas de Setup se ordenan en tres grupos con cabecera:
 
 | Grupo | Tarjetas | PIN |
 |---|---|---|
-| **Navegación** | Comprobación del piloto, Doctor, Piloto inteligente, Alarmas, Calidad de sensores, Bitácora, Caja negra | no |
-| **Ajustes** | Calibración, Idioma, Conexión | no |
-| **Técnico** | Ajustes avanzados de pypilot, Paths & API, Emergencia (reinicios), Captura de registros, Traza de maniobras, Copia de seguridad | sí |
+| **Navegación** | Comprobación del piloto, Doctor, Piloto inteligente, Alarmas, Calidad de sensores, Bitácora | no |
+| **Ajustes** | Idioma | no |
+| **Técnico** | Caja negra, Calibración, Conexión (con captura de registros y traza de maniobras), Ajustes avanzados de pypilot, Paths & API, Emergencia (reinicios), Copia de seguridad | sí (Rev654: Carlos movió aquí Caja negra, Calibración y Conexión) |
 
 Sin desbloquear, las tarjetas de Técnico se ven atenuadas con un candado;
 al tocarlas se pide el PIN.
