@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev650" />
+  <link rel="stylesheet" href="style.css?v=Rev651" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2068,6 +2068,18 @@
         </div>
         <div id="adv-groups"></div>
       </div>
+      <!-- Rev651 (Carlos 2026-11-07): daily settings backup in a visible folder. -->
+      <div class="setup-block" data-setup-order="166" data-block-key="backup">
+        <div class="section-title" data-i18n="bk.title">Settings backup</div>
+        <div class="hint" data-i18n="bk.hint">Every day a copy of all the settings is saved on the Signal K Raspberry Pi, in the folder below.</div>
+        <div id="bk-dir" class="bk-dir"></div>
+        <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+          <button type="button" class="primary" id="bk-now" data-i18n="bk.now">Make a copy now</button>
+          <button type="button" id="bk-dl" data-i18n="bk.download">Download the latest</button>
+        </div>
+        <div id="bk-note" class="hint"></div>
+        <div id="bk-list" class="bk-list"></div>
+      </div>
       <div class="setup-block" data-setup-order="170" data-block-key="paths">
         <div class="section-title" data-i18n="setup.paths.title">Paths &amp; API</div>
         <div class="setup-block-status" id="setup-status-paths"></div>
@@ -2824,6 +2836,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev650"></script>
+  <script src="app.js?v=Rev651"></script>
 </body>
 </html>

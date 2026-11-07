@@ -86,7 +86,7 @@ Tamaño: medio-grande.
 - ¿Qué entra en "Técnico"?
 - ¿Se reutiliza el PIN de mareas o va uno propio para pypilot-newui?
 
-### E. Copia de seguridad de los ajustes
+### E. Copia de seguridad de los ajustes — FASE 1 HECHA Rev651
 
 **Qué entra:**
 - opciones del plugin;

@@ -75,6 +75,7 @@ import { SessionRecorder, SessionSample, SessionTags } from "./session-recorder"
 import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
+import { backupDir, listBackups, writeBackup, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
   ManeuverTraceLog,
@@ -84,7 +85,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev650";
+const PLUGIN_REVISION = "Rev651";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2870,6 +2871,115 @@ module.exports = function (app: any) {
       }
       // Auto-start on plugin boot if config says so.
       if (props.logCaptureEnabled) _lcStart();
+
+
+      // ============================================================
+      // Rev651 (Carlos 2026-11-07): daily settings backup, in a folder the
+      // sailor can see: ~/Backups-pypilot-newui on the Signal K Raspberry
+      // (server clock, server disk). See settings-backup.ts for contents.
+      //   GET  /backup/status          - folder, copies, last one, due flags
+      //   POST /backup/now             - make today's copy now
+      //   GET  /backup/download/:name  - one copy ("latest" = newest)
+      // ============================================================
+      let _bkLastError: string | null = null;
+      let _bkLastTinypilot: string | null = null;
+      let _bkBusy = false;
+      const _bkStatePath = () => require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "backup-state.json");
+      const _bkState = (): { lastDownloadTs?: number } => { try { return JSON.parse(require("fs").readFileSync(_bkStatePath(), "utf8")) || {}; } catch { return {}; } };
+      const _bkReadData = (rel: string): unknown => {
+        try {
+          const txt = require("fs").readFileSync(require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", rel), "utf8");
+          try { return JSON.parse(txt); } catch { return txt; }
+        } catch { return null; }
+      };
+      async function _bkRun(): Promise<{ ok: boolean; name?: string; error?: string }> {
+        if (_bkBusy) return { ok: false, error: "a backup is already being made" };
+        _bkBusy = true;
+        try {
+          let config: unknown = null;
+          if (client) {
+            config = captureBundle({
+              revision: PLUGIN_REVISION,
+              props: props as unknown as Record<string, unknown>,
+              catalog: client.getCatalog() as unknown as Record<string, { persistent?: boolean; info?: { persistent?: boolean } }>,
+              values: client.getValues(),
+            });
+          }
+          // pypilot's own files hold every profile's gains; best effort.
+          let tinypilot: { files: Record<string, string>; error?: string } = { files: {} };
+          if (props.sshPassword) {
+            const r = await _runSsh(tinypilotCopyCommand(), 20000);
+            tinypilot = r.ok || r.stdout.includes("===PNU:FILE===")
+              ? { files: parseTinypilotFiles(r.stdout) }
+              : { files: {}, error: (r.error || r.stdout || "ssh failed").slice(0, 200) };
+          } else tinypilot.error = "SSH not configured: only the active profile is in this copy";
+          _bkLastTinypilot = tinypilot.error || null;
+          const content = {
+            kind: "pypilot-newui-backup",
+            version: 1,
+            createdTs: Date.now(),
+            revision: PLUGIN_REVISION,
+            config,
+            plugin: {
+              visorPrefs: _bkReadData("visor-prefs.json"),
+              displayPresets: _bkReadData("display-presets.json"),
+              servoBaseline: _bkReadData("servo-baseline.json"),
+              gainWatchdogLease: _bkReadData("gain-watchdog/lease.json"),
+            },
+            tinypilot,
+          };
+          const info = writeBackup(backupDir(), new Date(), content);
+          _bkLastError = null;
+          // eslint-disable-next-line no-console
+          console.log(`[backup] ${info.name} written (${Math.round(info.size / 1024)} KB)${tinypilot.error ? " - " + tinypilot.error : ""}`);
+          return { ok: true, name: info.name };
+        } catch (e: any) {
+          _bkLastError = String(e?.message || e);
+          return { ok: false, error: _bkLastError };
+        } finally { _bkBusy = false; }
+      }
+      // Today's copy is made the first time the hourly check finds it
+      // missing, so a Pi that is off at night still gets one per day.
+      const _bkCheck = () => {
+        if (!require("fs").existsSync(require("path").join(backupDir(), dayName(new Date())))) _bkRun().catch(() => { /* next hour */ });
+      };
+      setTimeout(_bkCheck, 60_000).unref?.();
+      setInterval(_bkCheck, 3600_000).unref?.();
+      router.get("/backup/status", (_req: any, res: any) => {
+        const list = listBackups(backupDir());
+        const st = _bkState();
+        const now = new Date();
+        const last = list[0] || null;
+        const lastDl = typeof st.lastDownloadTs === "number" ? new Date(st.lastDownloadTs) : null;
+        res.json({
+          dir: backupDir(),
+          keep: BACKUP_KEEP,
+          count: list.length,
+          copies: list,
+          last,
+          ageHours: last ? (Date.now() - last.ts) / 3600_000 : null,
+          stale: !last || Date.now() - last.ts > 2 * 86400_000,
+          lastDownloadTs: st.lastDownloadTs ?? null,
+          // Once a month: due when nothing was downloaded this calendar month.
+          downloadDue: !lastDl || lastDl.getFullYear() !== now.getFullYear() || lastDl.getMonth() !== now.getMonth(),
+          busy: _bkBusy,
+          lastError: _bkLastError,
+          tinypilotNote: _bkLastTinypilot,
+        });
+      });
+      router.post("/backup/now", async (_req: any, res: any) => {
+        res.json(await _bkRun());
+      });
+      router.get("/backup/download/:name", (req: any, res: any) => {
+        let name = String(req.params?.name || "");
+        if (name === "latest") name = listBackups(backupDir())[0]?.name || "";
+        if (!isBackupName(name)) { res.status(404).json({ error: "not found" }); return; }
+        const file = require("path").join(backupDir(), name);
+        if (!require("fs").existsSync(file)) { res.status(404).json({ error: "not found" }); return; }
+        try { require("fs").writeFileSync(_bkStatePath(), JSON.stringify({ ..._bkState(), lastDownloadTs: Date.now() })); } catch { /* silent */ }
+        res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
+        res.type("application/json").sendFile(file);
+      });
 
       // Rev164-166: supervisor status. Visor uses this to render the
       // "smart pilot" card so the skipper can see WHY the plugin

@@ -534,6 +534,15 @@
       "autowind.blocked.no-wind-data": "no wind data",
       "autowind.blocked.wind-too-light": "wind too light",
       "autowind.refused": "AUTOWIND not started",
+      "bk.title": "Settings backup",
+      "bk.hint": "Every day a copy of all the settings is saved on the Signal K Raspberry Pi, in the folder below. Once a month, download one and keep it off the boat.",
+      "bk.now": "Make a copy now",
+      "bk.download": "Download the latest",
+      "bk.none": "NO COPY YET",
+      "bk.stale": "LAST COPY {when}",
+      "bk.monthDue": "DOWNLOAD THIS MONTH'S COPY",
+      "bk.copies": "copies",
+      "bk.failed": "Backup failed",
       "adv.title": "pypilot advanced settings",
       "adv.hint": "Everything pypilot exposes, as in its own web client, grouped. Values are read only for the groups you open. To change anything tick 'Allow changes'; settings in amber can leave pypilot without sensors and ask first.",
       "adv.unlock": "Allow changes",
@@ -1724,6 +1733,15 @@
       "autowind.blocked.no-wind-data": "sin datos de viento",
       "autowind.blocked.wind-too-light": "viento flojo",
       "autowind.refused": "AUTOWIND no arrancado",
+      "bk.title": "Copia de seguridad de ajustes",
+      "bk.hint": "Cada día se guarda una copia de todos los ajustes en la Raspberry de Signal K, en la carpeta de abajo. Una vez al mes, descarga una y guárdala fuera del barco.",
+      "bk.now": "Hacer copia ahora",
+      "bk.download": "Descargar la última",
+      "bk.none": "SIN COPIAS TODAVÍA",
+      "bk.stale": "ÚLTIMA COPIA {when}",
+      "bk.monthDue": "DESCARGA LA COPIA DEL MES",
+      "bk.copies": "copias",
+      "bk.failed": "La copia falló",
       "adv.title": "Ajustes avanzados de pypilot",
       "adv.hint": "Todo lo que ofrece pypilot, como en su propio cliente web, agrupado. Los valores solo se leen de los grupos que abras. Para cambiar algo marca 'Permitir cambios'; los ajustes en ámbar pueden dejar a pypilot sin sensores y piden confirmación.",
       "adv.unlock": "Permitir cambios",
@@ -2997,6 +3015,15 @@
       "autowind.blocked.no-wind-data": "keine Winddaten",
       "autowind.blocked.wind-too-light": "Wind zu schwach",
       "autowind.refused": "AUTOWIND nicht gestartet",
+      "bk.title": "Sicherung der Einstellungen",
+      "bk.hint": "Jeden Tag wird eine Kopie aller Einstellungen auf dem Signal-K-Raspberry-Pi im Ordner unten gespeichert. Einmal im Monat eine herunterladen und außerhalb des Bootes aufbewahren.",
+      "bk.now": "Jetzt sichern",
+      "bk.download": "Neueste herunterladen",
+      "bk.none": "NOCH KEINE KOPIE",
+      "bk.stale": "LETZTE KOPIE {when}",
+      "bk.monthDue": "KOPIE DES MONATS HERUNTERLADEN",
+      "bk.copies": "Kopien",
+      "bk.failed": "Sicherung fehlgeschlagen",
       "adv.title": "Erweiterte pypilot-Einstellungen",
       "adv.hint": "Alles, was pypilot anbietet, wie in seinem eigenen Web-Client, gruppiert. Werte werden nur für geöffnete Gruppen gelesen. Zum Ändern 'Änderungen erlauben' anhaken; gelb markierte Einstellungen können pypilot ohne Sensoren lassen und fragen vorher.",
       "adv.unlock": "Änderungen erlauben",
@@ -4162,6 +4189,15 @@
       "autowind.blocked.no-wind-data": "pas de données de vent",
       "autowind.blocked.wind-too-light": "vent trop faible",
       "autowind.refused": "AUTOWIND non démarré",
+      "bk.title": "Sauvegarde des réglages",
+      "bk.hint": "Chaque jour une copie de tous les réglages est enregistrée sur le Raspberry Pi de Signal K, dans le dossier ci-dessous. Une fois par mois, téléchargez-en une et gardez-la hors du bateau.",
+      "bk.now": "Sauvegarder maintenant",
+      "bk.download": "Télécharger la dernière",
+      "bk.none": "AUCUNE COPIE",
+      "bk.stale": "DERNIÈRE COPIE {when}",
+      "bk.monthDue": "TÉLÉCHARGEZ LA COPIE DU MOIS",
+      "bk.copies": "copies",
+      "bk.failed": "Échec de la sauvegarde",
       "adv.title": "Réglages avancés de pypilot",
       "adv.hint": "Tout ce que propose pypilot, comme dans son propre client web, par groupes. Les valeurs ne sont lues que pour les groupes ouverts. Pour modifier, cochez « Autoriser les modifications » ; les réglages en orange peuvent priver pypilot de capteurs et demandent confirmation.",
       "adv.unlock": "Autoriser les modifications",
@@ -7156,6 +7192,66 @@
     const first = sm[0], last = sm[sm.length - 1];
     html += `<div class="hint" style="margin-top:8px">${_bbFmtTime(first.ts)} → ${_bbFmtTime(last.ts)} · ${sm.length} s · ${esc(first.mode || "")}</div>`;
     body.innerHTML = html;
+  }
+  // Rev651 (Carlos 2026-11-07): settings backup card. The copies live on
+  // the Signal K Raspberry in a visible folder; the tile says where, how
+  // old the last one is, and once a month asks to download one.
+  async function _bkpRefresh() {
+    let st = null;
+    try { const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/status`); if (r.ok) st = await r.json(); } catch { /* silent */ }
+    if (!st) return;
+    const fmt = (ms) => { const d = new Date(ms); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+    let txt, level;
+    if (!st.count) { txt = t("bk.none"); level = "warn"; }
+    else if (st.stale) { txt = t("bk.stale").replace("{when}", fmt(st.last.ts)); level = "warn"; }
+    else if (st.downloadDue) { txt = t("bk.monthDue"); level = "warn"; }
+    else { txt = `${fmt(st.last.ts)} · ${st.count} ${t("bk.copies")}`; level = "good"; }
+    try { _updateSetupSummary("backup", txt, level); } catch { /* silent */ }
+    const dir = document.getElementById("bk-dir");
+    if (dir) dir.textContent = st.dir;
+    const note = document.getElementById("bk-note");
+    if (note) note.textContent = [st.lastError ? `${t("bk.failed")}: ${st.lastError}` : "", st.tinypilotNote ? `TinyPilot: ${st.tinypilotNote}` : ""].filter(Boolean).join(" · ");
+    const list = document.getElementById("bk-list");
+    if (list) {
+      list.textContent = "";
+      for (const c of st.copies || []) {
+        const a = document.createElement("a");
+        a.href = `/plugins/${PLUGIN_ID}/backup/download/${encodeURIComponent(c.name)}`;
+        a.download = c.name;
+        a.textContent = `↓ ${c.name}  ·  ${Math.max(1, Math.round(c.size / 1024))} KB`;
+        list.appendChild(a);
+      }
+    }
+  }
+  function _bkpWire() {
+    const now = document.getElementById("bk-now");
+    if (now) now.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      now.disabled = true;
+      try {
+        const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/now`, { method: "POST" });
+        const j = await r.json().catch(() => ({}));
+        if (!j.ok) _pmAlert(t("bk.failed"), j.error || `HTTP ${r.status}`);
+      } catch (e) { _pmAlert(t("bk.failed"), String(e)); }
+      now.disabled = false;
+      _bkpRefresh();
+    });
+    const dl = document.getElementById("bk-dl");
+    if (dl) dl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const a = document.createElement("a");
+      a.href = `/plugins/${PLUGIN_ID}/backup/download/latest`;
+      a.download = "";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(_bkpRefresh, 1500);
+    });
+    const block = document.querySelector('.setup-block[data-block-key="backup"]');
+    if (block && typeof MutationObserver === "function") {
+      new MutationObserver(() => { if (block.dataset.fullscreen === "1") _bkpRefresh(); })
+        .observe(block, { attributes: true, attributeFilter: ["data-fullscreen"] });
+    }
+    _bkpRefresh();
+    setInterval(() => { if (document.visibilityState === "visible") _bkpRefresh(); }, 60000);
   }
   function _bbWire() {
     const mk = document.getElementById("bb-mark-btn");
@@ -18052,6 +18148,7 @@
     try { _dashPresetsWire(); } catch (e) { console.warn("[presets] wire", e); }
     // Rev525: black box card.
     try { _bbWire(); } catch (e) { console.warn("[bb] wire", e); }
+    try { _bkpWire(); } catch (e) { console.warn("[bk] wire", e); }
     // Rev522 (Carlos): tap sound toggle (shared visor pref).
     const ts = document.getElementById("dash-tap-sound");
     if (ts) {

@@ -4913,3 +4913,8 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
 .adv-edit { white-space: nowrap; }
 .adv-edit .adv-input { width: 7em; }
 .adv-units { color: var(--fg-dim); }
+
+/* Rev651: settings backup card. */
+.bk-dir { font-family: ui-monospace, monospace; font-size: 15px; font-weight: 700; color: var(--accent); word-break: break-all; margin: 8px 0 4px; }
+.bk-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.bk-list a { color: var(--fg); font-family: ui-monospace, monospace; font-size: 13px; text-decoration: none; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-3); }
