@@ -8,7 +8,7 @@ import {
   mappingFor,
   skPathToPypilotName,
 } from "./publisher";
-import { scanLan } from "./scanner";
+import { scanLanReport } from "./scanner";
 import { AutopilotProvider } from "./autopilot-provider";
 import { Historian, Sample, SamplePath } from "./historian";
 import { KPIComputer, KPISnapshot } from "./kpis";
@@ -86,7 +86,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev655";
+const PLUGIN_REVISION = "Rev657";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2233,8 +2233,10 @@ module.exports = function (app: any) {
       router.get("/scan", async (req: any, res: any) => {
         try {
           const subnet = typeof req.query.subnet === "string" ? req.query.subnet : undefined;
-          const hits = await scanLan({ subnet });
-          res.json({ subnet: subnet ?? "auto", hits });
+          // Rev656: which subnets and ports were tried, for the "nothing
+          // found" message and its prefilled issue report.
+          const r = await scanLanReport({ subnet });
+          res.json({ subnet: subnet ?? "auto", hits: r.hits, subnets: r.subnets, ports: r.ports, revision: PLUGIN_REVISION, version: PLUGIN_PKG_VERSION });
         } catch (e: any) {
           res.status(500).json({ error: e?.message || String(e) });
         }

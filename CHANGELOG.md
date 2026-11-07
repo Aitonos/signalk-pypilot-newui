@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.12.1 — 2026-11-07 — LAN scan on every network
+
+Rev656-657 on top of 3.12.0.
+
+### Fixed
+- The LAN scan looked only at the subnet of the first network interface of
+  the Signal K computer. On AvNav that is often its own Wi-Fi hotspot, so a
+  TinyPilot on the boat network was never found. It now scans every IPv4
+  interface (up to 4 subnets; containers, VPNs and link-local skipped).
+
+### Added
+- When the scan finds nothing it says which subnets and ports it tried, how
+  to enter the address by hand (port 80 on TinyPilot, 8000 on a classic
+  pypilot install), and offers "Report issue": a GitHub issue already filled
+  in with the plugin version, subnets and ports.
+
+### Changed
+- Tests: trip pause/resume uses explicit times (it failed on fast CI runners).
+
 ## 3.12.0 — 2026-11-07 — AUTOWIND that acts, admin PIN, settings backup
 
 Rev630 to Rev655 on top of 3.11.1. Self-audit in

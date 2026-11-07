@@ -340,6 +340,8 @@
       "setup.scan.btn": "Scan",
       "setup.scan.scanning": "scanning...",
       "setup.scan.none": "no pypilot_web found",
+      "setup.scan.noneBody": "No pypilot found.\nSearched: {subnets}, ports {ports}.\nEnter its address by hand above: the same IP you use to open its own web page, port 80 for TinyPilot (8000 on a classic pypilot install).\nStill not working? Report it - the form comes filled in with what was searched.",
+      "setup.scan.report": "Report issue",
       "setup.scan.failed": "scan failed",
       "setup.manual.title": "Manual host",
       "setup.manual.hint": "Applying rewrites the plugin config and restarts the plugin. Requires Signal K admin login.",
@@ -1562,6 +1564,8 @@
       "setup.scan.btn": "Escanear",
       "setup.scan.scanning": "escaneando...",
       "setup.scan.none": "no se ha encontrado pypilot_web",
+      "setup.scan.noneBody": "No se ha encontrado pypilot.\nBuscado en: {subnets}, puertos {ports}.\nEscribe su dirección a mano arriba: la misma IP con la que abres su propia página web, puerto 80 en TinyPilot (8000 en una instalación clásica de pypilot).\n¿Sigue sin funcionar? Avísanos: el formulario sale relleno con lo que se ha buscado.",
+      "setup.scan.report": "Informar del problema",
       "setup.scan.failed": "escaneo fallido",
       "setup.manual.title": "Host manual",
       "setup.manual.hint": "Al aplicar reescribe la config del plugin y lo reinicia. Requiere login de admin de Signal K.",
@@ -2886,6 +2890,8 @@
       "setup.scan.btn": "Suchen",
       "setup.scan.scanning": "suche...",
       "setup.scan.none": "kein pypilot_web gefunden",
+      "setup.scan.noneBody": "Kein pypilot gefunden.\nGesucht in: {subnets}, Ports {ports}.\nAdresse oben von Hand eingeben: dieselbe IP, mit der du seine eigene Webseite öffnest, Port 80 bei TinyPilot (8000 bei einer klassischen pypilot-Installation).\nGeht es immer noch nicht? Melde es - das Formular ist mit dem Gesuchten ausgefüllt.",
+      "setup.scan.report": "Problem melden",
       "setup.scan.failed": "Suche fehlgeschlagen",
       "setup.manual.title": "Host manuell",
       "setup.manual.hint": "Übernehmen schreibt die Plugin-Konfiguration neu und startet das Plugin neu. Signal-K-Admin-Login nötig.",
@@ -4082,6 +4088,8 @@
       "setup.scan.btn": "Rechercher",
       "setup.scan.scanning": "recherche...",
       "setup.scan.none": "aucun pypilot_web trouvé",
+      "setup.scan.noneBody": "Aucun pypilot trouvé.\nRecherché dans : {subnets}, ports {ports}.\nSaisissez son adresse à la main ci-dessus : la même IP que pour ouvrir sa propre page web, port 80 pour TinyPilot (8000 pour une installation pypilot classique).\nToujours rien ? Signalez-le : le formulaire est prérempli avec ce qui a été cherché.",
+      "setup.scan.report": "Signaler le problème",
       "setup.scan.failed": "échec de la recherche",
       "setup.manual.title": "Hôte manuel",
       "setup.manual.hint": "Appliquer réécrit la config du plugin et redémarre le plugin. Nécessite la connexion admin Signal K.",
@@ -16075,6 +16083,42 @@
     }
   }
 
+  // Rev656 (forum 2026-11-07, AvNav + TinyPilot not found): say what was
+  // searched, how to enter the address by hand, and offer a GitHub issue
+  // already filled in with what we know - the sailor only presses submit.
+  function _scanNothingFound(el, j) {
+    const subnets = (j.subnets || []).map((x) => `${x.subnet}${x.iface && x.iface !== "manual" ? ` (${x.iface} ${x.address})` : ""}`);
+    const ports = (j.ports || []).join(", ");
+    const p = document.createElement("div");
+    p.className = "hint";
+    p.style.whiteSpace = "pre-line";
+    p.textContent = t("setup.scan.noneBody").replace("{subnets}", subnets.join(", ") || "—").replace("{ports}", ports || "—");
+    el.appendChild(p);
+    const body = [
+      "The LAN scan did not find pypilot / TinyPilot.",
+      "",
+      `Plugin: ${j.version || "?"} (${j.revision || "?"})`,
+      `Subnets scanned: ${subnets.join(", ") || "none"}`,
+      `Ports tried: ${ports || "?"}`,
+      `Browser: ${navigator.userAgent}`,
+      "",
+      "TinyPilot / pypilot IP address:",
+      "Address used to open its own web interface:",
+      "Signal K server version:",
+      "Anything else (AvNav, OpenPlotter, other network setup):",
+    ].join("\n");
+    const url = `https://github.com/Aitonos/signalk-pypilot-newui/issues/new?title=${encodeURIComponent("LAN scan does not find pypilot")}&body=${encodeURIComponent(body)}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ghost";
+    b.textContent = t("setup.scan.report");
+    a.appendChild(b);
+    el.appendChild(a);
+  }
   async function scan() {
     $("#scan-results").textContent = t("setup.scan.scanning");
     const subnet = $("#scan-subnet").value.trim();
@@ -16085,7 +16129,7 @@
       const el = $("#scan-results");
       el.textContent = "";
       const hits = j.hits || [];
-      if (!hits.length) { el.textContent = t("setup.scan.none"); return; }
+      if (!hits.length) { _scanNothingFound(el, j); return; }
       for (const h of hits) {
         const d = document.createElement("div");
         d.className = "scan-hit";

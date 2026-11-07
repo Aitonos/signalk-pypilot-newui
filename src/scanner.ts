@@ -16,7 +16,7 @@ export interface ScanOptions {
 }
 
 /**
- * Scan the local subnet for pypilot_web instances.
+ * Scan the local subnets for pypilot_web instances.
  *
  * Two-stage probe per host:
  *   1. TCP connect on candidate ports. Fast filter (~400ms).
@@ -28,15 +28,47 @@ export interface ScanOptions {
  * Returns unique {ip, port} hits.
  */
 export async function scanLan(opts: ScanOptions = {}): Promise<ScanHit[]> {
+  return (await scanLanReport(opts)).hits;
+}
+
+export interface LocalSubnet { iface: string; address: string; subnet: string }
+export interface ScanReport { hits: ScanHit[]; subnets: LocalSubnet[]; ports: number[] }
+
+/** Rev656 (forum 2026-11-07, AvNav on a Pi 5): the scan looked only at the
+ *  /24 of the FIRST interface - on AvNav that is often its own Wi-Fi
+ *  hotspot, not the network the TinyPilot is on. Now every IPv4 interface
+ *  (link-local and container bridges skipped), at most MAX_SUBNETS. */
+export const MAX_SUBNETS = 4;
+export function localSubnets(ifaces: ReturnType<typeof networkInterfaces> = networkInterfaces()): LocalSubnet[] {
+  const out: LocalSubnet[] = [];
+  for (const name of Object.keys(ifaces)) {
+    if (/^(docker|veth|br-|virbr|lo|tailscale|wg|tun|tap|zt)/.test(name)) continue;   // containers and VPNs
+    for (const info of ifaces[name] || []) {
+      if (info.family !== "IPv4" || info.internal) continue;
+      const parts = info.address.split(".").map(Number);
+      if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) continue;
+      if (parts[0] === 169 && parts[1] === 254) continue;
+      if (info.netmask === "255.255.255.255") continue;   // point-to-point (VPN), no neighbours to scan
+      const subnet = `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+      if (out.some((x) => x.subnet === subnet)) continue;
+      out.push({ iface: name, address: info.address, subnet });
+    }
+  }
+  return out.slice(0, MAX_SUBNETS);
+}
+
+export async function scanLanReport(opts: ScanOptions = {}): Promise<ScanReport> {
   const ports = opts.ports ?? [80, 8000];
   const tcpTimeout = opts.tcpTimeoutMs ?? 400;
   const httpTimeout = opts.httpTimeoutMs ?? 800;
   const parallelism = opts.parallelism ?? 32;
 
-  const subnet = opts.subnet ?? detectSubnet();
-  if (!subnet) return [];
+  const subnets: LocalSubnet[] = opts.subnet
+    ? [{ iface: "manual", address: "", subnet: opts.subnet }]
+    : localSubnets();
+  if (!subnets.length) return { hits: [], subnets, ports };
 
-  const hosts = enumerate24(subnet);
+  const hosts = subnets.flatMap((x) => enumerate24(x.subnet));
   const results: ScanHit[] = [];
   const queue = [...hosts];
 
@@ -58,23 +90,7 @@ export async function scanLan(opts: ScanOptions = {}): Promise<ScanHit[]> {
 
   const workers = Array.from({ length: parallelism }, () => worker());
   await Promise.all(workers);
-  return results;
-}
-
-/**
- * Auto-detect a /24 subnet from the first non-internal IPv4 interface.
- */
-function detectSubnet(): string | null {
-  const ifaces = networkInterfaces();
-  for (const name of Object.keys(ifaces)) {
-    for (const info of ifaces[name] || []) {
-      if (info.family !== "IPv4" || info.internal) continue;
-      const parts = info.address.split(".").map(Number);
-      if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) continue;
-      return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
-    }
-  }
-  return null;
+  return { hits: results, subnets, ports };
 }
 
 function enumerate24(cidr: string): string[] {
