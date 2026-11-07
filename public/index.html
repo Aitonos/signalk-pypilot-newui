@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev654" />
+  <link rel="stylesheet" href="style.css?v=Rev655" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2262,6 +2262,12 @@
               <li><b>Remote Control Console (Emergency)</b>: escalated restart triad &mdash; <i>restart pypilot_web</i> (~3&ndash;5 s, AP keeps steering), <i>RESTART pypilot</i> (~10&ndash;15 s, AP drops the heading), <i>reboot Pi</i> (~35&ndash;60 s full outage). Every action asks for a <i>helm-manned</i> confirmation first.</li>
               <li><b>Watchdog + reconnect</b> (Rev258&ndash;268): pong-based heartbeat detects a dead pypilot inside 20 s, greys out AP-affecting controls, hides the target, and speaks "Pypilot disconnected for N seconds". On reconnect: <i>Pypilot operational</i> voice + toast. If the outage lasted 20 s to 5 min, offers to restore the last target with a banner.</li>
               <li><b>Language</b>: EN / ES / DE / FR. Stored per browser.</li>
+              <li><b>Groups and admin PIN</b>: Setup is split into Sailing, Settings and Technical. Technical (black box, calibration, connection, advanced settings, paths, emergency, backup) can be locked with an admin PIN of 4 to 8 digits, checked by the server; unlocked for 12 hours on that screen. Without a PIN nothing is locked. Forgotten PIN: tick &quot;Forget the admin PIN&quot; in the plugin config of the Signal K admin.</li>
+              <li><b>pypilot advanced settings</b>: everything pypilot's own web client shows, grouped, in this style. Values are read only for the groups you open; changes need &quot;Allow changes&quot;, and installation settings (amber) ask first.</li>
+              <li><b>Settings backup</b>: every day a readable copy of all the settings (plugin, pypilot, every profile from the TinyPilot's pypilot.conf, visor preferences) goes to <code>~/Backups-pypilot-newui/</code> on the Signal K Raspberry Pi; the last 30 are kept. Never the SSH password. The tile turns amber when there is no recent copy or nothing was downloaded this month.</li>
+              <li><b>Logbook</b>: while a trip is recorded, Pause / Resume (time and distance stop), Stop (closes it now; the next one starts after mooring or anchoring), Restart and Delete.</li>
+              <li><b>Black box</b>: &quot;Reviewed&quot; on each new incident and &quot;Mark all reviewed&quot;.</li>
+              <li><b>Log capture retention</b>: past days are compressed, files older than 30 days deleted, 300 MB at most.</li>
             </ul>
 
             <h5 style="margin:14px 0 4px">Info tab</h5>
@@ -2337,6 +2343,12 @@
               <li><b>Consola de control remoto (Emergencia)</b>: tr&iacute;ada de reinicio escalado &mdash; <i>restart pypilot_web</i> (~3&ndash;5 s, el AP sigue pilotando), <i>REINICIAR pypilot</i> (~10&ndash;15 s, el AP suelta el rumbo), <i>reboot Pi</i> (~35&ndash;60 s, corte total). Cada acci&oacute;n pide confirmaci&oacute;n <i>tim&oacute;n atendido</i> antes de ejecutar.</li>
               <li><b>Watchdog + reconexi&oacute;n</b> (Rev258&ndash;268): heartbeat basado en pong detecta un pypilot muerto en menos de 20 s, engrisece los controles que afectan al AP, oculta el target y locuta "Pypilot desconectado desde hace N segundos". Al reconectar: voz + toast "Pypilot operativo". Si la interrupci&oacute;n dur&oacute; entre 20 s y 5 min, ofrece restaurar el &uacute;ltimo target con un banner.</li>
               <li><b>Idioma</b>: EN / ES / DE / FR. Se guarda por navegador.</li>
+              <li><b>Grupos y PIN de administrador</b>: Setup se divide en Navegaci&oacute;n, Ajustes y T&eacute;cnico. T&eacute;cnico (caja negra, calibraci&oacute;n, conexi&oacute;n, ajustes avanzados, paths, emergencia, copia de seguridad) se puede bloquear con un PIN de 4 a 8 cifras que comprueba el servidor; queda desbloqueado 12 horas en esa pantalla. Sin PIN no se bloquea nada. Si lo olvidas: marca &quot;Forget the admin PIN&quot; en la configuraci&oacute;n del plugin en el admin de Signal K.</li>
+              <li><b>Ajustes avanzados de pypilot</b>: todo lo que muestra el cliente web de pypilot, agrupado y con este estilo. Solo se leen los grupos que abres; para cambiar hay que marcar &quot;Permitir cambios&quot;, y los ajustes de instalaci&oacute;n (en &aacute;mbar) piden confirmaci&oacute;n.</li>
+              <li><b>Copia de seguridad de ajustes</b>: cada d&iacute;a se guarda una copia legible de todos los ajustes (plugin, pypilot, todos los perfiles del pypilot.conf de la TinyPilot, preferencias del visor) en <code>~/Backups-pypilot-newui/</code> de la Raspberry de Signal K; se guardan las 30 &uacute;ltimas. Nunca la contrase&ntilde;a SSH. La baldosa se pone en &aacute;mbar si no hay copia reciente o este mes no has descargado ninguna.</li>
+              <li><b>Bit&aacute;cora</b>: mientras se graba un viaje, Pausar / Seguir (no cuentan tiempo ni distancia), Parar (lo cierra ya; el siguiente empieza al amarrar o fondear), Reiniciar y Borrar.</li>
+              <li><b>Caja negra</b>: &quot;Revisado&quot; en cada incidente nuevo y &quot;Marcar todas como revisadas&quot;.</li>
+              <li><b>Limpieza de registros</b>: los d&iacute;as anteriores se comprimen, se borran los de m&aacute;s de 30 d&iacute;as, 300 MB como m&aacute;ximo.</li>
             </ul>
 
             <h5 style="margin:14px 0 4px">Pesta&ntilde;a Info</h5>
@@ -2836,6 +2848,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev654"></script>
+  <script src="app.js?v=Rev655"></script>
 </body>
 </html>

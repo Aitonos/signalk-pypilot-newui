@@ -1,5 +1,49 @@
 # Changelog
 
+## 3.12.0 — 2026-11-07 — AUTOWIND that acts, admin PIN, settings backup
+
+Rev630 to Rev655 on top of 3.11.1. Self-audit in
+`docs/_autoauditoria_pre_3.12.0_2026-11-07.md`.
+
+### Fixed
+- AUTOWIND did nothing in the 2026-11-05 sea trial: a manoeuvre flag left
+  behind by a closed screen blocked it. The flag is now per manoeuvre, ends
+  with it, and is cleared when pypilot is no longer doing it.
+- AUTOWIND decides only on fresh wind data, retries a refused switch, starts
+  on the wind angle the boat has now, and never rewrites a target the
+  sailor changed. The mode button says why it is waiting.
+- Aproado / Empopado across devices: every screen shows the one running and
+  can end it; taking the AP off ends it; the mode button names it.
+- Empopado's temporary gains are restored on the profile they belong to and
+  never over a value the sailor set since.
+- Choosing NAV with a big turn changes nothing until the sailor says yes.
+- COG at rest no longer shows as "missing" in Sensor Quality.
+- The config export no longer contains the TinyPilot's SSH password.
+
+### Added
+- Admin PIN (own, 4-8 digits) for the new Technical group of Setup (black
+  box, calibration, connection, advanced settings, paths, emergency,
+  backup). Checked by the server; 12 h unlock per screen; nothing locked
+  until a PIN is set; reset from the plugin config in the Signal K admin.
+- Setup in three groups: Sailing, Settings, Technical.
+- Daily settings backup in `~/Backups-pypilot-newui/` on the Signal K
+  Raspberry Pi (plugin, pypilot and every profile from the TinyPilot's
+  pypilot.conf), last 30 kept, with a monthly reminder to download one.
+- "pypilot advanced settings" card: everything pypilot's own web client
+  shows, grouped, read only for the groups opened, changes behind "Allow
+  changes".
+- Logbook: pause / resume, stop, restart or delete the trip in progress.
+- Black box: "Reviewed" per incident and "Mark all reviewed".
+- Doctor asks the new profile's name ("<profile> - Doc 001") and can rename it.
+- Alarm when pypilot's Signal K access request waits for approval (pypilot
+  drops its token if Signal K answers 503 while restarting).
+
+### Changed
+- Captured TinyPilot logs: past days compressed, 30 days, 300 MB at most
+  (692 MB → 8 MB on the test boat).
+- Network and offline banners close with one tap.
+- Texts say "your Raspberry Pi" instead of "the Pi 5".
+
 ## 3.11.1 — 2026-11-02 — Language review, App Store fixes
 
 Rev629 on top of 3.11.0. Self-audit in
