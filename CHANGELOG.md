@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.12.2 — 2026-11-08 — pypilot keeps its Signal K access
+
+Rev658-660 on top of 3.12.1.
+
+### Fixed
+- pypilot asks Signal K for access again after every Signal K restart, with
+  a new device id and without naming a permission, so the Signal K admin
+  offers "read only". Approved like that, pypilot reads wind and GPS but
+  Signal K silently drops its heading, heel and pitch. The plugin now
+  approves a request from the device "pypilot" coming from the TinyPilot
+  address it is configured with, at once and read/write, and keeps only the
+  newest pypilot device (read/write), removing the old ones. Nothing else is
+  approved. Option "Approve pypilot's Signal K access automatically", on by
+  default.
+- An alarm added in a new version stayed off for anyone who had saved their
+  list of enabled alarms before (the "pypilot asks for Signal K access"
+  alarm never fired). New alarms now keep their default.
+
 ## 3.12.1 — 2026-11-07 — LAN scan on every network
 
 Rev656-657 on top of 3.12.0.
