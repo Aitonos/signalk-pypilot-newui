@@ -4183,8 +4183,9 @@ body.pypilot-offline .cal-slider input,
 body.pypilot-offline .cal-reset-btn,
 body.pypilot-offline .gain-row input[type=range],
 body.pypilot-offline .gain-row .nudge-btn,
-body.pypilot-offline #cfg-apply,
-body.pypilot-offline .absorb-toggle,
+/* Rev661 (forum 2026-11-08): NOT #cfg-apply / .absorb-toggle - they save the
+   plugin's own connection settings, never write to pypilot, and are exactly
+   what a sailor needs while there is no connection yet. */
 body.pypilot-offline .pypilot-write {
   opacity: 0.35;
   filter: grayscale(1);

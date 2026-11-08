@@ -927,6 +927,8 @@
       "bb.k.slow-tack":  "Slow tack",
       "bb.k.tack-failed":"Tack failed",
       "bb.k.alarm":      "Alarm",
+      "dash.overlay.nav.title": "Tab bar always visible",
+      "dash.overlay.nav.needs": "In Control the tab bar no longer hides itself after 5 s. Saved on this device.",
       "dash.overlay.tap.title":  "Tap sound",
       "dash.overlay.tap.s.wood":  "Wood",
       "dash.overlay.tap.s.drop":  "Drop",
@@ -2156,6 +2158,8 @@
       "bb.k.slow-tack":  "Virada lenta",
       "bb.k.tack-failed":"Virada fallida",
       "bb.k.alarm":      "Alarma",
+      "dash.overlay.nav.title": "Barra de pestañas siempre visible",
+      "dash.overlay.nav.needs": "En Control la barra de pestañas ya no se oculta sola a los 5 s. Se guarda en este dispositivo.",
       "dash.overlay.tap.title":  "Sonido al tocar",
       "dash.overlay.tap.s.wood":  "Madera",
       "dash.overlay.tap.s.drop":  "Gota",
@@ -3381,6 +3385,8 @@
       "bb.k.slow-tack": "Langsame Wende",
       "bb.k.tack-failed": "Wende misslungen",
       "bb.k.alarm": "Alarm",
+      "dash.overlay.nav.title": "Registerleiste immer sichtbar",
+      "dash.overlay.nav.needs": "In Control blendet sich die Registerleiste nicht mehr nach 5 s aus. Wird auf diesem Gerät gespeichert.",
       "dash.overlay.tap.title": "Tippton",
       "dash.overlay.tap.s.wood": "Holz",
       "dash.overlay.tap.s.drop": "Tropfen",
@@ -4579,6 +4585,8 @@
       "bb.k.slow-tack": "Virement lent",
       "bb.k.tack-failed": "Virement raté",
       "bb.k.alarm": "Alarme",
+      "dash.overlay.nav.title": "Barre d'onglets toujours visible",
+      "dash.overlay.nav.needs": "Dans Control, la barre d'onglets ne se masque plus après 5 s. Enregistré sur cet appareil.",
       "dash.overlay.tap.title": "Son de touche",
       "dash.overlay.tap.s.wood": "Bois",
       "dash.overlay.tap.s.drop": "Goutte",
@@ -6728,6 +6736,8 @@
     const cogCb = document.getElementById("dash-show-cog");
     const curCb = document.getElementById("dash-show-current");
     if (cogCb) { cogCb.checked = _showCog;     cogCb.onchange = () => _setShowCog(cogCb.checked); }
+    const navCb = document.getElementById("dash-nav-always");   // Rev661
+    if (navCb) { navCb.checked = _navAlways(); navCb.onchange = () => _navSetAlways(navCb.checked); }
     if (curCb) { curCb.checked = _showCurrent; curCb.onchange = () => _setShowCurrent(curCb.checked); }
 
     // Polar toggles.
@@ -21148,7 +21158,16 @@
   // enters Control from another tab, the nav is visible and auto-hides
   // 5 s later (unless they toggle it manually first).
   let _navAutoHideTimer = null;
+  // Rev661 (forum 2026-11-08: "hard to reach Setup / Control"; Carlos: an
+  // option to keep it visible): per device, like the other screen choices.
+  const NAV_ALWAYS_LS = "pypilot-newui.navAlwaysVisible";
+  function _navAlways() { try { return localStorage.getItem(NAV_ALWAYS_LS) === "1"; } catch { return false; } }
+  function _navSetAlways(on) {
+    try { localStorage.setItem(NAV_ALWAYS_LS, on ? "1" : "0"); } catch { /* silent */ }
+    if (on) { if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; } _navShow(); }
+  }
   function _navHide() {
+    if (_navAlways()) return;
     document.body.classList.add("nav-hidden");
     if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
   }
@@ -21162,6 +21181,7 @@
   }
   function _navScheduleAutoHide() {
     if (_navAutoHideTimer) clearTimeout(_navAutoHideTimer);
+    if (_navAlways()) { _navAutoHideTimer = null; return; }
     _navAutoHideTimer = setTimeout(() => {
       // Only auto-hide when we are still in Control.
       const cur = document.querySelector(".tab-btn.active");

@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev660" />
+  <link rel="stylesheet" href="style.css?v=Rev661" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1044,6 +1044,16 @@
             <summary data-i18n="cfg.sec.other">SOUND AND CHART</summary>
             <div class="cfg-body">
               <div class="overlay-cards">
+              <!-- Rev661 (forum 2026-11-08 + Carlos): keep the tab bar on screen in Control. -->
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-nav-always" />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <rect x="-26" y="-54" width="52" height="12" rx="3" fill="#37b6ff"/>
+                  <rect x="-26" y="-36" width="52" height="30" rx="3" fill="none" stroke="#b8c4d0" stroke-width="2"/>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.nav.title">Tab bar always visible</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.nav.needs">In Control the tab bar no longer hides itself after 5 s. Saved on this device.</div>
+              </label>
               <!-- Rev522 (Carlos): tap sound toggle, same overlay-card look. -->
               <label class="overlay-card">
                 <input type="checkbox" id="dash-tap-sound" />
@@ -2848,6 +2858,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev660"></script>
+  <script src="app.js?v=Rev661"></script>
 </body>
 </html>
