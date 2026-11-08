@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.12.3 — 2026-11-09 — Connect without a connection
+
+Rev661-662 on top of 3.12.2.
+
+### Fixed
+- "Apply & reconnect" (Setup, Connection) and the "absorb provider" switch
+  were greyed out while the plugin had no connection to pypilot - the
+  safety lock for steering controls also caught them, exactly when a
+  first-time setup needs them. They only save the plugin's own connection
+  settings and now work with no connection.
+
+### Added
+- Visor settings, Sound and chart: "Tab bar always visible". In Control the
+  tab bar no longer hides itself after 5 s. Saved per device.
+
 ## 3.12.2 — 2026-11-08 — pypilot keeps its Signal K access
 
 Rev658-660 on top of 3.12.1.
