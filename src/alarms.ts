@@ -88,6 +88,9 @@ export interface RuleDef {
   label: string;
   severity: Severity;
   defaultEnabled: boolean;
+  /** Rev658: the revision that added the rule. A sailor's saved enable list
+   *  from before it cannot have meant to switch it off (see resolveEnabled). */
+  addedRev?: number;
   /** How many seconds the condition must hold before firing. */
   sustainSec: number;
   /** Human-readable description of what the rule watches. */
@@ -483,6 +486,7 @@ export const DEFAULT_RULES: RuleDef[] = [
     label: "pypilot pide acceso a Signal K",
     severity: "warn",
     defaultEnabled: true,
+    addedRev: 640,
     sustainSec: 30,
     description: "pypilot (the TinyPilot) has a Signal K access request waiting for approval.",
     evaluate: (c) => c.pypilotAccessPending === true,
@@ -740,6 +744,11 @@ export class AlarmEngine {
 
   /** Describe every rule for the future config UI: label, severity,
    *  enabled, mute status, description. Cheap - just iterates the map. */
+  /** Rev658: id, default and the revision that added each rule. */
+  ruleDefaults(): { id: string; defaultEnabled: boolean; addedRev?: number }[] {
+    return [...this.rules.values()].map((r) => ({ id: r.id, defaultEnabled: r.defaultEnabled, addedRev: r.addedRev }));
+  }
+
   describe(): {
     id: string; label: string; severity: Severity; defaultSeverity: Severity;
     enabled: boolean; description: string; sustainSec: number;
@@ -779,4 +788,28 @@ export class AlarmEngine {
 
 function safeMessage(rule: RuleDef, ctx: EvalContext): string {
   try { return rule.message(ctx); } catch { return rule.label; }
+}
+
+/** Rev658 (Carlos 2026-11-08: no heading, pypilot's access request pending
+ *  and no alarm): the saved list of enabled alarms switched OFF every rule
+ *  added after it was saved, even those on by default. A rule the sailor
+ *  never saw keeps its default:
+ *  - `known` = the rule ids that existed when the list was saved;
+ *  - an old list without `known` is taken as written before Rev640, so a
+ *    rule with addedRev >= 640 keeps its default. */
+export const ALARMS_KNOWN_LEGACY_BEFORE_REV = 640;
+export function resolveEnabled(
+  rules: { id: string; defaultEnabled: boolean; addedRev?: number }[],
+  enabled: string[] | undefined,
+  known: string[] | undefined,
+): Map<string, boolean> {
+  const out = new Map<string, boolean>();
+  const on = enabled ? new Set(enabled) : null;
+  const seen = known ? new Set(known) : null;
+  for (const r of rules) {
+    if (!on) { out.set(r.id, r.defaultEnabled); continue; }
+    const sawIt = seen ? seen.has(r.id) : !(typeof r.addedRev === "number" && r.addedRev >= ALARMS_KNOWN_LEGACY_BEFORE_REV);
+    out.set(r.id, sawIt ? on.has(r.id) : r.defaultEnabled);
+  }
+  return out;
 }

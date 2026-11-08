@@ -21,7 +21,7 @@ import { legState, buildApb, wpLabel, isLatLon, M_PER_NM, LatLon } from "./route
 import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
-import { AlarmEngine } from "./alarms";
+import { AlarmEngine, resolveEnabled } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
 import { EpisodeDetector } from "./episodes";
@@ -76,6 +76,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
+import { requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { backupDir, listBackups, writeBackup, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -86,7 +87,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev657";
+const PLUGIN_REVISION = "Rev659";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -172,6 +173,8 @@ interface PluginProps {
   tripRecorderEnabled?: boolean;
   /** Rev653: tick in the Signal K admin to forget the admin PIN. */
   adminPinReset?: boolean;
+  /** Rev659: approve pypilot's Signal K access (read/write) by itself. */
+  pypilotAutoApprove?: boolean;
   // Rev322 (Carlos, 2026-09-27): maneuver trace log. Records every
   // user-driven maneuver event posted by the visor (aproado_pick,
   // empopado_pick, tack_tap, mode_change, target_put, engage,
@@ -253,6 +256,8 @@ interface PluginProps {
   // Rule ids match the `id` fields in DEFAULT_RULES (alarms.ts) â€”
   // "heading-deviation", "unable-to-steer", "servo-overcurrent", etc.
   alarmsEnabled?: string[];
+  /** Rev658: rule ids that existed when alarmsEnabled was last saved. */
+  alarmsKnown?: string[];
   // Rev342 (Carlos, 2026-09-28): per-rule severity override. Absent
   // keys keep the RuleDef's default severity. Applied on plugin start.
   alarmSeverityOverrides?: Record<string, "info" | "warn" | "alarm">;
@@ -599,6 +604,83 @@ module.exports = function (app: any) {
   // so it also covers motor legs and tender rides. Independent of the
   // session recorder.
   let tripRecorder: TripRecorder | null = null;
+  // Rev659: pypilot Signal K access - see pypilot-sk-access.ts.
+  let pypilotAccessTimer: NodeJS.Timeout | null = null;
+  let pypilotTidyTimer: NodeJS.Timeout | null = null;
+  let _tinypilotIps: { host: string; ips: string[]; ts: number } = { host: "", ips: [], ts: 0 };
+  const _skSecurity = (): { strategy: any; getCfg: (a: any) => any; saveCfg: (a: any, d: any, cb: (e: any) => void) => void } | null => {
+    const strategy = (app as any).securityStrategy;
+    if (!strategy || typeof strategy.setAccessRequestStatus !== "function" || typeof strategy.getAccessRequestsResponse !== "function") return null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const path = require("path");
+      const main = require.main ? path.dirname(require.main.filename) : "";
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const sec = require(path.join(main, "..", "dist", "security.js"));
+      if (typeof sec.getSecurityConfig !== "function" || typeof sec.saveSecurityConfig !== "function") return null;
+      return { strategy, getCfg: (a: any) => sec.getSecurityConfig(a), saveCfg: (a: any, d: any, cb: (e: any) => void) => sec.saveSecurityConfig(a, d, cb) };
+    } catch { return null; }
+  };
+  const _refreshTinypilotIps = (): void => {
+    const host = String(props.host || "").trim();
+    if (!host) { _tinypilotIps = { host: "", ips: [], ts: Date.now() }; return; }
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) { _tinypilotIps = { host, ips: [host], ts: Date.now() }; return; }
+    if (_tinypilotIps.host === host && Date.now() - _tinypilotIps.ts < 60_000) return;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("dns").lookup(host, { all: true, family: 4 }, (err: any, addrs: { address: string }[]) => {
+      _tinypilotIps = { host, ips: err ? [] : addrs.map((x) => x.address), ts: Date.now() };
+    });
+  };
+  /** Keep the newest pypilot device read/write and remove the rest. */
+  const _tidyPypilotDevices = (): void => {
+    const sec = _skSecurity();
+    if (!sec || props.pypilotAutoApprove === false) return;
+    try {
+      const cfg = sec.getCfg(app);
+      const plan = pypilotDevicePlan(((cfg && cfg.devices) || []) as DeviceEntry[]);
+      if (!plan.keep || (!plan.makeReadWrite && !plan.remove.length)) return;
+      if (plan.makeReadWrite) sec.strategy.updateDevice(cfg, plan.keep, { permissions: "readwrite" }, () => { /* in place */ });
+      for (const id of plan.remove) sec.strategy.deleteDevice(cfg, id, () => { /* in place */ });
+      sec.saveCfg(app, cfg, (e) => {
+        // eslint-disable-next-line no-console
+        if (e) console.log(`[pypilot-access] could not save the device tidy-up: ${e?.message || e}`);
+        // eslint-disable-next-line no-console
+        else console.log(`[pypilot-access] kept ${plan.keep}${plan.makeReadWrite ? " (now read/write)" : ""}, removed ${plan.remove.length} old pypilot device(s)`);
+      });
+    } catch (e: any) {
+      // eslint-disable-next-line no-console
+      console.log(`[pypilot-access] tidy-up not possible: ${e?.message || e}`);
+    }
+  };
+  /** Approve pending pypilot requests from the TinyPilot, read/write. */
+  const _approvePypilotAccess = (): void => {
+    if (props.pypilotAutoApprove === false) return;
+    const sec = _skSecurity();
+    if (!sec) return;
+    _refreshTinypilotIps();
+    let pending: PendingRequest[] = [];
+    try { pending = (sec.strategy.getAccessRequestsResponse() || []) as PendingRequest[]; } catch { return; }
+    for (const r of requestsToApprove(pending, _tinypilotIps.ips)) {
+      const id = String(r.accessIdentifier);
+      try {
+        sec.strategy.setAccessRequestStatus(sec.getCfg(app), id, "approved", { permissions: "readwrite" }, (err: any, cfg: any) => {
+          if (err || !cfg) {
+            // eslint-disable-next-line no-console
+            console.log(`[pypilot-access] could not approve ${id}: ${err?.message || err}`);
+            return;
+          }
+          sec.saveCfg(app, cfg, (e) => {
+            // eslint-disable-next-line no-console
+            console.log(e ? `[pypilot-access] approved ${id} but could not save: ${e?.message || e}` : `[pypilot-access] approved ${id} (read/write, from ${r.ip})`);
+            if (!e) setTimeout(_tidyPypilotDevices, 2000);
+          });
+        });
+      } catch (e: any) {
+        // eslint-disable-next-line no-console
+        console.log(`[pypilot-access] approve failed: ${e?.message || e}`);
+      }
+    }
+  };
   // Rev653 (Carlos 2026-11-07): admin PIN of the Technical Setup group.
   let adminPin: AdminPin | null = null;
   const _adminPinOf = (): AdminPin => {
@@ -841,6 +923,12 @@ module.exports = function (app: any) {
           items: { type: "string" },
           default: [],
         },
+        pypilotAutoApprove: {
+          type: "boolean",
+          title: "Approve pypilot's Signal K access automatically",
+          description: "pypilot asks for access again after every Signal K restart and Signal K offers read only, which silently drops its heading. When on, a request from the device 'pypilot' coming from the TinyPilot address above is approved at once with read/write, and old pypilot devices are removed. Nothing else is approved.",
+          default: true,
+        },
         adminPinReset: {
           type: "boolean",
           title: "Forget the admin PIN",
@@ -880,6 +968,12 @@ module.exports = function (app: any) {
 
     start: (options: PluginProps) => {
       props = normalizeProps(options);
+      // Rev659: pypilot's Signal K access, approved read/write by itself.
+      if (pypilotAccessTimer) clearInterval(pypilotAccessTimer);
+      if (pypilotTidyTimer) clearInterval(pypilotTidyTimer);
+      pypilotAccessTimer = setInterval(_approvePypilotAccess, 5000);
+      pypilotTidyTimer = setInterval(_tidyPypilotDevices, 10 * 60_000);
+      setTimeout(_tidyPypilotDevices, 20_000).unref?.();
       if (props.adminPinReset) {
         _adminPinOf().clear();
         props.adminPinReset = false;
@@ -1543,6 +1637,8 @@ module.exports = function (app: any) {
         logCaptureTimer = null;
       }
       if (logRetentionTimer) { clearInterval(logRetentionTimer); logRetentionTimer = null; }   // Rev647
+      if (pypilotAccessTimer) { clearInterval(pypilotAccessTimer); pypilotAccessTimer = null; }   // Rev659
+      if (pypilotTidyTimer) { clearInterval(pypilotTidyTimer); pypilotTidyTimer = null; }
       if (logRetentionFirst) { clearTimeout(logRetentionFirst); logRetentionFirst = null; }
       // Rev140: stop the watch sweep timer and drop focus state so a
       // subsequent enable does not resurrect stale subscriptions.
@@ -3251,9 +3347,12 @@ module.exports = function (app: any) {
         let alarmsEnabledTouched = false;
         if (Array.isArray(b.alarmsEnabled)) {
           patch.alarmsEnabled = b.alarmsEnabled.filter((s: unknown): s is string => typeof s === "string");
+          // Rev658: the rules this list was written against.
+          patch.alarmsKnown = alarms ? alarms.ruleDefaults().map((r) => r.id) : undefined;
           alarmsEnabledTouched = true;
         } else if (b.alarmsEnabled === null) {
           patch.alarmsEnabled = undefined;
+          patch.alarmsKnown = undefined;
           alarmsEnabledTouched = true;
         }
         // Rev286 (B2) knobs.
@@ -4487,6 +4586,7 @@ module.exports = function (app: any) {
         : [],
       tripRecorderEnabled: options.tripRecorderEnabled !== false,
       adminPinReset: options.adminPinReset === true,
+      pypilotAutoApprove: options.pypilotAutoApprove !== false,
       autoProfileEnabled: options.autoProfileEnabled === true,
       autoProfileLight:   typeof options.autoProfileLight  === "string" ? options.autoProfileLight.trim()  : "",
       autoProfileMedium:  typeof options.autoProfileMedium === "string" ? options.autoProfileMedium.trim() : "",
@@ -4554,6 +4654,9 @@ module.exports = function (app: any) {
         : {},
       alarmsEnabled: Array.isArray(options.alarmsEnabled)
         ? options.alarmsEnabled.filter((s: unknown): s is string => typeof s === "string")
+        : undefined,
+      alarmsKnown: Array.isArray(options.alarmsKnown)
+        ? options.alarmsKnown.filter((s: unknown): s is string => typeof s === "string")
         : undefined,
       apbSource: (["auto","steerTo","bearing"] as const).includes(options.apbSource as any)
         ? options.apbSource : "auto",
@@ -6081,10 +6184,8 @@ module.exports = function (app: any) {
   function applyAlarmsEnabled(list: string[] | undefined): void {
     if (!alarms) return;
     if (list === undefined) return; // legacy: leave defaults alone
-    const wanted = new Set(list);
-    for (const rule of alarms.describe()) {
-      alarms.setEnabled(rule.id, wanted.has(rule.id));
-    }
+    // Rev658: rules added after the list was saved keep their default.
+    for (const [id, on] of resolveEnabled(alarms.ruleDefaults(), list, props.alarmsKnown)) alarms.setEnabled(id, on);
   }
 
   function evaluateAndPublishAlarms(sample: Sample): void {
