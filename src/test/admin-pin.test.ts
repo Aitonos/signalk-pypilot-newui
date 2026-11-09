@@ -57,4 +57,19 @@ describe("AdminPin (Rev653)", () => {
     assert.equal(p.isSet(), false);
     assert.equal(fs.existsSync(f), false);
   });
+
+  it("switched off: kept, not asked; on again asks it (Rev680)", () => {
+    const f = file();
+    const p = new AdminPin(f);
+    p.setPin("1234");
+    assert.equal(p.allows(""), false);
+    assert.equal(p.setOn(false), true);
+    assert.equal(p.isSet(), true);
+    assert.equal(p.isOn(), false);
+    assert.equal(p.allows(""), true, "nothing is asked while off");
+    assert.equal(new AdminPin(f).isOn(), false, "survives a restart");
+    p.setOn(true);
+    assert.equal(p.allows(""), false);
+    assert.equal(p.unlock("1234").ok, true, "same PIN as before");
+  });
 });

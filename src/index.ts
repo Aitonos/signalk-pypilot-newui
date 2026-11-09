@@ -91,7 +91,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev679";
+const PLUGIN_REVISION = "Rev680";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1742,11 +1742,23 @@ module.exports = function (app: any) {
       router.get("/admin/status", (req: any, res: any) => {
         const p = _adminPinOf();
         const key = req.headers?.["x-pnu-admin"];
-        res.json({ set: p.isSet(), unlocked: p.isSet() && p.allows(key), lockedUntil: p.lockedUntilMs() || null });
+        res.json({ set: p.isSet(), on: p.isOn(), unlocked: p.isOn() && p.allows(key), lockedUntil: p.lockedUntilMs() || null });
       });
       router.post("/admin/unlock", (req: any, res: any) => {
         const r = _adminPinOf().unlock(String(req.body?.pin ?? ""));
         res.status(r.ok ? 200 : 403).json(r);
+      });
+      // Rev680 (Carlos 2026-11-10): "use the PIN" on/off from Setup, for
+      // boats with only trusted crew. Off needs the PIN (an unlocked
+      // session); on is always allowed.
+      router.post("/admin/use", (req: any, res: any) => {
+        const on = req.body?.on;
+        if (typeof on !== "boolean") { res.status(400).json({ error: "on must be true or false" }); return; }
+        const p = _adminPinOf();
+        if (!p.isSet()) { res.status(409).json({ error: "no PIN set" }); return; }
+        if (!on && !requireAdmin(req, res)) return;
+        if (!p.setOn(on)) { res.status(500).json({ error: "could not save" }); return; }
+        res.json({ ok: true, on: p.isOn() });
       });
       router.post("/admin/lock", (req: any, res: any) => {
         _adminPinOf().lock(String(req.headers?.["x-pnu-admin"] || ""));
@@ -2281,8 +2293,12 @@ module.exports = function (app: any) {
         // type and the RangeSettings of the Tune groups (tack, servo, wind
         // offsets). The visor's own automatic gain changes while sailing
         // downwind say so and pass: a locked screen must not stop them.
+        // Rev680: and the profile manager - new, rename, import (a profile
+        // write with an origin), delete and reorder (the profiles list).
+        // Choosing a profile stays free.
         const tuneKey = GAIN_PATH_RE.test(name) || name === "ap.pilot"
-          || (lastCatalog as any)?.[name]?.type === "RangeSetting";
+          || (lastCatalog as any)?.[name]?.type === "RangeSetting"
+          || name === "profiles" || (name === "profile" && typeof req.body?.origin === "string");
         if (tuneKey && req.body?.auto !== "empopado" && !requireAdmin(req, res)) return;
         // Rev280 (audit T22): previously only `servo.command` was
         // guarded, so a PUT with name="servo.position" or any other

@@ -15,7 +15,8 @@ export const ADMIN_MAX_FAILS = 5;
 export const ADMIN_LOCKOUT_MS = 5 * 60_000;
 const PIN_RE = /^\d{4,8}$/;
 
-interface Stored { salt: string; hash: string; setTs: number }
+// off: the PIN is kept but not asked (Rev680, boats with only trusted crew).
+interface Stored { salt: string; hash: string; setTs: number; off?: boolean }
 
 export class AdminPin {
   private stored: Stored | null = null;
@@ -32,6 +33,15 @@ export class AdminPin {
   }
 
   isSet(): boolean { return !!this.stored; }
+  /** Set and in use (not switched off). */
+  isOn(): boolean { return !!this.stored && !this.stored.off; }
+  /** Switch asking for the PIN on or off; the PIN itself is kept. */
+  setOn(on: boolean): boolean {
+    if (!this.stored) return false;
+    this.stored = { ...this.stored, off: !on };
+    if (on) this.sessions.clear();
+    return this.save();
+  }
   lockedUntilMs(now = Date.now()): number { return this.lockedUntil > now ? this.lockedUntil : 0; }
 
   private hash(pin: string, salt: string): string {
@@ -84,7 +94,7 @@ export class AdminPin {
   }
 
   unlock(pin: string, now = Date.now()): { ok: true; key: string } | { ok: false; error: string; lockedUntil?: number } {
-    if (!this.stored) return { ok: true, key: this.newSession(now) };
+    if (!this.isOn()) return { ok: true, key: this.newSession(now) };
     const blocked = this.lockedUntilMs(now);
     if (blocked) return { ok: false, error: "too many wrong PINs - wait", lockedUntil: blocked };
     if (!this.matches(String(pin ?? ""))) {
@@ -98,9 +108,9 @@ export class AdminPin {
 
   lock(key: string): void { this.sessions.delete(String(key)); }
 
-  /** True when no PIN is set, or the key is a live session. */
+  /** True when no PIN is set or it is switched off, or the key is a live session. */
   allows(key: unknown, now = Date.now()): boolean {
-    if (!this.stored) return true;
+    if (!this.isOn()) return true;
     if (typeof key !== "string" || !key) return false;
     const exp = this.sessions.get(key);
     if (!exp) return false;

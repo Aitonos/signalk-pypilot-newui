@@ -2,7 +2,24 @@
 
 ## 3.13.1 — 2026-11-09 — Settings in the visor, new name, logo and screenshots
 
-Rev675-676 on top of 3.13.0.
+Rev675-680 on top of 3.13.0.
+
+### Added
+- **Start-up screen**: the logo, then the autopilot check and a sensor
+  quality summary, each in its green / amber / red box, over the visor
+  (11 s, double tap closes, once per browser session on each screen).
+  "All OK. Fair winds!" when everything is well. Anything wrong says what
+  happens, what to do and has a button to the Setup card that fixes it;
+  the screen then stays until closed.
+- **Admin PIN also for Tune and the profile manager**: unlocking Tune or a
+  Tune group, changing the pilot type, and new / rename / import / delete /
+  reorder profiles ask the PIN right there, once per screen session (the
+  same one as the Technical group). Enforced by the server too. Choosing a
+  profile, Doctor, Smart Pilot and the downwind automatic gains stay free.
+- **"Ask for the PIN" switch** in Setup: off keeps the PIN but locks
+  nothing, for a boat with only trusted crew. Switching it off asks the PIN.
+- A locked action you reach some other way asks the PIN on the spot instead
+  of sending you to Setup.
 
 ### Changed
 - **Plugin settings live in the visor.** The Signal K admin form now shows

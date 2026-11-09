@@ -218,6 +218,11 @@
       "setup.precheck.refresh":    "Refresh",
       "setup.precheck.unknown":    "Checking...",
       "boot.tapToClose": "Double tap to close",
+      "boot.fairWinds": "All OK. Fair winds!",
+      "admin.useToggle": "Ask for the PIN",
+      "admin.useHint": "Off: nothing is locked and the PIN is kept, for a boat with only trusted crew. Switching it off asks the PIN.",
+      "admin.okTitle": "Unlocked",
+      "admin.okAgain": "Do it again now.",
       "boot.sq.verdict.ok": "All sensors OK",
       "boot.sq.verdict.warn": "Sensors with warnings",
       "boot.sq.verdict.fail": "Sensors failing",
@@ -1503,6 +1508,11 @@
       "setup.precheck.refresh":    "Actualizar",
       "setup.precheck.unknown":    "Comprobando...",
       "boot.tapToClose": "Doble toque para cerrar",
+      "boot.fairWinds": "Todo OK. ¡Buena proa!",
+      "admin.useToggle": "Pedir el PIN",
+      "admin.useHint": "Desactivado: no se bloquea nada y el PIN se guarda, para un barco con solo tripulación de confianza. Para desactivarlo se pide el PIN.",
+      "admin.okTitle": "Desbloqueado",
+      "admin.okAgain": "Vuelve a hacerlo ahora.",
       "boot.sq.verdict.ok": "Todos los sensores OK",
       "boot.sq.verdict.warn": "Sensores con avisos",
       "boot.sq.verdict.fail": "Sensores con fallos",
@@ -2930,6 +2940,11 @@
       "setup.precheck.refresh": "Aktualisieren",
       "setup.precheck.unknown": "Prüfe...",
       "boot.tapToClose": "Doppeltippen zum Schließen",
+      "boot.fairWinds": "Alles OK. Mast- und Schotbruch!",
+      "admin.useToggle": "PIN abfragen",
+      "admin.useHint": "Aus: nichts ist gesperrt, die PIN bleibt gespeichert - für ein Boot nur mit vertrauter Crew. Zum Ausschalten wird die PIN abgefragt.",
+      "admin.okTitle": "Entsperrt",
+      "admin.okAgain": "Jetzt noch einmal ausführen.",
       "boot.sq.verdict.ok": "Alle Sensoren OK",
       "boot.sq.verdict.warn": "Sensoren mit Warnungen",
       "boot.sq.verdict.fail": "Sensoren mit Ausfällen",
@@ -4184,6 +4199,11 @@
       "setup.precheck.refresh": "Actualiser",
       "setup.precheck.unknown": "Vérification...",
       "boot.tapToClose": "Touchez deux fois pour fermer",
+      "boot.fairWinds": "Tout est OK. Bon vent !",
+      "admin.useToggle": "Demander le PIN",
+      "admin.useHint": "Désactivé : rien n'est verrouillé et le PIN est conservé, pour un bateau avec un équipage de confiance. Le désactiver demande le PIN.",
+      "admin.okTitle": "Déverrouillé",
+      "admin.okAgain": "Refaites-le maintenant.",
       "boot.sq.verdict.ok": "Tous les capteurs OK",
       "boot.sq.verdict.warn": "Capteurs avec alertes",
       "boot.sq.verdict.fail": "Capteurs en défaut",
@@ -20425,6 +20445,7 @@
     if (btnDelete) btnDelete.disabled = !(n >= 1 && !anySelReserved);
   }
   async function _pmActionNew() {
+    if (!(await _adminGate())) return;
     const label = t("prompt.profileName") || "Nombre del perfil";
     const raw = await _pmPrompt(label);
     if (!raw) return;
@@ -20444,6 +20465,7 @@
   }
   async function _pmActionRename() {
     if (_pmSelected.size !== 1) return;
+    if (!(await _adminGate())) return;
     const oldName = Array.from(_pmSelected)[0];
     if (_pmIsReserved(oldName)) return;
     if (await _pmRenameProfile(oldName)) _pmSelected.clear();
@@ -20569,6 +20591,7 @@
   }
   async function _pmActionImport(file) {
     if (!file) return;
+    if (!(await _adminGate())) return;
     try {
       const text = await file.text();
       const obj = JSON.parse(text);
@@ -20626,6 +20649,7 @@
   async function _pmActionDelete() {
     const sel = Array.from(_pmSelected).filter((n) => !_pmIsReserved(n));
     if (sel.length === 0) return;
+    if (!(await _adminGate())) return;
     const label = (t("pm.confirmDelete") || "¿Eliminar {n} perfil(es)?\n\n{list}")
       .replace("{n}", sel.length)
       .replace("{list}", sel.join(", "));
@@ -20751,6 +20775,7 @@
         const original = state.profiles || [];
         const changed = finalOrder.length === original.length &&
           finalOrder.some((n, i) => n !== original[i]);
+        if (changed && !(await _adminGate())) { try { _pmRender(); } catch { /* silent */ } return; }
         if (changed) {
           try {
             await pluginRaw("profiles", finalOrder);
@@ -20969,6 +20994,11 @@
     const ok = await _adminUnlockFlow();
     if (ok) cb.checked = true;
     return ok;
+  }
+  // Rev680: any protected action asks the PIN right there (no trip to
+  // Setup). True when allowed.
+  async function _adminGate() {
+    return !_adminLocked() || await _adminUnlockFlow();
   }
   function _setTuneLocked(locked) {
     const unlockCb = $("#tune-unlock");
@@ -22203,10 +22233,10 @@
   }
 
   // ============================================================
-  // Rev677/678 (Carlos 2026-11-10): start-up screen over the visor (70 %
-  // dark). Logo: fade in 2 s, 3 s, fade out 2 s; then the check in two
-  // animated steps - autopilot check, 2 s later sensor quality - and after
-  // 4 s a 1 s fade out (12 s in all). A tap closes it. Once per browser session on each
+  // Rev677-680 (Carlos 2026-11-10): start-up screen over the visor (70 %
+  // dark). Logo: fade in 1.5 s, 2 s, fade out 1.5 s; then the check in two
+  // animated steps - autopilot check, 2 s later sensor quality (with "fair
+  // winds" when all is well) - shown 3 s more, then a 1 s fade out (11 s). A tap closes it. Once per browser session on each
   // device (sessionStorage), so switching back to the visor does not show
   // it again. Same data as the Setup cards (/prechecks, /quality).
   // ============================================================
@@ -22252,6 +22282,7 @@
           <div class="boot-sec-title">${t("setup.quality.title")}</div>
           <div class="pc-verdict pc-unknown boot-sq-verdict"><span class="pc-verdict-label boot-sq-label">${t("setup.precheck.unknown")}</span> <span class="boot-sq-counts"></span></div>
           <div class="boot-sq-items"></div>
+          <div class="boot-fair" hidden>${t("boot.fairWinds")}</div>
         </div>
         <div class="boot-tap hint">${t("boot.tapToClose")}</div>
       </div>`;
@@ -22276,10 +22307,10 @@
     const check = ov.querySelector(".boot-check");
     const step = (sel) => ov.querySelector(sel).classList.add("in");
     requestAnimationFrame(() => requestAnimationFrame(() => logo.classList.add("in")));   // fade in 2 s
-    const closeTimer = setTimeout(() => close(1000), 11000);
-    timers.push(setTimeout(() => logo.classList.remove("in"), 5000));                     // fade out 2 s
-    timers.push(setTimeout(() => { logo.hidden = true; check.hidden = false; requestAnimationFrame(() => step(".boot-step-pc")); }, 7000));
-    timers.push(setTimeout(() => { step(".boot-step-sq"); step(".boot-tap"); }, 9000));
+    const closeTimer = setTimeout(() => close(1000), 10000);
+    timers.push(setTimeout(() => logo.classList.remove("in"), 3500));                     // fade out 1.5 s
+    timers.push(setTimeout(() => { logo.hidden = true; check.hidden = false; requestAnimationFrame(() => step(".boot-step-pc")); }, 5000));
+    timers.push(setTimeout(() => { step(".boot-step-sq"); step(".boot-tap"); }, 7000));
     timers.push(closeTimer);
     // Something to fix: 5 s is not enough to read it - stays until a tap.
     const hold = () => {
@@ -22369,10 +22400,13 @@
       }
       if (bad.length) hold();
     };
+    // "Fair winds" only when both say all is well.
+    let pcOk = false, sqOk = false;
+    const fair = () => { ov.querySelector(".boot-fair").hidden = !(pcOk && sqOk); };
     fetch(`/plugins/${PLUGIN_ID}/prechecks`).then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j && !closed) pcRender(j); }).catch(() => { /* stays "checking" */ });
+      .then((j) => { if (j && !closed) { pcRender(j); pcOk = j.overall === "ready"; fair(); } }).catch(() => { /* stays "checking" */ });
     fetch(`/plugins/${PLUGIN_ID}/quality`).then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j && !closed) sqRenderBoot(j); }).catch(() => { /* stays "checking" */ });
+      .then((j) => { if (j && !closed) { sqRenderBoot(j); sqOk = !ov.querySelector(".boot-sq-items").children.length; fair(); } }).catch(() => { /* stays "checking" */ });
   }
 
   // ============================================================
@@ -24307,7 +24341,14 @@
       p.then((r) => {
         if (r && r.status === 403 && String(r.url || "").includes(`/plugins/${PLUGIN_ID}/`)) {
           r.clone().json().then((j) => {
-            if (j && j.adminRequired) { _adminSetKey(""); _adminRefresh(); _pmAlert(t("admin.needTitle"), t("admin.needBody")); }
+            if (j && j.adminRequired) {
+              _adminSetKey("");
+              // Rev680: ask the PIN right here instead of sending the sailor to Setup.
+              if (_adminAsking) return;
+              _adminAsking = true;
+              _adminRefresh().then(() => _adminUnlockFlow()).then((ok) => { if (ok) _pmAlert(t("admin.okTitle"), t("admin.okAgain")); })
+                .finally(() => { _adminAsking = false; });
+            }
           }).catch(() => { /* not json */ });
         }
       }).catch(() => { /* caller handles */ });
@@ -24326,7 +24367,9 @@
     if (_admin.set && !_admin.unlocked) _adminSetKey("");
     _adminPaint();
   }
-  function _adminLocked() { return !!(_admin.set && !_admin.unlocked); }
+  let _adminAsking = false;
+  // Rev680: a PIN switched off ("on": false) locks nothing.
+  function _adminLocked() { return !!(_admin.set && _admin.on !== false && !_admin.unlocked); }
   function _adminPaint() {
     document.querySelectorAll("#tab-setup > .setup-block, body > .setup-block").forEach((b) => {
       if (TECH_BLOCKS.has(b.dataset.blockKey || "")) b.classList.toggle("setup-locked", _adminLocked());
@@ -24343,8 +24386,38 @@
       tools.appendChild(b);
     };
     if (!_admin.set) btn("admin.setPin", _adminSetPinFlow);
+    else if (_admin.on === false) btn("admin.changePin", _adminSetPinFlow);
     else if (!_admin.unlocked) btn("admin.unlock", _adminUnlockFlow);
     else { btn("admin.lock", _adminLockNow); btn("admin.changePin", _adminSetPinFlow); }
+    // Rev680 (Carlos 2026-11-10): "use the PIN" switch - off for boats with
+    // only trusted crew. Switching it off asks the PIN; on, never.
+    if (_admin.set) {
+      const lab = document.createElement("label");
+      lab.className = "row admin-use";
+      lab.style.cssText = "display:flex;align-items:center;gap:8px;flex-basis:100%";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = _admin.on !== false;
+      const sp = document.createElement("span");
+      sp.textContent = t("admin.useToggle");
+      lab.appendChild(cb); lab.appendChild(sp);
+      lab.addEventListener("click", (ev) => ev.stopPropagation());
+      cb.addEventListener("change", async () => {
+        const on = cb.checked;
+        if (!on && !(await _adminGate())) { cb.checked = true; return; }
+        try {
+          const r = await fetch(`/plugins/${PLUGIN_ID}/admin/use`, { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ on }) });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+        } catch (e) { cb.checked = !on; _pmAlert(t("alert.saveFail"), String(e)); }
+        _adminRefresh();
+      });
+      tools.appendChild(lab);
+      const note = document.createElement("div");
+      note.className = "hint";
+      note.style.flexBasis = "100%";
+      note.textContent = t("admin.useHint");
+      tools.appendChild(note);
+    }
   }
   async function _adminUnlockFlow() {
     const pin = await _pmPrompt(t("admin.unlockQ"), "", t("admin.unlockHint"));

@@ -4958,7 +4958,7 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
   padding: 16px; opacity: 1; cursor: pointer;
 }
 .boot-splash.fade { opacity: 0; }
-.boot-logo { opacity: 0; transition: opacity 2s ease; }
+.boot-logo { opacity: 0; transition: opacity 1.5s ease; }
 .boot-logo.in { opacity: 1; }
 .boot-logo img {
   width: min(60vw, 60vh, 320px); height: auto; display: block;
@@ -4990,3 +4990,8 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
   border: 1px solid var(--accent-dim); border-radius: 8px;
   padding: 6px 12px; font-size: 0.95em; cursor: pointer;
 }
+.boot-fair {
+  text-align: center; font-size: 1.35em; font-weight: 700;
+  color: var(--ok); margin-top: 6px;
+}
+.boot-fair[hidden] { display: none; }
