@@ -76,6 +76,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
+import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
 import { requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
@@ -88,7 +89,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev664";
+const PLUGIN_REVISION = "Rev665";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -607,6 +608,9 @@ module.exports = function (app: any) {
   let tripRecorder: TripRecorder | null = null;
   // Rev659: pypilot Signal K access - see pypilot-sk-access.ts.
   let pypilotAccessTimer: NodeJS.Timeout | null = null;
+  // Rev665: set by registerWithRouter (it owns the SSH helper), called when
+  // pypilot (re)connects - see tinypilot-clock.ts.
+  let _onPypilotConnect: (() => void) | null = null;
   let pypilotTidyTimer: NodeJS.Timeout | null = null;
   let _tinypilotIps: { host: string; ips: string[]; ts: number } = { host: "", ips: [], ts: 0 };
   const _skSecurity = (): { strategy: any; getCfg: (a: any) => any; saveCfg: (a: any, d: any, cb: (e: any) => void) => void } | null => {
@@ -1024,6 +1028,9 @@ module.exports = function (app: any) {
       client.setAllowWrites(props.allowWrites !== false);
 
       client.on("connect", () => {
+        // Rev665: the TinyPilot is back (maybe after a reboot): give it the
+        // time once it has settled.
+        setTimeout(() => { try { _onPypilotConnect?.(); } catch { /* silent */ } }, 15_000);
         lastConnectAt = Date.now();
         lastDisconnectReason = null;
         disconnectedSinceMs = null;   // Rev100: clear alarm timer.
@@ -3189,6 +3196,52 @@ module.exports = function (app: any) {
         res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
         res.type("application/json").sendFile(file);
       });
+
+      // ============================================================
+      // Rev665 (Carlos 2026-11-09): TinyPilot clock watchdog - after a
+      // reboot it runs ~2 years behind; it gets the Signal K server's time,
+      // once per boot, only with the autopilot off (tinypilot-clock.ts).
+      // ============================================================
+      let _clockSyncedBootId: string | null = null;
+      let _clockBusy = false;
+      const _clockSync = async (): Promise<void> => {
+        if (_clockBusy || !props.sshPassword || !client || !client.connected) return;
+        _clockBusy = true;
+        try {
+          const r = await _runSsh(CLOCK_PROBE_COMMAND, 10000);
+          const probe = parseClockProbe(r.stdout);
+          if (!probe) return;
+          const pv = client.getValues() as Record<string, unknown>;
+          const engaged = apProvider ? !!apProvider.data.engaged : (pv["ap.enabled"] === true || pv["ap.enabled"] === 1);
+          const d = decideClockSync({ probe, serverEpochS: Date.now() / 1000, syncedBootId: _clockSyncedBootId, engaged });
+          if (d.action === "skip") {
+            if (d.reason === "close-enough") _clockSyncedBootId = probe.bootId;
+            if (d.reason === "engaged") {
+              // eslint-disable-next-line no-console
+              console.log(`[tinypilot-clock] ${Math.round(d.offsetS / 86400)} days off, waiting: autopilot engaged`);
+            }
+            return;
+          }
+          const was = new Date(probe.epochS * 1000).toISOString();
+          await _runSsh(setClockCommand(new Date()), 10000);
+          const check = parseClockProbe((await _runSsh(CLOCK_PROBE_COMMAND, 10000)).stdout);
+          if (check && Math.abs(Date.now() / 1000 - check.epochS) <= 5) {
+            _clockSyncedBootId = check.bootId;
+            // eslint-disable-next-line no-console
+            console.log(`[tinypilot-clock] set from ${was} to ${new Date(check.epochS * 1000).toISOString()} (was ${d.offsetS} s off)`);
+          } else {
+            // eslint-disable-next-line no-console
+            console.log(`[tinypilot-clock] could not set the clock (it still reads ${check ? new Date(check.epochS * 1000).toISOString() : "?"})`);
+          }
+        } catch (e: any) {
+          // eslint-disable-next-line no-console
+          console.log(`[tinypilot-clock] ${e?.message || e}`);
+        } finally { _clockBusy = false; }
+      };
+      _onPypilotConnect = () => { _clockSync().catch(() => { /* next check */ }); };
+      // Fallback: a missed connect, or it had to wait for the pilot to be off.
+      setTimeout(() => { _clockSync().catch(() => {}); }, 30_000).unref?.();
+      setInterval(() => { _clockSync().catch(() => {}); }, 15 * 60_000).unref?.();
 
       // Rev164-166: supervisor status. Visor uses this to render the
       // "smart pilot" card so the skipper can see WHY the plugin
