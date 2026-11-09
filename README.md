@@ -53,9 +53,11 @@ Spend more time sailing and less time guessing which slider to move.
 
 1. Signal K Server → **App Store** → search **PyPilot New-UI** → install.
 2. Server → **Plugin Config** → **PyPilot New-UI + SK Paths**.
-3. Enter the `pypilot_web` host (IP or hostname) and port — `80` on TinyPilot, `8000` on a classic pypilot install. Don't know the IP? The **Scan LAN** button in the webapp finds `pypilot_web` hosts on ports 80 / 8000 of your subnet.
+3. Enter the `pypilot_web` host (IP or hostname) and port — `80` on TinyPilot, `8000` on a classic pypilot install. Don't know the IP? The **Scan LAN** button in the webapp finds `pypilot_web` hosts on ports 80 / 8000 of every network the server is on; if it finds nothing it says what it searched and offers a prefilled GitHub issue.
 4. Enable the plugin.
-5. Open **`http://localhost:3000/signalk-pypilot-newui/`** (replace `localhost` with your Signal K server address on a tablet or phone).
+5. Open **`http://localhost:3000/signalk-pypilot-newui/`** (replace `localhost` with your Signal K server address on a tablet or phone). Each device asks Signal K for access once: approve it in the Signal K admin (**Security → Access Requests**). On Signal K 2.31+ it asks for **read/write**, not admin. Approve it from another device if you can — a browser where you log in to the Signal K admin keeps that admin session.
+
+pypilot itself also needs Signal K access to publish heading and attitude. The plugin approves pypilot's request on its own, **read/write**, but only when it comes from the TinyPilot address configured above.
 
 On first open a **guided tour** walks you through the rose, the controls, the multifunction panel and the companion plugins in a few minutes, without touching the pilot. Replay it any time from the **Info** tab or the boat menu.
 
@@ -96,11 +98,11 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 ---
 
-## All features — 43 new functions on top of pypilot
+## All features — 49 new functions on top of pypilot
 
 ### Smart autopilot (15)
 
-1. **Pypilot Doctor** — records an engaged AP session, detects bias / oscillation / low authority / noise, and proposes P/I/D adjustments with plain-language rationale. Applying forks the current profile into `doctor-YYYYMMDD-HHMM`, so the original stays one tap away.
+1. **Pypilot Doctor** — records an engaged AP session, detects bias / oscillation / low authority / noise, and proposes P/I/D adjustments with plain-language rationale. The first apply copies the current profile into a new one whose name you choose (offered: `<profile> - Doc 001`, `002`…), so the original stays one tap away; **Rename** on the result changes it later.
 2. **Smart Pilot — auto profile by wind** — switches between Light / Medium / Heavy profiles by averaged TWS. **AUTO WIND pseudo-mode**: apparent wind below 120° TWA, true wind above (with hysteresis), one profile per side so the true-wind side can be more reactive. Needs GPS (pypilot only offers true wind with it).
 3. **Smart Pilot — gust strategy** — boost D +20% for 20 s, switch to Heavy for 30 s, or just warn.
 4. **Head-to-wind and Downwind pseudo-modes** — two sail-handling manoeuvres not in pypilot, each with a *by bow* / *by stern* swing; on exit, previous mode, target, engage state and profile are restored.
@@ -114,8 +116,8 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 10. **Servo Health** — learns a baseline for typical servo duty at sea and flags recent, peak, temperature or voltage deviations.
 11. **Watchdog with core-alive detection** — tells a live `pypilot_web` from a dead pypilot core, so writes never vanish while the visor claims success.
 12. **Reconnect Restore banner** — snapshots target and mode on outage and offers to re-engage the same target when pypilot is back.
-13. **Route following (NAV) from Freeboard, no extra plugins** — reads the active route from Signal K's Course API, computes leg bearing, cross-track error and arrival itself and feeds pypilot an APB sentence every second over Signal K's NMEA output (the one the TinyPilot already reads), so pypilot offers NAV. Cross-track error capped both ways. Waypoints advance on their own with a spoken message; at the destination or if the route / GPS is lost for 5 s the pilot goes to compass on the current heading. Engage from Freeboard / KIP goes straight to NAV; the visor asks before a turn over 60°; ±1 / ±10 take over in compass.
-14. **Black box** — keeps the last minute of autopilot data and saves one minute before and after an incident (AP taken off from outside, stuck pilot, overcurrent, slow or failed tack, alarm) or a Mark press. Chart with every field and a touch cursor, View / Download as JSON, and a note per incident dictated with the phone keyboard.
+13. **Route following (NAV) from Freeboard, no extra plugins** — reads the active route from Signal K's Course API, computes leg bearing, cross-track error and arrival itself and feeds pypilot an APB sentence every second over Signal K's NMEA output (the one the TinyPilot already reads), so pypilot offers NAV. Cross-track error capped both ways, and the boat steers back to the leg's line rather than straight at the waypoint. Waypoints advance on their own with a spoken message, in the plotter's arrival circle or abeam of the point, or (option in Smart Pilot → Routes) only abeam — no corner cut; keep the plotter's own auto-advance off; at the destination or if the route / GPS is lost for 5 s the pilot goes to compass on the current heading. Engage from Freeboard / KIP goes straight to NAV; the visor asks before a turn over 60°; ±1 / ±10 take over in compass.
+14. **Black box** — keeps the last minute of autopilot data and saves one minute before and after an incident (AP taken off from outside, stuck pilot, overcurrent, slow or failed tack, alarm) or a Mark press. Chart with every field and a touch cursor, View / Download as JSON, a note per incident dictated with the phone keyboard, and **Reviewed** / **Mark all reviewed** to clear new incidents without opening each.
 15. **Shadow-mode tuning (preview)** — every 90 s with the pilot engaged the plugin stores a navigation-database row (conditions, setup, heading error, servo work, what each pypilot term contributed) and works out which single gain step an automatic tuner would try and why (oscillation, overshoot, nervous servo, sustained offset, slow response), and whether a fair before / after comparison would be possible. Nothing is applied: the verdicts show in each session's Summary. The gain watchdog (see Safety) is in place for the later automatic stage.
 
 ### Touch visor (14)
@@ -137,7 +139,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 ### Logbook & performance data (6)
 
-30. **Trip Recorder** — auto-records every outing via `navigation.state` (opens when under way, closes back in port; dock tests under 0.1 nm are discarded). 17 KPIs (distance, duration, SOG / TWS / AWS averages and peaks, heel, tacks, points-of-sail split, min voltage, AP-engaged %), OpenSeaMap track coloured by SOG with markers on peak gust, peak SOG, min voltage and every tack. Share as a portrait PNG report card or plain text. The trip in progress can be opened live while sailing.
+30. **Trip Recorder** — auto-records every outing via `navigation.state` (opens when under way, closes back in port; dock tests under 0.1 nm are discarded). 17 KPIs (distance, duration, SOG / TWS / AWS averages and peaks, heel, tacks, points-of-sail split, min voltage, AP-engaged %), OpenSeaMap track coloured by SOG with markers on peak gust, peak SOG, min voltage and every tack. Share as a portrait PNG report card or plain text. The trip in progress can be opened live while sailing, and **paused / resumed** (time and distance stop), **stopped**, **restarted** or **deleted**.
 31. **Chart tab** — 9 live Trip Stats cards, history with 30 s / 2 min / 10 min windows and hover-freeze, plus a Servo Health card.
 32. **Persistent tack history** — pre / post TWS, AWA, SOG and recovery time to 95% of pre-tack speed, filterable by day range.
 33. **Post-tack HUD stats** — before / after values and SOG-loss verdict.
@@ -152,8 +154,17 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 39. **8 momentary switches** — nudge ±10 / ±1, tack port / starboard / cancel, engage — as KIP boolean paths.
 40. **Radio switches** — mode and profile groups as KIP radio switch sets.
 41. **Publish-only-essentials toggle** — keeps the bus light on modest servers.
-42. **Config export / import** — Web Share API or plain `.json`.
+42. **Config export / import** — Web Share API or plain `.json`. Never includes the TinyPilot's SSH password.
 43. **Live status endpoint** — connection state, core-alive flag and catalog counters for external monitoring.
+
+### Looking after the installation (6)
+
+44. **Setup in groups + admin PIN** — Sailing, Settings and Technical. Technical (black box, calibration, connection, pypilot advanced settings, paths, emergency, backups) can be locked with a 4-8 digit PIN of this plugin, checked by the server, unlocked 12 h per screen. Nothing is locked until a PIN is set; a forgotten PIN is cleared from the plugin config in the Signal K admin.
+45. **pypilot advanced settings** — everything pypilot's own web client shows, grouped, in this style. Values are read only for the groups you open; changes need *Allow changes*, and installation settings ask first.
+46. **Daily settings backup + restore** — every day a readable copy of all settings (plugin, pypilot, the TinyPilot's `pypilot.conf` with every profile, visor preferences) in `~/Backups-pypilot-newui/` (last 30, monthly reminder to download one; the newest also inside `~/.signalk` so whole-server backups such as signalk-backup carry it). **Restore** brings back the gains of every profile in a copy through pypilot itself, with the autopilot off; installation settings (IMU calibration above all) are never restored by the plugin.
+47. **TinyPilot SD card image** — an exact image of the card's partitions (about 1.1 GB, ~11 min, ~700 MB compressed): system, pypilot, every profile and the IMU calibration. Pick where it goes (your folder, a USB stick, a disk or network share) with a folder browser; free-space and progress bars. Write it to a new card with Raspberry Pi Imager. Only with the autopilot off.
+48. **TinyPilot clock** — the TinyPilot has no clock and runs years behind after each reboot; when pypilot connects, the plugin sets it from the Signal K server, once per boot and never with the autopilot engaged (a clock jump upsets the IMU filter).
+49. **pypilot's Signal K access** — pypilot asks for access again after every Signal K restart and, approved as read-only, Signal K silently drops its heading. The plugin approves it read/write (only from the TinyPilot's address), keeps a single pypilot device, and alarms if a request is still waiting. Captured TinyPilot logs are compressed and capped (30 days, 300 MB).
 
 **Plus — remote recovery without SSH:** one-tap *Restart pypilot* and *Reboot Pi* buttons, and a whitelisted debug console. [Details](#remote-restart-reboot-and-consoles).
 
@@ -165,7 +176,8 @@ See [`CHANGELOG.md`](./CHANGELOG.md) for the release-by-release history.
 
 - This plugin is an **aid** to navigation and steering. It does not replace the skipper's vigilance, correct manoeuvring, direct observation of the surroundings, or official charts and notices. Verify in safe waters before relying on the autopilot for demanding manoeuvres.
 - `allowDirectServo` defaults to **off** — pypilot's direct `servo.command` back-door for manual steering is not exposed until you enable it.
-- `allowWrites` gates every write to pypilot (including the route follower's APB sentences and the gain watchdog) and the free-form SSH console.
+- `allowWrites` gates every write to pypilot (including the route follower's APB sentences and the gain watchdog).
+- On Signal K 2.31+ every plugin route declares its access level: reads need a read-only session, writes a read/write one, and only the free-form SSH console needs a Signal K **admin** session. The technical actions (restarts, SSH presets, paths, config import / export, backups, SD image, installation settings) are also behind this plugin's own admin PIN when one is set.
 - All PUT handlers validate ranges from the pypilot catalog before sending.
 - On plugin stop the socket closes cleanly; the visor auto-reconnects on Signal K restart.
 - **Gain watchdog (separate process).** Before the plugin tries a gain change on its own, it starts a small watchdog process that ships with the plugin (`dist/gain-watchdog.js`, plain Node, no extra install). It runs outside Signal K, so if Signal K freezes during the trial it switches pypilot back to the profile you had within 15 s, over pypilot's own port. If Signal K crashes or is restarted, systemd stops the watchdog too; the plugin then restores the profile itself as soon as it starts again. It only ever writes `profile`, only while the trial profile is still active (a profile you picked yourself meanwhile is left alone), never creates a missing one, respects `allowWrites`, keeps retrying if the link to pypilot drops, logs what it does to `gain-watchdog/watchdog.log` in the plugin's data folder, and exits after 10 idle minutes. With automatic tuning off it never runs.
@@ -193,14 +205,14 @@ Absorb mode lives in **Setup → Autopilot Provider (one-socket mode)**.
 
 ### Remote restart, reboot and consoles
 
-When the autopilot process on the TinyPilot gets wedged, no manual SSH session is needed. Save the TinyPilot's SSH user + password once in **Setup → Emergency** and you get two big buttons, each behind a confirmation that asks whether someone is at the helm:
+When the autopilot process on the TinyPilot gets wedged, no manual SSH session is needed. Save the TinyPilot's SSH user + password once in **Setup → Technical → Emergency** and you get two big buttons, each behind a confirmation that asks whether someone is at the helm:
 
 1. **RESTART pypilot** (~10-15 s) — `sv restart` of pypilot core + web (runit under piCore). The AP drops the heading briefly and re-engages when back.
 2. **Reboot Pi** (~35-60 s) — full `sudo reboot`. No autopilot for almost a minute; last resort.
 
 **Debug console** — a closed whitelist of preset commands over the same SSH session: `restart pypilot_web` (web server only, steering unaffected), `logs pypilot`, `logs pypilot_web`, `dmesg`, `top`, `uptime`, `df`, `pypilot --version`. Scrollable output, a *Follow logs* toggle (polls `journalctl --since '30 s ago'` every 3 s), and Copy / Share buttons for GitHub issues. The endpoint refuses anything outside the whitelist.
 
-**Remote Control Console** — a free-form SSH shell on the TinyPilot. It runs **any** command, so it is only available with **`allowWrites`** on, and anyone with a write-enabled Signal K token can use it. Keep `allowWrites` off unless you need it.
+**Remote Control Console** — a free-form SSH shell on the TinyPilot. It runs **any** command, so it needs a **Signal K admin** session in that browser (log in to the Signal K admin there) and, with a PIN set, the plugin's admin PIN. The preset buttons above work without the admin session.
 
 > Signal K stores plugin configs — including the SSH password — in plain text under `~/.signalk/plugin-config-data/`. Use credentials valid only for that isolated TinyPilot.
 
@@ -275,7 +287,7 @@ The plugin exposes more (trips, AIS, watch, supervisor, recorders…) — see `s
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/start`  | Start a diagnostic session (query `?duration=180`). Requires AP engaged. |
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/cancel` | Cancel the current session. |
 | `GET`  | `/plugins/signalk-pypilot-newui/doctor/status` | Session state + progress + result (when completed). |
-| `POST` | `/plugins/signalk-pypilot-newui/doctor/apply/:id`   | Apply one gain suggestion. The FIRST apply of the session forks the profile into `doctor-YYYYMMDD-HHMM`. |
+| `POST` | `/plugins/signalk-pypilot-newui/doctor/apply/:id`   | Apply one gain suggestion. The FIRST apply of the session copies the profile into a new one; body `{ "profileName": "..." }` names it (default `<profile> - Doc NNN`). |
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/apply-all`   | Apply every non-dismissed suggestion (all land in the same forked profile). |
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/dismiss/:id` | Mark a suggestion as dismissed (user rejects it). |
 | `POST` | `/plugins/signalk-pypilot-newui/doctor/reset`  | Clear result, back to idle. |
@@ -286,7 +298,14 @@ The plugin exposes more (trips, AIS, watch, supervisor, recorders…) — see `s
 | `POST` | `/plugins/signalk-pypilot-newui/black-box/note/:id` | Set the incident note. Body: `{ "note": "...", "append": false }`. |
 | `POST` | `/plugins/signalk-pypilot-newui/restart-pypilot` | SSH `sv restart` of pypilot core+web on the TinyPilot. |
 | `POST` | `/plugins/signalk-pypilot-newui/debug-cmd`     | Run one of a closed whitelist of preset diagnostic / restart commands over SSH. Body: `{ "preset": "<name>" }`. |
-| `POST` | `/plugins/signalk-pypilot-newui/ssh-exec`      | **Free-form** SSH command (Remote Control Console). Body: `{ "cmd": "<any shell>" }`. Requires `allowWrites`. |
+| `POST` | `/plugins/signalk-pypilot-newui/ssh-exec`      | **Free-form** SSH command (Remote Control Console). Body: `{ "cmd": "<any shell>" }`. Signal K admin session only. |
+| `POST` | `/plugins/signalk-pypilot-newui/options`       | Save the visor's own settings (connection, SSH, nudge steps, absorb provider, essentials-only); only those keys are merged. |
+| `GET`  | `/plugins/signalk-pypilot-newui/admin/status`  | Admin PIN set / unlocked. `POST /admin/unlock {pin}`, `/admin/lock`, `/admin/pin {pin, current}`. The key goes in the `x-pnu-admin` header. |
+| `GET`  | `/plugins/signalk-pypilot-newui/backup/status` | Settings backups in `~/Backups-pypilot-newui`. `POST /backup/now`, `GET /backup/download/:name\|latest`. |
+| `GET`  | `/plugins/signalk-pypilot-newui/backup/restore/preview/:name` | What a copy would restore. `POST /backup/restore {name}`, `GET /backup/restore/status`. Profiles only, autopilot off. |
+| `POST` | `/plugins/signalk-pypilot-newui/tinypilot/sd-backup` | Image the TinyPilot's SD card. Body `{ "dest": "<id>" }` or `{ "folder": "<path>" }`. `GET .../sd-backup/status`, `GET /tinypilot/sd-download/:name?dest=`, `GET /tinypilot/folders?path=`. |
+| `POST` | `/plugins/signalk-pypilot-newui/trip-recorder/control` | Trip in progress: body `{ "action": "pause\|resume\|stop\|restart\|discard" }`. |
+| `POST` | `/plugins/signalk-pypilot-newui/black-box/seen-all` | Mark every incident reviewed. |
 | `POST` | `/plugins/signalk-pypilot-newui/pause`         | Disconnect local socket (for scripts). |
 | `POST` | `/plugins/signalk-pypilot-newui/resume`        | Reconnect local socket (for scripts). |
 
