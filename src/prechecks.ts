@@ -76,7 +76,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "pypilot connectivity",
       status: "fail",
       detail: downSec != null ? `Disconnected ${downSec}s.` : "Disconnected.",
-      hint: "Power up the TinyPilot and check host/port in the plugin config.",
+      hint: "Power up the TinyPilot and check its address in Setup > pypilot connection (or Scan).",
     });
   }
 
@@ -101,7 +101,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "SK Autopilot provider",
       status: "fail",
       detail: "No autopilot registered on this Signal K server.",
-      hint: "Enable absorbProvider in the plugin, or enable pypilot-autopilot-provider.",
+      hint: "Turn on 'absorb provider' in Setup > pypilot connection, or enable pypilot-autopilot-provider.",
     });
   }
 

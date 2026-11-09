@@ -217,6 +217,17 @@
       "setup.precheck.hint":       "Pre-departure sanity check. Aggregates every sensor / servo / voltage / connectivity signal into a single verdict. Recomputes every 3 s while this tab is open.",
       "setup.precheck.refresh":    "Refresh",
       "setup.precheck.unknown":    "Checking...",
+      "boot.tapToClose": "Double tap to close",
+      "boot.tapToCloseHeld": "Something needs a look - double tap outside the buttons to close",
+      "boot.goTo": "Open {card}",
+      "boot.sq.why.lost": "Stopped arriving {age} s ago",
+      "boot.sq.why.missing": "Has never arrived since Signal K started",
+      "boot.sq.why.degraded": "Arrives slow or irregular",
+      "boot.sq.why.unknown": "Its freshness cannot be measured",
+      "boot.sq.fix.lost": "Check the sensor is powered and its cable / Signal K connection is up.",
+      "boot.sq.fix.missing": "If this boat has no such sensor, mark it \"not on this boat\" in Sensor quality.",
+      "boot.sq.fix.degraded": "Check the sensor's connection and that only one source sends it.",
+      "boot.sq.fix.unknown": "Usually harmless; check it in Sensor quality if it persists.",
       "setup.precheck.verdict.ready":   "Ready to engage",
       "setup.precheck.verdict.caveats": "Ready with caveats",
       "setup.precheck.verdict.fail":    "Do not engage",
@@ -1488,6 +1499,17 @@
       "setup.precheck.hint":       "Chequeo antes de zarpar. Agrega sensores, servo, voltaje y conectividad en un veredicto único. Se recalcula cada 3 s mientras esta pestaña está abierta.",
       "setup.precheck.refresh":    "Actualizar",
       "setup.precheck.unknown":    "Comprobando...",
+      "boot.tapToClose": "Doble toque para cerrar",
+      "boot.tapToCloseHeld": "Hay algo que revisar - doble toque fuera de los botones para cerrar",
+      "boot.goTo": "Abrir {card}",
+      "boot.sq.why.lost": "Dejó de llegar hace {age} s",
+      "boot.sq.why.missing": "No ha llegado nunca desde que arrancó Signal K",
+      "boot.sq.why.degraded": "Llega lento o irregular",
+      "boot.sq.why.unknown": "No se puede medir si está al día",
+      "boot.sq.fix.lost": "Comprueba que el sensor tiene corriente y que su cable / conexión a Signal K funciona.",
+      "boot.sq.fix.missing": "Si tu barco no tiene ese sensor, márcalo como \"no está en este barco\" en Calidad de sensores.",
+      "boot.sq.fix.degraded": "Revisa la conexión del sensor y que solo una fuente lo envíe.",
+      "boot.sq.fix.unknown": "Suele ser inofensivo; revísalo en Calidad de sensores si sigue así.",
       "setup.precheck.verdict.ready":   "Listo para activar",
       "setup.precheck.verdict.caveats": "Listo con reservas",
       "setup.precheck.verdict.fail":    "NO activar",
@@ -2901,6 +2923,17 @@
       "setup.precheck.hint": "Prüfung vor dem Ablegen. Fasst alle Sensor-, Servo-, Spannungs- und Verbindungssignale zu einem Ergebnis zusammen. Wird alle 3 s neu berechnet, solange dieser Tab offen ist.",
       "setup.precheck.refresh": "Aktualisieren",
       "setup.precheck.unknown": "Prüfe...",
+      "boot.tapToClose": "Doppeltippen zum Schließen",
+      "boot.tapToCloseHeld": "Etwas sollte geprüft werden - außerhalb der Tasten doppeltippen zum Schließen",
+      "boot.goTo": "{card} öffnen",
+      "boot.sq.why.lost": "Kommt seit {age} s nicht mehr",
+      "boot.sq.why.missing": "Ist seit dem Start von Signal K nie gekommen",
+      "boot.sq.why.degraded": "Kommt langsam oder unregelmäßig",
+      "boot.sq.why.unknown": "Aktualität nicht messbar",
+      "boot.sq.fix.lost": "Prüfen, ob der Sensor Strom hat und Kabel / Signal-K-Verbindung funktionieren.",
+      "boot.sq.fix.missing": "Hat das Boot diesen Sensor nicht, ihn in Sensor-Qualität als \"nicht an Bord\" markieren.",
+      "boot.sq.fix.degraded": "Verbindung des Sensors prüfen und dass nur eine Quelle ihn sendet.",
+      "boot.sq.fix.unknown": "Meist harmlos; bei Dauer in Sensor-Qualität prüfen.",
       "setup.precheck.verdict.ready": "Bereit zum Einschalten",
       "setup.precheck.verdict.caveats": "Bereit mit Einschränkungen",
       "setup.precheck.verdict.fail": "Nicht einschalten",
@@ -4141,6 +4174,17 @@
       "setup.precheck.hint": "Vérification avant départ. Regroupe tous les signaux capteurs / servo / tension / connectivité en un seul verdict. Recalculé toutes les 3 s tant que cet onglet est ouvert.",
       "setup.precheck.refresh": "Actualiser",
       "setup.precheck.unknown": "Vérification...",
+      "boot.tapToClose": "Touchez deux fois pour fermer",
+      "boot.tapToCloseHeld": "Quelque chose est à vérifier - touchez deux fois hors des boutons pour fermer",
+      "boot.goTo": "Ouvrir {card}",
+      "boot.sq.why.lost": "N'arrive plus depuis {age} s",
+      "boot.sq.why.missing": "N'est jamais arrivé depuis le démarrage de Signal K",
+      "boot.sq.why.degraded": "Arrive lentement ou irrégulièrement",
+      "boot.sq.why.unknown": "Fraîcheur non mesurable",
+      "boot.sq.fix.lost": "Vérifiez que le capteur est alimenté et que son câble / sa connexion Signal K fonctionne.",
+      "boot.sq.fix.missing": "Si le bateau n'a pas ce capteur, marquez-le \"absent de ce bateau\" dans Qualité des capteurs.",
+      "boot.sq.fix.degraded": "Vérifiez la connexion du capteur et qu'une seule source l'envoie.",
+      "boot.sq.fix.unknown": "Généralement sans gravité ; vérifiez dans Qualité des capteurs si cela persiste.",
       "setup.precheck.verdict.ready": "Prêt à engager",
       "setup.precheck.verdict.caveats": "Prêt avec réserves",
       "setup.precheck.verdict.fail": "Ne pas engager",
@@ -22126,6 +22170,166 @@
   }
 
   // ============================================================
+  // Rev677 (Carlos 2026-11-10): start-up screen. Logo 3 s, fade 1 s, then
+  // the autopilot check and a sensor quality summary for 5 s, fade 1 s
+  // (10 s in all). A tap closes it. Once per browser session on each
+  // device (sessionStorage), so switching back to the visor does not show
+  // it again. Same data as the Setup cards (/prechecks, /quality).
+  // ============================================================
+  const BOOT_SPLASH_KEY = "pypilot-newui.bootSplashShown";
+  // Sensor level -> [why, what to do].
+  const _BOOT_SQ_TEXT = {
+    lost: ["boot.sq.why.lost", "boot.sq.fix.lost"],
+    missing: ["boot.sq.why.missing", "boot.sq.fix.missing"],
+    degraded: ["boot.sq.why.degraded", "boot.sq.fix.degraded"],
+    unknown: ["boot.sq.why.unknown", "boot.sq.fix.unknown"],
+  };
+  // Where each problem is fixed: precheck item id -> Setup card.
+  function _bootBlockFor(id) {
+    if (id === "pypilot-connect" || id === "ap-provider") return "connection";
+    if (String(id).includes(".")) return "quality";   // sensor paths
+    return "precheck";
+  }
+  async function _bootGoBlock(key) {
+    try { _activateTab("setup"); } catch { /* silent */ }
+    const b = document.querySelector(`.setup-block[data-block-key="${key}"]`);
+    if (!b) return;
+    if (TECH_BLOCKS.has(key) && _adminLocked() && !(await _adminUnlockFlow())) return;
+    _setupFullscreenOn(b);
+  }
+  function _bootBlockTitle(key) {
+    const el = document.querySelector(`.setup-block[data-block-key="${key}"] .section-title`);
+    return el ? el.textContent.trim() : key;
+  }
+  function _bootSplash() {
+    try { if (sessionStorage.getItem(BOOT_SPLASH_KEY)) return; sessionStorage.setItem(BOOT_SPLASH_KEY, "1"); }
+    catch { /* no storage: show it, harmless */ }
+    const ov = document.createElement("div");
+    ov.id = "boot-splash";
+    ov.className = "boot-splash";
+    ov.innerHTML = `<div class="boot-logo"><img src="logo-512.png" alt="PyPilot New-UI" /></div>
+      <div class="boot-check" hidden>
+        <div class="boot-sec-title">${t("setup.precheck.title")}</div>
+        <div class="pc-verdict pc-unknown"><span class="pc-verdict-label">${t("setup.precheck.unknown")}</span> <span class="boot-counts"></span></div>
+        <div class="boot-pc-items"></div>
+        <div class="boot-sec-title">${t("setup.quality.title")}</div>
+        <div class="boot-sq"><span class="boot-sq-counts">${t("setup.precheck.unknown")}</span></div>
+        <div class="boot-sq-items"></div>
+        <div class="boot-tap hint">${t("boot.tapToClose")}</div>
+      </div>`;
+    document.body.appendChild(ov);
+    const timers = [];
+    let closed = false, held = false;
+    const close = (fadeMs) => {
+      if (closed) return; closed = true;
+      timers.forEach(clearTimeout);
+      ov.style.transition = `opacity ${fadeMs}ms ease`;
+      ov.classList.add("fade");
+      setTimeout(() => ov.remove(), fadeMs + 50);
+    };
+    // Carlos 2026-11-10: double tap closes; a single tap does nothing.
+    let lastTap = 0;
+    ov.addEventListener("pointerup", () => {
+      const now = Date.now();
+      if (now - lastTap < 400) close(300);
+      lastTap = now;
+    });
+    const logo = ov.querySelector(".boot-logo");
+    const check = ov.querySelector(".boot-check");
+    const closeTimer = setTimeout(() => close(1000), 9000);
+    timers.push(setTimeout(() => logo.classList.add("fade"), 3000));
+    timers.push(setTimeout(() => { logo.hidden = true; check.hidden = false; }, 4000));
+    timers.push(closeTimer);
+    // Something to fix: 5 s is not enough to read it - stays until a tap.
+    const hold = () => {
+      if (held || closed) return; held = true;
+      clearTimeout(closeTimer);
+      ov.classList.add("held");
+      ov.querySelector(".boot-tap").textContent = t("boot.tapToCloseHeld");
+    };
+    // One problem row: what is wrong, what to do, a button to the card.
+    const problemRow = (status, label, explain, fix, blockKey) => {
+      const row = document.createElement("div");
+      row.className = "pc-item pc-" + status;
+      const icon = document.createElement("div");
+      icon.className = "pc-item-icon";
+      icon.textContent = _pcItemIcon(status);
+      const body = document.createElement("div");
+      body.className = "pc-item-body";
+      const lab = document.createElement("div");
+      lab.className = "pc-item-label";
+      lab.textContent = label;
+      body.appendChild(lab);
+      if (explain) {
+        const det = document.createElement("div");
+        det.className = "pc-item-detail";
+        det.textContent = explain;
+        body.appendChild(det);
+      }
+      if (fix) {
+        const hint = document.createElement("div");
+        hint.className = "pc-item-hint";
+        hint.textContent = fix;
+        body.appendChild(hint);
+      }
+      const go = document.createElement("button");
+      go.type = "button";
+      go.className = "boot-go";
+      go.textContent = t("boot.goTo").replace("{card}", _bootBlockTitle(blockKey));
+      go.addEventListener("pointerup", (ev) => {
+        ev.stopPropagation();
+        close(300);
+        _bootGoBlock(blockKey);
+      });
+      body.appendChild(go);
+      row.appendChild(icon); row.appendChild(body);
+      return row;
+    };
+
+    const pcRender = (snap) => {
+      const v = ov.querySelector(".pc-verdict");
+      v.className = "pc-verdict " + _pcVerdictKey(snap.overall);
+      v.querySelector(".pc-verdict-label").textContent = _pcVerdictLabel(snap.overall);
+      ov.querySelector(".boot-counts").textContent = `${snap.passCount} ✓ · ${snap.warnCount} ! · ${snap.failCount} ✕`;
+      const box = ov.querySelector(".boot-pc-items");
+      box.textContent = "";
+      // Sensor items are listed below, under sensor quality.
+      const items = (snap.items || []).filter((it) => !String(it.id).includes("."));
+      const bad = items.filter((it) => it.status === "fail").concat(items.filter((it) => it.status === "warn"));
+      for (const it of bad) box.appendChild(problemRow(it.status, it.label, it.detail, it.hint, _bootBlockFor(it.id)));
+      if (snap.failCount || snap.warnCount) hold();
+    };
+    const sqRenderBoot = (data) => {
+      const ignored = new Set(Array.isArray(data.ignored) ? data.ignored : [..._sqIgnored]);
+      const rows = data.items || [];
+      let g = 0, w = 0, f = 0;
+      const bad = [];
+      for (const r of rows) {
+        if (ignored.has(r.path) || r.level === "good") { g += 1; continue; }
+        if (r.level === "degraded" || r.level === "unknown") w += 1; else f += 1;
+        bad.push(r);
+      }
+      ov.querySelector(".boot-sq-counts").textContent = `${g} ✓ · ${w} ! · ${f} ✕`;
+      const box = ov.querySelector(".boot-sq-items");
+      box.textContent = "";
+      const isWarn = (r) => r.level === "degraded" || r.level === "unknown";
+      bad.sort((x, y) => isWarn(x) - isWarn(y));
+      for (const r of bad) {
+        const lvl = r.level === "lost" || r.level === "missing" || r.level === "degraded" ? r.level : "unknown";
+        const age = typeof r.ageMs === "number" ? Math.round(r.ageMs / 1000) : null;
+        const k = _BOOT_SQ_TEXT[lvl];
+        const explain = t(k[0]).replace("{age}", age == null ? "?" : String(age)) + (r.source ? ` (${r.source})` : "");
+        box.appendChild(problemRow(isWarn(r) ? "warn" : "fail", r.label || r.path, explain, t(k[1]), "quality"));
+      }
+      if (bad.length) hold();
+    };
+    fetch(`/plugins/${PLUGIN_ID}/prechecks`).then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j && !closed) pcRender(j); }).catch(() => { /* stays "checking" */ });
+    fetch(`/plugins/${PLUGIN_ID}/quality`).then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j && !closed) sqRenderBoot(j); }).catch(() => { /* stays "checking" */ });
+  }
+
+  // ============================================================
   // Rev101: Alarm banner + config panel + browser audio
   // ============================================================
   // Single poll of /alarms/state every 2 s drives both the sticky
@@ -23576,7 +23780,7 @@
   }
   function _tourBusy() {
     // Never on top of a login / access / other popup.
-    return [...document.querySelectorAll("#login-modal, #access-request-modal, #pm-modal, .popup-overlay.open, .mode-select-modal-backdrop.open")]
+    return [...document.querySelectorAll("#boot-splash, #login-modal, #access-request-modal, #pm-modal, .popup-overlay.open, .mode-select-modal-backdrop.open")]
       .some((el) => !el.hidden && getComputedStyle(el).display !== "none");
   }
   function _tourBuild() {
@@ -24319,6 +24523,7 @@
 
   // ---- Boot ----
   document.addEventListener("DOMContentLoaded", async () => {
+    try { _bootSplash(); } catch (e) { console.warn("[boot] splash", e); }
     wireTabs();
     wireControl();
     wireTune();

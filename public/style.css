@@ -4948,3 +4948,36 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
 /* Rev668: each copy with its Restore button. */
 .bk-row { display: flex; gap: 8px; align-items: center; }
 .bk-row a { flex: 1 1 auto; min-width: 0; }
+
+/* Rev677: start-up screen (logo, then autopilot check + sensor quality). */
+.boot-splash {
+  position: fixed; inset: 0; z-index: 10000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; opacity: 1; cursor: pointer;
+}
+.boot-splash.fade { opacity: 0; }
+.boot-logo { transition: opacity 1s ease; }
+.boot-logo.fade { opacity: 0; }
+.boot-logo img {
+  width: min(60vw, 60vh, 320px); height: auto; display: block;
+  background: #fff; border-radius: 18px;
+}
+.boot-check {
+  width: min(560px, 100%); max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.boot-check[hidden] { display: none; }
+.boot-sec-title { font-weight: 600; color: var(--fg-dim); margin-top: 6px; }
+.boot-sq { font-size: 1.05em; }
+.boot-sq-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 4px 0; border-bottom: 1px solid var(--bg-3);
+}
+.boot-tap { text-align: center; margin-top: 8px; }
+.boot-go {
+  margin-top: 6px; align-self: flex-start;
+  background: var(--bg-3); color: var(--accent);
+  border: 1px solid var(--accent-dim); border-radius: 8px;
+  padding: 6px 12px; font-size: 0.95em; cursor: pointer;
+}
