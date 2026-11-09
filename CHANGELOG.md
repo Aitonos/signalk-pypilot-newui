@@ -1,5 +1,37 @@
 # Changelog
 
+## 3.12.4 — 2026-11-09 — No admin token, TinyPilot clock
+
+Rev663-667 on top of 3.12.3.
+
+### Changed
+- The visor no longer needs a Signal K **admin** token. Every plugin route
+  declares its access level (Signal K 2.31+): reads readonly, writes
+  readwrite (the technical ones still behind the plugin's admin PIN), and
+  only the free-form SSH command stays Signal K admin. On Signal K 2.31+
+  the visor asks for read/write access; on older servers it still asks for
+  admin, as they keep every plugin route admin-only.
+- The visor saves its own settings (connection, SSH, nudge steps, absorb
+  provider, essentials-only) through the plugin, which merges only those
+  keys into the full configuration.
+
+### Fixed
+- The "Publish only essentials" switch saved a configuration rebuilt from
+  about ten fields and wiped every other option (SSH password, alarms,
+  logbook, AUTOWIND...). It now saves only that option.
+- The free-form SSH command explains that it needs a Signal K admin login
+  instead of showing a JSON parse error.
+
+### Added
+- TinyPilot clock: the TinyPilot has no clock of its own and ran about two
+  years behind after every reboot. When pypilot (re)connects the plugin sets
+  it from the Signal K server over SSH: once per TinyPilot boot, only when
+  more than 5 minutes off, never with the autopilot engaged (a clock jump
+  upsets the IMU filter).
+- The newest settings backup is also kept inside `~/.signalk` (the plugin's
+  data folder), so whole-server backups (signalk-backup, the Signal K
+  admin's own backup) carry `pypilot.conf` with every profile.
+
 ## 3.12.3 — 2026-11-09 — Connect without a connection
 
 Rev661-662 on top of 3.12.2.
