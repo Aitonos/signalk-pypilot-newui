@@ -76,6 +76,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
+import { accessScopedRouter, visorOptionsPatch } from "./route-access";
 import { requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
@@ -87,7 +88,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev663";
+const PLUGIN_REVISION = "Rev664";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1723,12 +1724,47 @@ module.exports = function (app: any) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     registerWithRouter: (router: any) => {
+      // Rev664 (Carlos 2026-11-09): the visor no longer needs an ADMIN token.
+      // Since Signal K 2.31 a plugin route is admin-only unless declared with
+      // router.access(); every route here is declared: reads "readonly",
+      // writes "readwrite" - the technical ones are still behind our own
+      // admin PIN (requireAdmin). Only the free-form SSH shell stays
+      // Signal K admin. On an older server router.access does not exist and
+      // the routes keep that server's behaviour (admin-only there).
+      router = accessScopedRouter(router);
       // Rev66 / 2.0.4: shared "hard reconnect" helper - pauses the socket
       // and re-opens it after a short beat. Used by /restart-pypilot,
       // /debug-cmd (restart.web / reboot.pi presets) and the watchdog.
       const doReconnect = () => {
         try { client?.pause(); setTimeout(() => client?.resume(), 800); } catch {}
       };
+
+      // Rev664: the visor's own settings, saved by the plugin (the Signal K
+      // config endpoint is admin-only and cannot be opened up). Merges only
+      // these keys into the full options - the visor used to write a partial
+      // configuration that wiped everything else (SSH password, alarms...).
+      // Connection and paths keys are technical: admin PIN. A connection
+      // change restarts the plugin, as a save from the Signal K admin does.
+      router.post("/options", (req: any, res: any) => {
+        const body = (req.body && typeof req.body === "object") ? req.body : {};
+        const plan = visorOptionsPatch(body);
+        if (!plan.ok) { res.status(400).json({ error: plan.error }); return; }
+        if (plan.technical && !requireAdmin(req, res)) return;
+        const merged: any = { ...props, ...plan.patch };
+        const save = (app as any).savePluginOptions;
+        if (typeof save !== "function") { res.status(501).json({ error: "savePluginOptions not available" }); return; }
+        save.call(app, merged, (err: any) => {
+          if (err) { res.status(500).json({ error: String(err?.message || err) }); return; }
+          Object.assign(props, plan.patch);
+          res.json({ ok: true, saved: Object.keys(plan.patch), restart: plan.restart });
+          if (plan.restart) {
+            setTimeout(() => {
+              try { plugin.stop(); } catch { /* silent */ }
+              try { plugin.start(merged); } catch (e: any) { app.error?.(`[options] restart failed: ${e?.message || e}`); }
+            }, 300);
+          }
+        });
+      });
 
       router.get("/status", (_req: any, res: any) => {
         res.json({

@@ -12427,16 +12427,29 @@
   // completes and a token was stored; false if pending / denied /
   // network error. When pending, opens the "waiting for admin approval"
   // modal so the user knows where to go.
+  // Rev664: Signal K 2.31+ lets the plugin declare its routes read/write, so
+  // the visor asks for read/write there; older servers keep every plugin
+  // route admin-only, so it still asks for admin on them.
+  async function _accessLevelToRequest() {
+    try {
+      const r = await fetch("/signalk", { signal: AbortSignal.timeout(5000) });
+      const j = await r.json();
+      const v = String((j && j.server && j.server.version) || "").split(".").map((n) => parseInt(n, 10));
+      if (v.length >= 2 && Number.isFinite(v[0]) && Number.isFinite(v[1]) && (v[0] > 2 || (v[0] === 2 && v[1] >= 31))) return "readwrite";
+    } catch { /* unknown server: the old, safe-to-work choice */ }
+    return "admin";
+  }
   async function requestAccess() {
     const clientId = getClientId();
     try {
+      const permissions = await _accessLevelToRequest();
       const r = await fetch("/signalk/v1/access/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId,
           description: "PyPilot New-UI visor",
-          permissions: "admin",
+          permissions,
         }),
       });
       if (!r.ok && r.status !== 202) return false;
@@ -16062,22 +16075,21 @@
     } catch { /* ignore */ }
   }
 
-  // Rev55: merge-save the plugin config. Reads the FULL current config
-  // from /skServer/plugins/<id>/config (requires admin JWT - includes the
-  // SSH password), overlays only the fields in `patch`, POSTs back. This
-  // way, editing one section (e.g. nudge) never wipes another (e.g. SSH
-  // creds) that /plugins/<id>/status intentionally omits.
+  // Rev55: merge-save the plugin config - editing one section (e.g. nudge)
+  // never wipes another (e.g. SSH creds).
+  // Rev664: through the plugin's own POST /options, which merges just these
+  // keys into the full options - no Signal K admin token needed, and nothing
+  // else in the configuration can be touched.
   async function _pluginConfigMerge(patch) {
-    const full = await skFetch(`/skServer/plugins/${PLUGIN_ID}/config`);
-    if (!full.ok) throw new Error("GET config " + full.status);
-    const cur = await full.json();
-    const configuration = { ...(cur?.configuration || {}), ...patch };
-    const res = await skFetch(`/skServer/plugins/${PLUGIN_ID}/config`, {
+    const res = await skFetch(`/plugins/${PLUGIN_ID}/options`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: true, configuration }),
+      body: JSON.stringify(patch),
     });
-    if (!res.ok) throw new Error("POST config " + res.status + " " + (await res.text().catch(() => "")));
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error("save " + res.status + " " + (j.error || ""));
+    }
   }
 
   async function applyNudgeCfg() {
@@ -20786,26 +20798,10 @@
     if (oeCb) oeCb.addEventListener("change", async () => {
       const newVal = oeCb.checked;
       try {
-        // Read current status to preserve everything else, then POST full config.
-        const s = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
-        if (!s.ok) throw new Error("status " + s.status);
-        const cur = await s.json();
-        const configuration = {
-          host: cur.host, port: cur.port,
-          reconnectDelayMs: 3000,
-          allowWrites: cur.allowWrites, allowDirectServo: cur.allowDirectServo,
-          publishUnmapped: false,
-          nudgeSmall: cur.nudgeSmall, nudgeBig: cur.nudgeBig,
-          absorbProvider: cur.absorbProvider,
-          enabledPaths: cur.enabledPaths || {},
-          publishOnlyEssentials: newVal,
-        };
-        const r = await fetch(`/skServer/plugins/${PLUGIN_ID}/config`, {
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled: true, configuration }),
-        });
-        if (!r.ok) throw new Error(await r.text());
+        // Rev664: this used to POST a configuration rebuilt from /status -
+        // about ten fields - which wiped every other option (SSH password,
+        // alarms, logbook, AUTOWIND...). Now only this key is saved.
+        await _pluginConfigMerge({ publishOnlyEssentials: newVal });
         alert(newVal
           ? "Essentials-only mode ON. Non-essential paths will only publish when explicitly ticked."
           : "Legacy mode: all paths publish unless explicitly unticked.");
