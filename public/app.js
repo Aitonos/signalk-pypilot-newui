@@ -218,6 +218,9 @@
       "setup.precheck.refresh":    "Refresh",
       "setup.precheck.unknown":    "Checking...",
       "boot.tapToClose": "Double tap to close",
+      "boot.sq.verdict.ok": "All sensors OK",
+      "boot.sq.verdict.warn": "Sensors with warnings",
+      "boot.sq.verdict.fail": "Sensors failing",
       "boot.tapToCloseHeld": "Something needs a look - double tap outside the buttons to close",
       "boot.goTo": "Open {card}",
       "boot.sq.why.lost": "Stopped arriving {age} s ago",
@@ -1500,6 +1503,9 @@
       "setup.precheck.refresh":    "Actualizar",
       "setup.precheck.unknown":    "Comprobando...",
       "boot.tapToClose": "Doble toque para cerrar",
+      "boot.sq.verdict.ok": "Todos los sensores OK",
+      "boot.sq.verdict.warn": "Sensores con avisos",
+      "boot.sq.verdict.fail": "Sensores con fallos",
       "boot.tapToCloseHeld": "Hay algo que revisar - doble toque fuera de los botones para cerrar",
       "boot.goTo": "Abrir {card}",
       "boot.sq.why.lost": "Dejó de llegar hace {age} s",
@@ -2924,6 +2930,9 @@
       "setup.precheck.refresh": "Aktualisieren",
       "setup.precheck.unknown": "Prüfe...",
       "boot.tapToClose": "Doppeltippen zum Schließen",
+      "boot.sq.verdict.ok": "Alle Sensoren OK",
+      "boot.sq.verdict.warn": "Sensoren mit Warnungen",
+      "boot.sq.verdict.fail": "Sensoren mit Ausfällen",
       "boot.tapToCloseHeld": "Etwas sollte geprüft werden - außerhalb der Tasten doppeltippen zum Schließen",
       "boot.goTo": "{card} öffnen",
       "boot.sq.why.lost": "Kommt seit {age} s nicht mehr",
@@ -4175,6 +4184,9 @@
       "setup.precheck.refresh": "Actualiser",
       "setup.precheck.unknown": "Vérification...",
       "boot.tapToClose": "Touchez deux fois pour fermer",
+      "boot.sq.verdict.ok": "Tous les capteurs OK",
+      "boot.sq.verdict.warn": "Capteurs avec alertes",
+      "boot.sq.verdict.fail": "Capteurs en défaut",
       "boot.tapToCloseHeld": "Quelque chose est à vérifier - touchez deux fois hors des boutons pour fermer",
       "boot.goTo": "Ouvrir {card}",
       "boot.sq.why.lost": "N'arrive plus depuis {age} s",
@@ -11697,7 +11709,8 @@
       // perfil cuando es algo global, BUG". Unlocking no longer asks;
       // the profile question moved to the first change of a PERFIL
       // slider (see _writeConfigSlider). GLOBAL sliders never ask.
-      groupCb.addEventListener("change", () => {
+      groupCb.addEventListener("change", async () => {
+        if (groupCb.checked && !(await _tunePinOk(groupCb))) return;
         details._scopeAsked = false;
         _applyGroupUnlock(details, groupCb.checked);
       });
@@ -13942,7 +13955,7 @@
       ap._hotGainSnapshot[t.path] = cur;
       ap._hotGainSet[t.path] = next;
       try {
-        const resp = await pluginRaw(t.path, next);
+        const resp = await pluginRaw(t.path, next, { auto: "empopado" });
         if (resp && resp.ok === false) {
           anyFailed = true;
           console.warn(`[empopado] hot gain ${t.path} refused by pypilot (status=${resp.status})`);
@@ -14009,7 +14022,7 @@
           }
           if (typeof g.hot === "number" && typeof now !== "number") continue;   // unknown now: next try
           try {
-            const resp = await pluginRaw(path, g.restore);
+            const resp = await pluginRaw(path, g.restore, { auto: "empopado" });
             if (!(resp && resp.ok === false)) { delete p.gains[path]; console.info(`empopado: pending gain ${path} restored → ${g.restore.toFixed(3)}`); }
           } catch { /* next try */ }
         }
@@ -14044,7 +14057,7 @@
       // not "restored": it stays in the snapshot and the badge says so.
       let ok = false;
       try {
-        const resp = await pluginRaw(path, val);
+        const resp = await pluginRaw(path, val, { auto: "empopado" });
         ok = !(resp && resp.ok === false);
         if (ok) console.info(`empopado: hot gain ${path} restored → ${val.toFixed(3)}`);
         else console.warn(`empopado: hot gain ${path} restore refused (status=${resp.status})`);
@@ -14612,7 +14625,9 @@
       headers: { "Content-Type": "application/json" },
       // Rev569: opts.origin tells the backend how a NEW profile is made
       // (new / tune / rename / import) for its history.
-      body: JSON.stringify(opts && opts.origin ? { name, value, origin: opts.origin } : { name, value }),
+      // Rev678: opts.auto marks the visor's own automatic gain changes
+      // (downwind), which do not need the Tune PIN.
+      body: JSON.stringify({ name, value, ...(opts && opts.origin ? { origin: opts.origin } : {}), ...(opts && opts.auto ? { auto: opts.auto } : {}) }),
     });
     handleAuth(res);
     // Rev507: keep the values cache in step with what the sailor just
@@ -16263,12 +16278,20 @@
     const unlockCb = $("#tune-unlock");
     if (unlockCb) {
       unlockCb.checked = false;
-      unlockCb.addEventListener("change", (e) => {
+      unlockCb.addEventListener("change", async (e) => {
+        if (e.target.checked && !(await _tunePinOk(e.target))) return;
         _setTuneLocked(!e.target.checked);
       });
     }
-    $("#pilot-select").addEventListener("change", (e) => {
-      pluginRaw("ap.pilot", e.target.value);
+    $("#pilot-select").addEventListener("change", async (e) => {
+      const v = e.target.value;
+      // Rev678: the pilot type is a Tune setting - admin PIN once set.
+      if (_adminLocked()) {
+        setSelect("#pilot-select", state.pilot);
+        if (!(await _adminUnlockFlow())) return;
+        setSelect("#pilot-select", v);
+      }
+      pluginRaw("ap.pilot", v);
     });
     // Rev423 (Carlos QA Rev422, 2026-10-08): the Tune-tab profile
     // select keeps its own handler. The bbar twin was replaced by a
@@ -20937,6 +20960,16 @@
     };
   }
 
+  // Rev678 (Carlos 2026-11-10): Tune settings are critical - once an admin
+  // PIN is set, unlocking them asks it (once: the same 12 h session per
+  // screen as the Technical group). No PIN set = no question.
+  async function _tunePinOk(cb) {
+    if (!_adminLocked()) return true;
+    cb.checked = false;
+    const ok = await _adminUnlockFlow();
+    if (ok) cb.checked = true;
+    return ok;
+  }
   function _setTuneLocked(locked) {
     const unlockCb = $("#tune-unlock");
     if (unlockCb) unlockCb.checked = !locked;
@@ -22170,9 +22203,10 @@
   }
 
   // ============================================================
-  // Rev677 (Carlos 2026-11-10): start-up screen. Logo 3 s, fade 1 s, then
-  // the autopilot check and a sensor quality summary for 5 s, fade 1 s
-  // (10 s in all). A tap closes it. Once per browser session on each
+  // Rev677/678 (Carlos 2026-11-10): start-up screen over the visor (70 %
+  // dark). Logo: fade in 2 s, 3 s, fade out 2 s; then the check in two
+  // animated steps - autopilot check, 2 s later sensor quality - and after
+  // 4 s a 1 s fade out (12 s in all). A tap closes it. Once per browser session on each
   // device (sessionStorage), so switching back to the visor does not show
   // it again. Same data as the Setup cards (/prechecks, /quality).
   // ============================================================
@@ -22209,12 +22243,16 @@
     ov.className = "boot-splash";
     ov.innerHTML = `<div class="boot-logo"><img src="logo-512.png" alt="PyPilot New-UI" /></div>
       <div class="boot-check" hidden>
-        <div class="boot-sec-title">${t("setup.precheck.title")}</div>
-        <div class="pc-verdict pc-unknown"><span class="pc-verdict-label">${t("setup.precheck.unknown")}</span> <span class="boot-counts"></span></div>
-        <div class="boot-pc-items"></div>
-        <div class="boot-sec-title">${t("setup.quality.title")}</div>
-        <div class="boot-sq"><span class="boot-sq-counts">${t("setup.precheck.unknown")}</span></div>
-        <div class="boot-sq-items"></div>
+        <div class="boot-step boot-step-pc">
+          <div class="boot-sec-title">${t("setup.precheck.title")}</div>
+          <div class="pc-verdict pc-unknown boot-pc-verdict"><span class="pc-verdict-label">${t("setup.precheck.unknown")}</span> <span class="boot-counts"></span></div>
+          <div class="boot-pc-items"></div>
+        </div>
+        <div class="boot-step boot-step-sq">
+          <div class="boot-sec-title">${t("setup.quality.title")}</div>
+          <div class="pc-verdict pc-unknown boot-sq-verdict"><span class="pc-verdict-label boot-sq-label">${t("setup.precheck.unknown")}</span> <span class="boot-sq-counts"></span></div>
+          <div class="boot-sq-items"></div>
+        </div>
         <div class="boot-tap hint">${t("boot.tapToClose")}</div>
       </div>`;
     document.body.appendChild(ov);
@@ -22236,15 +22274,19 @@
     });
     const logo = ov.querySelector(".boot-logo");
     const check = ov.querySelector(".boot-check");
-    const closeTimer = setTimeout(() => close(1000), 9000);
-    timers.push(setTimeout(() => logo.classList.add("fade"), 3000));
-    timers.push(setTimeout(() => { logo.hidden = true; check.hidden = false; }, 4000));
+    const step = (sel) => ov.querySelector(sel).classList.add("in");
+    requestAnimationFrame(() => requestAnimationFrame(() => logo.classList.add("in")));   // fade in 2 s
+    const closeTimer = setTimeout(() => close(1000), 11000);
+    timers.push(setTimeout(() => logo.classList.remove("in"), 5000));                     // fade out 2 s
+    timers.push(setTimeout(() => { logo.hidden = true; check.hidden = false; requestAnimationFrame(() => step(".boot-step-pc")); }, 7000));
+    timers.push(setTimeout(() => { step(".boot-step-sq"); step(".boot-tap"); }, 9000));
     timers.push(closeTimer);
     // Something to fix: 5 s is not enough to read it - stays until a tap.
     const hold = () => {
       if (held || closed) return; held = true;
       clearTimeout(closeTimer);
       ov.classList.add("held");
+      if (!check.hidden) { step(".boot-step-sq"); step(".boot-tap"); }
       ov.querySelector(".boot-tap").textContent = t("boot.tapToCloseHeld");
     };
     // One problem row: what is wrong, what to do, a button to the card.
@@ -22287,7 +22329,7 @@
     };
 
     const pcRender = (snap) => {
-      const v = ov.querySelector(".pc-verdict");
+      const v = ov.querySelector(".boot-pc-verdict");
       v.className = "pc-verdict " + _pcVerdictKey(snap.overall);
       v.querySelector(".pc-verdict-label").textContent = _pcVerdictLabel(snap.overall);
       ov.querySelector(".boot-counts").textContent = `${snap.passCount} ✓ · ${snap.warnCount} ! · ${snap.failCount} ✕`;
@@ -22310,6 +22352,10 @@
         bad.push(r);
       }
       ov.querySelector(".boot-sq-counts").textContent = `${g} ✓ · ${w} ! · ${f} ✕`;
+      // Same coloured box as the autopilot check: green when all is well.
+      const sv = ov.querySelector(".boot-sq-verdict");
+      sv.className = "pc-verdict boot-sq-verdict " + (f ? "pc-fail" : w ? "pc-caveats" : "pc-ready");
+      ov.querySelector(".boot-sq-label").textContent = t(f ? "boot.sq.verdict.fail" : w ? "boot.sq.verdict.warn" : "boot.sq.verdict.ok");
       const box = ov.querySelector(".boot-sq-items");
       box.textContent = "";
       const isWarn = (r) => r.level === "degraded" || r.level === "unknown";

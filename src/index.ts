@@ -91,7 +91,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev677";
+const PLUGIN_REVISION = "Rev679";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2277,6 +2277,13 @@ module.exports = function (app: any) {
         // Rev653: installation settings (the amber ones of the advanced card)
         // need the Technical group unlocked; gains and controls do not.
         if (/^(nmea\.|signalk\.|gps\.filtered\.|imu\.(accel|compass)\.calibration$|servo\.use_eeprom$|servo\.calibration$)/.test(name) && !requireAdmin(req, res)) return;
+        // Rev678 (Carlos 2026-11-10): Tune settings too - gains, the pilot
+        // type and the RangeSettings of the Tune groups (tack, servo, wind
+        // offsets). The visor's own automatic gain changes while sailing
+        // downwind say so and pass: a locked screen must not stop them.
+        const tuneKey = GAIN_PATH_RE.test(name) || name === "ap.pilot"
+          || (lastCatalog as any)?.[name]?.type === "RangeSetting";
+        if (tuneKey && req.body?.auto !== "empopado" && !requireAdmin(req, res)) return;
         // Rev280 (audit T22): previously only `servo.command` was
         // guarded, so a PUT with name="servo.position" or any other
         // direct-servo pypilot key slipped through and moved the rudder
