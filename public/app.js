@@ -1197,6 +1197,7 @@
       "setup.debug.running":    "Running preset...",
       "setup.debug.ok":         "OK",
       "setup.debug.failed":     "Failed",
+      "setup.debug.needAdmin": "Free commands are only for a Signal K administrator: log in to the Signal K admin in this browser. The buttons above (logs, ip, df, restarts...) work without it.",
       "setup.debug.noSsh":      "SSH not configured - save the SSH password above first.",
       "setup.ssh.exec.ph":      "Enter shell command (e.g. cat /proc/loadavg)",
       "setup.ssh.exec.run":     "Run",
@@ -2428,6 +2429,7 @@
       "setup.debug.running":    "Ejecutando preset...",
       "setup.debug.ok":         "OK",
       "setup.debug.failed":     "Fallo",
+      "setup.debug.needAdmin": "Los comandos libres son solo para el administrador de Signal K: inicia sesión en el admin de Signal K en este navegador. Los botones de arriba (logs, ip, df, reinicios...) funcionan sin ello.",
       "setup.debug.noSsh":      "SSH no configurado - guarda el password SSH arriba primero.",
       "setup.ssh.exec.ph":      "Escribe un comando shell (ej: cat /proc/loadavg)",
       "setup.ssh.exec.run":     "Ejecutar",
@@ -3630,6 +3632,7 @@
       "setup.debug.running": "Führe Vorlage aus...",
       "setup.debug.ok": "OK",
       "setup.debug.failed": "Fehlgeschlagen",
+      "setup.debug.needAdmin": "Freie Befehle nur für den Signal-K-Administrator: in diesem Browser im Signal-K-Admin anmelden. Die Tasten oben (logs, ip, df, Neustarts...) gehen auch ohne.",
       "setup.debug.noSsh": "SSH nicht konfiguriert - zuerst oben das SSH-Passwort speichern.",
       "setup.ssh.exec.ph": "Shell-Befehl eingeben (z. B. cat /proc/loadavg)",
       "setup.ssh.exec.run": "Ausführen",
@@ -4830,6 +4833,7 @@
       "setup.debug.running": "Exécution du modèle...",
       "setup.debug.ok": "OK",
       "setup.debug.failed": "Échec",
+      "setup.debug.needAdmin": "Les commandes libres sont réservées à l'administrateur Signal K : connectez-vous à l'admin Signal K dans ce navigateur. Les boutons ci-dessus (logs, ip, df, redémarrages...) marchent sans.",
       "setup.debug.noSsh": "SSH non configuré - enregistrez d'abord le mot de passe SSH ci-dessus.",
       "setup.ssh.exec.ph": "Tapez une commande shell (ex. cat /proc/loadavg)",
       "setup.ssh.exec.run": "Exécuter",
@@ -18570,6 +18574,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ cmd: c }),
         });
+        // Rev666: the free shell is for a Signal K administrator only; the
+        // server answers 401/403 in plain text - say why, not a JSON error.
+        if (r.status === 401 || r.status === 403) {
+          _dbgAppendOutput(c, t("setup.debug.needAdmin"));
+          if (dbgStat) dbgStat.textContent = t("setup.debug.failed");
+          return;
+        }
         const j = await r.json();
         _dbgAppendOutput(c, j.stdout || "");
         if (dbgStat) dbgStat.textContent = `${t(j.ok ? "setup.debug.ok" : "setup.debug.failed")} (${j.elapsedMs || 0} ms, exit ${j.code ?? "?"})`;
