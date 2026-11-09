@@ -76,7 +76,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
-import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations } from "./tinypilot-sd";
+import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations, isAllowedFolder, folderRoots } from "./tinypilot-sd";
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
@@ -91,7 +91,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev672";
+const PLUGIN_REVISION = "Rev673";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3318,11 +3318,35 @@ module.exports = function (app: any) {
       // Rev672 (Carlos 2026-11-09): the image can go to a USB stick, disk or
       // network share mounted under /media or /mnt, chosen from this list
       // with each one's free space; never to a typed path.
+      // Rev673: folders the sailor picked in the visor's folder browser (the
+      // last 5), so their images are listed and downloadable.
+      const _sdFoldersFile = () => require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "sd-folders.json");
+      const _sdCustomFolders = (): string[] => {
+        try { const a = JSON.parse(require("fs").readFileSync(_sdFoldersFile(), "utf8")); return Array.isArray(a) ? a.filter((x: unknown) => typeof x === "string") : []; } catch { return []; }
+      };
+      const _sdRememberFolder = (p: string) => {
+        const list = [p, ..._sdCustomFolders().filter((x) => x !== p)].slice(0, 5);
+        try { require("fs").writeFileSync(_sdFoldersFile(), JSON.stringify(list)); } catch { /* silent */ }
+      };
+      /** Real path of a folder the visor sent, when allowed and existing. */
+      const _sdCheckFolder = (raw: string): string | null => {
+        try {
+          const rp = require("fs").realpathSync(String(raw || ""));
+          if (!isAllowedFolder(rp, require("os").homedir())) return null;
+          if (!require("fs").statSync(rp).isDirectory()) return null;
+          return rp;
+        } catch { return null; }
+      };
       const _sdDests = () => {
         const fs2 = require("fs");
         let mounts = "";
         try { mounts = fs2.readFileSync("/proc/mounts", "utf8"); } catch { /* not linux */ }
-        return sdDestinations(mounts, backupDir(), require("os").homedir()).map((d) => {
+        const base = sdDestinations(mounts, backupDir(), require("os").homedir());
+        for (const f of _sdCustomFolders()) {
+          const rp = _sdCheckFolder(f);
+          if (rp && !base.some((d) => d.dir === rp)) base.push({ id: `folder:${rp}`, label: rp, dir: rp, mount: rp });
+        }
+        return base.map((d) => {
           let freeBytes: number | null = null, totalBytes: number | null = null;
           try { const st = fs2.statfsSync(d.mount); freeBytes = st.bavail * st.bsize; totalBytes = st.blocks * st.bsize; } catch { /* unknown */ }
           return { ...d, freeBytes, totalBytes };
@@ -3395,6 +3419,14 @@ module.exports = function (app: any) {
         if (!props.sshPassword) { res.status(409).json({ error: "SSH to the TinyPilot is not configured" }); return; }
         if (_sdJob?.running) { res.status(409).json({ error: "a copy is already running" }); return; }
         if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
+        // Rev673: a folder picked in the folder browser, checked again here.
+        if (typeof req.body?.folder === "string") {
+          const rp = _sdCheckFolder(req.body.folder);
+          if (!rp) { res.status(400).json({ error: "that folder is not allowed (home, /media or /mnt only) or does not exist" }); return; }
+          try { require("fs").accessSync(rp, require("fs").constants.W_OK); } catch { res.status(400).json({ error: `cannot write in ${rp}` }); return; }
+          _sdRememberFolder(rp);
+          req.body.dest = `folder:${rp}`;
+        }
         const dest = _sdDests().find((d) => d.id === String(req.body?.dest || "default"));
         if (!dest) { res.status(400).json({ error: "unknown destination" }); return; }
         const probe = await _runSsh(SD_PROBE_COMMAND, 15000);
@@ -3423,6 +3455,33 @@ module.exports = function (app: any) {
         }
         // eslint-disable-next-line no-console
         console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : "ok"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
+      });
+      // Rev673: folder browser for the SD image destination.
+      //   GET /tinypilot/folders           - the roots (home, /media, /mnt)
+      //   GET /tinypilot/folders?path=...  - its subfolders, free space, writable
+      router.get("/tinypilot/folders", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        const fs2 = require("fs");
+        const path2 = require("path");
+        const home = require("os").homedir();
+        const space = (p: string) => { try { const st = fs2.statfsSync(p); return { freeBytes: st.bavail * st.bsize, totalBytes: st.blocks * st.bsize }; } catch { return { freeBytes: null, totalBytes: null }; } };
+        const raw = typeof req.query?.path === "string" ? req.query.path : "";
+        if (!raw) {
+          res.json({ path: null, parent: null, writable: false, dirs: folderRoots(home).filter((r) => { try { return fs2.statSync(r).isDirectory(); } catch { return false; } }) });
+          return;
+        }
+        const rp = _sdCheckFolder(raw);
+        if (!rp) { res.status(400).json({ error: "not allowed" }); return; }
+        let dirs: string[] = [];
+        try {
+          dirs = fs2.readdirSync(rp, { withFileTypes: true })
+            .filter((e: any) => !e.name.startsWith(".") && (e.isDirectory() || (e.isSymbolicLink() && _sdCheckFolder(path2.join(rp, e.name)))))
+            .map((e: any) => path2.join(rp, e.name)).sort();
+        } catch { /* unreadable */ }
+        let writable = true;
+        try { fs2.accessSync(rp, fs2.constants.W_OK); } catch { writable = false; }
+        const up = path2.dirname(rp);
+        res.json({ path: rp, parent: up !== rp && isAllowedFolder(up, home) ? up : "", writable, dirs, ...space(rp) });
       });
       router.get("/tinypilot/sd-backup/status", (_req: any, res: any) => {
         const dests = _sdDests();

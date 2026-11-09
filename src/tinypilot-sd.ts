@@ -56,6 +56,18 @@ export function sdDestinations(procMounts: string, defaultDir: string, defaultMo
   return out;
 }
 
+/** Rev673 (Carlos 2026-11-09): a folder the sailor picked in the visor's
+ *  folder browser. Only inside the home folder, /media (USB sticks) or /mnt
+ *  (disks, network shares) - never system folders. `realPath` is the path
+ *  with every symlink resolved, so a link cannot lead outside. */
+export function folderRoots(home: string): string[] { return [home, "/media", "/mnt"]; }
+export function isAllowedFolder(realPath: string, home: string): boolean {
+  const p = String(realPath || "");
+  if (!p.startsWith("/") || p.includes("\0")) return false;
+  const norm = p.replace(/\/+$/, "") || "/";
+  return folderRoots(home).some((r) => norm === r || norm.startsWith(`${r}/`));
+}
+
 /** Names to delete so the newest SD_KEEP stay. */
 export function sdImagesToDrop(names: string[], keep = SD_KEEP): string[] {
   return names.filter(isSdImageName).sort().reverse().slice(keep);

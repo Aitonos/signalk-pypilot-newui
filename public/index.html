@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev672" />
+  <link rel="stylesheet" href="style.css?v=Rev673" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2111,6 +2111,7 @@
           <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
             <label data-i18n="sd.dest">Save to</label>
             <select id="sd-dest"></select>
+            <button type="button" class="ghost" id="sd-browse" data-i18n="sd.browse">Choose folder…</button>
           </div>
           <div class="doctor-progress-wrap">
             <div class="doctor-progress-label" data-i18n="sd.free">Free space</div>
@@ -2897,6 +2898,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev672"></script>
+  <script src="app.js?v=Rev673"></script>
 </body>
 </html>

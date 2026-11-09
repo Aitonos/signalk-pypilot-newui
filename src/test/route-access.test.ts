@@ -12,6 +12,7 @@ describe("route access levels (Rev664)", () => {
     assert.equal(routeAccessLevel("GET", "/log-capture/tail"), "readwrite");
     assert.equal(routeAccessLevel("GET", "/black-box/incident/:id"), "readwrite");
     assert.equal(routeAccessLevel("GET", "/scan"), "readwrite", "probes the LAN");
+    assert.equal(routeAccessLevel("GET", "/tinypilot/folders"), "readwrite", "folder names");
     assert.equal(routeAccessLevel("POST", "/ap/engage"), "readwrite");
     assert.equal(routeAccessLevel("PUT", "/raw"), "readwrite");
     assert.equal(routeAccessLevel("POST", "/ssh-exec"), "admin");

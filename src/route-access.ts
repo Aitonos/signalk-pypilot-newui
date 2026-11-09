@@ -15,8 +15,9 @@
 export type AccessLevel = "readonly" | "readwrite" | "admin";
 
 export const ADMIN_ONLY_ROUTES = new Set<string>(["POST /ssh-exec"]);
-// Reads that hand out data files, and /scan, which probes the whole LAN.
-const DATA_FILE_GET = /(download|export|\/tail\b|\/incident\/|^\/scan$)/;
+// Reads that hand out data files, /scan (probes the whole LAN) and the
+// folder browser (folder names of the home folder).
+const DATA_FILE_GET = /(download|export|\/tail\b|\/incident\/|^\/scan$|^\/tinypilot\/folders$)/;
 
 export function routeAccessLevel(method: string, path: string): AccessLevel {
   const m = String(method).toUpperCase();

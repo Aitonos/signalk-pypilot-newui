@@ -4,6 +4,20 @@ import assert from "node:assert/strict";
 
 import { sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations } from "../tinypilot-sd";
 
+describe("folder browser bounds (Rev673)", () => {
+  it("home, /media and /mnt only - never system folders", () => {
+    const { isAllowedFolder } = require("../tinypilot-sd");
+    assert.ok(isAllowedFolder("/home/pi", "/home/pi"));
+    assert.ok(isAllowedFolder("/home/pi/Backups", "/home/pi"));
+    assert.ok(isAllowedFolder("/media/pi/KINGSTON USB", "/home/pi"));
+    assert.ok(isAllowedFolder("/mnt/nas/boat/", "/home/pi"));
+    assert.ok(!isAllowedFolder("/etc", "/home/pi"));
+    assert.ok(!isAllowedFolder("/home/pirate", "/home/pi"), "a prefix is not a parent");
+    assert.ok(!isAllowedFolder("/", "/home/pi"));
+    assert.ok(!isAllowedFolder("relative/path", "/home/pi"));
+  });
+});
+
 describe("SD image destinations (Rev672)", () => {
   it("default folder plus writable sticks / shares under /media and /mnt only", () => {
     const mounts = [

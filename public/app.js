@@ -557,6 +557,13 @@
       "sd.confirmBody": "Keep the autopilot off until it finishes (a few minutes). The TinyPilot will be busy meanwhile; if the autopilot is engaged the copy stops.",
       "sd.done": "Card copied: {file}",
       "sd.failed": "Card copy failed",
+      "sd.browse": "Choose folder…",
+      "sd.browseTitle": "Where to save the card image",
+      "sd.browseRoots": "Your folder, USB sticks (/media) and disks or shares (/mnt)",
+      "sd.useFolder": "Save here",
+      "sd.cancel": "Cancel",
+      "sd.notWritable": "Cannot write in this folder",
+      "sd.noSubfolders": "No subfolders",
       "sd.dest": "Save to",
       "sd.free": "Free space",
       "sd.freeShort": "free",
@@ -1810,6 +1817,13 @@
       "sd.confirmBody": "Deja el piloto desconectado hasta que termine (unos minutos). Mientras tanto la TinyPilot estará ocupada; si se conecta el piloto, la copia se para.",
       "sd.done": "Tarjeta copiada: {file}",
       "sd.failed": "La copia de la tarjeta falló",
+      "sd.browse": "Elegir carpeta…",
+      "sd.browseTitle": "Dónde guardar la imagen de la tarjeta",
+      "sd.browseRoots": "Tu carpeta, pendrives (/media) y discos o carpetas de red (/mnt)",
+      "sd.useFolder": "Guardar aquí",
+      "sd.cancel": "Cancelar",
+      "sd.notWritable": "No se puede escribir en esta carpeta",
+      "sd.noSubfolders": "Sin subcarpetas",
       "sd.dest": "Guardar en",
       "sd.free": "Espacio libre",
       "sd.freeShort": "libres",
@@ -3146,6 +3160,13 @@
       "sd.confirmBody": "Autopilot bis zum Ende ausgeschaltet lassen (einige Minuten). Der TinyPilot ist währenddessen beschäftigt; wird der Autopilot eingeschaltet, stoppt die Kopie.",
       "sd.done": "Karte kopiert: {file}",
       "sd.failed": "Kopie der Karte fehlgeschlagen",
+      "sd.browse": "Ordner wählen…",
+      "sd.browseTitle": "Wo das Kartenabbild speichern",
+      "sd.browseRoots": "Dein Ordner, USB-Sticks (/media) und Laufwerke oder Freigaben (/mnt)",
+      "sd.useFolder": "Hier speichern",
+      "sd.cancel": "Abbrechen",
+      "sd.notWritable": "In diesem Ordner kann nicht geschrieben werden",
+      "sd.noSubfolders": "Keine Unterordner",
       "sd.dest": "Speichern in",
       "sd.free": "Freier Platz",
       "sd.freeShort": "frei",
@@ -4374,6 +4395,13 @@
       "sd.confirmBody": "Gardez le pilote débrayé jusqu'à la fin (quelques minutes). Le TinyPilot sera occupé pendant ce temps ; si le pilote est embrayé, la copie s'arrête.",
       "sd.done": "Carte copiée : {file}",
       "sd.failed": "Échec de la copie de la carte",
+      "sd.browse": "Choisir un dossier…",
+      "sd.browseTitle": "Où enregistrer l'image de la carte",
+      "sd.browseRoots": "Votre dossier, clés USB (/media) et disques ou partages (/mnt)",
+      "sd.useFolder": "Enregistrer ici",
+      "sd.cancel": "Annuler",
+      "sd.notWritable": "Impossible d'écrire dans ce dossier",
+      "sd.noSubfolders": "Aucun sous-dossier",
       "sd.dest": "Enregistrer dans",
       "sd.free": "Espace libre",
       "sd.freeShort": "libres",
@@ -7520,10 +7548,23 @@
         o.textContent = d.freeBytes != null ? `${d.label}  ·  ${gb(d.freeBytes)} GB ${t("sd.freeShort")}` : d.label;
         sel.appendChild(o);
       }
-      sel.value = dests.some((d) => d.id === keep) ? keep : "default";
+      if (_sdPickedFolder && !dests.some((d) => d.dir === _sdPickedFolder)) {
+        const o = document.createElement("option");
+        o.value = "__picked__";
+        o.textContent = _sdPickedFolder;
+        sel.appendChild(o);
+      }
+      const keepOk = keep === "__picked__" ? !!_sdPickedFolder : dests.some((d) => d.id === keep);
+      sel.value = keepOk ? keep : "default";
       sel.disabled = !!(job && job.running);
     }
-    const cur = dests.find((d) => sel && d.id === sel.value) || dests[0];
+    let cur = dests.find((d) => sel && d.id === sel.value) || dests[0];
+    if (sel && sel.value === "__picked__" && _sdPickedFolder) {
+      try {
+        const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/folders?path=${encodeURIComponent(_sdPickedFolder)}`);
+        if (r.ok) { const j = await r.json(); cur = { freeBytes: j.freeBytes, totalBytes: j.totalBytes }; }
+      } catch { /* keep the default */ }
+    }
     const NEED = 1.2 * 1073741824;   // about the raw size of the card's partitions
     const spFill = document.getElementById("sd-space-fill");
     const spText = document.getElementById("sd-space-text");
@@ -7565,13 +7606,84 @@
     }
     if (job && job.running) { if (!_sdPoll) _sdPoll = setTimeout(() => { _sdPoll = null; _sdRefresh(); }, 2000); }
   }
+  // Rev673 (Carlos 2026-11-09): folder browser for the SD image destination.
+  // Only the home folder, /media (USB sticks) and /mnt (disks, shares); the
+  // backend checks it again. Built from the existing dialog pieces.
+  let _sdPickedFolder = null;
+  function _sdBrowse() {
+    return new Promise((resolve) => {
+      const modal = document.createElement("div");
+      modal.className = "pm-modal";
+      modal.style.zIndex = "3100";
+      const back = document.createElement("div");
+      back.className = "pm-backdrop";
+      const card = document.createElement("div");
+      card.className = "pm-card pm-dialog-card";
+      const head = document.createElement("header");
+      head.className = "pm-header";
+      const h3 = document.createElement("h3");
+      h3.textContent = t("sd.browseTitle");
+      head.appendChild(h3);
+      const where = document.createElement("div");
+      where.className = "bk-dir";
+      const info = document.createElement("div");
+      info.className = "hint";
+      const body = document.createElement("div");
+      body.className = "pm-dialog-body bk-list";
+      const foot = document.createElement("footer");
+      foot.className = "pm-footer pm-dialog-actions";
+      const cancel = document.createElement("button");
+      cancel.type = "button"; cancel.className = "ghost"; cancel.textContent = t("sd.cancel");
+      const pick = document.createElement("button");
+      pick.type = "button"; pick.className = "primary"; pick.textContent = t("sd.useFolder");
+      foot.append(cancel, pick);
+      card.append(head, where, info, body, foot);
+      modal.append(back, card);
+      document.body.appendChild(modal);
+      let current = null;
+      const close = (v) => { modal.remove(); resolve(v); };
+      back.addEventListener("click", () => close(null));
+      cancel.addEventListener("click", () => close(null));
+      pick.addEventListener("click", () => { if (current) close(current); });
+      const row = (label, path) => {
+        const a = document.createElement("a");
+        a.href = "#";
+        a.textContent = label;
+        a.addEventListener("click", (ev) => { ev.preventDefault(); load(path); });
+        body.appendChild(a);
+      };
+      const load = async (path) => {
+        body.textContent = "…";
+        let j = null;
+        try {
+          const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/folders${path ? "?path=" + encodeURIComponent(path) : ""}`);
+          j = await r.json();
+          if (!r.ok) { body.textContent = j.error || `HTTP ${r.status}`; return; }
+        } catch (e) { body.textContent = String(e); return; }
+        body.textContent = "";
+        current = j.path;
+        where.textContent = j.path || t("sd.browseRoots");
+        info.textContent = j.path
+          ? (j.writable ? (j.freeBytes != null ? t("sd.freeOf").replace("{free}", (j.freeBytes / 1073741824).toFixed(1)).replace("{total}", (j.totalBytes / 1073741824).toFixed(1)) : "") : t("sd.notWritable"))
+          : "";
+        pick.disabled = !(j.path && j.writable);
+        if (j.path && j.parent) row("⬆ ..", j.parent);
+        else if (j.path) row("⬆ ..", "");
+        for (const d of j.dirs || []) row(`📁 ${d.split("/").pop() || d}`, d);
+        if (!(j.dirs || []).length) { const p = document.createElement("div"); p.className = "hint"; p.textContent = t("sd.noSubfolders"); body.appendChild(p); }
+      };
+      load("");
+    });
+  }
   async function _sdStart() {
     const ok = await _pmConfirm(t("sd.confirmTitle"), t("sd.confirmBody"));
     if (!ok) return;
     try {
       const dest = document.getElementById("sd-dest")?.value || "default";   // Rev672
+      // Rev673: a folder from the browser goes as a path; the backend checks it.
+      const payload = dest === "__picked__" && _sdPickedFolder ? { folder: _sdPickedFolder } : { dest };
       const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/sd-backup`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dest }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { _pmAlert(t("sd.failed"), j.error || `HTTP ${r.status}`); return; }
@@ -7579,6 +7691,20 @@
     _sdRefresh();
   }
   function _bkpWire() {
+    const sdBrowse = document.getElementById("sd-browse");   // Rev673
+    if (sdBrowse) sdBrowse.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const f = await _sdBrowse();
+      if (!f) return;
+      _sdPickedFolder = f;
+      const sel = document.getElementById("sd-dest");
+      await _sdRefresh();
+      if (sel) {
+        const existing = Array.from(sel.options).find((o) => o.textContent.startsWith(f + "  ") || o.textContent === f);
+        sel.value = existing ? existing.value : "__picked__";
+      }
+      _sdRefresh();
+    });
     const sdSel = document.getElementById("sd-dest");   // Rev672: redraw the free-space bar
     if (sdSel) sdSel.addEventListener("change", () => _sdRefresh());
     const sdBtn = document.getElementById("sd-now");   // Rev671
