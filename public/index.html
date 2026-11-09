@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev680" />
+  <link rel="stylesheet" href="style.css?v=Rev681" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1053,6 +1053,17 @@
                 </svg>
                 <div class="overlay-title" data-i18n="dash.overlay.nav.title">Tab bar always visible</div>
                 <div class="overlay-needs" data-i18n="dash.overlay.nav.needs">In Control the tab bar no longer hides itself after 5 s. Saved on this device.</div>
+              </label>
+              <!-- Rev681 (Carlos): start-up screen on/off, per device. -->
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-boot-splash" />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <rect x="-26" y="-54" width="52" height="48" rx="3" fill="none" stroke="#b8c4d0" stroke-width="2"/>
+                  <rect x="-18" y="-42" width="36" height="9" rx="2" fill="#2ecc71"/>
+                  <rect x="-18" y="-26" width="36" height="9" rx="2" fill="#2ecc71"/>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.splash.title">Start-up screen</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.splash.needs">Logo, autopilot check and sensor quality when the visor opens. Saved on this device.</div>
               </label>
               <!-- Rev522 (Carlos): tap sound toggle, same overlay-card look. -->
               <label class="overlay-card">
@@ -2922,6 +2933,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev680"></script>
+  <script src="app.js?v=Rev681"></script>
 </body>
 </html>

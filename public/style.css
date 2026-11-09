@@ -4958,7 +4958,7 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
   padding: 16px; opacity: 1; cursor: pointer;
 }
 .boot-splash.fade { opacity: 0; }
-.boot-logo { opacity: 0; transition: opacity 1.5s ease; }
+.boot-logo { opacity: 0; transition: opacity 1.5s ease; }   /* fade in only; it then goes at once */
 .boot-logo.in { opacity: 1; }
 .boot-logo img {
   width: min(60vw, 60vh, 320px); height: auto; display: block;

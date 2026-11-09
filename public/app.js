@@ -218,6 +218,13 @@
       "setup.precheck.refresh":    "Refresh",
       "setup.precheck.unknown":    "Checking...",
       "boot.tapToClose": "Double tap to close",
+      "boot.access.label": "This screen has no Signal K access",
+      "boot.access.why": "Signal K has not approved this screen yet: it shows data but cannot steer or change settings, and the visor will say it has no connection.",
+      "boot.access.fix": "Approve \"PyPilot New-UI visor\" in the Signal K admin: Security > Access Requests.",
+      "boot.access.go": "Open the Signal K admin",
+      "speak.pypilotOk": "Pypilot working",
+      "dash.overlay.splash.title": "Start-up screen",
+      "dash.overlay.splash.needs": "Logo, autopilot check and sensor quality when the visor opens. Saved on this device.",
       "boot.fairWinds": "All OK. Fair winds!",
       "admin.useToggle": "Ask for the PIN",
       "admin.useHint": "Off: nothing is locked and the PIN is kept, for a boat with only trusted crew. Switching it off asks the PIN.",
@@ -1508,6 +1515,13 @@
       "setup.precheck.refresh":    "Actualizar",
       "setup.precheck.unknown":    "Comprobando...",
       "boot.tapToClose": "Doble toque para cerrar",
+      "boot.access.label": "Esta pantalla no tiene acceso a Signal K",
+      "boot.access.why": "Signal K todavía no ha aprobado esta pantalla: ve datos pero no puede mandar al piloto ni cambiar ajustes, y el visor dirá que no hay conexión.",
+      "boot.access.fix": "Aprueba \"PyPilot New-UI visor\" en el admin de Signal K: Security > Access Requests.",
+      "boot.access.go": "Abrir el admin de Signal K",
+      "speak.pypilotOk": "Pypilot operativo",
+      "dash.overlay.splash.title": "Pantalla de inicio",
+      "dash.overlay.splash.needs": "Logo, comprobación del piloto y calidad de sensores al abrir el visor. Se guarda en este dispositivo.",
       "boot.fairWinds": "Todo OK. ¡Buena proa!",
       "admin.useToggle": "Pedir el PIN",
       "admin.useHint": "Desactivado: no se bloquea nada y el PIN se guarda, para un barco con solo tripulación de confianza. Para desactivarlo se pide el PIN.",
@@ -2940,6 +2954,13 @@
       "setup.precheck.refresh": "Aktualisieren",
       "setup.precheck.unknown": "Prüfe...",
       "boot.tapToClose": "Doppeltippen zum Schließen",
+      "boot.access.label": "Dieser Bildschirm hat keinen Signal-K-Zugriff",
+      "boot.access.why": "Signal K hat diesen Bildschirm noch nicht genehmigt: er zeigt Daten, kann aber nicht steuern oder Einstellungen ändern, und der Visor meldet keine Verbindung.",
+      "boot.access.fix": "\"PyPilot New-UI visor\" im Signal-K-Admin genehmigen: Security > Access Requests.",
+      "boot.access.go": "Signal-K-Admin öffnen",
+      "speak.pypilotOk": "Pypilot bereit",
+      "dash.overlay.splash.title": "Startbildschirm",
+      "dash.overlay.splash.needs": "Logo, Autopilot-Check und Sensor-Qualität beim Öffnen des Visors. Auf diesem Gerät gespeichert.",
       "boot.fairWinds": "Alles OK. Mast- und Schotbruch!",
       "admin.useToggle": "PIN abfragen",
       "admin.useHint": "Aus: nichts ist gesperrt, die PIN bleibt gespeichert - für ein Boot nur mit vertrauter Crew. Zum Ausschalten wird die PIN abgefragt.",
@@ -4199,6 +4220,13 @@
       "setup.precheck.refresh": "Actualiser",
       "setup.precheck.unknown": "Vérification...",
       "boot.tapToClose": "Touchez deux fois pour fermer",
+      "boot.access.label": "Cet écran n'a pas accès à Signal K",
+      "boot.access.why": "Signal K n'a pas encore approuvé cet écran : il affiche les données mais ne peut ni barrer ni changer les réglages, et le visor dira qu'il n'y a pas de connexion.",
+      "boot.access.fix": "Approuvez \"PyPilot New-UI visor\" dans l'admin Signal K : Security > Access Requests.",
+      "boot.access.go": "Ouvrir l'admin Signal K",
+      "speak.pypilotOk": "Pypilot opérationnel",
+      "dash.overlay.splash.title": "Écran de démarrage",
+      "dash.overlay.splash.needs": "Logo, vérification du pilote et qualité des capteurs à l'ouverture du visor. Enregistré sur cet appareil.",
       "boot.fairWinds": "Tout est OK. Bon vent !",
       "admin.useToggle": "Demander le PIN",
       "admin.useHint": "Désactivé : rien n'est verrouillé et le PIN est conservé, pour un bateau avec un équipage de confiance. Le désactiver demande le PIN.",
@@ -6974,6 +7002,8 @@
     if (cogCb) { cogCb.checked = _showCog;     cogCb.onchange = () => _setShowCog(cogCb.checked); }
     const navCb = document.getElementById("dash-nav-always");   // Rev661
     if (navCb) { navCb.checked = _navAlways(); navCb.onchange = () => _navSetAlways(navCb.checked); }
+    const splCb = document.getElementById("dash-boot-splash");   // Rev681
+    if (splCb) { splCb.checked = _bootSplashOn(); splCb.onchange = () => _bootSplashSet(splCb.checked); }
     if (curCb) { curCb.checked = _showCurrent; curCb.onchange = () => _setShowCurrent(curCb.checked); }
 
     // Polar toggles.
@@ -9229,7 +9259,7 @@
       // Rev264 (Carlos): also announce it verbally so the sailor
       // hears the confirmation without looking at the screen. Same
       // SpeechSynthesis path used by the alarm voices.
-      try { _alSpeak("Pypilot operativo"); } catch { /* silent */ }
+      try { _alSpeak(t("speak.pypilotOk")); } catch { /* silent */ }
     } catch { /* silent */ }
   }
   // Rev268 (Carlos): 3-tier restore-target-after-outage flow.
@@ -21447,6 +21477,7 @@
       const lang = (typeof currentLang === "function" ? currentLang() : "en");
       const u = new SpeechSynthesisUtterance(String(text));
       u.lang = _REGATA_VOICE_LOCALES[lang] || "en-US";
+      try { const v = _voiceFor(lang); if (v) u.voice = v; } catch { /* silent */ }
       u.rate = 1.15;
       u.volume = 1;
       window.speechSynthesis.speak(u);
@@ -22233,10 +22264,10 @@
   }
 
   // ============================================================
-  // Rev677-680 (Carlos 2026-11-10): start-up screen over the visor (70 %
-  // dark). Logo: fade in 1.5 s, 2 s, fade out 1.5 s; then the check in two
+  // Rev677-681 (Carlos 2026-11-10): start-up screen over the visor (70 %
+  // dark). Logo: fade in 1.5 s, 2 s, then gone at once; the check in two
   // animated steps - autopilot check, 2 s later sensor quality (with "fair
-  // winds" when all is well) - shown 3 s more, then a 1 s fade out (11 s). A tap closes it. Once per browser session on each
+  // winds" when all is well) - shown 4.5 s more, then a 1 s fade out (11 s). A tap closes it. Once per browser session on each
   // device (sessionStorage), so switching back to the visor does not show
   // it again. Same data as the Setup cards (/prechecks, /quality).
   // ============================================================
@@ -22265,7 +22296,12 @@
     const el = document.querySelector(`.setup-block[data-block-key="${key}"] .section-title`);
     return el ? el.textContent.trim() : key;
   }
+  // Rev681: start-up screen on/off, per device (Settings > Sound and chart).
+  const BOOT_SPLASH_OFF_KEY = "pypilot-newui.bootSplashOff";
+  function _bootSplashOn() { try { return localStorage.getItem(BOOT_SPLASH_OFF_KEY) !== "1"; } catch { return true; } }
+  function _bootSplashSet(on) { try { if (on) localStorage.removeItem(BOOT_SPLASH_OFF_KEY); else localStorage.setItem(BOOT_SPLASH_OFF_KEY, "1"); } catch { /* silent */ } }
   function _bootSplash() {
+    if (!_bootSplashOn()) return;
     try { if (sessionStorage.getItem(BOOT_SPLASH_KEY)) return; sessionStorage.setItem(BOOT_SPLASH_KEY, "1"); }
     catch { /* no storage: show it, harmless */ }
     const ov = document.createElement("div");
@@ -22308,9 +22344,8 @@
     const step = (sel) => ov.querySelector(sel).classList.add("in");
     requestAnimationFrame(() => requestAnimationFrame(() => logo.classList.add("in")));   // fade in 2 s
     const closeTimer = setTimeout(() => close(1000), 10000);
-    timers.push(setTimeout(() => logo.classList.remove("in"), 3500));                     // fade out 1.5 s
-    timers.push(setTimeout(() => { logo.hidden = true; check.hidden = false; requestAnimationFrame(() => step(".boot-step-pc")); }, 5000));
-    timers.push(setTimeout(() => { step(".boot-step-sq"); step(".boot-tap"); }, 7000));
+    timers.push(setTimeout(() => { logo.hidden = true; check.hidden = false; requestAnimationFrame(() => step(".boot-step-pc")); }, 3500));
+    timers.push(setTimeout(() => { step(".boot-step-sq"); step(".boot-tap"); }, 5500));
     timers.push(closeTimer);
     // Something to fix: 5 s is not enough to read it - stays until a tap.
     const hold = () => {
@@ -22359,7 +22394,14 @@
       return row;
     };
 
+    // Rev681 (Carlos): a screen Signal K has not approved said "ready" and
+    // then "no connection". The check now includes this screen's own access.
+    let noAccess = false;
     const pcRender = (snap) => {
+      if (noAccess) {
+        snap = { ...snap, overall: "do-not-engage", failCount: (snap.failCount || 0) + 1,
+          items: [{ id: "visor-access", status: "fail", label: t("boot.access.label"), detail: t("boot.access.why"), hint: t("boot.access.fix") }, ...(snap.items || [])] };
+      }
       const v = ov.querySelector(".boot-pc-verdict");
       v.className = "pc-verdict " + _pcVerdictKey(snap.overall);
       v.querySelector(".pc-verdict-label").textContent = _pcVerdictLabel(snap.overall);
@@ -22369,7 +22411,20 @@
       // Sensor items are listed below, under sensor quality.
       const items = (snap.items || []).filter((it) => !String(it.id).includes("."));
       const bad = items.filter((it) => it.status === "fail").concat(items.filter((it) => it.status === "warn"));
-      for (const it of bad) box.appendChild(problemRow(it.status, it.label, it.detail, it.hint, _bootBlockFor(it.id)));
+      for (const it of bad) {
+        const row = problemRow(it.status, it.label, it.detail, it.hint, _bootBlockFor(it.id));
+        if (it.id === "visor-access") {
+          // The fix is in the Signal K admin, not in a Setup card.
+          const go = row.querySelector(".boot-go");
+          go.textContent = t("boot.access.go");
+          go.replaceWith(go.cloneNode(true));
+          row.querySelector(".boot-go").addEventListener("pointerup", (ev) => {
+            ev.stopPropagation();
+            window.open(`${location.origin}/admin/#/security/access`, "_blank");
+          });
+        }
+        box.appendChild(row);
+      }
       if (snap.failCount || snap.warnCount) hold();
     };
     const sqRenderBoot = (data) => {
@@ -22403,8 +22458,14 @@
     // "Fair winds" only when both say all is well.
     let pcOk = false, sqOk = false;
     const fair = () => { ov.querySelector(".boot-fair").hidden = !(pcOk && sqOk); };
-    fetch(`/plugins/${PLUGIN_ID}/prechecks`).then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j && !closed) { pcRender(j); pcOk = j.overall === "ready"; fair(); } }).catch(() => { /* stays "checking" */ });
+    (async () => {
+      try { noAccess = (await isAuthValid()) === false; } catch { /* unknown: say nothing */ }
+      const r = await fetch(`/plugins/${PLUGIN_ID}/prechecks`).catch(() => null);
+      const j = r && r.ok ? await r.json().catch(() => null) : null;
+      if (closed) return;
+      if (j) { pcRender(j); pcOk = j.overall === "ready" && !noAccess; fair(); }
+      else if (noAccess) { pcRender({ overall: "unknown", passCount: 0, warnCount: 0, failCount: 0, items: [] }); }
+    })();
     fetch(`/plugins/${PLUGIN_ID}/quality`).then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (j && !closed) { sqRenderBoot(j); sqOk = !ov.querySelector(".boot-sq-items").children.length; fair(); } }).catch(() => { /* stays "checking" */ });
   }
@@ -22779,10 +22840,32 @@
       osc.stop(now + durationMs / 1000 + 0.05);
     } catch { /* silent */ }
   }
+  // Rev681 (Carlos: "parece como si todos usaran el español"): the alarm
+  // voice had no language, so the browser read every language with the
+  // device's default voice. Now: the visor's language, and a voice of that
+  // language when the device has one (the OS provides them).
+  const _VOICE_LOCALES = { es: "es-ES", en: "en-GB", de: "de-DE", fr: "fr-FR" };
+  function _voiceFor(lang) {
+    try {
+      const vs = window.speechSynthesis.getVoices() || [];
+      const norm = (v) => String(v.lang || "").replace("_", "-").toLowerCase();
+      const want = (_VOICE_LOCALES[lang] || "en-GB").toLowerCase();
+      return vs.find((v) => norm(v) === want && v.localService) || vs.find((v) => norm(v) === want)
+        || vs.find((v) => norm(v).startsWith(lang + "-") && v.localService) || vs.find((v) => norm(v).startsWith(lang)) || null;
+    } catch { return null; }
+  }
+  function _speechSetLang(u) {
+    const lang = typeof currentLang === "function" ? currentLang() : "en";
+    u.lang = _VOICE_LOCALES[lang] || "en-GB";
+    const v = _voiceFor(lang);
+    if (v) u.voice = v;
+  }
+  try { if ("speechSynthesis" in window) window.speechSynthesis.getVoices(); } catch { /* voices load late on some browsers */ }
   function _alSpeak(text) {
     try {
       if (!("speechSynthesis" in window)) return;
       const u = new SpeechSynthesisUtterance(text);
+      _speechSetLang(u);
       u.rate = 1.0; u.pitch = 1.0; u.volume = 0.9;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
@@ -24157,10 +24240,12 @@
   // access window is in the way (checks for up to 2 min).
   function _tourMaybeAutoStart() {
     if (_tourSeen()) return;
-    const t0 = Date.now();
     const tryStart = () => {
       if (_tourSeen() || _tour.i >= 0) return;
-      if (_tourBusy()) { if (Date.now() - t0 < 120000) setTimeout(tryStart, 3000); return; }
+      // Rev681 (Carlos: no tour in a private window): a new screen waits
+      // for Signal K's approval, which can take longer than the old 2 min
+      // limit - keep waiting while the page is open.
+      if (_tourBusy()) { setTimeout(tryStart, 3000); return; }
       tourStart();
     };
     setTimeout(tryStart, 2500);

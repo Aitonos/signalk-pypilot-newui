@@ -2,7 +2,7 @@
 
 ## 3.13.1 — 2026-11-09 — Settings in the visor, new name, logo and screenshots
 
-Rev675-680 on top of 3.13.0.
+Rev675-681 on top of 3.13.0.
 
 ### Added
 - **Start-up screen**: the logo, then the autopilot check and a sensor
@@ -10,7 +10,9 @@ Rev675-680 on top of 3.13.0.
   (11 s, double tap closes, once per browser session on each screen).
   "All OK. Fair winds!" when everything is well. Anything wrong says what
   happens, what to do and has a button to the Setup card that fixes it;
-  the screen then stays until closed.
+  the screen then stays until closed. A screen Signal K has not approved
+  yet says so (with a button to the Signal K admin) instead of "ready".
+  Can be switched off per device (Settings, Sound and chart).
 - **Admin PIN also for Tune and the profile manager**: unlocking Tune or a
   Tune group, changing the pilot type, and new / rename / import / delete /
   reorder profiles ask the PIN right there, once per screen session (the
@@ -20,6 +22,12 @@ Rev675-680 on top of 3.13.0.
   nothing, for a boat with only trusted crew. Switching it off asks the PIN.
 - A locked action you reach some other way asks the PIN on the spot instead
   of sending you to Setup.
+
+### Fixed
+- Spoken alarms and messages are said in the visor's language with a voice
+  of that language; before, the device's default voice read them all.
+- The guided tour no longer gives up on a new screen whose Signal K
+  approval takes more than 2 minutes.
 
 ### Changed
 - **Plugin settings live in the visor.** The Signal K admin form now shows
