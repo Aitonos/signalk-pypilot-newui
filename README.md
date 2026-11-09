@@ -2,7 +2,7 @@
 
 **A modern, touch-first autopilot screen for [pypilot](https://github.com/pypilot/pypilot) and TinyPilot — that also tunes your pilot for you.**
 
-`signalk-pypilot-newui` enhances Sean D'Epagnier's open-source autopilot with **43 new functions**: a tablet- and phone-friendly visor, a built-in tuning assistant, smart wind-aware profiles, a 17-rule alarm engine, trip logging, and first-class **Signal K integration** so any Signal K client can drive and monitor the autopilot out of the box.
+`signalk-pypilot-newui` enhances Sean D'Epagnier's open-source autopilot with **49 new functions**: a tablet- and phone-friendly visor, a built-in tuning assistant, smart wind-aware profiles, a 17-rule alarm engine, trip logging, settings backups and an SD-card image of the TinyPilot, and first-class **Signal K integration** so any Signal K client can drive and monitor the autopilot out of the box.
 
 Spend more time sailing and less time guessing which slider to move.
 
