@@ -4428,14 +4428,23 @@ body.pypilot-offline.pypilot-offline-dismissed #pypilot-offline-banner { display
 /* Rev544: above .popup-overlay (3000) - the black-box "Delete?" confirm
    and the note prompt open from inside a popup. */
 #pm-dialog { z-index: 3100; }
-.pm-dialog-card { max-width: 380px; }
+/* Rev670 (Carlos QA Rev668): a long body (the restore list of profiles)
+   scrolls inside the dialog; the title and the Yes / No buttons stay on
+   screen. Heights in % of the full-screen modal, not vh (the visor's CSS
+   zoom makes viewport units wrong). */
+.pm-dialog-card { max-width: 380px; max-height: 90%; }
 .pm-dialog-body {
   padding: 10px 2px 12px;
   color: #d8d8d8;
   font-size: 14px;
   white-space: pre-wrap;
   word-wrap: break-word;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
+.pm-dialog-card .pm-header, .pm-dialog-card .pm-footer { flex: 0 0 auto; }
 .pm-dialog-input {
   width: 100%;
   padding: 10px;
