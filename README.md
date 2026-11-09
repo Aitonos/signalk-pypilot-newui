@@ -1,12 +1,14 @@
 # PyPilot New-UI for Signal K
 
+<p align="center"><img src="https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/logo-512.png" width="160" alt="PyPilot New-UI logo" /></p>
+
 **A modern, touch-first autopilot screen for [pypilot](https://github.com/pypilot/pypilot) and TinyPilot — that also tunes your pilot for you.**
 
 `signalk-pypilot-newui` enhances Sean D'Epagnier's open-source autopilot with **49 new functions**: a tablet- and phone-friendly visor, a built-in tuning assistant, smart wind-aware profiles, a 17-rule alarm engine, trip logging, settings backups and an SD-card image of the TinyPilot, and first-class **Signal K integration** so any Signal K client can drive and monitor the autopilot out of the box.
 
 Spend more time sailing and less time guessing which slider to move.
 
-![Control - compass rose with an AIS collision target on the compass ring](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
+![Control - compass rose with the apparent and true wind arrows, the controls and the live chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
 
 ---
 
@@ -46,6 +48,10 @@ Spend more time sailing and less time guessing which slider to move.
 | ![Tune tab - PID gain sliders](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/06-tune-sliders.jpg) | ![Logbook trip detail - track and SOG vs AWS chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/07-logbook-trip-detail.jpg) |
 
 ![Tack history - per-tack speed retention and recovery](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/08-tack-history.jpg)
+
+| | |
+|---|---|
+| ![Profile manager - history of each profile and look-alike names flagged](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/12-profile-manager.jpg) | ![Visor settings - corner data, polar performance and custom Signal K paths](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/13-visor-settings.jpg) |
 
 ---
 
