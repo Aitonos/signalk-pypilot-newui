@@ -1,5 +1,32 @@
 # Changelog
 
+## 3.13.0 — 2026-11-09 — Restore profiles, TinyPilot SD image, NAV waypoint rule
+
+Rev668-674 on top of 3.12.4.
+
+### Added
+- **Restore from a settings backup**: "Restore" next to each copy brings
+  back the gains of every profile listed in it, through pypilot itself
+  (select the profile, write its values), with the autopilot off; the
+  profile active before is selected again. Profiles deleted before the copy
+  (pypilot keeps their sections: 51 of 63 on the test boat) are not brought
+  back, profiles you have now are not deleted, and installation settings -
+  IMU / compass calibration above all - are never restored by the plugin.
+- **TinyPilot SD card image**: an exact image of the card's partitions
+  (dd over SSH at the lowest priority, after sync; 1094 MiB in 11 min,
+  ~690 MB gzipped on the test boat), written back to a card of 2 GB or more
+  with Raspberry Pi Imager. Destination: the default folder, a USB stick
+  under /media, a disk or share under /mnt, or a folder picked in a folder
+  browser limited to those places. Free-space and progress bars; refused
+  without enough space or with the autopilot engaged; the newest 3 kept.
+- **NAV waypoint rule** (Smart Pilot, Routes): a waypoint counts as reached
+  in the plotter's arrival circle or abeam (default, as before), or only
+  abeam - no corner cut.
+
+### Fixed
+- Long dialogs (the restore list) scroll inside the dialog; title and
+  buttons stay on screen.
+
 ## 3.12.4 — 2026-11-09 — No admin token, TinyPilot clock
 
 Rev663-667 on top of 3.12.3.

@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev673" />
+  <link rel="stylesheet" href="style.css?v=Rev674" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2318,6 +2318,9 @@
               <li><b>Logbook</b>: while a trip is recorded, Pause / Resume (time and distance stop), Stop (closes it now; the next one starts after mooring or anchoring), Restart and Delete.</li>
               <li><b>Black box</b>: &quot;Reviewed&quot; on each new incident and &quot;Mark all reviewed&quot;.</li>
               <li><b>Log capture retention</b>: past days are compressed, files older than 30 days deleted, 300 MB at most.</li>
+              <li><b>Restore from a backup</b>: &quot;Restore&quot; next to each copy brings back the gains of every profile it lists, through pypilot itself, with the autopilot off. Installation settings (IMU calibration above all) are never restored from here, and profiles you have now are not deleted.</li>
+              <li><b>TinyPilot SD card image</b>: an exact image of the card's partitions (about 1.1 GB, ~11 min, compressed to ~700 MB): system, pypilot, every profile and the IMU calibration. Choose where it goes (your folder, a USB stick under /media, a disk or share under /mnt) with the folder browser; free-space and progress bars. Write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off.</li>
+              <li><b>Routes (NAV)</b> in Smart Pilot: a waypoint counts as reached in the plotter's arrival circle or abeam (default), or only abeam (no corner cut). Keep the plotter's own auto-advance off.</li>
             </ul>
 
             <h5 style="margin:14px 0 4px">Info tab</h5>
@@ -2399,6 +2402,9 @@
               <li><b>Bit&aacute;cora</b>: mientras se graba un viaje, Pausar / Seguir (no cuentan tiempo ni distancia), Parar (lo cierra ya; el siguiente empieza al amarrar o fondear), Reiniciar y Borrar.</li>
               <li><b>Caja negra</b>: &quot;Revisado&quot; en cada incidente nuevo y &quot;Marcar todas como revisadas&quot;.</li>
               <li><b>Limpieza de registros</b>: los d&iacute;as anteriores se comprimen, se borran los de m&aacute;s de 30 d&iacute;as, 300 MB como m&aacute;ximo.</li>
+              <li><b>Restaurar una copia</b>: &quot;Restaurar&quot; junto a cada copia recupera las ganancias de todos los perfiles que lista, a trav&eacute;s de pypilot y con el piloto desconectado. Los ajustes de instalaci&oacute;n (sobre todo la calibraci&oacute;n de la IMU) nunca se restauran desde aqu&iacute;, y no se borra ning&uacute;n perfil que tengas ahora.</li>
+              <li><b>Imagen de la tarjeta SD de la TinyPilot</b>: una imagen exacta de las particiones de la tarjeta (unos 1,1 GB, ~11 min, comprimida ~700 MB): sistema, pypilot, todos los perfiles y la calibraci&oacute;n de la IMU. Elige d&oacute;nde se guarda (tu carpeta, un pendrive en /media, un disco o carpeta de red en /mnt) con el explorador de carpetas; barras de espacio libre y de avance. Se graba en una tarjeta nueva de 2 GB o m&aacute;s con Raspberry Pi Imager. Solo con el piloto desconectado.</li>
+              <li><b>Rutas (NAV)</b> en Piloto inteligente: un waypoint se da por alcanzado en el c&iacute;rculo de llegada del plotter o al pasar a su altura (por defecto), o solo al pasar a su altura (sin recortar). Deja desactivado el avance autom&aacute;tico del plotter.</li>
             </ul>
 
             <h5 style="margin:14px 0 4px">Pesta&ntilde;a Info</h5>
@@ -2898,6 +2904,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev673"></script>
+  <script src="app.js?v=Rev674"></script>
 </body>
 </html>
