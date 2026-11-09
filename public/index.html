@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev674" />
+  <link rel="stylesheet" href="style.css?v=Rev676" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1577,6 +1577,10 @@
         <div class="conn-sub session-recorder-panel">
           <div class="conn-sub-title" data-i18n="sess.title">Grabador de sesiones de navegación</div>
           <div class="hint" data-i18n="sess.hint">Cada vez que el AP se engancha, el plugin graba un JSONL con la telemetría. Al desenganchar cierra la sesión. Compártelo para recibir consejos de ajuste personalizados.</div>
+          <label class="row" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="sess-enabled" />
+            <span data-i18n="sess.enable">Record a session every time the autopilot is engaged</span>
+          </label>
           <div class="row">
             <span id="sess-status" class="hint" style="font-family:ui-monospace,monospace"></span>
           </div>
@@ -1635,6 +1639,15 @@
             <input type="checkbox" id="cfg-absorb" />
             <button id="cfg-absorb-apply" class="primary" data-i18n="setup.absorb.btn">Save &amp; restart</button>
           </div>
+        </div>
+        <!-- Rev676: moved from the Signal K admin. -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.approve.title">pypilot's access to Signal K</div>
+          <div class="hint" data-i18n="setup.approve.hint">pypilot asks Signal K for access again after every Signal K restart; approved as read-only, Signal K drops its heading. When on, the plugin approves it read/write by itself - only from the TinyPilot's address - and keeps a single pypilot device.</div>
+          <label class="row" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="cfg-pypilot-approve" />
+            <span data-i18n="setup.approve.toggle">Approve pypilot's access automatically</span>
+          </label>
         </div>
       </div>
 
@@ -1952,6 +1965,11 @@
               <label style="display:flex;align-items:center;gap:6px">
                 <input type="checkbox" id="lc-enabled" />
                 <span data-i18n="lc.toggle">Enable log capture</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px">
+                <span data-i18n="lc.every">every</span>
+                <input type="number" id="lc-interval" min="30" max="3600" step="10" style="width:5.5em" />
+                <span>s</span>
               </label>
               <button id="lc-view"     class="ghost" data-i18n="lc.view">Show recent</button>
               <button id="lc-download" class="ghost" data-i18n="lc.download">Download today</button>
@@ -2904,6 +2922,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev674"></script>
+  <script src="app.js?v=Rev676"></script>
 </body>
 </html>

@@ -282,5 +282,5 @@ if ($Restart) {
 
 Write-Host ""
 Write-Host "Webapp URL:  http://${piAddr}:3000/signalk-pypilot-newui/" -ForegroundColor Green
-Write-Host "Admin URL:   http://${piAddr}:3000/admin  (Plugin Config -> PyPilot New-UI + SK Paths)" -ForegroundColor Green
+Write-Host "Admin URL:   http://${piAddr}:3000/admin  (Plugin Config -> PyPilot New-UI)" -ForegroundColor Green
 Write-Host ""

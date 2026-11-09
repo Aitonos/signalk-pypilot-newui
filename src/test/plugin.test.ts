@@ -68,12 +68,11 @@ describe("signalk-pypilot-newui plugin", () => {
     };
     assert.equal(s.type, "object");
     assert.ok(s.properties, "schema has properties");
-    // host and port are the two required connection fields.
-    assert.ok(s.properties.host, "schema declares host");
-    assert.ok(s.properties.port, "schema declares port");
-    // Port ships with a sensible default so the registry can activate
-    // without user input.
-    assert.equal(s.properties.port.default, 80);
+    // Rev676: the Signal K admin shows only the server-side switches; the
+    // connection and the rest are set in the visor (Setup).
+    assert.deepEqual(Object.keys(s.properties).sort(), ["adminPinReset", "allowDirectServo", "allowWrites"]);
+    assert.equal(s.properties.allowWrites.default, true);
+    assert.equal(s.properties.allowDirectServo.default, false);
   });
 
   it("stop() is safe to call when nothing was started", () => {

@@ -1,5 +1,32 @@
 # Changelog
 
+## 3.13.1 — 2026-11-09 — Settings in the visor, new name, logo and screenshots
+
+Rev675-676 on top of 3.13.0.
+
+### Changed
+- **Plugin settings live in the visor.** The Signal K admin form now shows
+  only the server-side switches: allow writes, allow direct servo, forget
+  the admin PIN. The connection to pypilot, SSH, log capture, session
+  recorder, pypilot's automatic Signal K access and everything else are set
+  in the visor's Setup. Three options that only existed in the admin form
+  moved there: approve pypilot's access automatically (Technical →
+  pypilot connection), log capture interval (next to its switch) and the
+  session recorder on/off (its own panel). Nothing configured before is
+  lost: the values stay in the plugin's configuration.
+- Renamed "PyPilot New-UI + SK Paths" to **PyPilot New-UI** in the Signal K
+  admin and App Store.
+- New PyPilot New-UI logo: App Store icon, the visor's browser and
+  home-screen icon, README header.
+- New App Store screenshots (rose, embedded chartplotter, tide, tune, trip
+  detail, tack history) and two more: profile manager and visor settings.
+- README brought up to date with 3.12-3.13: 49 functions, a new
+  "Looking after the installation" section (admin PIN and Setup groups,
+  pypilot advanced settings, daily backup and restore, TinyPilot SD image,
+  TinyPilot clock, pypilot's Signal K access), Doctor profile naming, NAV
+  waypoint rule, trip and black-box controls, read/write access and the
+  Signal K-admin-only SSH console, new HTTP endpoints.
+
 ## 3.13.0 — 2026-11-09 — Restore profiles, TinyPilot SD image, NAV waypoint rule
 
 Rev668-674 on top of 3.12.4.

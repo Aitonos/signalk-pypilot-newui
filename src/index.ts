@@ -91,7 +91,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev674";
+const PLUGIN_REVISION = "Rev676";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -810,135 +810,32 @@ module.exports = function (app: any) {
 
   const plugin = {
     id: PLUGIN_ID,
-    name: "PyPilot New-UI + SK Paths",
+    name: "PyPilot New-UI",
     description:
       "Modern touch-first control panel for pypilot autopilot plus every pypilot value as a first-class Signal K path (KIP-ready). Complements the official pypilot-autopilot-provider.",
     revision: PLUGIN_REVISION,
 
+    // Rev676 (Carlos 2026-11-09: "es lioso"): the Signal K admin shows only
+    // what belongs to whoever runs the server - the two write permissions and
+    // the way back in when the admin PIN is forgotten. Everything else is set
+    // in the visor (Setup). The other options are still stored in this
+    // plugin's configuration (the admin form keeps keys it does not show), so
+    // nothing configured before is lost.
     schema: () => ({
       type: "object",
-      required: ["host", "port"],
+      description: "Everything else - connection to pypilot, SSH, alarms, logbook, backups, paths... - is set in the visor: open PyPilot New-UI, tab Setup.",
       properties: {
-        host: {
-          type: "string",
-          title: "pypilot_web host",
-          description:
-            "IP or hostname of the machine running pypilot_web. Use the SETUP tab of the webapp to scan the LAN.",
-          default: "",
-        },
-        port: {
-          type: "number",
-          title: "pypilot_web port",
-          description:
-            "TinyPilot ships pypilot_web on port 80. Classic pypilot install uses 8000.",
-          default: 80,
-        },
-        reconnectDelayMs: {
-          type: "number",
-          title: "Reconnect delay (ms)",
-          default: 3000,
-        },
         allowWrites: {
           type: "boolean",
-          title: "Allow writes",
-          description:
-            "Enables PUT handlers so Signal K clients can send commands (engage, mode, target, gains). Off = read-only mode.",
+          title: "Allow writes to pypilot",
+          description: "Master switch: commands (engage, mode, target, gains), the route follower and every setting write. Off = the visor and Signal K clients can only read.",
           default: true,
         },
         allowDirectServo: {
           type: "boolean",
           title: "Allow direct servo command",
-          description:
-            "DANGER: exposes the raw servo.command back-door used for manual steering. Watchdog is still enforced, but leave this OFF unless you understand the safety implications.",
+          description: "Exposes pypilot's servo.command (moving the rudder directly, bypassing pypilot). Off unless you know you need it.",
           default: false,
-        },
-        publishUnmapped: {
-          type: "boolean",
-          title: "Publish unmapped values",
-          description:
-            "When on, every pypilot value discovered at runtime that is not in the fixed mapping table is auto-published under steering.autopilot.pypilot.<sanitized_name>.",
-          default: false,
-        },
-        nudgeSmall: {
-          type: "number",
-          title: "Small nudge step (degrees)",
-          description:
-            "Label and value of the fine nudge buttons in the mobile UI. Default 1.",
-          default: 1,
-        },
-        nudgeBig: {
-          type: "number",
-          title: "Big nudge step (degrees)",
-          description:
-            "Label and value of the coarse nudge buttons in the mobile UI. Default 10.",
-          default: 10,
-        },
-        absorbProvider: {
-          type: "boolean",
-          title: "Absorb pypilot-autopilot-provider (one-socket mode)",
-          description:
-            "When on, this plugin registers itself as the SK Autopilot Provider (downstream SK autopilot clients control it via /signalk/v2/api/vessels/self/autopilots). REQUIRES you to disable the official 'pypilot-autopilot-provider' plugin at the same time - otherwise both fight for the deviceId. Benefit: only one socket to pypilot_web (halves the load on a Pi Zero TinyPilot).",
-          default: false,
-        },
-        enabledPaths: {
-          type: "object",
-          title: "Enabled paths (pypilot name -> boolean)",
-          description:
-            "When publishOnlyEssentials is true: publish a non-essential path by setting it to true. When false: skip a path by setting it to false. Configure interactively via the webapp's Paths & API tab.",
-          default: {},
-        },
-        publishOnlyEssentials: {
-          type: "boolean",
-          title: "Publish only essential paths (opt-in the rest)",
-          description:
-            "When ON, this plugin only publishes state/mode/target/engaged + the paths the UI needs (pilot list, modes list, tack, servo.engaged) + paths you explicitly turn on in the Paths & API tab. Reduces noise on the SK data browser. New installs default to ON.",
-          default: true,
-        },
-        sshUser: {
-          type: "string",
-          title: "SSH user on the TinyPilot",
-          description:
-            "Username used by the 'Restart pypilot' button in Setup to log into the machine hosting pypilot_web. Default 'tc' matches TinyCore-based images.",
-          default: "tc",
-        },
-        sshPassword: {
-          type: "string",
-          title: "SSH password (used by 'Restart pypilot')",
-          description:
-            "Password for the SSH user above. Stored in the plugin's config file in plain text (Signal K does not encrypt plugin settings). Leave blank to disable remote restart.",
-          default: "",
-        },
-        logCaptureEnabled: {
-          type: "boolean",
-          title: "Capture Pi Zero logs to disk",
-          description:
-            "When ON, the plugin polls the TinyPilot via SSH every logCaptureIntervalSec seconds and appends the tail of /var/log/pypilot/current and /var/log/pypilot_web/current to daily files under this plugin's data directory. Useful because piCore keeps /var/log on tmpfs - after a hard reset the logs of the previous session are lost. Requires sshUser + sshPassword.",
-          default: false,
-        },
-        logCaptureIntervalSec: {
-          type: "number",
-          title: "Log capture poll interval (seconds)",
-          description: "How often to pull new lines from the Pi Zero. Default 60 s. Keep >=30 s to avoid pressuring the Pi Zero W (438 MB RAM).",
-          default: 60,
-        },
-        sessionRecorderEnabled: {
-          type: "boolean",
-          title: "Record labelled navigation sessions",
-          description: "When ON, the plugin appends 1 Hz autopilot telemetry (heading command/actual, servo current/duty, wind, etc.) to a JSONL file for every engaged session. Files stay on the Pi 5 until you download them from the visor. Used to feed the AI-tuned Doctor roadmap. Also keeps a navigation database (one summary row per 90 s engaged, nav-db folder, capped at 20 MB) for the automatic tuning work. Nothing is sent anywhere.",
-          default: true,
-        },
-        sensorsIgnored: {
-          type: "array",
-          title: "Ignored sensor SK paths",
-          description: "List of Signal K paths the sailor has marked as 'not on this boat' from Setup â†’ Sensor Quality. Ignored sensors stop turning the Setup chip red without hiding the row. Managed from the visor; edit here only if you know the exact path names.",
-          items: { type: "string" },
-          default: [],
-        },
-        pypilotAutoApprove: {
-          type: "boolean",
-          title: "Approve pypilot's Signal K access automatically",
-          description: "pypilot asks for access again after every Signal K restart and Signal K offers read only, which silently drops its heading. When on, a request from the device 'pypilot' coming from the TinyPilot address above is approved at once with read/write, and old pypilot devices are removed. Nothing else is approved.",
-          default: true,
         },
         adminPinReset: {
           type: "boolean",
@@ -946,41 +843,6 @@ module.exports = function (app: any) {
           description: "Tick and save if the admin PIN of the visor's Technical group was forgotten. The PIN is deleted (the box clears itself); set a new one from Setup.",
           default: false,
         },
-        navAdvanceOn: {
-          type: "string",
-          title: "NAV: when a waypoint counts as reached",
-          description: "circle-or-perpendicular: inside the arrival circle set in the plotter, or past the waypoint's perpendicular, whichever comes first. perpendicular: only abeam of the waypoint - no corner cut, a sharper turn.",
-          enum: ["circle-or-perpendicular", "perpendicular"],
-          default: "circle-or-perpendicular",
-        },
-        tripRecorderEnabled: {
-          type: "boolean",
-          title: "Record logbook (bitÃ¡cora) trips",
-          description: "When ON, the plugin auto-opens a trip on every leg away from moored, records position + wind + speed samples, and closes on return with a summary + KPI. Files stay on the Pi 5. Managed from Setup â†’ Logbook.",
-          default: true,
-        },
-        maneuverTraceEnabled: {
-          type: "boolean",
-          title: "Trace user maneuvers vs. pypilot response (sea-trial forensics)",
-          description: "When ON, every maneuver-related action from the visor (aproado / empopado / tack / mode change / target PUT / engage) is logged along with pypilot state before and 300 ms after the command, so we can audit whether pypilot actually obeyed. Files land under <plugin data dir>/maneuver-trace/*.jsonl. Off by default â€” enable only during a sea trial.",
-          default: false,
-        },
-        // Rev299 (2026-09-24): per-rule alarm enable list. Managed from
-        // the visor's Setup â†’ Alarms card. NO schema default here on
-        // purpose: an existing install that upgraded from a pre-Rev299
-        // plugin must not have its (implicit) alarms silenced by a
-        // schema default of []. The visor is responsible for prompting
-        // a first-time user to opt in ("start clean" vs "keep all on").
-        alarmsEnabled: {
-          type: "array",
-          title: "Alarms enabled (rule ids)",
-          description: "List of alarm rule ids that are active. When absent the plugin keeps its legacy behaviour (every rule on). Managed from the visor's Setup â†’ Alarms card; edit here only if you know the rule ids (heading-deviation, servo-overcurrent, low-voltage, etc.).",
-          items: { type: "string" },
-        },
-        // Rev167 (Carlos): the Smart Pilot toggles (auto-profile, gust
-        // strategy, auto-disengage) live under Setup > Smart Pilot in
-        // the visor, not here. Kept in the runtime PluginProps for
-        // persistence but not exposed to the SK Admin schema.
       },
     }),
 
@@ -1015,7 +877,7 @@ module.exports = function (app: any) {
       logRetentionTimer = setInterval(_lcRetention, 6 * 3600_000);
       if (!props.host) {
         app.setPluginStatus(
-          "Not configured - open Plugin Config and set host:port, or use the SETUP tab of the webapp."
+          "Not configured - open the PyPilot New-UI webapp, tab Setup, and set the TinyPilot address (or Scan)."
         );
         return;
       }
@@ -1777,6 +1639,8 @@ module.exports = function (app: any) {
           if (err) { res.status(500).json({ error: String(err?.message || err) }); return; }
           Object.assign(props, plan.patch);
           res.json({ ok: true, saved: Object.keys(plan.patch), restart: plan.restart });
+          // Rev676: a new log-capture interval applies now if it is running.
+          if ("logCaptureIntervalSec" in plan.patch && logCaptureTimer) { try { _lcStop(); _lcStart(); } catch { /* silent */ } }
           if (plan.restart) {
             setTimeout(() => {
               try { plugin.stop(); } catch { /* silent */ }
@@ -1814,6 +1678,10 @@ module.exports = function (app: any) {
           publishOnlyEssentials: !!props.publishOnlyEssentials,
           sshUser: props.sshUser || "tc",
           sshPasswordSet: !!(props.sshPassword && props.sshPassword.length),
+          // Rev676: options moved from the Signal K admin to the visor.
+          pypilotAutoApprove: props.pypilotAutoApprove !== false,
+          sessionRecorderEnabled: !!props.sessionRecorderEnabled,
+          logCaptureIntervalSec: Math.max(30, Number(props.logCaptureIntervalSec) || 60),
           // Rev93: historian buffer state (count / capacity / oldest+newest ts).
           // Cheap: no sample data returned, just the header. See /history for
           // the actual samples.

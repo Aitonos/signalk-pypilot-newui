@@ -58,12 +58,11 @@ Spend more time sailing and less time guessing which slider to move.
 ## Quick start
 
 1. Signal K Server → **App Store** → search **PyPilot New-UI** → install.
-2. Server → **Plugin Config** → **PyPilot New-UI + SK Paths**.
-3. Enter the `pypilot_web` host (IP or hostname) and port — `80` on TinyPilot, `8000` on a classic pypilot install. Don't know the IP? The **Scan LAN** button in the webapp finds `pypilot_web` hosts on ports 80 / 8000 of every network the server is on; if it finds nothing it says what it searched and offers a prefilled GitHub issue.
-4. Enable the plugin.
-5. Open **`http://localhost:3000/signalk-pypilot-newui/`** (replace `localhost` with your Signal K server address on a tablet or phone). Each device asks Signal K for access once: approve it in the Signal K admin (**Security → Access Requests**). On Signal K 2.31+ it asks for **read/write**, not admin. Approve it from another device if you can — a browser where you log in to the Signal K admin keeps that admin session.
+2. Server → **Plugin Config** → **PyPilot New-UI** → enable it. The Signal K admin only shows the server-side switches (allow writes, allow direct servo, forget the admin PIN); everything else is set in the visor.
+3. Open **`http://localhost:3000/signalk-pypilot-newui/`** (replace `localhost` with your Signal K server address on a tablet or phone). Each device asks Signal K for access once: approve it in the Signal K admin (**Security → Access Requests**). On Signal K 2.31+ it asks for **read/write**, not admin. Approve it from another device if you can — a browser where you log in to the Signal K admin keeps that admin session.
+4. In the visor, **Setup → Technical → pypilot connection**: enter the `pypilot_web` host (IP or hostname) and port — `80` on TinyPilot, `8000` on a classic pypilot install — and **Apply & reconnect**. Don't know the IP? **Scan LAN** finds `pypilot_web` hosts on ports 80 / 8000 of every network the server is on; if it finds nothing it says what it searched and offers a prefilled GitHub issue.
 
-pypilot itself also needs Signal K access to publish heading and attitude. The plugin approves pypilot's request on its own, **read/write**, but only when it comes from the TinyPilot address configured above.
+pypilot itself also needs Signal K access to publish heading and attitude. The plugin approves pypilot's request on its own, **read/write**, but only when it comes from the TinyPilot address configured above (switch: Setup → Technical → pypilot connection).
 
 On first open a **guided tour** walks you through the rose, the controls, the multifunction panel and the companion plugins in a few minutes, without touching the pilot. Replay it any time from the **Info** tab or the boat menu.
 

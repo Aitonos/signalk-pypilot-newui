@@ -717,6 +717,11 @@
       "lc.title":    "Log capture (Pi Zero)",
       "lc.hint":     "piCore keeps /var/log in RAM only, so a hard reset destroys them. Turn ON to save pypilot / pypilot_web / pypilot_hat logs to a persistent file on your Raspberry Pi.",
       "lc.toggle":   "Enable log capture",
+      "setup.approve.title": "pypilot's access to Signal K",
+      "setup.approve.hint": "pypilot asks Signal K for access again after every Signal K restart; approved as read-only, Signal K drops its heading. When on, the plugin approves it read/write by itself - only from the TinyPilot's address - and keeps a single pypilot device.",
+      "setup.approve.toggle": "Approve pypilot's access automatically",
+      "lc.every": "every",
+      "sess.enable": "Record a session every time the autopilot is engaged",
       "lc.view":     "Show recent",
       "lc.download": "Download today",
       "lc.err":      "Log capture failed",
@@ -1982,6 +1987,11 @@
       "lc.title":    "Captura de logs (Pi Zero)",
       "lc.hint":     "piCore guarda /var/log solo en RAM, un hard reset los pierde. Actívalo para que el plugin guarde pypilot / pypilot_web / pypilot_hat en un archivo persistente de tu Raspberry.",
       "lc.toggle":   "Activar captura",
+      "setup.approve.title": "Acceso de pypilot a Signal K",
+      "setup.approve.hint": "pypilot vuelve a pedir acceso a Signal K tras cada reinicio de Signal K; aprobado como solo lectura, Signal K tira su rumbo. Activado, el plugin lo aprueba solo con lectura y escritura - únicamente desde la dirección de la TinyPilot - y deja un único dispositivo pypilot.",
+      "setup.approve.toggle": "Aprobar automáticamente el acceso de pypilot",
+      "lc.every": "cada",
+      "sess.enable": "Grabar una sesión cada vez que se conecta el piloto",
       "lc.view":     "Ver reciente",
       "lc.download": "Descargar hoy",
       "lc.err":      "Fallo en captura de logs",
@@ -2717,6 +2727,11 @@
       "lc.title":    "Log-Erfassung (Pi Zero)",
       "lc.hint":     "piCore hält /var/log nur im RAM - ein Hard Reset löscht sie. Aktivieren, um pypilot / pypilot_web / pypilot_hat in einer Datei auf deinem Raspberry Pi zu speichern.",
       "lc.toggle":   "Erfassung aktivieren",
+      "setup.approve.title": "Zugriff von pypilot auf Signal K",
+      "setup.approve.hint": "pypilot fragt nach jedem Signal-K-Neustart erneut nach Zugriff; nur lesend genehmigt, verwirft Signal K seinen Kurs. Eingeschaltet genehmigt das Plugin ihn selbst mit Lesen/Schreiben - nur von der Adresse des TinyPilot - und behält ein einziges pypilot-Gerät.",
+      "setup.approve.toggle": "Zugriff von pypilot automatisch genehmigen",
+      "lc.every": "alle",
+      "sess.enable": "Bei jedem Einschalten des Autopiloten eine Sitzung aufzeichnen",
       "lc.view":     "Neueste zeigen",
       "lc.download": "Heute laden",
       "lc.err":      "Log-Erfassung fehlgeschlagen",
@@ -3952,6 +3967,11 @@
       "lc.title":    "Capture des logs (Pi Zero)",
       "lc.hint":     "piCore garde /var/log uniquement en RAM - un hard reset les efface. Activez pour sauvegarder pypilot / pypilot_web / pypilot_hat dans un fichier persistant de votre Raspberry Pi.",
       "lc.toggle":   "Activer la capture",
+      "setup.approve.title": "Accès de pypilot à Signal K",
+      "setup.approve.hint": "pypilot redemande l'accès à Signal K après chaque redémarrage de Signal K ; approuvé en lecture seule, Signal K jette son cap. Activé, le plugin l'approuve lui-même en lecture/écriture - uniquement depuis l'adresse du TinyPilot - et garde un seul appareil pypilot.",
+      "setup.approve.toggle": "Approuver automatiquement l'accès de pypilot",
+      "lc.every": "toutes les",
+      "sess.enable": "Enregistrer une session à chaque embrayage du pilote",
       "lc.view":     "Voir les récents",
       "lc.download": "Télécharger aujourd'hui",
       "lc.err":      "Échec de la capture",
@@ -7689,6 +7709,23 @@
       if (!r.ok) { _pmAlert(t("sd.failed"), j.error || `HTTP ${r.status}`); return; }
     } catch (e) { _pmAlert(t("sd.failed"), String(e)); return; }
     _sdRefresh();
+  }
+  // Rev676: options moved from the Signal K admin, saved through /options.
+  function _wireMovedOptions() {
+    const save = async (el, patch, revert) => {
+      try { await _pluginConfigMerge(patch); }
+      catch (e) { revert(); _pmAlert(t("alert.saveFail"), String(e)); }
+    };
+    const pa = document.getElementById("cfg-pypilot-approve");
+    if (pa) pa.addEventListener("change", () => { const v = pa.checked; save(pa, { pypilotAutoApprove: v }, () => { pa.checked = !v; }); });
+    const se = document.getElementById("sess-enabled");
+    if (se) se.addEventListener("change", () => { const v = se.checked; save(se, { sessionRecorderEnabled: v }, () => { se.checked = !v; }); });
+    const li = document.getElementById("lc-interval");
+    if (li) li.addEventListener("change", () => {
+      const v = Math.round(Number(li.value));
+      if (!Number.isFinite(v) || v < 30 || v > 3600) { _pmAlert(t("alert.saveFail"), "30 - 3600 s"); return; }
+      save(li, { logCaptureIntervalSec: v }, () => { /* next status refresh shows the saved value */ });
+    });
   }
   function _bkpWire() {
     const sdBrowse = document.getElementById("sd-browse");   // Rev673
@@ -16398,6 +16435,10 @@
       if (typeof j.port === "number") { const p = $("#cfg-port"); if (p) p.value = String(j.port); }
       // Prefill absorbProvider toggle
       const ab = $("#cfg-absorb"); if (ab) ab.checked = !!j.absorbProvider;
+      // Rev676: options moved here from the Signal K admin.
+      const pa = $("#cfg-pypilot-approve"); if (pa && document.activeElement !== pa) pa.checked = j.pypilotAutoApprove !== false;
+      const se = $("#sess-enabled"); if (se && document.activeElement !== se) se.checked = !!j.sessionRecorderEnabled;
+      const li = $("#lc-interval"); if (li && document.activeElement !== li && typeof j.logCaptureIntervalSec === "number") li.value = String(j.logCaptureIntervalSec);
       // Rev55: SSH creds - prefill user, mask password (only show if set).
       const su = $("#cfg-ssh-user"); if (su) su.value = j.sshUser || "tc";
       const sp = $("#cfg-ssh-password");
@@ -18691,6 +18732,7 @@
     // Rev525: black box card.
     try { _bbWire(); } catch (e) { console.warn("[bb] wire", e); }
     try { _bkpWire(); } catch (e) { console.warn("[bk] wire", e); }
+    try { _wireMovedOptions(); } catch (e) { console.warn("[opts] wire", e); }
     // Rev522 (Carlos): tap sound toggle (shared visor pref).
     const ts = document.getElementById("dash-tap-sound");
     if (ts) {

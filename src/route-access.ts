@@ -90,6 +90,19 @@ export function visorOptionsPatch(body: Record<string, unknown>): VisorOptionsPl
         if (typeof v !== "boolean") return fail("publishOnlyEssentials must be true or false");
         patch.publishOnlyEssentials = v; technical = true;
         break;
+      // Rev676: moved from the Signal K admin to the visor.
+      case "pypilotAutoApprove":
+        if (typeof v !== "boolean") return fail("pypilotAutoApprove must be true or false");
+        patch.pypilotAutoApprove = v; technical = true;
+        break;
+      case "sessionRecorderEnabled":
+        if (typeof v !== "boolean") return fail("sessionRecorderEnabled must be true or false");
+        patch.sessionRecorderEnabled = v;
+        break;
+      case "logCaptureIntervalSec":
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 30 || v > 3600) return fail("logCaptureIntervalSec must be 30-3600 s");
+        patch.logCaptureIntervalSec = Math.round(v); technical = true;
+        break;
       default:
         return fail(`unknown option: ${k}`);
     }

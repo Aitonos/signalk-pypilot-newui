@@ -63,4 +63,18 @@ describe("visor options (Rev664)", () => {
     assert.equal(visorOptionsPatch({ host: "a b" }).ok, false);
     assert.equal(visorOptionsPatch({}).ok, false);
   });
+  it("options moved from the Signal K admin (Rev676)", () => {
+    const a = visorOptionsPatch({ pypilotAutoApprove: false });
+    assert.deepEqual(a.patch, { pypilotAutoApprove: false });
+    assert.equal(a.technical, true);
+    assert.equal(a.restart, false);
+    const s = visorOptionsPatch({ sessionRecorderEnabled: true });
+    assert.equal(s.ok, true);
+    assert.equal(s.technical, false);
+    const l = visorOptionsPatch({ logCaptureIntervalSec: 120.4 });
+    assert.deepEqual(l.patch, { logCaptureIntervalSec: 120 });
+    assert.equal(l.technical, true);
+    assert.equal(visorOptionsPatch({ logCaptureIntervalSec: 10 }).ok, false);
+    assert.equal(visorOptionsPatch({ pypilotAutoApprove: "yes" }).ok, false);
+  });
 });

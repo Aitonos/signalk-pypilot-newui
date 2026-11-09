@@ -1,6 +1,6 @@
 {
   "name": "signalk-pypilot-newui",
-  "version": "3.13.0",
+  "version": "3.13.1",
   "description": "Signal K friendly UI for the pypilot autopilot, with first-class Signal K paths and Simple Switches so any downstream Signal K client can drive or monitor the pilot. Touch-first mobile visor + full pypilot data (servo, gains, calibration, tack, warnings). Coexists with pypilot-autopilot-provider.",
   "main": "./dist/index.js",
   "files": [
@@ -57,7 +57,7 @@
   "signalk-plugin-enabled-by-default": true,
   "signalk": {
     "appIcon": "./public/icon-256.png",
-    "displayName": "PyPilot New-UI + SK Paths",
+    "displayName": "PyPilot New-UI",
     "webapp": "./public",
     "recommends": [
       "signalk-mareas-ihm",
