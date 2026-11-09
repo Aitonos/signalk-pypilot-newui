@@ -545,6 +545,18 @@
       "bk.monthDue": "DOWNLOAD THIS MONTH'S COPY",
       "bk.copies": "copies",
       "bk.failed": "Backup failed",
+      "bk.restore": "Restore",
+      "bk.restoreTitle": "Restore pypilot from this copy?",
+      "bk.restoreBody": "Restores the gains of the {n} profiles in {name}. Profiles you have now and are not in the copy are left as they are. The pilot must stay off; at the end '{active}' is selected again.",
+      "bk.restoreNew": "new",
+      "bk.restoreInstTitle": "Installation settings too?",
+      "bk.restoreInstBody": "The copy also has {n} installation settings (compass and accelerometer calibration, servo, NMEA, offsets). Restore them only if the sensors and the servo are the same as when the copy was made. Restore them?",
+      "bk.restoreEngaged": "The autopilot is engaged. Disengage it before restoring.",
+      "bk.restoreProgress": "Restoring {done}/{total}: {name}",
+      "bk.restoreDone": "Restore finished",
+      "bk.restoreDoneIssues": "Restore finished with problems",
+      "bk.restoreSummary": "{done} of {total} profiles restored, {inst} installation settings.",
+      "bk.restoreFailed": "Restore",
       "bk.working": "Copying...",
       "bk.done": "Copy made at {time} (it replaces today's)",
       "setup.group.nav": "Sailing",
@@ -1771,6 +1783,18 @@
       "bk.monthDue": "DESCARGA LA COPIA DEL MES",
       "bk.copies": "copias",
       "bk.failed": "La copia falló",
+      "bk.restore": "Restaurar",
+      "bk.restoreTitle": "¿Restaurar pypilot desde esta copia?",
+      "bk.restoreBody": "Recupera las ganancias de los {n} perfiles de {name}. Los perfiles que tienes ahora y no están en la copia se quedan como están. El piloto debe seguir desconectado; al terminar se vuelve a seleccionar '{active}'.",
+      "bk.restoreNew": "nuevo",
+      "bk.restoreInstTitle": "¿También los ajustes de instalación?",
+      "bk.restoreInstBody": "La copia tiene también {n} ajustes de instalación (calibración de brújula y acelerómetro, servo, NMEA, offsets). Restáuralos solo si los sensores y el servo son los mismos que cuando se hizo la copia. ¿Restaurarlos?",
+      "bk.restoreEngaged": "El piloto está conectado. Desconéctalo antes de restaurar.",
+      "bk.restoreProgress": "Restaurando {done}/{total}: {name}",
+      "bk.restoreDone": "Restauración terminada",
+      "bk.restoreDoneIssues": "Restauración terminada con problemas",
+      "bk.restoreSummary": "{done} de {total} perfiles restaurados, {inst} ajustes de instalación.",
+      "bk.restoreFailed": "Restaurar",
       "bk.working": "Copiando...",
       "bk.done": "Copia hecha a las {time} (sustituye a la de hoy)",
       "setup.group.nav": "Navegación",
@@ -3080,6 +3104,18 @@
       "bk.monthDue": "KOPIE DES MONATS HERUNTERLADEN",
       "bk.copies": "Kopien",
       "bk.failed": "Sicherung fehlgeschlagen",
+      "bk.restore": "Wiederherstellen",
+      "bk.restoreTitle": "pypilot aus dieser Kopie wiederherstellen?",
+      "bk.restoreBody": "Stellt die Verstärkungen der {n} Profile aus {name} wieder her. Profile, die du jetzt hast und die nicht in der Kopie sind, bleiben wie sie sind. Der Pilot muss aus bleiben; am Ende wird '{active}' wieder gewählt.",
+      "bk.restoreNew": "neu",
+      "bk.restoreInstTitle": "Auch die Installationseinstellungen?",
+      "bk.restoreInstBody": "Die Kopie enthält auch {n} Installationseinstellungen (Kalibrierung von Kompass und Beschleunigungssensor, Servo, NMEA, Offsets). Nur wiederherstellen, wenn Sensoren und Servo dieselben sind wie beim Erstellen der Kopie. Wiederherstellen?",
+      "bk.restoreEngaged": "Der Autopilot ist eingeschaltet. Vor dem Wiederherstellen ausschalten.",
+      "bk.restoreProgress": "Stelle wieder her {done}/{total}: {name}",
+      "bk.restoreDone": "Wiederherstellung fertig",
+      "bk.restoreDoneIssues": "Wiederherstellung mit Problemen beendet",
+      "bk.restoreSummary": "{done} von {total} Profilen wiederhergestellt, {inst} Installationseinstellungen.",
+      "bk.restoreFailed": "Wiederherstellen",
       "bk.working": "Sichere...",
       "bk.done": "Kopie um {time} erstellt (ersetzt die von heute)",
       "setup.group.nav": "Segeln",
@@ -4281,6 +4317,18 @@
       "bk.monthDue": "TÉLÉCHARGEZ LA COPIE DU MOIS",
       "bk.copies": "copies",
       "bk.failed": "Échec de la sauvegarde",
+      "bk.restore": "Restaurer",
+      "bk.restoreTitle": "Restaurer pypilot depuis cette copie ?",
+      "bk.restoreBody": "Restaure les gains des {n} profils de {name}. Les profils que vous avez maintenant et qui ne sont pas dans la copie restent tels quels. Le pilote doit rester débrayé ; à la fin '{active}' est sélectionné de nouveau.",
+      "bk.restoreNew": "nouveau",
+      "bk.restoreInstTitle": "Aussi les réglages d'installation ?",
+      "bk.restoreInstBody": "La copie contient aussi {n} réglages d'installation (calibration du compas et de l'accéléromètre, servo, NMEA, offsets). Ne les restaurez que si les capteurs et le servo sont les mêmes que lors de la copie. Les restaurer ?",
+      "bk.restoreEngaged": "Le pilote est embrayé. Débrayez-le avant de restaurer.",
+      "bk.restoreProgress": "Restauration {done}/{total} : {name}",
+      "bk.restoreDone": "Restauration terminée",
+      "bk.restoreDoneIssues": "Restauration terminée avec des problèmes",
+      "bk.restoreSummary": "{done} profils sur {total} restaurés, {inst} réglages d'installation.",
+      "bk.restoreFailed": "Restaurer",
       "bk.working": "Sauvegarde...",
       "bk.done": "Copie faite à {time} (remplace celle du jour)",
       "setup.group.nav": "Navigation",
@@ -7328,13 +7376,66 @@
     if (list) {
       list.textContent = "";
       for (const c of st.copies || []) {
+        const row = document.createElement("div");
+        row.className = "bk-row";
         const a = document.createElement("a");
         a.href = _adminUrl(`/plugins/${PLUGIN_ID}/backup/download/${encodeURIComponent(c.name)}`);
         a.download = c.name;
         a.textContent = `↓ ${c.name}  ·  ${fmt(c.ts)}  ·  ${Math.max(1, Math.round(c.size / 1024))} KB`;
-        list.appendChild(a);
+        const rb = document.createElement("button");   // Rev668
+        rb.type = "button";
+        rb.className = "doctor-sug-discard";
+        rb.textContent = t("bk.restore");
+        rb.addEventListener("click", (ev) => { ev.stopPropagation(); _bkpRestore(c.name); });
+        row.append(a, rb);
+        list.appendChild(row);
       }
     }
+  }
+  // Rev668 (Carlos 2026-11-09): restore pypilot from a copy. Every profile
+  // in it (gains) always; installation settings only if the sailor says so
+  // (default no); profiles not in the copy are left alone. The backend runs
+  // it profile by profile and refuses with the autopilot engaged.
+  async function _bkpRestore(name) {
+    let pv = null;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/restore/preview/${encodeURIComponent(name)}`);
+      pv = await r.json();
+      if (!r.ok) { _pmAlert(t("bk.restoreFailed"), pv.error || `HTTP ${r.status}`); return; }
+    } catch (e) { _pmAlert(t("bk.restoreFailed"), String(e)); return; }
+    if (pv.engaged) { _pmAlert(t("bk.restoreTitle"), t("bk.restoreEngaged")); return; }
+    const list = pv.profiles.map((p) => `• ${p.name}${p.exists ? "" : " (" + t("bk.restoreNew") + ")"}`).join("\n");
+    const ok = await _pmConfirm(t("bk.restoreTitle"),
+      t("bk.restoreBody").replace("{n}", String(pv.profiles.length)).replace("{name}", name).replace("{active}", pv.activeProfile || "?") + "\n\n" + list);
+    if (!ok) return;
+    let installation = false;
+    if (pv.installationKeys.length) {
+      installation = await _pmConfirm(t("bk.restoreInstTitle"), t("bk.restoreInstBody").replace("{n}", String(pv.installationKeys.length)) + "\n\n" + pv.installationKeys.join(", "));
+    }
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/restore`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, installation }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { _pmAlert(t("bk.restoreFailed"), j.error || `HTTP ${r.status}`); return; }
+    } catch (e) { _pmAlert(t("bk.restoreFailed"), String(e)); return; }
+    const note = document.getElementById("bk-note");
+    const poll = async () => {
+      let st = null;
+      try { st = await (await skFetch(`/plugins/${PLUGIN_ID}/backup/restore/status`)).json(); } catch { /* retry */ }
+      if (st && st.running) {
+        if (note) note.textContent = t("bk.restoreProgress").replace("{done}", String(st.done)).replace("{total}", String(st.total)).replace("{name}", st.current || "");
+        setTimeout(poll, 1000);
+        return;
+      }
+      if (!st) { setTimeout(poll, 2000); return; }
+      if (note) note.textContent = "";
+      const errs = (st.errors || []).slice(0, 8).join("\n");
+      _pmAlert(st.aborted || (st.errors && st.errors.length) ? t("bk.restoreDoneIssues") : t("bk.restoreDone"),
+        t("bk.restoreSummary").replace("{done}", String(st.done)).replace("{total}", String(st.total)).replace("{inst}", String(st.installationApplied || 0))
+          + (st.aborted ? `\n${st.aborted}` : "") + (errs ? `\n\n${errs}` : ""));
+    };
+    setTimeout(poll, 800);
   }
   function _bkpWire() {
     const now = document.getElementById("bk-now");

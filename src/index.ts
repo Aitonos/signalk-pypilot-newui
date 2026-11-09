@@ -76,6 +76,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
+import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
 import { requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
@@ -89,7 +90,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev667";
+const PLUGIN_REVISION = "Rev668";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3184,6 +3185,110 @@ module.exports = function (app: any) {
       router.post("/backup/now", async (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;   // Rev653
         res.json(await _bkRun());
+      });
+      // ---- Rev668 (Carlos 2026-11-09): restore pypilot from a copy ----
+      //   GET  /backup/restore/preview/:name  - what the copy would restore
+      //   POST /backup/restore {name, installation} - start (admin PIN,
+      //        writes allowed, pypilot connected, autopilot OFF)
+      //   GET  /backup/restore/status         - progress / result
+      // Goes through pypilot profile by profile (settings-restore.ts); the
+      // profile active before is selected again at the end.
+      type RestoreJob = { running: boolean; name: string; total: number; done: number; current: string | null;
+        errors: string[]; startedTs: number; finishedTs: number | null; aborted: string | null; installationApplied: number };
+      let _restoreJob: RestoreJob | null = null;
+      const _readBackupFile = (name: string): any | null => {
+        let n = name;
+        if (n === "latest") n = listBackups(backupDir())[0]?.name || "";
+        if (!isBackupName(n)) return null;
+        try { return JSON.parse(require("fs").readFileSync(require("path").join(backupDir(), n), "utf8")); } catch { return null; }
+      };
+      const _restorePlanFor = (name: string, installation: boolean) => {
+        const b = _readBackupFile(name);
+        const confText = b?.tinypilot?.files?.["pypilot.conf"];
+        if (typeof confText !== "string" || !client) return null;
+        return planRestore(parsePypilotConf(confText), client.getCatalog() as unknown as Record<string, CatalogEntry>, installation);
+      };
+      const _apEngagedNow = (): boolean => {
+        const pv = client ? client.getValues() as Record<string, unknown> : {};
+        return apProvider ? !!apProvider.data.engaged : (pv["ap.enabled"] === true || pv["ap.enabled"] === 1);
+      };
+      router.get("/backup/restore/preview/:name", (req: any, res: any) => {
+        if (!client) { res.status(503).json({ error: "pypilot not connected" }); return; }
+        const plan = _restorePlanFor(String(req.params?.name || ""), true);
+        if (!plan) { res.status(404).json({ error: "no pypilot.conf in that copy" }); return; }
+        const existing = (client.getValues() as any)["profiles"];
+        res.json({
+          profiles: plan.profiles.map((p) => ({ name: p.name, keys: Object.keys(p.values).length, exists: Array.isArray(existing) && existing.includes(p.name) })),
+          installationKeys: Object.keys(plan.installation),
+          skipped: plan.skipped,
+          staleProfiles: plan.staleProfiles,
+          activeProfile: (client.getValues() as any)["profile"] ?? null,
+          engaged: _apEngagedNow(),
+        });
+      });
+      router.get("/backup/restore/status", (_req: any, res: any) => {
+        res.json(_restoreJob || { running: false });
+      });
+      router.post("/backup/restore", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
+        if (!client || !client.connected) { res.status(503).json({ error: "pypilot not connected" }); return; }
+        if (_restoreJob?.running) { res.status(409).json({ error: "a restore is already running" }); return; }
+        if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
+        const name = String(req.body?.name || "");
+        const plan = _restorePlanFor(name, req.body?.installation === true);
+        if (!plan) { res.status(404).json({ error: "no pypilot.conf in that copy" }); return; }
+        const job: RestoreJob = { running: true, name, total: plan.profiles.length, done: 0, current: null, errors: [], startedTs: Date.now(), finishedTs: null, aborted: null, installationApplied: 0 };
+        _restoreJob = job;
+        res.status(202).json({ ok: true, total: job.total });
+        const c = client;
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        const select = async (profile: string): Promise<boolean> => {
+          try { profileChangeLog.markPlannedWrite(profile, "user", `restore from ${name}`); } catch { /* silent */ }
+          if (!c.set("profile", profile)) return false;
+          const t0 = Date.now();
+          while (Date.now() - t0 < 5000) {
+            if ((c.getValues() as any)["profile"] === profile) return true;
+            await sleep(100);
+          }
+          return false;
+        };
+        (async () => {
+          const original = (c.getValues() as any)["profile"];
+          try {
+            for (const p of plan.profiles) {
+              if (_apEngagedNow()) { job.aborted = "autopilot engaged during the restore"; break; }
+              if (!c.connected) { job.aborted = "pypilot disconnected"; break; }
+              job.current = p.name;
+              if (!(await select(p.name))) { job.errors.push(`${p.name}: could not select it`); continue; }
+              await sleep(300);
+              for (const [k, v] of Object.entries(p.values)) {
+                if (!c.set(k, v)) job.errors.push(`${p.name}: ${k} refused`);
+                await sleep(20);
+              }
+              await sleep(500);
+              job.done++;
+            }
+            if (!job.aborted && Object.keys(plan.installation).length) {
+              for (const [k, v] of Object.entries(plan.installation)) {
+                if (_apEngagedNow()) { job.aborted = "autopilot engaged during the restore"; break; }
+                if (c.set(k, v)) job.installationApplied++; else job.errors.push(`${k} refused`);
+                await sleep(20);
+              }
+            }
+          } catch (e: any) {
+            job.errors.push(String(e?.message || e));
+          } finally {
+            if (typeof original === "string" && original) {
+              if (!(await select(original))) job.errors.push(`could not go back to profile ${original}`);
+            }
+            job.current = null;
+            job.running = false;
+            job.finishedTs = Date.now();
+            // eslint-disable-next-line no-console
+            console.log(`[restore] ${name}: ${job.done}/${job.total} profiles, ${job.installationApplied} installation settings, ${job.errors.length} errors${job.aborted ? ", stopped: " + job.aborted : ""}`);
+          }
+        })();
       });
       router.get("/backup/download/:name", (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;   // Rev653

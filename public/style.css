@@ -4935,3 +4935,7 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
 .setup-group-tools { display: inline-flex; gap: 8px; text-transform: none; letter-spacing: 0; }
 #tab-setup .setup-block.setup-locked { opacity: 0.45; }
 #tab-setup .setup-block.setup-locked .section-title::after { content: " 🔒"; }
+
+/* Rev668: each copy with its Restore button. */
+.bk-row { display: flex; gap: 8px; align-items: center; }
+.bk-row a { flex: 1 1 auto; min-width: 0; }
