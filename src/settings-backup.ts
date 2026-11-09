@@ -67,6 +67,20 @@ export function writeBackup(dir: string, now: Date, content: unknown, keep = BAC
   return { name, ts: st.mtimeMs, size: st.size };
 }
 
+/** Rev663: name of the newest copy kept in the plugin's data dir (inside
+ *  ~/.signalk), for tools that back up the whole Signal K folder. */
+export const LATEST_COPY_NAME = "settings-backup-latest.json";
+
+/** Rev663: atomic write of the newest copy into the plugin's data dir. */
+export function writeLatestCopy(dataDir: string, content: unknown): string {
+  fs.mkdirSync(dataDir, { recursive: true });
+  const full = path.join(dataDir, LATEST_COPY_NAME);
+  const tmp = `${full}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(content, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, full);
+  return full;
+}
+
 /** Only names this module writes may become a path (download by name). */
 export function isBackupName(name: string): boolean { return NAME.test(String(name)); }
 

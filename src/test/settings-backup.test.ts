@@ -48,3 +48,15 @@ describe("settings backup (Rev650)", () => {
     assert.equal(f["servodevice"], "/dev/ttyAMA0\n");
   });
 });
+
+describe("latest copy in the data dir (Rev663)", () => {
+  it("is written atomically inside the plugin's data dir and replaced each time", () => {
+    const { writeLatestCopy, LATEST_COPY_NAME } = require("../settings-backup");
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "bkd-"));
+    const f1 = writeLatestCopy(dataDir, { n: 1 });
+    writeLatestCopy(dataDir, { n: 2 });
+    assert.equal(path.basename(f1), LATEST_COPY_NAME);
+    assert.deepEqual(JSON.parse(fs.readFileSync(f1, "utf8")), { n: 2 });
+    assert.deepEqual(fs.readdirSync(dataDir), [LATEST_COPY_NAME], "no .tmp left");
+  });
+});

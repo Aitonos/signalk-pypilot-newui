@@ -77,7 +77,7 @@ import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
 import { requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
-import { backupDir, listBackups, writeBackup, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
+import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
   ManeuverTraceLog,
@@ -87,7 +87,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev662";
+const PLUGIN_REVISION = "Rev663";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3085,6 +3085,16 @@ module.exports = function (app: any) {
             tinypilot,
           };
           const info = writeBackup(backupDir(), new Date(), content);
+          // Rev663 (Carlos 2026-11-09): ~/Backups-pypilot-newui is outside
+          // ~/.signalk, so whole-server backup tools (signalk-backup, the
+          // Signal K admin's own backup) never saw it - and it is the only
+          // place with pypilot.conf (every profile's gains). The latest copy
+          // also goes into the plugin's data dir, which they do include.
+          try { writeLatestCopy(app.getDataDirPath ? app.getDataDirPath() : ".", content); }
+          catch (e: any) {
+            // eslint-disable-next-line no-console
+            console.log(`[backup] latest copy in the data dir failed: ${e?.message || e}`);
+          }
           _bkLastError = null;
           // eslint-disable-next-line no-console
           console.log(`[backup] ${info.name} written (${Math.round(info.size / 1024)} KB)${tinypilot.error ? " - " + tinypilot.error : ""}`);
@@ -3097,7 +3107,12 @@ module.exports = function (app: any) {
       // Today's copy is made the first time the hourly check finds it
       // missing, so a Pi that is off at night still gets one per day.
       const _bkCheck = () => {
-        if (!require("fs").existsSync(require("path").join(backupDir(), dayName(new Date())))) _bkRun().catch(() => { /* next hour */ });
+        const fs2 = require("fs");
+        const p2 = require("path");
+        const todayMissing = !fs2.existsSync(p2.join(backupDir(), dayName(new Date())));
+        // Rev663: also when the copy inside ~/.signalk is missing (first start).
+        const latestMissing = !fs2.existsSync(p2.join(app.getDataDirPath ? app.getDataDirPath() : ".", LATEST_COPY_NAME));
+        if (todayMissing || latestMissing) _bkRun().catch(() => { /* next hour */ });
       };
       setTimeout(_bkCheck, 60_000).unref?.();
       setInterval(_bkCheck, 3600_000).unref?.();
