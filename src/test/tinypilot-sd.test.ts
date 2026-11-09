@@ -2,7 +2,23 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop } from "../tinypilot-sd";
+import { sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations } from "../tinypilot-sd";
+
+describe("SD image destinations (Rev672)", () => {
+  it("default folder plus writable sticks / shares under /media and /mnt only", () => {
+    const mounts = [
+      "/dev/nvme0n1p2 / ext4 rw,noatime 0 0",
+      "/dev/sda1 /media/pi/KINGSTON\\040USB vfat rw,nosuid 0 0",
+      "/dev/sdb1 /media/pi/OLD iso9660 ro 0 0",
+      "//nas/boat /mnt/nas cifs rw 0 0",
+      "tmpfs /mnt/ram tmpfs rw 0 0",
+      "/dev/sda2 /boot/firmware vfat rw 0 0",
+    ].join("\n");
+    const d = sdDestinations(mounts, "/home/pi/Backups-pypilot-newui", "/home/pi");
+    assert.deepEqual(d.map((x) => x.id), ["default", "/media/pi/KINGSTON USB", "/mnt/nas"]);
+    assert.equal(d[1].dir, "/media/pi/KINGSTON USB/Backups-pypilot-newui");
+  });
+});
 
 describe("TinyPilot SD image (Rev671)", () => {
   it("reads up to the end of the last partition (the boat's card: 1094 MiB of 15 GB)", () => {

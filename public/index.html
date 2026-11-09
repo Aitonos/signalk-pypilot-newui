@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev671" />
+  <link rel="stylesheet" href="style.css?v=Rev672" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2106,8 +2106,24 @@
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="sd.title">TinyPilot SD card</div>
           <div class="hint" data-i18n="sd.hint">A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off; it takes a few minutes and loads the TinyPilot meanwhile. The last 3 are kept.</div>
+          <!-- Rev672: destination with its free space, and the copy's progress
+               (same bars as the Doctor). -->
+          <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <label data-i18n="sd.dest">Save to</label>
+            <select id="sd-dest"></select>
+          </div>
+          <div class="doctor-progress-wrap">
+            <div class="doctor-progress-label" data-i18n="sd.free">Free space</div>
+            <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="sd-space-fill"></div></div>
+            <div class="doctor-progress-time" id="sd-space-text"></div>
+          </div>
           <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
             <button type="button" class="primary" id="sd-now" data-i18n="sd.now">Copy the card now</button>
+          </div>
+          <div class="doctor-progress-wrap" id="sd-prog-wrap" hidden>
+            <div class="doctor-progress-label" data-i18n="sd.copying">Copying</div>
+            <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="sd-prog-fill"></div></div>
+            <div class="doctor-progress-time" id="sd-prog-text"></div>
           </div>
           <div id="sd-note" class="hint"></div>
           <div id="sd-list" class="bk-list"></div>
@@ -2881,6 +2897,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev671"></script>
+  <script src="app.js?v=Rev672"></script>
 </body>
 </html>

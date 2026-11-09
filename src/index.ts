@@ -76,7 +76,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
-import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop } from "./tinypilot-sd";
+import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations } from "./tinypilot-sd";
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
@@ -91,7 +91,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev671";
+const PLUGIN_REVISION = "Rev672";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3313,15 +3313,28 @@ module.exports = function (app: any) {
       // into ~/Backups-pypilot-newui; the newest SD_KEEP are kept. It loads
       // the Pi Zero for a few minutes: refused with the autopilot engaged,
       // stopped if it gets engaged meanwhile.
-      type SdJob = { running: boolean; file: string | null; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null };
+      type SdJob = { running: boolean; file: string | null; dest: string; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null };
       let _sdJob: SdJob | null = null;
-      const _sdImages = () => {
+      // Rev672 (Carlos 2026-11-09): the image can go to a USB stick, disk or
+      // network share mounted under /media or /mnt, chosen from this list
+      // with each one's free space; never to a typed path.
+      const _sdDests = () => {
+        const fs2 = require("fs");
+        let mounts = "";
+        try { mounts = fs2.readFileSync("/proc/mounts", "utf8"); } catch { /* not linux */ }
+        return sdDestinations(mounts, backupDir(), require("os").homedir()).map((d) => {
+          let freeBytes: number | null = null, totalBytes: number | null = null;
+          try { const st = fs2.statfsSync(d.mount); freeBytes = st.bavail * st.bsize; totalBytes = st.blocks * st.bsize; } catch { /* unknown */ }
+          return { ...d, freeBytes, totalBytes };
+        });
+      };
+      const _sdImagesIn = (dir: string) => {
         const fs2 = require("fs");
         let names: string[] = [];
-        try { names = fs2.readdirSync(backupDir()); } catch { return []; }
+        try { names = fs2.readdirSync(dir); } catch { return []; }
         return names.filter(isSdImageName).sort().reverse().map((n: string) => {
           let size = 0, ts = 0;
-          try { const st = fs2.statSync(require("path").join(backupDir(), n)); size = st.size; ts = st.mtimeMs; } catch { /* gone */ }
+          try { const st = fs2.statSync(require("path").join(dir, n)); size = st.size; ts = st.mtimeMs; } catch { /* gone */ }
           return { name: n, size, ts };
         });
       };
@@ -3382,12 +3395,20 @@ module.exports = function (app: any) {
         if (!props.sshPassword) { res.status(409).json({ error: "SSH to the TinyPilot is not configured" }); return; }
         if (_sdJob?.running) { res.status(409).json({ error: "a copy is already running" }); return; }
         if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
+        const dest = _sdDests().find((d) => d.id === String(req.body?.dest || "default"));
+        if (!dest) { res.status(400).json({ error: "unknown destination" }); return; }
         const probe = await _runSsh(SD_PROBE_COMMAND, 15000);
         const mib = sdImageMiB(probe.stdout);
         if (!mib) { res.status(502).json({ error: "could not read the card's partitions" }); return; }
-        try { require("fs").mkdirSync(backupDir(), { recursive: true }); } catch { /* exists */ }
-        const file = require("path").join(backupDir(), sdImageName(new Date()));
-        const job: SdJob = { running: true, file: require("path").basename(file), bytes: 0, totalBytes: mib * 1024 * 1024, startedTs: Date.now(), finishedTs: null, error: null };
+        // The compressed image is smaller, but how much depends on the card:
+        // ask for the full raw size free.
+        if (dest.freeBytes != null && dest.freeBytes < mib * 1024 * 1024) {
+          res.status(409).json({ error: `not enough space in ${dest.label}: ${Math.round(dest.freeBytes / 1048576)} MB free, ${mib} MB needed` });
+          return;
+        }
+        try { require("fs").mkdirSync(dest.dir, { recursive: true }); } catch (e: any) { res.status(500).json({ error: `cannot write in ${dest.dir}: ${e?.message || e}` }); return; }
+        const file = require("path").join(dest.dir, sdImageName(new Date()));
+        const job: SdJob = { running: true, file: require("path").basename(file), dest: dest.id, bytes: 0, totalBytes: mib * 1024 * 1024, startedTs: Date.now(), finishedTs: null, error: null };
         _sdJob = job;
         res.status(202).json({ ok: true, totalBytes: job.totalBytes });
         const r = await _sshStreamToGzip(sdReadCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
@@ -3396,21 +3417,28 @@ module.exports = function (app: any) {
         if (!r.ok) job.error = r.error || "failed";
         else if (r.bytes < job.totalBytes) job.error = `short read: ${r.bytes} of ${job.totalBytes} bytes`;
         if (!job.error) {
-          for (const old of sdImagesToDrop(_sdImages().map((x: { name: string }) => x.name))) {
-            try { require("fs").unlinkSync(require("path").join(backupDir(), old)); } catch { /* gone */ }
+          for (const old of sdImagesToDrop(_sdImagesIn(dest.dir).map((x: { name: string }) => x.name))) {
+            try { require("fs").unlinkSync(require("path").join(dest.dir, old)); } catch { /* gone */ }
           }
         }
         // eslint-disable-next-line no-console
         console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : "ok"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
       });
       router.get("/tinypilot/sd-backup/status", (_req: any, res: any) => {
-        res.json({ job: _sdJob, images: _sdImages(), dir: backupDir() });
+        const dests = _sdDests();
+        res.json({
+          job: _sdJob,
+          destinations: dests,
+          images: dests.flatMap((d) => _sdImagesIn(d.dir).map((im: any) => ({ ...im, dest: d.id, destLabel: d.label }))),
+        });
       });
       router.get("/tinypilot/sd-download/:name", (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;
         const name = String(req.params?.name || "");
         if (!isSdImageName(name)) { res.status(404).json({ error: "not found" }); return; }
-        const file = require("path").join(backupDir(), name);
+        const dest = _sdDests().find((d) => d.id === String(req.query?.dest || "default"));
+        if (!dest) { res.status(404).json({ error: "not found" }); return; }
+        const file = require("path").join(dest.dir, name);
         if (!require("fs").existsSync(file)) { res.status(404).json({ error: "not found" }); return; }
         res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
         res.type("application/gzip").sendFile(file);

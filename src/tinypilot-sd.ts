@@ -34,6 +34,28 @@ export function sdImageName(d: Date): string {
 }
 export function isSdImageName(n: string): boolean { return NAME.test(String(n)); }
 
+/** Rev672 (Carlos 2026-11-09): where the image may go - the default folder,
+ *  or any writable USB stick / disk / network share mounted under /media or
+ *  /mnt (OpenPlotter mounts sticks at /media/pi/<label>). Only these: the
+ *  route never writes to a path the sailor typed. */
+export interface SdDestination { id: string; label: string; dir: string; mount: string }
+const SKIP_FS = new Set(["proc", "sysfs", "tmpfs", "devtmpfs", "squashfs", "overlay", "cgroup", "cgroup2", "autofs", "debugfs", "tracefs"]);
+export function sdDestinations(procMounts: string, defaultDir: string, defaultMount: string): SdDestination[] {
+  const out: SdDestination[] = [{ id: "default", label: defaultDir, dir: defaultDir, mount: defaultMount }];
+  const seen = new Set<string>();
+  for (const line of String(procMounts).split("\n")) {
+    const [, rawMount, fstype, opts] = line.split(" ");
+    if (!rawMount || !fstype) continue;
+    const mount = rawMount.replace(/\\040/g, " ");
+    if (!/^\/(media|mnt)\//.test(mount) || SKIP_FS.has(fstype)) continue;
+    if (String(opts || "").split(",").includes("ro")) continue;
+    if (seen.has(mount)) continue;
+    seen.add(mount);
+    out.push({ id: mount, label: mount, dir: `${mount}/Backups-pypilot-newui`, mount });
+  }
+  return out;
+}
+
 /** Names to delete so the newest SD_KEEP stay. */
 export function sdImagesToDrop(names: string[], keep = SD_KEEP): string[] {
   return names.filter(isSdImageName).sort().reverse().slice(keep);

@@ -555,9 +555,13 @@
       "sd.now": "Copy the card now",
       "sd.confirmTitle": "Copy the TinyPilot's card?",
       "sd.confirmBody": "Keep the autopilot off until it finishes (a few minutes). The TinyPilot will be busy meanwhile; if the autopilot is engaged the copy stops.",
-      "sd.progress": "Copying the card: {pct} % ({mb} MB)",
       "sd.done": "Card copied: {file}",
       "sd.failed": "Card copy failed",
+      "sd.dest": "Save to",
+      "sd.free": "Free space",
+      "sd.freeShort": "free",
+      "sd.freeOf": "{free} GB free of {total} GB",
+      "sd.copying": "Copying",
       "bk.restore": "Restore",
       "bk.restoreTitle": "Restore pypilot from this copy?",
       "bk.restoreBody": "Restores the gains of the {n} profiles in {name}. Profiles you have now and are not in the copy are left as they are. The pilot must stay off; at the end '{active}' is selected again.",
@@ -1804,9 +1808,13 @@
       "sd.now": "Copiar la tarjeta ahora",
       "sd.confirmTitle": "¿Copiar la tarjeta de la TinyPilot?",
       "sd.confirmBody": "Deja el piloto desconectado hasta que termine (unos minutos). Mientras tanto la TinyPilot estará ocupada; si se conecta el piloto, la copia se para.",
-      "sd.progress": "Copiando la tarjeta: {pct} % ({mb} MB)",
       "sd.done": "Tarjeta copiada: {file}",
       "sd.failed": "La copia de la tarjeta falló",
+      "sd.dest": "Guardar en",
+      "sd.free": "Espacio libre",
+      "sd.freeShort": "libres",
+      "sd.freeOf": "{free} GB libres de {total} GB",
+      "sd.copying": "Copiando",
       "bk.restore": "Restaurar",
       "bk.restoreTitle": "¿Restaurar pypilot desde esta copia?",
       "bk.restoreBody": "Recupera las ganancias de los {n} perfiles de {name}. Los perfiles que tienes ahora y no están en la copia se quedan como están. El piloto debe seguir desconectado; al terminar se vuelve a seleccionar '{active}'.",
@@ -3136,9 +3144,13 @@
       "sd.now": "Karte jetzt kopieren",
       "sd.confirmTitle": "Karte des TinyPilot kopieren?",
       "sd.confirmBody": "Autopilot bis zum Ende ausgeschaltet lassen (einige Minuten). Der TinyPilot ist währenddessen beschäftigt; wird der Autopilot eingeschaltet, stoppt die Kopie.",
-      "sd.progress": "Kopiere die Karte: {pct} % ({mb} MB)",
       "sd.done": "Karte kopiert: {file}",
       "sd.failed": "Kopie der Karte fehlgeschlagen",
+      "sd.dest": "Speichern in",
+      "sd.free": "Freier Platz",
+      "sd.freeShort": "frei",
+      "sd.freeOf": "{free} GB frei von {total} GB",
+      "sd.copying": "Kopiere",
       "bk.restore": "Wiederherstellen",
       "bk.restoreTitle": "pypilot aus dieser Kopie wiederherstellen?",
       "bk.restoreBody": "Stellt die Verstärkungen der {n} Profile aus {name} wieder her. Profile, die du jetzt hast und die nicht in der Kopie sind, bleiben wie sie sind. Der Pilot muss aus bleiben; am Ende wird '{active}' wieder gewählt.",
@@ -4360,9 +4372,13 @@
       "sd.now": "Copier la carte maintenant",
       "sd.confirmTitle": "Copier la carte du TinyPilot ?",
       "sd.confirmBody": "Gardez le pilote débrayé jusqu'à la fin (quelques minutes). Le TinyPilot sera occupé pendant ce temps ; si le pilote est embrayé, la copie s'arrête.",
-      "sd.progress": "Copie de la carte : {pct} % ({mb} Mo)",
       "sd.done": "Carte copiée : {file}",
       "sd.failed": "Échec de la copie de la carte",
+      "sd.dest": "Enregistrer dans",
+      "sd.free": "Espace libre",
+      "sd.freeShort": "libres",
+      "sd.freeOf": "{free} Go libres sur {total} Go",
+      "sd.copying": "Copie",
       "bk.restore": "Restaurer",
       "bk.restoreTitle": "Restaurer pypilot depuis cette copie ?",
       "bk.restoreBody": "Restaure les gains des {n} profils de {name}. Les profils que vous avez maintenant et qui ne sont pas dans la copie restent tels quels. Le pilote doit rester débrayé ; à la fin '{active}' est sélectionné de nouveau.",
@@ -7491,11 +7507,48 @@
     const btn = document.getElementById("sd-now");
     const job = st.job;
     if (btn) btn.disabled = !!(job && job.running);
+    const gb = (b) => (b / 1073741824).toFixed(1);
+    // Rev672: destinations, each with its free space.
+    const sel = document.getElementById("sd-dest");
+    const dests = st.destinations || [];
+    if (sel) {
+      const keep = sel.value || (job && job.dest) || "default";
+      sel.textContent = "";
+      for (const d of dests) {
+        const o = document.createElement("option");
+        o.value = d.id;
+        o.textContent = d.freeBytes != null ? `${d.label}  ·  ${gb(d.freeBytes)} GB ${t("sd.freeShort")}` : d.label;
+        sel.appendChild(o);
+      }
+      sel.value = dests.some((d) => d.id === keep) ? keep : "default";
+      sel.disabled = !!(job && job.running);
+    }
+    const cur = dests.find((d) => sel && d.id === sel.value) || dests[0];
+    const NEED = 1.2 * 1073741824;   // about the raw size of the card's partitions
+    const spFill = document.getElementById("sd-space-fill");
+    const spText = document.getElementById("sd-space-text");
+    if (cur && cur.totalBytes) {
+      const usedPct = Math.round((cur.totalBytes - cur.freeBytes) * 100 / cur.totalBytes);
+      if (spFill) { spFill.style.width = `${usedPct}%`; spFill.style.background = cur.freeBytes < NEED ? "var(--err)" : (usedPct > 85 ? "var(--warn)" : ""); }
+      if (spText) spText.textContent = t("sd.freeOf").replace("{free}", gb(cur.freeBytes)).replace("{total}", gb(cur.totalBytes));
+    } else if (spText) spText.textContent = "—";
+    // Rev672: the copy's progress bar.
+    const pw = document.getElementById("sd-prog-wrap");
+    const running = !!(job && job.running);
+    if (pw) pw.hidden = !running;
+    if (running) {
+      const pct = job.totalBytes ? Math.min(100, Math.round(job.bytes * 100 / job.totalBytes)) : 0;
+      const el = (Date.now() - job.startedTs) / 1000;
+      const rate = el > 3 ? job.bytes / el : 0;
+      const left = rate > 0 ? Math.max(0, Math.round((job.totalBytes - job.bytes) / rate / 60)) : null;
+      const pf = document.getElementById("sd-prog-fill");
+      const pt = document.getElementById("sd-prog-text");
+      if (pf) pf.style.width = `${pct}%`;
+      if (pt) pt.textContent = `${pct} %  ·  ${Math.round(job.bytes / 1048576)}/${Math.round(job.totalBytes / 1048576)} MB${left != null ? "  ·  ~" + left + " min" : ""}`;
+    }
     if (note) {
-      if (job && job.running) {
-        const pct = job.totalBytes ? Math.min(100, Math.round(job.bytes * 100 / job.totalBytes)) : 0;
-        note.textContent = t("sd.progress").replace("{pct}", String(pct)).replace("{mb}", String(Math.round(job.bytes / 1048576)));
-      } else if (job && job.error) note.textContent = `${t("sd.failed")}: ${job.error}`;
+      if (running) note.textContent = "";
+      else if (job && job.error) note.textContent = `${t("sd.failed")}: ${job.error}`;
       else if (job && job.finishedTs) note.textContent = t("sd.done").replace("{file}", job.file || "");
       else note.textContent = "";
     }
@@ -7504,9 +7557,9 @@
       list.textContent = "";
       for (const im of st.images || []) {
         const a = document.createElement("a");
-        a.href = _adminUrl(`/plugins/${PLUGIN_ID}/tinypilot/sd-download/${encodeURIComponent(im.name)}`);
+        a.href = _adminUrl(`/plugins/${PLUGIN_ID}/tinypilot/sd-download/${encodeURIComponent(im.name)}?dest=${encodeURIComponent(im.dest || "default")}`);
         a.download = im.name;
-        a.textContent = `↓ ${im.name}  ·  ${Math.round(im.size / 1048576)} MB`;
+        a.textContent = `↓ ${im.name}  ·  ${Math.round(im.size / 1048576)} MB  ·  ${im.destLabel || ""}`;
         list.appendChild(a);
       }
     }
@@ -7516,13 +7569,18 @@
     const ok = await _pmConfirm(t("sd.confirmTitle"), t("sd.confirmBody"));
     if (!ok) return;
     try {
-      const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/sd-backup`, { method: "POST" });
+      const dest = document.getElementById("sd-dest")?.value || "default";   // Rev672
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/sd-backup`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dest }),
+      });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { _pmAlert(t("sd.failed"), j.error || `HTTP ${r.status}`); return; }
     } catch (e) { _pmAlert(t("sd.failed"), String(e)); return; }
     _sdRefresh();
   }
   function _bkpWire() {
+    const sdSel = document.getElementById("sd-dest");   // Rev672: redraw the free-space bar
+    if (sdSel) sdSel.addEventListener("change", () => _sdRefresh());
     const sdBtn = document.getElementById("sd-now");   // Rev671
     if (sdBtn) sdBtn.addEventListener("click", (ev) => { ev.stopPropagation(); _sdStart(); });
     const now = document.getElementById("bk-now");
