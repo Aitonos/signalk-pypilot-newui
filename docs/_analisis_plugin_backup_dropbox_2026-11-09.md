@@ -53,6 +53,31 @@ archivos del sistema) caben en pocos MB.
    copia ligera (zip de ajustes + subida a Dropbox por su API, sin
    dependencias), sin deduplicación ni restauración por archivo.
 
+## Hecho (2026-11-09, opción 1, Carlos: "ok")
+
+- **Exclusiones en `signalk-backup`** (`PUT http://127.0.0.1:3010/api/settings`,
+  `backupExclusions`): además de `node_modules/` y `charts*/`, ahora
+  `skserver-raw_*`, `appstore-cache/`, `.cache/`, los datos descargados de
+  weather-router (`forecast`, `ecmwf`, `overlay-tiles`, `coast-tiles`, `smoc`,
+  `sealevel`, `coastline`), `kip/historicalData/` y los registros de
+  pypilot-newui (`pizero-logs`, `maneuver-trace`). Se siguen copiando los
+  ajustes de servidor y plugins, la bitácora, las sesiones y los tracks.
+  Tamaño de lo copiado: de ~4,5 GB a ~330 MB (Kopia solo sube lo que cambia).
+- **Configuración del sistema operativo:** `~/bin/os-config-snapshot.sh`
+  vuelca en `~/.signalk/os-config/` (224 KB) arranque, hostname/hosts/fstab,
+  reglas udev (puertos `ttyOP_*`), `cron.d`, crontab de pi, servicios
+  systemd hechos a mano, `openplotter.conf`, lista de paquetes (376 a mano),
+  contenedores Docker. Nunca Wi-Fi, claves SSH ni contraseñas.
+  `signalk-backup` lo incluye en cada copia. Falta programarlo cada día
+  (`crontab`): lo añade Carlos.
+- **Queda:** las 37 copias antiguas (con los GB de tiempo descargado) caducan
+  solas (horarias 1 día, diarias 7, semanales 4 semanas; las 2 de arranque
+  de mayo y septiembre, al hacerse dos nuevas). Hasta entonces el
+  repositorio sigue grande y la subida a Drive, lenta. Borrarlas a mano lo
+  acelera (decide Carlos).
+- La caché de Kopia (`~/.signalk/.cache/kopia`) ocupa 12 GB de disco. No se
+  copia; Kopia la gestiona.
+
 ## Sobre "copiar el sistema operativo"
 
 Una imagen completa de la tarjeta o el NVMe son decenas de GB: no cabe por
