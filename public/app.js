@@ -550,17 +550,23 @@
       "bk.monthDue": "DOWNLOAD THIS MONTH'S COPY",
       "bk.copies": "copies",
       "bk.failed": "Backup failed",
+      "sd.title": "TinyPilot SD card",
+      "sd.hint": "A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off; it takes a few minutes and loads the TinyPilot meanwhile. The last 3 are kept.",
+      "sd.now": "Copy the card now",
+      "sd.confirmTitle": "Copy the TinyPilot's card?",
+      "sd.confirmBody": "Keep the autopilot off until it finishes (a few minutes). The TinyPilot will be busy meanwhile; if the autopilot is engaged the copy stops.",
+      "sd.progress": "Copying the card: {pct} % ({mb} MB)",
+      "sd.done": "Card copied: {file}",
+      "sd.failed": "Card copy failed",
       "bk.restore": "Restore",
       "bk.restoreTitle": "Restore pypilot from this copy?",
       "bk.restoreBody": "Restores the gains of the {n} profiles in {name}. Profiles you have now and are not in the copy are left as they are. The pilot must stay off; at the end '{active}' is selected again.",
       "bk.restoreNew": "new",
-      "bk.restoreInstTitle": "Installation settings too?",
-      "bk.restoreInstBody": "The copy also has {n} installation settings (compass and accelerometer calibration, servo, NMEA, offsets). Restore them only if the sensors and the servo are the same as when the copy was made. Restore them?",
       "bk.restoreEngaged": "The autopilot is engaged. Disengage it before restoring.",
       "bk.restoreProgress": "Restoring {done}/{total}: {name}",
       "bk.restoreDone": "Restore finished",
       "bk.restoreDoneIssues": "Restore finished with problems",
-      "bk.restoreSummary": "{done} of {total} profiles restored, {inst} installation settings.",
+      "bk.restoreSummary": "{done} of {total} profiles restored.",
       "bk.restoreFailed": "Restore",
       "bk.working": "Copying...",
       "bk.done": "Copy made at {time} (it replaces today's)",
@@ -1793,17 +1799,23 @@
       "bk.monthDue": "DESCARGA LA COPIA DEL MES",
       "bk.copies": "copias",
       "bk.failed": "La copia falló",
+      "sd.title": "Tarjeta SD de la TinyPilot",
+      "sd.hint": "Una imagen completa de la tarjeta de la TinyPilot (unos 1 GB): sistema, pypilot, todos los perfiles y la calibración de la IMU. Si la tarjeta falla, se graba en una tarjeta nueva de 2 GB o más con Raspberry Pi Imager. Solo con el piloto desconectado; tarda unos minutos y mientras tanto la TinyPilot va cargada. Se guardan las 3 últimas.",
+      "sd.now": "Copiar la tarjeta ahora",
+      "sd.confirmTitle": "¿Copiar la tarjeta de la TinyPilot?",
+      "sd.confirmBody": "Deja el piloto desconectado hasta que termine (unos minutos). Mientras tanto la TinyPilot estará ocupada; si se conecta el piloto, la copia se para.",
+      "sd.progress": "Copiando la tarjeta: {pct} % ({mb} MB)",
+      "sd.done": "Tarjeta copiada: {file}",
+      "sd.failed": "La copia de la tarjeta falló",
       "bk.restore": "Restaurar",
       "bk.restoreTitle": "¿Restaurar pypilot desde esta copia?",
       "bk.restoreBody": "Recupera las ganancias de los {n} perfiles de {name}. Los perfiles que tienes ahora y no están en la copia se quedan como están. El piloto debe seguir desconectado; al terminar se vuelve a seleccionar '{active}'.",
       "bk.restoreNew": "nuevo",
-      "bk.restoreInstTitle": "¿También los ajustes de instalación?",
-      "bk.restoreInstBody": "La copia tiene también {n} ajustes de instalación (calibración de brújula y acelerómetro, servo, NMEA, offsets). Restáuralos solo si los sensores y el servo son los mismos que cuando se hizo la copia. ¿Restaurarlos?",
       "bk.restoreEngaged": "El piloto está conectado. Desconéctalo antes de restaurar.",
       "bk.restoreProgress": "Restaurando {done}/{total}: {name}",
       "bk.restoreDone": "Restauración terminada",
       "bk.restoreDoneIssues": "Restauración terminada con problemas",
-      "bk.restoreSummary": "{done} de {total} perfiles restaurados, {inst} ajustes de instalación.",
+      "bk.restoreSummary": "{done} de {total} perfiles restaurados.",
       "bk.restoreFailed": "Restaurar",
       "bk.working": "Copiando...",
       "bk.done": "Copia hecha a las {time} (sustituye a la de hoy)",
@@ -3119,17 +3131,23 @@
       "bk.monthDue": "KOPIE DES MONATS HERUNTERLADEN",
       "bk.copies": "Kopien",
       "bk.failed": "Sicherung fehlgeschlagen",
+      "sd.title": "SD-Karte des TinyPilot",
+      "sd.hint": "Ein vollständiges Abbild der Karte des TinyPilot (etwa 1 GB): System, pypilot, alle Profile und die IMU-Kalibrierung. Fällt die Karte aus, mit Raspberry Pi Imager auf eine neue Karte ab 2 GB schreiben. Nur mit ausgeschaltetem Autopilot; dauert einige Minuten und belastet den TinyPilot währenddessen. Die letzten 3 bleiben erhalten.",
+      "sd.now": "Karte jetzt kopieren",
+      "sd.confirmTitle": "Karte des TinyPilot kopieren?",
+      "sd.confirmBody": "Autopilot bis zum Ende ausgeschaltet lassen (einige Minuten). Der TinyPilot ist währenddessen beschäftigt; wird der Autopilot eingeschaltet, stoppt die Kopie.",
+      "sd.progress": "Kopiere die Karte: {pct} % ({mb} MB)",
+      "sd.done": "Karte kopiert: {file}",
+      "sd.failed": "Kopie der Karte fehlgeschlagen",
       "bk.restore": "Wiederherstellen",
       "bk.restoreTitle": "pypilot aus dieser Kopie wiederherstellen?",
       "bk.restoreBody": "Stellt die Verstärkungen der {n} Profile aus {name} wieder her. Profile, die du jetzt hast und die nicht in der Kopie sind, bleiben wie sie sind. Der Pilot muss aus bleiben; am Ende wird '{active}' wieder gewählt.",
       "bk.restoreNew": "neu",
-      "bk.restoreInstTitle": "Auch die Installationseinstellungen?",
-      "bk.restoreInstBody": "Die Kopie enthält auch {n} Installationseinstellungen (Kalibrierung von Kompass und Beschleunigungssensor, Servo, NMEA, Offsets). Nur wiederherstellen, wenn Sensoren und Servo dieselben sind wie beim Erstellen der Kopie. Wiederherstellen?",
       "bk.restoreEngaged": "Der Autopilot ist eingeschaltet. Vor dem Wiederherstellen ausschalten.",
       "bk.restoreProgress": "Stelle wieder her {done}/{total}: {name}",
       "bk.restoreDone": "Wiederherstellung fertig",
       "bk.restoreDoneIssues": "Wiederherstellung mit Problemen beendet",
-      "bk.restoreSummary": "{done} von {total} Profilen wiederhergestellt, {inst} Installationseinstellungen.",
+      "bk.restoreSummary": "{done} von {total} Profilen wiederhergestellt.",
       "bk.restoreFailed": "Wiederherstellen",
       "bk.working": "Sichere...",
       "bk.done": "Kopie um {time} erstellt (ersetzt die von heute)",
@@ -4337,17 +4355,23 @@
       "bk.monthDue": "TÉLÉCHARGEZ LA COPIE DU MOIS",
       "bk.copies": "copies",
       "bk.failed": "Échec de la sauvegarde",
+      "sd.title": "Carte SD du TinyPilot",
+      "sd.hint": "Une image complète de la carte du TinyPilot (environ 1 Go) : système, pypilot, tous les profils et la calibration de l'IMU. Si la carte lâche, écrivez-la sur une carte neuve de 2 Go ou plus avec Raspberry Pi Imager. Uniquement pilote débrayé ; cela prend quelques minutes et charge le TinyPilot pendant ce temps. Les 3 dernières sont gardées.",
+      "sd.now": "Copier la carte maintenant",
+      "sd.confirmTitle": "Copier la carte du TinyPilot ?",
+      "sd.confirmBody": "Gardez le pilote débrayé jusqu'à la fin (quelques minutes). Le TinyPilot sera occupé pendant ce temps ; si le pilote est embrayé, la copie s'arrête.",
+      "sd.progress": "Copie de la carte : {pct} % ({mb} Mo)",
+      "sd.done": "Carte copiée : {file}",
+      "sd.failed": "Échec de la copie de la carte",
       "bk.restore": "Restaurer",
       "bk.restoreTitle": "Restaurer pypilot depuis cette copie ?",
       "bk.restoreBody": "Restaure les gains des {n} profils de {name}. Les profils que vous avez maintenant et qui ne sont pas dans la copie restent tels quels. Le pilote doit rester débrayé ; à la fin '{active}' est sélectionné de nouveau.",
       "bk.restoreNew": "nouveau",
-      "bk.restoreInstTitle": "Aussi les réglages d'installation ?",
-      "bk.restoreInstBody": "La copie contient aussi {n} réglages d'installation (calibration du compas et de l'accéléromètre, servo, NMEA, offsets). Ne les restaurez que si les capteurs et le servo sont les mêmes que lors de la copie. Les restaurer ?",
       "bk.restoreEngaged": "Le pilote est embrayé. Débrayez-le avant de restaurer.",
       "bk.restoreProgress": "Restauration {done}/{total} : {name}",
       "bk.restoreDone": "Restauration terminée",
       "bk.restoreDoneIssues": "Restauration terminée avec des problèmes",
-      "bk.restoreSummary": "{done} profils sur {total} restaurés, {inst} réglages d'installation.",
+      "bk.restoreSummary": "{done} profils sur {total} restaurés.",
       "bk.restoreFailed": "Restaurer",
       "bk.working": "Sauvegarde...",
       "bk.done": "Copie faite à {time} (remplace celle du jour)",
@@ -7428,10 +7452,10 @@
     const ok = await _pmConfirm(t("bk.restoreTitle"),
       t("bk.restoreBody").replace("{n}", String(pv.profiles.length)).replace("{name}", name).replace("{active}", pv.activeProfile || "?") + "\n\n" + list);
     if (!ok) return;
-    let installation = false;
-    if (pv.installationKeys.length) {
-      installation = await _pmConfirm(t("bk.restoreInstTitle"), t("bk.restoreInstBody").replace("{n}", String(pv.installationKeys.length)) + "\n\n" + pv.installationKeys.join(", "));
-    }
+    // Rev671 (Carlos): profiles only - installation settings (IMU calibration
+    // above all) are never restored from here; the TinyPilot SD image is
+    // the backup for those.
+    const installation = false;
     try {
       const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/restore`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, installation }),
@@ -7452,12 +7476,55 @@
       if (note) note.textContent = "";
       const errs = (st.errors || []).slice(0, 8).join("\n");
       _pmAlert(st.aborted || (st.errors && st.errors.length) ? t("bk.restoreDoneIssues") : t("bk.restoreDone"),
-        t("bk.restoreSummary").replace("{done}", String(st.done)).replace("{total}", String(st.total)).replace("{inst}", String(st.installationApplied || 0))
+        t("bk.restoreSummary").replace("{done}", String(st.done)).replace("{total}", String(st.total))
           + (st.aborted ? `\n${st.aborted}` : "") + (errs ? `\n\n${errs}` : ""));
     };
     setTimeout(poll, 800);
   }
+  // Rev671 (Carlos 2026-11-09): TinyPilot SD card image.
+  let _sdPoll = null;
+  async function _sdRefresh() {
+    let st = null;
+    try { const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/sd-backup/status`); if (r.ok) st = await r.json(); } catch { /* silent */ }
+    if (!st) return;
+    const note = document.getElementById("sd-note");
+    const btn = document.getElementById("sd-now");
+    const job = st.job;
+    if (btn) btn.disabled = !!(job && job.running);
+    if (note) {
+      if (job && job.running) {
+        const pct = job.totalBytes ? Math.min(100, Math.round(job.bytes * 100 / job.totalBytes)) : 0;
+        note.textContent = t("sd.progress").replace("{pct}", String(pct)).replace("{mb}", String(Math.round(job.bytes / 1048576)));
+      } else if (job && job.error) note.textContent = `${t("sd.failed")}: ${job.error}`;
+      else if (job && job.finishedTs) note.textContent = t("sd.done").replace("{file}", job.file || "");
+      else note.textContent = "";
+    }
+    const list = document.getElementById("sd-list");
+    if (list) {
+      list.textContent = "";
+      for (const im of st.images || []) {
+        const a = document.createElement("a");
+        a.href = _adminUrl(`/plugins/${PLUGIN_ID}/tinypilot/sd-download/${encodeURIComponent(im.name)}`);
+        a.download = im.name;
+        a.textContent = `↓ ${im.name}  ·  ${Math.round(im.size / 1048576)} MB`;
+        list.appendChild(a);
+      }
+    }
+    if (job && job.running) { if (!_sdPoll) _sdPoll = setTimeout(() => { _sdPoll = null; _sdRefresh(); }, 2000); }
+  }
+  async function _sdStart() {
+    const ok = await _pmConfirm(t("sd.confirmTitle"), t("sd.confirmBody"));
+    if (!ok) return;
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/sd-backup`, { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { _pmAlert(t("sd.failed"), j.error || `HTTP ${r.status}`); return; }
+    } catch (e) { _pmAlert(t("sd.failed"), String(e)); return; }
+    _sdRefresh();
+  }
   function _bkpWire() {
+    const sdBtn = document.getElementById("sd-now");   // Rev671
+    if (sdBtn) sdBtn.addEventListener("click", (ev) => { ev.stopPropagation(); _sdStart(); });
     const now = document.getElementById("bk-now");
     if (now) now.addEventListener("click", async (ev) => {
       ev.stopPropagation();
@@ -7486,7 +7553,7 @@
     });
     const block = document.querySelector('.setup-block[data-block-key="backup"]');
     if (block && typeof MutationObserver === "function") {
-      new MutationObserver(() => { if (block.dataset.fullscreen === "1") _bkpRefresh(); })
+      new MutationObserver(() => { if (block.dataset.fullscreen === "1") { _bkpRefresh(); _sdRefresh(); } })
         .observe(block, { attributes: true, attributeFilter: ["data-fullscreen"] });
     }
     _bkpRefresh();

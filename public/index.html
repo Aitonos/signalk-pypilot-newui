@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev670" />
+  <link rel="stylesheet" href="style.css?v=Rev671" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2102,6 +2102,16 @@
         </div>
         <div id="bk-note" class="hint"></div>
         <div id="bk-list" class="bk-list"></div>
+        <!-- Rev671 (Carlos 2026-11-09): image of the TinyPilot's SD card. -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="sd.title">TinyPilot SD card</div>
+          <div class="hint" data-i18n="sd.hint">A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off; it takes a few minutes and loads the TinyPilot meanwhile. The last 3 are kept.</div>
+          <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <button type="button" class="primary" id="sd-now" data-i18n="sd.now">Copy the card now</button>
+          </div>
+          <div id="sd-note" class="hint"></div>
+          <div id="sd-list" class="bk-list"></div>
+        </div>
       </div>
       <div class="setup-block" data-setup-order="170" data-block-key="paths">
         <div class="section-title" data-i18n="setup.paths.title">Paths &amp; API</div>
@@ -2871,6 +2881,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev670"></script>
+  <script src="app.js?v=Rev671"></script>
 </body>
 </html>

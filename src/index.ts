@@ -76,6 +76,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
+import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop } from "./tinypilot-sd";
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
@@ -90,7 +91,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev670";
+const PLUGIN_REVISION = "Rev671";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3225,7 +3226,7 @@ module.exports = function (app: any) {
       };
       router.get("/backup/restore/preview/:name", (req: any, res: any) => {
         if (!client) { res.status(503).json({ error: "pypilot not connected" }); return; }
-        const plan = _restorePlanFor(String(req.params?.name || ""), true);
+        const plan = _restorePlanFor(String(req.params?.name || ""), false);
         if (!plan) { res.status(404).json({ error: "no pypilot.conf in that copy" }); return; }
         const existing = (client.getValues() as any)["profiles"];
         res.json({
@@ -3247,7 +3248,10 @@ module.exports = function (app: any) {
         if (_restoreJob?.running) { res.status(409).json({ error: "a restore is already running" }); return; }
         if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
         const name = String(req.body?.name || "");
-        const plan = _restorePlanFor(name, req.body?.installation === true);
+        // Rev671 (Carlos 2026-11-09): only our part - profiles. Installation
+        // settings (IMU / compass calibration above all) are never restored by
+        // the plugin; the TinyPilot SD image is the backup for those.
+        const plan = _restorePlanFor(name, false);
         if (!plan) { res.status(404).json({ error: "no pypilot.conf in that copy" }); return; }
         const job: RestoreJob = { running: true, name, total: plan.profiles.length, done: 0, current: null, errors: [], startedTs: Date.now(), finishedTs: null, aborted: null, installationApplied: 0 };
         _restoreJob = job;
@@ -3300,6 +3304,116 @@ module.exports = function (app: any) {
             console.log(`[restore] ${name}: ${job.done}/${job.total} profiles, ${job.installationApplied} installation settings, ${job.errors.length} errors${job.aborted ? ", stopped: " + job.aborted : ""}`);
           }
         })();
+      });
+      // ---- Rev671 (Carlos 2026-11-09): image of the TinyPilot's SD card ----
+      //   POST /tinypilot/sd-backup          - start (admin PIN, autopilot OFF)
+      //   GET  /tinypilot/sd-backup/status   - progress, images on disk
+      //   GET  /tinypilot/sd-download/:name  - one image
+      // The card is read with dd over SSH (no pty: binary) and gzipped here,
+      // into ~/Backups-pypilot-newui; the newest SD_KEEP are kept. It loads
+      // the Pi Zero for a few minutes: refused with the autopilot engaged,
+      // stopped if it gets engaged meanwhile.
+      type SdJob = { running: boolean; file: string | null; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null };
+      let _sdJob: SdJob | null = null;
+      const _sdImages = () => {
+        const fs2 = require("fs");
+        let names: string[] = [];
+        try { names = fs2.readdirSync(backupDir()); } catch { return []; }
+        return names.filter(isSdImageName).sort().reverse().map((n: string) => {
+          let size = 0, ts = 0;
+          try { const st = fs2.statSync(require("path").join(backupDir(), n)); size = st.size; ts = st.mtimeMs; } catch { /* gone */ }
+          return { name: n, size, ts };
+        });
+      };
+      const _sshStreamToGzip = (cmd: string, file: string, onBytes: (n: number) => void, stillWanted: () => boolean): Promise<{ ok: boolean; bytes: number; error?: string }> => {
+        return new Promise((resolve) => {
+          const fs2 = require("fs");
+          const zlib = require("zlib");
+          const { Transform } = require("stream");
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { Client } = require("ssh2");
+          const conn = new Client();
+          let bytes = 0;
+          let settled = false;
+          let idle: NodeJS.Timeout | null = null;
+          let watch: NodeJS.Timeout | null = null;
+          const tmp = `${file}.tmp`;
+          const finish = (r: { ok: boolean; bytes: number; error?: string }) => {
+            if (settled) return;
+            settled = true;
+            if (idle) clearTimeout(idle);
+            if (watch) clearInterval(watch);
+            try { conn.end(); } catch { /* silent */ }
+            if (!r.ok) { try { fs2.unlinkSync(tmp); } catch { /* none */ } }
+            resolve(r);
+          };
+          const kick = () => { if (idle) clearTimeout(idle); idle = setTimeout(() => finish({ ok: false, bytes, error: "no data for 60 s" }), 60_000); };
+          conn.on("ready", () => {
+            conn.exec(cmd, (err: any, stream: any) => {
+              if (err) { finish({ ok: false, bytes: 0, error: err.message }); return; }
+              let exitCode: number | null = null;
+              stream.on("exit", (code: number) => { exitCode = code; });
+              const counter = new Transform({
+                transform(chunk: Buffer, _enc: string, cb: (e: any, d?: Buffer) => void) { bytes += chunk.length; onBytes(bytes); kick(); cb(null, chunk); },
+              });
+              const out = fs2.createWriteStream(tmp);
+              watch = setInterval(() => {
+                if (!stillWanted()) { try { stream.close(); } catch { /* silent */ } finish({ ok: false, bytes, error: "autopilot engaged - copy stopped" }); }
+              }, 5000);
+              kick();
+              stream.pipe(counter).pipe(zlib.createGzip({ level: 1 })).pipe(out);
+              out.on("finish", () => {
+                if (settled) return;
+                if (exitCode !== null && exitCode !== 0) { finish({ ok: false, bytes, error: `dd exited with ${exitCode}` }); return; }
+                try { fs2.renameSync(tmp, file); } catch (e: any) { finish({ ok: false, bytes, error: String(e?.message || e) }); return; }
+                finish({ ok: true, bytes });
+              });
+              out.on("error", (e: any) => finish({ ok: false, bytes, error: String(e?.message || e) }));
+            });
+          });
+          conn.on("error", (e: any) => finish({ ok: false, bytes, error: e?.message || String(e) }));
+          try {
+            conn.connect({ host: props.host, port: 22, username: props.sshUser || "tc", password: props.sshPassword, readyTimeout: 8000 });
+          } catch (e: any) { finish({ ok: false, bytes: 0, error: e?.message || String(e) }); }
+        });
+      };
+      router.post("/tinypilot/sd-backup", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        if (!props.sshPassword) { res.status(409).json({ error: "SSH to the TinyPilot is not configured" }); return; }
+        if (_sdJob?.running) { res.status(409).json({ error: "a copy is already running" }); return; }
+        if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
+        const probe = await _runSsh(SD_PROBE_COMMAND, 15000);
+        const mib = sdImageMiB(probe.stdout);
+        if (!mib) { res.status(502).json({ error: "could not read the card's partitions" }); return; }
+        try { require("fs").mkdirSync(backupDir(), { recursive: true }); } catch { /* exists */ }
+        const file = require("path").join(backupDir(), sdImageName(new Date()));
+        const job: SdJob = { running: true, file: require("path").basename(file), bytes: 0, totalBytes: mib * 1024 * 1024, startedTs: Date.now(), finishedTs: null, error: null };
+        _sdJob = job;
+        res.status(202).json({ ok: true, totalBytes: job.totalBytes });
+        const r = await _sshStreamToGzip(sdReadCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
+        job.running = false;
+        job.finishedTs = Date.now();
+        if (!r.ok) job.error = r.error || "failed";
+        else if (r.bytes < job.totalBytes) job.error = `short read: ${r.bytes} of ${job.totalBytes} bytes`;
+        if (!job.error) {
+          for (const old of sdImagesToDrop(_sdImages().map((x: { name: string }) => x.name))) {
+            try { require("fs").unlinkSync(require("path").join(backupDir(), old)); } catch { /* gone */ }
+          }
+        }
+        // eslint-disable-next-line no-console
+        console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : "ok"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
+      });
+      router.get("/tinypilot/sd-backup/status", (_req: any, res: any) => {
+        res.json({ job: _sdJob, images: _sdImages(), dir: backupDir() });
+      });
+      router.get("/tinypilot/sd-download/:name", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        const name = String(req.params?.name || "");
+        if (!isSdImageName(name)) { res.status(404).json({ error: "not found" }); return; }
+        const file = require("path").join(backupDir(), name);
+        if (!require("fs").existsSync(file)) { res.status(404).json({ error: "not found" }); return; }
+        res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
+        res.type("application/gzip").sendFile(file);
       });
       router.get("/backup/download/:name", (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;   // Rev653
