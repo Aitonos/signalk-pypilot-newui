@@ -90,7 +90,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev668";
+const PLUGIN_REVISION = "Rev669";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -276,6 +276,10 @@ interface PluginProps {
   // own nav mode still runs the show. A future Rev may switch to
   // plugin-side NAV once we can validate at sea.
   apbSource?: "auto" | "steerTo" | "bearing";
+  /** Rev669 (Carlos 2026-11-09): when NAV counts a waypoint as reached -
+   *  inside the arrival circle or past its perpendicular (first of the two),
+   *  or only past the perpendicular (abeam of the point: no corner cut). */
+  navAdvanceOn?: "circle-or-perpendicular" | "perpendicular";
   // Rev167 (Carlos): gust *strategy*, not just a warning. Was Rev165
   // gustDetectorEnabled; now the user picks what to do when a gust
   // lands:
@@ -940,6 +944,13 @@ module.exports = function (app: any) {
           title: "Forget the admin PIN",
           description: "Tick and save if the admin PIN of the visor's Technical group was forgotten. The PIN is deleted (the box clears itself); set a new one from Setup.",
           default: false,
+        },
+        navAdvanceOn: {
+          type: "string",
+          title: "NAV: when a waypoint counts as reached",
+          description: "circle-or-perpendicular: inside the arrival circle set in the plotter, or past the waypoint's perpendicular, whichever comes first. perpendicular: only abeam of the waypoint - no corner cut, a sharper turn.",
+          enum: ["circle-or-perpendicular", "perpendicular"],
+          default: "circle-or-perpendicular",
         },
         tripRecorderEnabled: {
           type: "boolean",
@@ -3504,6 +3515,7 @@ module.exports = function (app: any) {
           alarmServoMotorTempC: props.alarmServoMotorTempC ?? 70,
           alarmPypilotDiscSec: props.alarmPypilotDiscSec ?? 15,
           apbSource: props.apbSource ?? "auto",
+          navAdvanceOn: props.navAdvanceOn ?? "circle-or-perpendicular",
         });
       });
       router.post("/supervisor/config", (req: any, res: any) => {
@@ -3594,6 +3606,10 @@ module.exports = function (app: any) {
         // pypilot write yet).
         if (isApbSource(b.apbSource)) {
           patch.apbSource = b.apbSource;
+        }
+        // Rev669: NAV waypoint advance rule.
+        if (b.navAdvanceOn === "perpendicular" || b.navAdvanceOn === "circle-or-perpendicular") {
+          patch.navAdvanceOn = b.navAdvanceOn;
         }
         Object.assign(props, patch);
         // Rev292 (bug A): hot-apply the pypilot-disconnect sustain
@@ -4869,6 +4885,7 @@ module.exports = function (app: any) {
         : undefined,
       apbSource: (["auto","steerTo","bearing"] as const).includes(options.apbSource as any)
         ? options.apbSource : "auto",
+      navAdvanceOn: options.navAdvanceOn === "perpendicular" ? "perpendicular" : "circle-or-perpendicular",
     };
   }
 
@@ -5510,8 +5527,11 @@ module.exports = function (app: any) {
         });
         _routePendingAnnounce = null;
       }
+      // Rev669: reached = in the circle or past the perpendicular, or (option)
+      // only past the perpendicular - abeam of the point, no corner cut.
+      const reached = props.navAdvanceOn === "perpendicular" ? leg.perpendicularPassed : (leg.arrived || leg.perpendicularPassed);
       // Armed once the boat has been outside this destination's circle.
-      if (!leg.arrived && !leg.perpendicularPassed) _routeArmedFor = key;
+      if (!reached) _routeArmedFor = key;
       const name = wpLabel(course?.nextPoint?.name, idx);
       const finished = _routeFinishedFor === key;
       // Rev576 (GPT audit A09): APB is a steering command for pypilot and
@@ -5522,8 +5542,8 @@ module.exports = function (app: any) {
       if (act && !finished) {
         try { app.emit("nmea0183out", buildApb(leg, idx != null ? `WP${idx + 1}` : "WP")); } catch { /* silent */ }
       }
-      // Arrival: inside the circle or past the perpendicular.
-      if (act && (leg.arrived || leg.perpendicularPassed) && !finished) {
+      // Arrival: inside the circle or past the perpendicular (see navAdvanceOn).
+      if (act && reached && !finished) {
         const more = ar && idx != null && idx < Number(ar.pointTotal) - 1;
         if (more) {
           if (_routeAdvancedFor !== key) {

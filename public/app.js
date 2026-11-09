@@ -372,6 +372,11 @@
       "smart.autoProfile.medium":  "Profile for 8 – 16 kn",
       "smart.autoProfile.heavy":   "Profile for TWS > 16 kn",
       "smart.autoProfile.skip":    "(skip)",
+      "smart.nav.title": "Routes (NAV)",
+      "smart.nav.hint": "When the next waypoint is taken. The arrival circle is the one set in the plotter (Freeboard: Settings, Course). Keep the plotter's own auto-advance OFF: the plugin advances, and with both a waypoint could be skipped.",
+      "smart.nav.advance": "Waypoint reached",
+      "smart.nav.opt.circle": "In the arrival circle or abeam, first of the two",
+      "smart.nav.opt.perp": "Only abeam of the waypoint (no corner cut)",
       "smart.gust.title":          "Gust strategy",
       "smart.gust.hint":           "Detects when AWS jumps 5 kn+ in 5 s and applies the chosen action.",
       "smart.gust.strategy":       "Strategy on gust",
@@ -1610,6 +1615,11 @@
       "smart.autoProfile.medium":  "Perfil para 8 – 16 kn",
       "smart.autoProfile.heavy":   "Perfil para TWS > 16 kn",
       "smart.autoProfile.skip":    "(saltar)",
+      "smart.nav.title": "Rutas (NAV)",
+      "smart.nav.hint": "Cuándo se pasa al siguiente waypoint. El círculo de llegada es el que pongas en el plotter (Freeboard: Settings, Course). Deja desactivado el avance automático del plotter: avanza el plugin, y con los dos se podría saltar un waypoint.",
+      "smart.nav.advance": "Waypoint alcanzado",
+      "smart.nav.opt.circle": "Al entrar en el círculo o al pasar a su altura, lo primero",
+      "smart.nav.opt.perp": "Solo al pasar a la altura del waypoint (sin recortar)",
       "smart.gust.title":          "Estrategia frente a rachas",
       "smart.gust.hint":           "Detecta cuando el AWS sube 5 kn o más en 5 s y aplica la acción elegida.",
       "smart.gust.strategy":       "Acción en racha",
@@ -2945,6 +2955,11 @@
       "smart.autoProfile.medium": "Profil für 8 – 16 kn",
       "smart.autoProfile.heavy": "Profil für TWS > 16 kn",
       "smart.autoProfile.skip": "(überspringen)",
+      "smart.nav.title": "Routen (NAV)",
+      "smart.nav.hint": "Wann der nächste Wegpunkt genommen wird. Der Ankunftskreis ist der im Plotter eingestellte (Freeboard: Settings, Course). Das automatische Weiterschalten des Plotters AUS lassen: das Plugin schaltet weiter, mit beiden könnte ein Wegpunkt übersprungen werden.",
+      "smart.nav.advance": "Wegpunkt erreicht",
+      "smart.nav.opt.circle": "Im Ankunftskreis oder querab, was zuerst kommt",
+      "smart.nav.opt.perp": "Nur querab des Wegpunkts (ohne Abkürzen)",
       "smart.gust.title": "Böen-Strategie",
       "smart.gust.hint": "Erkennt, wenn AWS in 5 s um 5 kn+ springt, und führt die gewählte Aktion aus.",
       "smart.gust.strategy": "Strategie bei Böe",
@@ -4158,6 +4173,11 @@
       "smart.autoProfile.medium": "Profil pour 8 – 16 nd",
       "smart.autoProfile.heavy": "Profil pour TWS > 16 nd",
       "smart.autoProfile.skip": "(ignorer)",
+      "smart.nav.title": "Routes (NAV)",
+      "smart.nav.hint": "Quand le waypoint suivant est pris. Le cercle d'arrivée est celui réglé dans le traceur (Freeboard : Settings, Course). Laissez désactivé l'avancement automatique du traceur : le plugin avance, et avec les deux un waypoint pourrait être sauté.",
+      "smart.nav.advance": "Waypoint atteint",
+      "smart.nav.opt.circle": "Dans le cercle d'arrivée ou par le travers, le premier des deux",
+      "smart.nav.opt.perp": "Seulement par le travers du waypoint (sans couper)",
       "smart.gust.title": "Stratégie rafales",
       "smart.gust.hint": "Détecte quand l'AWS saute de 5 nd+ en 5 s et applique l'action choisie.",
       "smart.gust.strategy": "Stratégie en rafale",
@@ -16896,6 +16916,8 @@
       const cb3 = document.getElementById("smart-steer-recovery-enabled");
       if (cb3) cb3.checked = !!j.steerRecoveryEnabled;
       if (ss)  ss.value    = j.gustStrategy || "warn";
+      const na = document.getElementById("smart-nav-advance");   // Rev669
+      if (na) na.value = j.navAdvanceOn || "circle-or-perpendicular";
       _smartFillProfiles(document.getElementById("smart-auto-profile-light"),  j.autoProfileLight);
       _smartFillProfiles(document.getElementById("smart-auto-profile-medium"), j.autoProfileMedium);
       _smartFillProfiles(document.getElementById("smart-auto-profile-heavy"),  j.autoProfileHeavy);
@@ -16995,6 +17017,7 @@
       autoProfileMedium:  document.getElementById("smart-auto-profile-medium")?.value || "",
       autoProfileHeavy:   document.getElementById("smart-auto-profile-heavy")?.value || "",
       gustStrategy:       document.getElementById("smart-gust-strategy")?.value || "warn",
+      navAdvanceOn:       document.getElementById("smart-nav-advance")?.value || "circle-or-perpendicular",   // Rev669
       autoDisengageOnLostAuthority: !!document.getElementById("smart-auto-disengage-enabled")?.checked,
       steerRecoveryEnabled: !!document.getElementById("smart-steer-recovery-enabled")?.checked,
       // Rev300: helpers section shares the same POST endpoint.
@@ -17025,6 +17048,7 @@
     // the HTML — sliders wire their own mark-dirty in
     // _smartRenderHelpersSliders.
     const ids = [
+      "smart-nav-advance",   // Rev669
       "smart-auto-profile-enabled",
       "smart-auto-profile-light",
       "smart-auto-profile-medium",

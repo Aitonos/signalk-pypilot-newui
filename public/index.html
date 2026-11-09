@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev668" />
+  <link rel="stylesheet" href="style.css?v=Rev669" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1695,6 +1695,19 @@
           <div id="smart-gust-status" class="hint" style="font-family:ui-monospace,monospace"></div>
         </div>
 
+        <!-- Rev669 (Carlos 2026-11-09): NAV waypoint advance rule. -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="smart.nav.title">Routes (NAV)</div>
+          <div class="hint" data-i18n="smart.nav.hint">When the next waypoint is taken. The arrival circle is the one set in the plotter (Freeboard: Settings, Course). Keep the plotter's own auto-advance OFF: the plugin advances, and with both a waypoint could be skipped.</div>
+          <div class="row">
+            <label data-i18n="smart.nav.advance">Waypoint reached</label>
+            <select id="smart-nav-advance">
+              <option value="circle-or-perpendicular" data-i18n="smart.nav.opt.circle">In the arrival circle or abeam, first of the two</option>
+              <option value="perpendicular" data-i18n="smart.nav.opt.perp">Only abeam of the waypoint (no corner cut)</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Subsection 3: auto-disengage on lost authority. -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="smart.autoDis.title">Emergency: auto-disengage on lost authority</div>
@@ -2858,6 +2871,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev668"></script>
+  <script src="app.js?v=Rev669"></script>
 </body>
 </html>
