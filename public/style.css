@@ -225,8 +225,8 @@ body.nav-hidden nav#tabbar {
 @media (orientation: landscape) {
   .tab-btn {
     padding: 4px 4px;
-    /* Rev684 (forum, Moeritsen): 12 -> 13 px, a little more readable. */
-    font-size: 13px;
+    /* Rev684/685 (forum, Moeritsen; Carlos): 12 -> 14 px, as in portrait. */
+    font-size: 14px;
     letter-spacing: 0.2px;
     border-bottom-width: 2px;
   }
@@ -546,6 +546,14 @@ main {
 }
 #rose-target-arrow.prepared-blink {
   animation: prepared-blink 1s ease-in-out infinite;
+}
+/* Rev685: the 12 o'clock difference to the prepared heading blinks red. */
+@keyframes prepared-text-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+#rose-hdg-prec.prepared-blink {
+  animation: prepared-text-blink 1s ease-in-out infinite;
 }
 /* Rev171 (Carlos): boat sprite glow while the post-tack stats HUD
    is visible so the skipper spots the summary panel at a glance. */
@@ -5005,3 +5013,21 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
   color: var(--ok); margin-top: 6px;
 }
 .boot-fair[hidden] { display: none; }
+
+/* Rev685 (Carlos: "blanco en vez de gris, excepto lo greyed"): inside Tune
+   the dim text colour is white. Disabled controls stay greyed: they fade
+   with opacity, not with this colour. */
+#tab-tune { --fg-dim: var(--fg); }
+/* Rev685: every Tune text one step larger. */
+#tab-tune .tune-header label { font-size: 15px; }
+#tab-tune .tune-header select { font-size: 15px; }
+#tab-tune .tune-unlock { font-size: 15px; }
+#tab-tune .gain-row .name { font-size: 16px; }
+#tab-tune .gain-row .value { font-size: 16px; }
+#tab-tune .gain-row .baseline { font-size: 14px; }
+#tab-tune .gain-help,
+#tab-tune .gain-help-long { font-size: 14px; }
+#tab-tune .gain-help-btn { width: 24px; height: 24px; font-size: 13px; }
+#tab-tune .section-title { font-size: 14px; }
+#tab-tune details.tune-group > summary { font-size: 15px; }
+#tab-tune details.tune-group > summary label { font-size: 13px !important; }   /* inline 11 px */

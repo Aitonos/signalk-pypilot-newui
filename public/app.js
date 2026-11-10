@@ -6783,6 +6783,17 @@
       currentRad = (typeof state.heading === "number") ? state.heading : null;
       targetRad = (typeof state.target === "number") ? state.target : null;
     }
+    // Rev685 (Carlos): a prepared heading (pilot off) shows how far it is
+    // from the current heading, blinking red until AP is pressed.
+    const prep = state.engaged ? null : _preparedRad();
+    el.classList.toggle("prepared-blink", prep != null && typeof state.heading === "number");
+    if (prep != null && typeof state.heading === "number") {
+      const pd = _wrap180(prep * RAD2DEG - state.heading * RAD2DEG);
+      const ps = pd > 0 ? "+" : (pd < 0 ? "-" : "");
+      _setText(el, `${ps}${Math.abs(Math.round(pd))}°`);
+      _setAttr(el, "fill", "#ff3b30");
+      return;
+    }
     if (!state.engaged || currentRad == null || targetRad == null) {
       _setText(el, "--");
       _setAttr(el, "fill", "#b8c4d0");
