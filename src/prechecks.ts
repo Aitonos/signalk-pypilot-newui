@@ -20,6 +20,12 @@ export interface CheckItem {
   detail: string;
   /** What to do if this check is not passing. Optional. */
   hint?: string;
+  /** Rev683: the visor translates label / detail / hint from these
+   *  (pc.<id>.label, pc.<id>.<code>, pc.<id>.hint[.<hintCode>]); the
+   *  English text above stays as the fallback. */
+  code?: string;
+  hintCode?: string;
+  params?: Record<string, string | number>;
 }
 
 export interface PrecheckSnapshot {
@@ -66,6 +72,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "pypilot connectivity",
       status: "pass",
       detail: "Socket to pypilot_web is up.",
+      code: "ok",
     });
   } else {
     const downSec = inputs.disconnectedSinceMs
@@ -77,6 +84,8 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       status: "fail",
       detail: downSec != null ? `Disconnected ${downSec}s.` : "Disconnected.",
       hint: "Power up the TinyPilot and check its address in Setup > pypilot connection (or Scan).",
+      code: downSec != null ? "down" : "downNoTime",
+      params: downSec != null ? { sec: downSec } : undefined,
     });
   }
 
@@ -87,6 +96,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "SK Autopilot provider",
       status: "pass",
       detail: `Registered as '${inputs.autopilotId || "?"}'.`,
+      code: "ok", params: { id: inputs.autopilotId || "?" },
     });
   } else if (inputs.autopilotId) {
     items.push({
@@ -94,6 +104,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "SK Autopilot provider",
       status: "pass",
       detail: `External provider '${inputs.autopilotId}' active.`,
+      code: "external", params: { id: inputs.autopilotId },
     });
   } else {
     items.push({
@@ -102,6 +113,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       status: "fail",
       detail: "No autopilot registered on this Signal K server.",
       hint: "Turn on 'absorb provider' in Setup > pypilot connection, or enable pypilot-autopilot-provider.",
+      code: "none",
     });
   }
 
@@ -127,6 +139,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "Servo current telemetry",
       status: "pass",
       detail: `Last reading ${cur.toFixed(2)} A.`,
+      code: "ok", params: { a: cur.toFixed(2) },
     });
   } else {
     items.push({
@@ -135,6 +148,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       status: "warn",
       detail: "No current reading from the servo yet.",
       hint: "Engage the AP briefly - the pypilot controller only reports current when moving.",
+      code: "none",
     });
   }
 
@@ -151,6 +165,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       status,
       detail: `${temp.toFixed(0)} °C.`,
       hint: status === "pass" ? undefined : `Let the servo cool below ${tWarn} °C before a long leg.`,
+      code: "ok", params: { c: temp.toFixed(0), limit: tWarn },
     });
   } else {
     items.push({
@@ -158,6 +173,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "Servo temperature",
       status: "unknown",
       detail: "No temperature reading yet.",
+      code: "none",
     });
   }
 
@@ -174,6 +190,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       status,
       detail: `${volt.toFixed(1)} V.`,
       hint: status === "pass" ? undefined : `Charge or reduce load - the AP servo needs at least ${batOk} V for reliable steering.`,
+      code: "ok", params: { v: volt.toFixed(1), min: batOk },
     });
   } else {
     items.push({
@@ -181,6 +198,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       label: "Battery voltage",
       status: "unknown",
       detail: "No voltage reading yet.",
+      code: "none",
     });
   }
 
@@ -193,6 +211,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
         status: "fail",
         detail: `Deviation ${sh.deviationRatio?.toFixed(2)}× baseline.`,
         hint: "Servo working much harder than usual - check for hard rudder, cable drag, clutch or biofouling.",
+        code: "deviation", hintCode: "high", params: { ratio: sh.deviationRatio?.toFixed(2) ?? "?" },
       });
     } else if (sh.status === "elevated") {
       items.push({
@@ -201,6 +220,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
         status: "warn",
         detail: `Deviation ${sh.deviationRatio?.toFixed(2)}× baseline.`,
         hint: "Servo working harder than the learned baseline - inspect rudder linkage before a long leg.",
+        code: "deviation", hintCode: "elevated", params: { ratio: sh.deviationRatio?.toFixed(2) ?? "?" },
       });
     } else if (sh.status === "good" || sh.status === "idle") {
       items.push({
@@ -208,6 +228,8 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
         label: "Servo health baseline",
         status: "pass",
         detail: sh.baselineA != null ? `Baseline ${sh.baselineA.toFixed(2)} A, healthy.` : "Idle, no anomalies.",
+        code: sh.baselineA != null ? "healthy" : "idle",
+        params: sh.baselineA != null ? { a: sh.baselineA.toFixed(2) } : undefined,
       });
     } else {
       items.push({
@@ -215,6 +237,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
         label: "Servo health baseline",
         status: "unknown",
         detail: `Learning baseline (${sh.samplesLearned}/${sh.samplesTargetForLearn}).`,
+        code: "learning", params: { n: sh.samplesLearned, total: sh.samplesTargetForLearn },
       });
     }
   }
@@ -258,19 +281,25 @@ function qualityIndex(q: QualitySnapshot | null): Map<string, PathQuality> {
 
 function qualityCheck(idx: Map<string, PathQuality>, path: string, label: string, hint: string): CheckItem {
   const q = idx.get(path);
-  if (!q) return { id: path, label, status: "unknown", detail: "Not being monitored." };
+  if (!q) return { id: path, label, status: "unknown", detail: "Not being monitored.", code: "unmonitored" };
   const status = qualityToStatus(q.level);
   const bits: string[] = [];
   if (q.ageMs != null) bits.push(`age ${Math.floor(q.ageMs / 100) / 10}s`);
   if (q.hz != null)    bits.push(`${q.hz.toFixed(2)} Hz`);
   if (q.source)        bits.push(q.source);
   const detail = bits.length > 0 ? bits.join(" · ") : "No data.";
+  const params: Record<string, string | number> = {};
+  if (q.ageMs != null) params.age = Math.floor(q.ageMs / 100) / 10;
+  if (q.hz != null) params.hz = q.hz.toFixed(2);
+  if (q.source) params.source = q.source;
   return {
     id: path,
     label,
     status,
     detail,
     hint: status === "pass" ? undefined : hint,
+    code: bits.length > 0 ? "sensor" : "nodata",
+    params,
   };
 }
 

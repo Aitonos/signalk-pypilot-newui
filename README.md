@@ -4,7 +4,7 @@
 
 **A modern, touch-first autopilot screen for [pypilot](https://github.com/pypilot/pypilot) and TinyPilot — that also tunes your pilot for you.**
 
-`signalk-pypilot-newui` enhances Sean D'Epagnier's open-source autopilot with **49 new functions**: a tablet- and phone-friendly visor, a built-in tuning assistant, smart wind-aware profiles, a 17-rule alarm engine, trip logging, settings backups and an SD-card image of the TinyPilot, and first-class **Signal K integration** so any Signal K client can drive and monitor the autopilot out of the box.
+`signalk-pypilot-newui` enhances Sean D'Epagnier's open-source autopilot with **50 new functions**: a tablet- and phone-friendly visor, a built-in tuning assistant, smart wind-aware profiles, a 17-rule alarm engine, trip logging, settings backups and an SD-card image of the TinyPilot, and first-class **Signal K integration** so any Signal K client can drive and monitor the autopilot out of the box.
 
 Spend more time sailing and less time guessing which slider to move.
 
@@ -103,7 +103,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 ---
 
-## All features — 49 new functions on top of pypilot
+## All features — 50 new functions on top of pypilot
 
 ### Smart autopilot (15)
 
@@ -164,12 +164,13 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 ### Looking after the installation (6)
 
-44. **Setup in groups + admin PIN** — Sailing, Settings and Technical. Technical (black box, calibration, connection, pypilot advanced settings, paths, emergency, backups) can be locked with a 4-8 digit PIN of this plugin, checked by the server, unlocked 12 h per screen. Nothing is locked until a PIN is set; a forgotten PIN is cleared from the plugin config in the Signal K admin.
+44. **Setup in groups + admin PIN** — Sailing, Settings and Technical. Technical (black box, calibration, connection, pypilot advanced settings, paths, emergency, backups) can be locked with a 4-8 digit PIN of this plugin, checked by the server, unlocked 12 h per screen. The same PIN guards Tune (gains, pilot type, Tune groups) and the profile manager (new, rename, import, delete, reorder), asked on the spot; choosing a profile stays free. Nothing is locked until a PIN is set, and an *Ask for the PIN* switch turns it off (PIN kept) for a boat with only trusted crew. A forgotten PIN is cleared from the plugin config in the Signal K admin.
 45. **pypilot advanced settings** — everything pypilot's own web client shows, grouped, in this style. Values are read only for the groups you open; changes need *Allow changes*, and installation settings ask first.
 46. **Daily settings backup + restore** — every day a readable copy of all settings (plugin, pypilot, the TinyPilot's `pypilot.conf` with every profile, visor preferences) in `~/Backups-pypilot-newui/` (last 30, monthly reminder to download one; the newest also inside `~/.signalk` so whole-server backups such as signalk-backup carry it). **Restore** brings back the gains of every profile in a copy through pypilot itself, with the autopilot off; installation settings (IMU calibration above all) are never restored by the plugin.
 47. **TinyPilot SD card image** — an exact image of the card's partitions (about 1.1 GB, ~11 min, ~700 MB compressed): system, pypilot, every profile and the IMU calibration. Pick where it goes (your folder, a USB stick, a disk or network share) with a folder browser; free-space and progress bars. Write it to a new card with Raspberry Pi Imager. Only with the autopilot off.
 48. **TinyPilot clock** — the TinyPilot has no clock and runs years behind after each reboot; when pypilot connects, the plugin sets it from the Signal K server, once per boot and never with the autopilot engaged (a clock jump upsets the IMU filter).
 49. **pypilot's Signal K access** — pypilot asks for access again after every Signal K restart and, approved as read-only, Signal K silently drops its heading. The plugin approves it read/write (only from the TinyPilot's address), keeps a single pypilot device, and alarms if a request is still waiting. Captured TinyPilot logs are compressed and capped (30 days, 300 MB).
+50. **Start-up check** — when the visor opens: the logo, then the autopilot check and sensor quality in green / amber / red boxes ("All OK. Fair winds!"). Anything wrong — including a screen Signal K has not approved yet — says what happens, what to do and has a button to where it is fixed. Once per session, double tap closes, can be switched off per device.
 
 **Plus — remote recovery without SSH:** one-tap *Restart pypilot* and *Reboot Pi* buttons, and a whitelisted debug console. [Details](#remote-restart-reboot-and-consoles).
 

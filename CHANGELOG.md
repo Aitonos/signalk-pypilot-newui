@@ -1,8 +1,8 @@
 # Changelog
 
-## 3.13.1 — 2026-11-09 — Settings in the visor, new name, logo and screenshots
+## 3.14.0 — 2026-11-10 — Start-up check, PIN for Tune and profiles, settings in the visor, new name and logo
 
-Rev675-681 on top of 3.13.0.
+Rev675-683 on top of 3.13.0.
 
 ### Added
 - **Start-up screen**: the logo, then the autopilot check and a sensor
@@ -26,6 +26,15 @@ Rev675-681 on top of 3.13.0.
 ### Fixed
 - Spoken alarms and messages are said in the visor's language with a voice
   of that language; before, the device's default voice read them all.
+- Texts that stayed in English (or Spanish) whatever the visor language:
+  the autopilot check (names, readings and what to do), sensor names, the
+  Signal K access window, login errors, the "pypilot working" notice, race
+  buttons and several error messages. Now in EN / ES / DE / FR.
+- Changing the language in one tab relabels the other open tabs too, so a
+  screen no longer mixes two languages.
+- A visor left open across a plugin update reloads itself (autopilot off
+  only, once per revision) so it never runs old code against the new
+  plugin.
 - The guided tour no longer gives up on a new screen whose Signal K
   approval takes more than 2 minutes.
 

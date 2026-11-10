@@ -218,11 +218,81 @@
       "setup.precheck.refresh":    "Refresh",
       "setup.precheck.unknown":    "Checking...",
       "boot.tapToClose": "Double tap to close",
+      "pc.pypilot-connect.label": "pypilot connectivity",
+      "pc.pypilot-connect.ok": "Connected to pypilot on the TinyPilot.",
+      "pc.pypilot-connect.down": "Disconnected for {sec} s.",
+      "pc.pypilot-connect.downNoTime": "Disconnected.",
+      "pc.pypilot-connect.hint": "Power up the TinyPilot and check its address in Setup > pypilot connection (or Scan).",
+      "pc.ap-provider.label": "Signal K autopilot",
+      "pc.ap-provider.ok": "Registered as '{id}'.",
+      "pc.ap-provider.external": "External provider '{id}' active.",
+      "pc.ap-provider.none": "No autopilot registered on this Signal K server.",
+      "pc.ap-provider.hint": "Turn on 'absorb provider' in Setup > pypilot connection, or enable pypilot-autopilot-provider.",
+      "pc.navigation.headingMagnetic.label": "Heading",
+      "pc.navigation.headingMagnetic.hint": "Fix the compass / IMU source - the autopilot cannot steer without heading.",
+      "pc.navigation.attitude.label": "IMU attitude",
+      "pc.navigation.attitude.hint": "The IMU is silent - run the pypilot calibration.",
+      "pc.navigation.position.label": "GPS position",
+      "pc.navigation.position.hint": "No GPS fix - GPS / route modes will not work.",
+      "pc.navigation.speedOverGround.label": "SOG",
+      "pc.navigation.speedOverGround.hint": "The GPS publishes position but no SOG.",
+      "pc.environment.wind.angleApparent.label": "Wind sensor",
+      "pc.environment.wind.angleApparent.hint": "Wind mode will not work until the sensor publishes.",
+      "pc.sensor.age": "{age} s ago",
+      "pc.sensor.unmonitored": "Not being monitored.",
+      "pc.sensor.nodata": "No data.",
+      "pc.servo-current.label": "Servo current",
+      "pc.servo-current.ok": "Last reading {a} A.",
+      "pc.servo-current.none": "No current reading from the servo yet.",
+      "pc.servo-current.hint": "Engage the autopilot briefly - pypilot only reports current while the servo moves.",
+      "pc.servo-temp.label": "Servo temperature",
+      "pc.servo-temp.ok": "{c} °C.",
+      "pc.servo-temp.none": "No temperature reading yet.",
+      "pc.servo-temp.hint": "Let the servo cool below {limit} °C before a long leg.",
+      "pc.battery.label": "Battery voltage",
+      "pc.battery.ok": "{v} V.",
+      "pc.battery.none": "No voltage reading yet.",
+      "pc.battery.hint": "Charge or reduce load - the servo needs at least {min} V to steer reliably.",
+      "pc.servo-health.label": "Servo health",
+      "pc.servo-health.deviation": "{ratio}× its usual effort.",
+      "pc.servo-health.healthy": "Usual effort {a} A, healthy.",
+      "pc.servo-health.idle": "Idle, nothing unusual.",
+      "pc.servo-health.learning": "Learning its usual effort ({n}/{total}).",
+      "pc.servo-health.hint.high": "Servo working much harder than usual - check for a stiff rudder, cable drag, clutch or fouling.",
+      "pc.servo-health.hint.elevated": "Servo working harder than usual - inspect the rudder linkage before a long leg.",
+      "sq.name.navigation.headingMagnetic": "Heading",
+      "sq.name.navigation.attitude": "IMU attitude",
+      "sq.name.navigation.position": "GPS position",
+      "sq.name.steering.rudderAngle": "Rudder",
+      "speak.pypilotOk": "Pypilot working",
+      "tack.ofDeg": "of {deg}°",
+      "status.unreachable": "Status not reachable",
+      "pm.activeBadge": "ACTIVE",
+      "tune.was": "was:",
+      "regata.btn.start": "START",
+      "regata.btn.pause": "PAUSE",
+      "regata.btn.stop": "STOP",
+      "alert.noAwa": "No apparent wind right now - the sensor is not publishing.",
+      "alert.noProvider": "No Signal K autopilot found. Turn PyPilot New-UI off and on again in the Signal K admin so it registers.",
+      "alert.notPersisted": "Applied but not saved in pypilot.",
+      "alert.badJson": "The file is not valid.",
+      "alert.uploadFail": "Upload failed.",
+      "alert.severityFail": "Could not change the severity:",
+      "login.bothFields": "Both fields are needed.",
+      "login.failed": "Login failed",
+      "login.noToken": "Login OK but Signal K sent no token.",
+      "login.network": "Network error:",
+      "access.title": "Signal K access for this screen",
+      "access.body": "This screen is waiting for a one-time approval in Signal K so it can command the autopilot.",
+      "access.step1": "Open the Signal K admin (button below).",
+      "access.step2": "Go to",
+      "access.step3": "Approve the request from",
+      "access.open": "Open the Signal K admin",
+      "access.waiting": "Waiting for approval…",
       "boot.access.label": "This screen has no Signal K access",
       "boot.access.why": "Signal K has not approved this screen yet: it shows data but cannot steer or change settings, and the visor will say it has no connection.",
       "boot.access.fix": "Approve \"PyPilot New-UI visor\" in the Signal K admin: Security > Access Requests.",
       "boot.access.go": "Open the Signal K admin",
-      "speak.pypilotOk": "Pypilot working",
       "dash.overlay.splash.title": "Start-up screen",
       "dash.overlay.splash.needs": "Logo, autopilot check and sensor quality when the visor opens. Saved on this device.",
       "boot.fairWinds": "All OK. Fair winds!",
@@ -1515,11 +1585,81 @@
       "setup.precheck.refresh":    "Actualizar",
       "setup.precheck.unknown":    "Comprobando...",
       "boot.tapToClose": "Doble toque para cerrar",
+      "pc.pypilot-connect.label": "Conexión con pypilot",
+      "pc.pypilot-connect.ok": "Conectado a pypilot en la TinyPilot.",
+      "pc.pypilot-connect.down": "Sin conexión desde hace {sec} s.",
+      "pc.pypilot-connect.downNoTime": "Sin conexión.",
+      "pc.pypilot-connect.hint": "Enciende la TinyPilot y revisa su dirección en Setup > Conexión pypilot (o Buscar).",
+      "pc.ap-provider.label": "Piloto en Signal K",
+      "pc.ap-provider.ok": "Registrado como '{id}'.",
+      "pc.ap-provider.external": "Proveedor externo '{id}' activo.",
+      "pc.ap-provider.none": "No hay ningún piloto registrado en este servidor Signal K.",
+      "pc.ap-provider.hint": "Activa 'absorber proveedor' en Setup > Conexión pypilot, o activa pypilot-autopilot-provider.",
+      "pc.navigation.headingMagnetic.label": "Rumbo",
+      "pc.navigation.headingMagnetic.hint": "Arregla la fuente de compás / IMU: sin rumbo el piloto no puede gobernar.",
+      "pc.navigation.attitude.label": "Actitud IMU",
+      "pc.navigation.attitude.hint": "La IMU no publica: haz la calibración de pypilot.",
+      "pc.navigation.position.label": "Posición GPS",
+      "pc.navigation.position.hint": "Sin posición GPS: los modos GPS y de ruta no funcionarán.",
+      "pc.navigation.speedOverGround.label": "SOG",
+      "pc.navigation.speedOverGround.hint": "El GPS publica posición pero no SOG.",
+      "pc.environment.wind.angleApparent.label": "Sensor de viento",
+      "pc.environment.wind.angleApparent.hint": "El modo viento no funcionará hasta que el sensor publique.",
+      "pc.sensor.age": "hace {age} s",
+      "pc.sensor.unmonitored": "No se vigila.",
+      "pc.sensor.nodata": "Sin datos.",
+      "pc.servo-current.label": "Corriente del servo",
+      "pc.servo-current.ok": "Última lectura {a} A.",
+      "pc.servo-current.none": "Todavía no hay lectura de corriente del servo.",
+      "pc.servo-current.hint": "Conecta el piloto un momento: pypilot solo da la corriente cuando el servo se mueve.",
+      "pc.servo-temp.label": "Temperatura del servo",
+      "pc.servo-temp.ok": "{c} °C.",
+      "pc.servo-temp.none": "Todavía no hay lectura de temperatura.",
+      "pc.servo-temp.hint": "Deja que el servo baje de {limit} °C antes de una travesía larga.",
+      "pc.battery.label": "Tensión de batería",
+      "pc.battery.ok": "{v} V.",
+      "pc.battery.none": "Todavía no hay lectura de tensión.",
+      "pc.battery.hint": "Carga o reduce consumo: el servo necesita al menos {min} V para gobernar bien.",
+      "pc.servo-health.label": "Salud del servo",
+      "pc.servo-health.deviation": "{ratio}× su esfuerzo habitual.",
+      "pc.servo-health.healthy": "Esfuerzo habitual {a} A, sano.",
+      "pc.servo-health.idle": "En reposo, nada raro.",
+      "pc.servo-health.learning": "Aprendiendo su esfuerzo habitual ({n}/{total}).",
+      "pc.servo-health.hint.high": "El servo trabaja mucho más de lo normal: revisa timón duro, roce del cable, embrague o suciedad.",
+      "pc.servo-health.hint.elevated": "El servo trabaja más de lo normal: revisa la transmisión del timón antes de una travesía larga.",
+      "sq.name.navigation.headingMagnetic": "Rumbo",
+      "sq.name.navigation.attitude": "Actitud IMU",
+      "sq.name.navigation.position": "Posición GPS",
+      "sq.name.steering.rudderAngle": "Timón",
+      "speak.pypilotOk": "Pypilot operativo",
+      "tack.ofDeg": "de {deg}°",
+      "status.unreachable": "No se puede leer el estado",
+      "pm.activeBadge": "ACTIVO",
+      "tune.was": "antes:",
+      "regata.btn.start": "INICIAR",
+      "regata.btn.pause": "PAUSA",
+      "regata.btn.stop": "PARAR",
+      "alert.noAwa": "Sin dato de viento aparente ahora mismo: el sensor no publica.",
+      "alert.noProvider": "No hay piloto en Signal K. Apaga y enciende PyPilot New-UI en el admin de Signal K para que se registre.",
+      "alert.notPersisted": "Aplicado pero no guardado en pypilot.",
+      "alert.badJson": "El archivo no es válido.",
+      "alert.uploadFail": "No se pudo subir.",
+      "alert.severityFail": "No se pudo cambiar la severidad:",
+      "login.bothFields": "Hacen falta los dos campos.",
+      "login.failed": "No se pudo entrar",
+      "login.noToken": "Entrada correcta pero Signal K no devolvió token.",
+      "login.network": "Error de red:",
+      "access.title": "Acceso de esta pantalla a Signal K",
+      "access.body": "Esta pantalla espera una aprobación única en Signal K para poder mandar al piloto.",
+      "access.step1": "Abre el admin de Signal K (botón de abajo).",
+      "access.step2": "Ve a",
+      "access.step3": "Aprueba la solicitud de",
+      "access.open": "Abrir el admin de Signal K",
+      "access.waiting": "Esperando aprobación…",
       "boot.access.label": "Esta pantalla no tiene acceso a Signal K",
       "boot.access.why": "Signal K todavía no ha aprobado esta pantalla: ve datos pero no puede mandar al piloto ni cambiar ajustes, y el visor dirá que no hay conexión.",
       "boot.access.fix": "Aprueba \"PyPilot New-UI visor\" en el admin de Signal K: Security > Access Requests.",
       "boot.access.go": "Abrir el admin de Signal K",
-      "speak.pypilotOk": "Pypilot operativo",
       "dash.overlay.splash.title": "Pantalla de inicio",
       "dash.overlay.splash.needs": "Logo, comprobación del piloto y calidad de sensores al abrir el visor. Se guarda en este dispositivo.",
       "boot.fairWinds": "Todo OK. ¡Buena proa!",
@@ -2954,11 +3094,81 @@
       "setup.precheck.refresh": "Aktualisieren",
       "setup.precheck.unknown": "Prüfe...",
       "boot.tapToClose": "Doppeltippen zum Schließen",
+      "pc.pypilot-connect.label": "Verbindung zu pypilot",
+      "pc.pypilot-connect.ok": "Mit pypilot auf dem TinyPilot verbunden.",
+      "pc.pypilot-connect.down": "Seit {sec} s getrennt.",
+      "pc.pypilot-connect.downNoTime": "Getrennt.",
+      "pc.pypilot-connect.hint": "TinyPilot einschalten und seine Adresse in Setup > pypilot-Verbindung prüfen (oder Suchen).",
+      "pc.ap-provider.label": "Autopilot in Signal K",
+      "pc.ap-provider.ok": "Registriert als '{id}'.",
+      "pc.ap-provider.external": "Externer Anbieter '{id}' aktiv.",
+      "pc.ap-provider.none": "Kein Autopilot auf diesem Signal-K-Server registriert.",
+      "pc.ap-provider.hint": "'Anbieter übernehmen' in Setup > pypilot-Verbindung einschalten oder pypilot-autopilot-provider aktivieren.",
+      "pc.navigation.headingMagnetic.label": "Kurs",
+      "pc.navigation.headingMagnetic.hint": "Kompass- / IMU-Quelle reparieren - ohne Kurs kann der Autopilot nicht steuern.",
+      "pc.navigation.attitude.label": "IMU-Lage",
+      "pc.navigation.attitude.hint": "Die IMU sendet nichts - pypilot-Kalibrierung durchführen.",
+      "pc.navigation.position.label": "GPS-Position",
+      "pc.navigation.position.hint": "Keine GPS-Position - GPS- und Routenmodi funktionieren nicht.",
+      "pc.navigation.speedOverGround.label": "SOG",
+      "pc.navigation.speedOverGround.hint": "Das GPS sendet Position, aber keine SOG.",
+      "pc.environment.wind.angleApparent.label": "Windsensor",
+      "pc.environment.wind.angleApparent.hint": "Der Windmodus funktioniert erst, wenn der Sensor sendet.",
+      "pc.sensor.age": "vor {age} s",
+      "pc.sensor.unmonitored": "Nicht überwacht.",
+      "pc.sensor.nodata": "Keine Daten.",
+      "pc.servo-current.label": "Servostrom",
+      "pc.servo-current.ok": "Letzter Wert {a} A.",
+      "pc.servo-current.none": "Noch kein Stromwert vom Servo.",
+      "pc.servo-current.hint": "Autopilot kurz einschalten - pypilot meldet den Strom nur, wenn sich der Servo bewegt.",
+      "pc.servo-temp.label": "Servotemperatur",
+      "pc.servo-temp.ok": "{c} °C.",
+      "pc.servo-temp.none": "Noch kein Temperaturwert.",
+      "pc.servo-temp.hint": "Servo vor einem langen Schlag unter {limit} °C abkühlen lassen.",
+      "pc.battery.label": "Batteriespannung",
+      "pc.battery.ok": "{v} V.",
+      "pc.battery.none": "Noch kein Spannungswert.",
+      "pc.battery.hint": "Laden oder Last reduzieren - der Servo braucht mindestens {min} V zum sicheren Steuern.",
+      "pc.servo-health.label": "Servozustand",
+      "pc.servo-health.deviation": "{ratio}× sein üblicher Aufwand.",
+      "pc.servo-health.healthy": "Üblicher Aufwand {a} A, gesund.",
+      "pc.servo-health.idle": "In Ruhe, nichts Auffälliges.",
+      "pc.servo-health.learning": "Lernt seinen üblichen Aufwand ({n}/{total}).",
+      "pc.servo-health.hint.high": "Servo arbeitet viel mehr als üblich - schweres Ruder, Seilreibung, Kupplung oder Bewuchs prüfen.",
+      "pc.servo-health.hint.elevated": "Servo arbeitet mehr als üblich - Ruderanlenkung vor einem langen Schlag prüfen.",
+      "sq.name.navigation.headingMagnetic": "Kurs",
+      "sq.name.navigation.attitude": "IMU-Lage",
+      "sq.name.navigation.position": "GPS-Position",
+      "sq.name.steering.rudderAngle": "Ruder",
+      "speak.pypilotOk": "Pypilot bereit",
+      "tack.ofDeg": "von {deg}°",
+      "status.unreachable": "Status nicht erreichbar",
+      "pm.activeBadge": "AKTIV",
+      "tune.was": "vorher:",
+      "regata.btn.start": "START",
+      "regata.btn.pause": "PAUSE",
+      "regata.btn.stop": "STOPP",
+      "alert.noAwa": "Gerade kein scheinbarer Wind - der Sensor sendet nicht.",
+      "alert.noProvider": "Kein Signal-K-Autopilot gefunden. PyPilot New-UI im Signal-K-Admin aus- und wieder einschalten, damit er sich registriert.",
+      "alert.notPersisted": "Angewendet, aber nicht in pypilot gespeichert.",
+      "alert.badJson": "Die Datei ist ungültig.",
+      "alert.uploadFail": "Hochladen fehlgeschlagen.",
+      "alert.severityFail": "Schweregrad konnte nicht geändert werden:",
+      "login.bothFields": "Beide Felder sind nötig.",
+      "login.failed": "Anmeldung fehlgeschlagen",
+      "login.noToken": "Anmeldung OK, aber Signal K hat kein Token geschickt.",
+      "login.network": "Netzwerkfehler:",
+      "access.title": "Signal-K-Zugriff für diesen Bildschirm",
+      "access.body": "Dieser Bildschirm wartet auf eine einmalige Genehmigung in Signal K, um den Autopiloten steuern zu können.",
+      "access.step1": "Signal-K-Admin öffnen (Taste unten).",
+      "access.step2": "Gehe zu",
+      "access.step3": "Anfrage genehmigen von",
+      "access.open": "Signal-K-Admin öffnen",
+      "access.waiting": "Warte auf Genehmigung…",
       "boot.access.label": "Dieser Bildschirm hat keinen Signal-K-Zugriff",
       "boot.access.why": "Signal K hat diesen Bildschirm noch nicht genehmigt: er zeigt Daten, kann aber nicht steuern oder Einstellungen ändern, und der Visor meldet keine Verbindung.",
       "boot.access.fix": "\"PyPilot New-UI visor\" im Signal-K-Admin genehmigen: Security > Access Requests.",
       "boot.access.go": "Signal-K-Admin öffnen",
-      "speak.pypilotOk": "Pypilot bereit",
       "dash.overlay.splash.title": "Startbildschirm",
       "dash.overlay.splash.needs": "Logo, Autopilot-Check und Sensor-Qualität beim Öffnen des Visors. Auf diesem Gerät gespeichert.",
       "boot.fairWinds": "Alles OK. Mast- und Schotbruch!",
@@ -4220,11 +4430,81 @@
       "setup.precheck.refresh": "Actualiser",
       "setup.precheck.unknown": "Vérification...",
       "boot.tapToClose": "Touchez deux fois pour fermer",
+      "pc.pypilot-connect.label": "Connexion à pypilot",
+      "pc.pypilot-connect.ok": "Connecté à pypilot sur le TinyPilot.",
+      "pc.pypilot-connect.down": "Déconnecté depuis {sec} s.",
+      "pc.pypilot-connect.downNoTime": "Déconnecté.",
+      "pc.pypilot-connect.hint": "Allumez le TinyPilot et vérifiez son adresse dans Setup > Connexion pypilot (ou Rechercher).",
+      "pc.ap-provider.label": "Pilote dans Signal K",
+      "pc.ap-provider.ok": "Enregistré comme '{id}'.",
+      "pc.ap-provider.external": "Fournisseur externe '{id}' actif.",
+      "pc.ap-provider.none": "Aucun pilote enregistré sur ce serveur Signal K.",
+      "pc.ap-provider.hint": "Activez 'absorber le fournisseur' dans Setup > Connexion pypilot, ou activez pypilot-autopilot-provider.",
+      "pc.navigation.headingMagnetic.label": "Cap",
+      "pc.navigation.headingMagnetic.hint": "Réparez la source compas / IMU : sans cap le pilote ne peut pas barrer.",
+      "pc.navigation.attitude.label": "Assiette IMU",
+      "pc.navigation.attitude.hint": "L'IMU ne publie rien : faites la calibration pypilot.",
+      "pc.navigation.position.label": "Position GPS",
+      "pc.navigation.position.hint": "Pas de position GPS : les modes GPS et route ne fonctionneront pas.",
+      "pc.navigation.speedOverGround.label": "SOG",
+      "pc.navigation.speedOverGround.hint": "Le GPS publie la position mais pas la SOG.",
+      "pc.environment.wind.angleApparent.label": "Capteur de vent",
+      "pc.environment.wind.angleApparent.hint": "Le mode vent ne fonctionnera pas tant que le capteur ne publie pas.",
+      "pc.sensor.age": "il y a {age} s",
+      "pc.sensor.unmonitored": "Non surveillé.",
+      "pc.sensor.nodata": "Pas de données.",
+      "pc.servo-current.label": "Courant du servo",
+      "pc.servo-current.ok": "Dernière mesure {a} A.",
+      "pc.servo-current.none": "Pas encore de mesure de courant du servo.",
+      "pc.servo-current.hint": "Embrayez le pilote un instant : pypilot ne donne le courant que quand le servo bouge.",
+      "pc.servo-temp.label": "Température du servo",
+      "pc.servo-temp.ok": "{c} °C.",
+      "pc.servo-temp.none": "Pas encore de mesure de température.",
+      "pc.servo-temp.hint": "Laissez le servo descendre sous {limit} °C avant une longue traversée.",
+      "pc.battery.label": "Tension batterie",
+      "pc.battery.ok": "{v} V.",
+      "pc.battery.none": "Pas encore de mesure de tension.",
+      "pc.battery.hint": "Chargez ou réduisez la consommation : le servo a besoin d'au moins {min} V pour barrer correctement.",
+      "pc.servo-health.label": "Santé du servo",
+      "pc.servo-health.deviation": "{ratio}× son effort habituel.",
+      "pc.servo-health.healthy": "Effort habituel {a} A, sain.",
+      "pc.servo-health.idle": "Au repos, rien d'anormal.",
+      "pc.servo-health.learning": "Apprend son effort habituel ({n}/{total}).",
+      "pc.servo-health.hint.high": "Le servo force beaucoup plus que d'habitude : vérifiez safran dur, frottement du câble, embrayage ou salissures.",
+      "pc.servo-health.hint.elevated": "Le servo force plus que d'habitude : vérifiez la transmission du safran avant une longue traversée.",
+      "sq.name.navigation.headingMagnetic": "Cap",
+      "sq.name.navigation.attitude": "Assiette IMU",
+      "sq.name.navigation.position": "Position GPS",
+      "sq.name.steering.rudderAngle": "Safran",
+      "speak.pypilotOk": "Pypilot opérationnel",
+      "tack.ofDeg": "sur {deg}°",
+      "status.unreachable": "État inaccessible",
+      "pm.activeBadge": "ACTIF",
+      "tune.was": "avant :",
+      "regata.btn.start": "DÉPART",
+      "regata.btn.pause": "PAUSE",
+      "regata.btn.stop": "STOP",
+      "alert.noAwa": "Pas de vent apparent pour l'instant : le capteur ne publie pas.",
+      "alert.noProvider": "Aucun pilote Signal K trouvé. Désactivez puis réactivez PyPilot New-UI dans l'admin Signal K pour qu'il s'enregistre.",
+      "alert.notPersisted": "Appliqué mais pas enregistré dans pypilot.",
+      "alert.badJson": "Le fichier n'est pas valide.",
+      "alert.uploadFail": "Échec de l'envoi.",
+      "alert.severityFail": "Impossible de changer la gravité :",
+      "login.bothFields": "Les deux champs sont nécessaires.",
+      "login.failed": "Connexion échouée",
+      "login.noToken": "Connexion OK mais Signal K n'a pas envoyé de jeton.",
+      "login.network": "Erreur réseau :",
+      "access.title": "Accès de cet écran à Signal K",
+      "access.body": "Cet écran attend une approbation unique dans Signal K pour pouvoir commander le pilote.",
+      "access.step1": "Ouvrez l'admin Signal K (bouton ci-dessous).",
+      "access.step2": "Allez dans",
+      "access.step3": "Approuvez la demande de",
+      "access.open": "Ouvrir l'admin Signal K",
+      "access.waiting": "En attente d'approbation…",
       "boot.access.label": "Cet écran n'a pas accès à Signal K",
       "boot.access.why": "Signal K n'a pas encore approuvé cet écran : il affiche les données mais ne peut ni barrer ni changer les réglages, et le visor dira qu'il n'y a pas de connexion.",
       "boot.access.fix": "Approuvez \"PyPilot New-UI visor\" dans l'admin Signal K : Security > Access Requests.",
       "boot.access.go": "Ouvrir l'admin Signal K",
-      "speak.pypilotOk": "Pypilot opérationnel",
       "dash.overlay.splash.title": "Écran de démarrage",
       "dash.overlay.splash.needs": "Logo, vérification du pilote et qualité des capteurs à l'ouverture du visor. Enregistré sur cet appareil.",
       "boot.fairWinds": "Tout est OK. Bon vent !",
@@ -5176,6 +5456,17 @@
     // helps and Aproado HUD keep the language they had at last fill.
     if (typeof _relabelDynamicUI === "function") _relabelDynamicUI();
   }
+  // Rev683 (Carlos: texts in two languages at once): the language is shared
+  // by every tab of this browser. A change in another tab now relabels this
+  // one too, instead of leaving the old fixed texts next to new messages.
+  window.addEventListener("storage", (ev) => {
+    if (ev.key !== LANG_KEY) return;
+    try {
+      applyI18n();
+      if (typeof _refreshSetupBadges === "function") _refreshSetupBadges();
+      if (typeof _relabelDynamicUI === "function") _relabelDynamicUI();
+    } catch { /* silent */ }
+  });
   // Rev575 (GPT audit A07): wrap degrees to [-180, 180] in constant time.
   // The old while loops never ended for Infinity or a huge value and
   // would freeze the visor. NaN for non-finite input.
@@ -9250,7 +9541,7 @@
         el = document.createElement("div");
         el.id = "pypilot-reconnect-toast";
         el.className = "pypilot-reconnect-toast";
-        el.textContent = "Pypilot operativo";
+        el.textContent = t("speak.pypilotOk");
         document.body.appendChild(el);
       }
       el.classList.add("show");
@@ -9906,7 +10197,7 @@
           const degLine = document.getElementById("tack-countdown-deg");
           if (degLine) {
             if (vt && vt.active && typeof vt.totalDeg === "number" && vt.totalDeg > 0 && !inSettling) {
-              degLine.textContent = `de ${Math.round(vt.totalDeg)}°`;
+              degLine.textContent = t("tack.ofDeg").replace("{deg}", String(Math.round(vt.totalDeg)));
               degLine.style.display = "";
             } else {
               degLine.style.display = "none";
@@ -10075,7 +10366,7 @@
       }
       if (deg) {
         const total = _tackCountdownDegTotal();
-        if (total != null) { deg.textContent = `de ${total}°`; deg.style.display = ""; }
+        if (total != null) { deg.textContent = t("tack.ofDeg").replace("{deg}", String(total)); deg.style.display = ""; }
         else deg.style.display = "none";
       }
       // Rev246 (audit): completion = ARRIVAL AT PLAN, not "turned 70 deg
@@ -11018,7 +11309,7 @@
     const awsKn = typeof state.windSpeed === "number" ? state.windSpeed * 1.94384 : null;
     const awaRad = typeof state.windAngle === "number" ? state.windAngle : null;
     if (awsKn == null || awaRad == null) {
-      alert("Sin dato de viento aparente ahora mismo — el sensor no publica.");
+      alert(t("alert.noAwa"));
       return;
     }
     _gustGhostLastTs = 0;
@@ -13028,15 +13319,15 @@
       m.id = "access-request-modal";
       m.innerHTML = `
         <div class="modal-card">
-          <h3>Signal K device access</h3>
-          <p>This visor is waiting for one-time approval from your Signal K admin so it can send commands to the autopilot.</p>
+          <h3 data-i18n="access.title">${t("access.title")}</h3>
+          <p data-i18n="access.body">${t("access.body")}</p>
           <ol style="margin:0 0 8px 20px;font-size:13px;color:var(--fg-dim);line-height:1.5">
-            <li>Open the SK admin panel (link below).</li>
-            <li>Go to <b>Security → Access Requests</b>.</li>
-            <li>Approve the pending request from <b>PyPilot New-UI visor</b>.</li>
+            <li data-i18n="access.step1">${t("access.step1")}</li>
+            <li>${t("access.step2")} <b>Security → Access Requests</b>.</li>
+            <li>${t("access.step3")} <b>PyPilot New-UI visor</b>.</li>
           </ol>
-          <a id="access-request-admin-link" class="primary" style="text-decoration:none;text-align:center;padding:10px 12px;border-radius:8px;display:block" target="_blank">Open SK admin</a>
-          <div id="access-request-status" style="font-size:12px;color:var(--fg-dim);margin-top:6px;text-align:center">Waiting for approval…</div>
+          <a id="access-request-admin-link" class="primary" style="text-decoration:none;text-align:center;padding:10px 12px;border-radius:8px;display:block" target="_blank" data-i18n="access.open">${t("access.open")}</a>
+          <div id="access-request-status" style="font-size:12px;color:var(--fg-dim);margin-top:6px;text-align:center">${t("access.waiting")}</div>
         </div>`;
       document.body.appendChild(m);
       const link = m.querySelector("#access-request-admin-link");
@@ -13096,7 +13387,7 @@
     const u = $("#login-user").value.trim();
     const p = $("#login-pass").value;
     const err = $("#login-error");
-    if (!u || !p) { if (err) err.textContent = "Both fields required"; return; }
+    if (!u || !p) { if (err) err.textContent = t("login.bothFields"); return; }
     try {
       const r = await fetch("/signalk/v1/auth/login", {
         method: "POST",
@@ -13106,7 +13397,7 @@
       });
       if (!r.ok) {
         const txt = await r.text().catch(() => "");
-        if (err) err.textContent = `Login failed (${r.status}) ${txt}`;
+        if (err) err.textContent = `${t("login.failed")} (${r.status}) ${txt}`;
         return;
       }
       const j = await r.json();
@@ -13115,10 +13406,10 @@
         closeLoginModal();
         console.info("[pypilot-newui] JWT saved, writes should work now");
       } else {
-        if (err) err.textContent = "Login OK but no token in response";
+        if (err) err.textContent = t("login.noToken");
       }
     } catch (e) {
-      if (err) err.textContent = "Network error: " + e;
+      if (err) err.textContent = t("login.network") + " " + e;
     }
   }
 
@@ -13178,7 +13469,7 @@
   async function ensureAutopilotId() {
     if (!state.autopilotId) await discoverAutopilot();
     if (!state.autopilotId) {
-      alert("No SK autopilot provider detected. Enable 'PyPilot New-UI' in SK Admin (or disable then re-enable it) so the provider registers.");
+      alert(t("alert.noProvider"));
       return false;
     }
     return true;
@@ -16503,7 +16794,7 @@
           const j = await r.json();
           if (j.persisted === false) {
             console.warn("publish hot-apply not persisted:", j.warning);
-            alert("Change applied in memory but not persisted. Warning: " + (j.warning || "unknown"));
+            alert(t("alert.notPersisted") + " " + (j.warning || ""));
           }
         } catch (e) {
           console.warn("publish hot-apply failed", e);
@@ -16568,7 +16859,7 @@
       if (j.host) {
         const a = $("#link-oldui-a");
         a.href = `http://${j.host}:${j.port}/`;
-        a.textContent = `Classic pypilot UI ${j.host}:${j.port}`;
+        a.textContent = t("info.classic.link").replace("{host}", j.host).replace("{port}", String(j.port));
       }
       // Rev59: also feed the Info tab header (visible version + link to
       // the classic pypilot_web UI on the TinyPilot).
@@ -16591,7 +16882,7 @@
       // the Setup card status badges so they show the fresh values.
       _refreshSetupBadges();
     } catch (e) {
-      $("#setup-status").textContent = "status endpoint unreachable";
+      $("#setup-status").textContent = t("status.unreachable");
     }
     try {
       const res2 = await fetch(`/plugins/${PLUGIN_ID}/catalog`, { credentials: "include" });
@@ -17216,15 +17507,15 @@
           if (!f) return;
           const txt = await f.text();
           let j;
-          try { j = JSON.parse(txt); } catch { alert("Bad JSON"); return; }
-          if (!j.sessionId) { alert("Advice missing sessionId"); return; }
+          try { j = JSON.parse(txt); } catch { alert(t("alert.badJson")); return; }
+          if (!j.sessionId) { alert(t("alert.badJson")); return; }
           const r = await skFetch(`/plugins/${PLUGIN_ID}/session-recorder/advice`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(j),
           });
           if (r.ok) { close(); _sessOpenAdviceModal(); }
-          else alert("Upload failed");
+          else alert(t("alert.uploadFail"));
         };
         inp.click();
       } },
@@ -20455,7 +20746,7 @@
       if (name === state.profile) {
         const b = document.createElement("span");
         b.className = "pm-badge";
-        b.textContent = "ACTIVO";
+        b.textContent = t("pm.activeBadge");
         li.appendChild(b);
       }
       _pmWireDrag(li, handle);
@@ -21064,7 +21355,7 @@
           const now = Number(rng && rng.value);
           if (Number.isFinite(now) && baselineEl) {
             baselineEl.dataset.baseline = String(now);
-            baselineEl.textContent = "was: " + now.toFixed(decimals);
+            baselineEl.textContent = t("tune.was") + " " + now.toFixed(decimals);
             baselineEl.hidden = false;
           }
           // Rev134 (Carlos): also seed the Tune baseline map with the
@@ -21373,7 +21664,7 @@
           : "Legacy mode: all paths publish unless explicitly unticked.");
         setTimeout(() => refreshPaths(), 2500);
       } catch (e) {
-        alert("Config save failed: " + e);
+        alert(t("alert.saveFail") + " " + e);
         oeCb.checked = !newVal;
       }
     });
@@ -21526,9 +21817,9 @@
     const btn = $("#regata-timer-btn");
     if (btn) {
       btn.classList.remove("pause", "stop");
-      if (regata.state === "idle" || regata.state === "paused") btn.textContent = "START";
-      else if (regata.state === "running") { btn.textContent = "PAUSE"; btn.classList.add("pause"); }
-      else if (regata.state === "race") { btn.textContent = "STOP"; btn.classList.add("stop"); }
+      if (regata.state === "idle" || regata.state === "paused") btn.textContent = t("regata.btn.start");
+      else if (regata.state === "running") { btn.textContent = t("regata.btn.pause"); btn.classList.add("pause"); }
+      else if (regata.state === "race") { btn.textContent = t("regata.btn.stop"); btn.classList.add("stop"); }
     }
   }
   // Rev39: render the always-visible timer HUD (top-right of viewport).
@@ -22199,6 +22490,39 @@
     if (v === "do-not-engage") return t("setup.precheck.verdict.fail");
     return t("setup.precheck.unknown");
   }
+  // Rev683 (Carlos: "Autopilot not reachable" / texts in English with the
+  // visor in Spanish): the backend sends English plus a code; the visor
+  // translates (pc.<id>.label, pc.<id>.<code>, pc.<id>.hint[.<hintCode>]),
+  // and keeps the English text when a key is missing.
+  function _tr(key, params, fallback) {
+    const v = t(key);
+    if (v === key) return fallback;
+    let out = v;
+    for (const [k, val] of Object.entries(params || {})) out = out.split("{" + k + "}").join(String(val));
+    return out;
+  }
+  function _pcText(it) {
+    const p = it.params || {};
+    const label = _tr(`pc.${it.id}.label`, p, it.label);
+    let detail = it.detail;
+    if (it.code === "sensor") {
+      const bits = [];
+      if (p.age != null) bits.push(_tr("pc.sensor.age", p, `age ${p.age}s`));
+      if (p.hz != null) bits.push(`${p.hz} Hz`);
+      if (p.source) bits.push(String(p.source));
+      detail = bits.join(" · ") || detail;
+    } else if (it.code === "unmonitored" || it.code === "nodata") {
+      detail = _tr(`pc.sensor.${it.code}`, p, detail);
+    } else if (it.code) {
+      detail = _tr(`pc.${it.id}.${it.code}`, p, detail);
+    }
+    const hint = it.hint ? _tr(`pc.${it.id}.hint${it.hintCode ? "." + it.hintCode : ""}`, p, it.hint) : it.hint;
+    return { label, detail, hint };
+  }
+  // Sensor names of the quality table (abbreviations stay as they are).
+  function _sqLabel(r) {
+    return _tr(`sq.name.${r.path}`, {}, r.label || r.path);
+  }
   function _pcItemIcon(s) {
     return s === "pass" ? "✓" : s === "warn" ? "!" : s === "fail" ? "✕" : "?";
   }
@@ -22227,18 +22551,19 @@
       icon.textContent = _pcItemIcon(it.status);
       const body = document.createElement("div");
       body.className = "pc-item-body";
+      const tx = _pcText(it);
       const lab2 = document.createElement("div");
       lab2.className = "pc-item-label";
-      lab2.textContent = it.label;
+      lab2.textContent = tx.label;
       const det = document.createElement("div");
       det.className = "pc-item-detail";
-      det.textContent = it.detail;
+      det.textContent = tx.detail;
       body.appendChild(lab2);
       body.appendChild(det);
-      if (it.hint) {
+      if (tx.hint) {
         const hint = document.createElement("div");
         hint.className = "pc-item-hint";
-        hint.textContent = it.hint;
+        hint.textContent = tx.hint;
         body.appendChild(hint);
       }
       const st = document.createElement("div");
@@ -22412,7 +22737,8 @@
       const items = (snap.items || []).filter((it) => !String(it.id).includes("."));
       const bad = items.filter((it) => it.status === "fail").concat(items.filter((it) => it.status === "warn"));
       for (const it of bad) {
-        const row = problemRow(it.status, it.label, it.detail, it.hint, _bootBlockFor(it.id));
+        const tx = it.id === "visor-access" ? it : _pcText(it);
+        const row = problemRow(it.status, tx.label, tx.detail, tx.hint, _bootBlockFor(it.id));
         if (it.id === "visor-access") {
           // The fix is in the Signal K admin, not in a Setup card.
           const go = row.querySelector(".boot-go");
@@ -22451,7 +22777,7 @@
         const age = typeof r.ageMs === "number" ? Math.round(r.ageMs / 1000) : null;
         const k = _BOOT_SQ_TEXT[lvl];
         const explain = t(k[0]).replace("{age}", age == null ? "?" : String(age)) + (r.source ? ` (${r.source})` : "");
-        box.appendChild(problemRow(isWarn(r) ? "warn" : "fail", r.label || r.path, explain, t(k[1]), "quality"));
+        box.appendChild(problemRow(isWarn(r) ? "warn" : "fail", _sqLabel(r), explain, t(k[1]), "quality"));
       }
       if (bad.length) hold();
     };
@@ -22802,7 +23128,7 @@
         } catch (err) {
           console.warn("[alarm severity] POST failed:", err);
           sevSel.value = prev;
-          try { alert("No se pudo cambiar la severidad: " + (err && err.message ? err.message : err)); } catch { /* silent */ }
+          try { alert(t("alert.severityFail") + " " + (err && err.message ? err.message : err)); } catch { /* silent */ }
         }
       });
       row.appendChild(toggle);
@@ -23053,7 +23379,7 @@
       const lvlT   = t(lvlKey);
       const lvlLbl = (lvlT === lvlKey) ? displayLevel.toUpperCase() : lvlT;
       const cells = [
-        r.label || r.path,
+        _sqLabel(r),
         _sqFormatValue(r.lastValue),
         _sqFormatAge(r.ageMs),
         _sqFormatHz(r.hz),
@@ -24818,6 +25144,22 @@
         const r = await fetch(`/plugins/${PLUGIN_ID}/status`, { credentials: "include" });
         if (!r.ok) return;
         const j = await r.json();
+        // Rev682: a visor left open across a plugin update runs the old code
+        // (e.g. its downwind gain writes lack the mark Rev678 added, so the
+        // server refuses them once a PIN is set). Reload on a new revision,
+        // only with the autopilot off - never under the sailor's hands.
+        try {
+          const mine = (document.querySelector('script[src*="app.js"]')?.src.match(/v=(Rev\d+)/) || [])[1];
+          // Once per revision: a cached old page must not reload in a loop.
+          let done = "";
+          try { done = sessionStorage.getItem("pypilot-newui.reloadedFor") || ""; } catch { /* silent */ }
+          if (mine && j.revision && j.revision !== mine && state.engaged === false && done !== j.revision) {
+            try { sessionStorage.setItem("pypilot-newui.reloadedFor", j.revision); } catch { /* silent */ }
+            console.info(`[visor] plugin ${j.revision}, this page ${mine}: reloading`);
+            location.reload();
+            return;
+          }
+        } catch { /* silent */ }
         if (typeof j.healthy !== "boolean") return;
         const prev = state.pypilotHealthy;
         state.pypilotHealthy = j.healthy;
