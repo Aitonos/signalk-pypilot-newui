@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+Rev684 on top of 3.14.0 (forum feedback).
+
+### Added
+- **Prepared heading**: with the autopilot off, in compass or GPS mode, the
+  +-1 / +-10 buttons add up from the heading at the first tap (at 290°,
+  three times -10 = 260°). The target diamond blinks red, see-through, and
+  TGT shows "260° -30"; pressing AP engages straight to that heading.
+  Cleared on engage, on a mode change or after 60 s without a tap.
+
+### Changed
+- Tune: gain names and explanations white on black and larger (13 px,
+  was 11 px grey).
+- Tab bar text a little larger (14 px portrait, 13 px landscape).
+
 ## 3.14.0 — 2026-11-10 — Start-up check, PIN for Tune and profiles, settings in the visor, new name and logo
 
 Rev675-683 on top of 3.13.0.

@@ -6844,7 +6844,15 @@
     // desengaged O cuando perdimos conexión con pypilot. Sin el
     // guard de healthy, un corte con AP engaged mantenía visible
     // el último target aunque el sistema ya no puede refrescarlo.
-    tgt:   { label: "TGT", read: () => (!state.engaged || state.pypilotHealthy === false || state.target == null) ? "---" : Math.round(state.target * RAD2DEG) + "°" },
+    tgt:   { label: "TGT", read: () => {
+      // Rev684: prepared heading with the pilot off ("322° +30").
+      const pr = state.engaged ? null : _preparedRad();
+      if (pr != null && _prepared) {
+        const s = Math.round(_prepared.sumDeg);
+        return `${(Math.round(pr * RAD2DEG) + 360) % 360}° ${s > 0 ? "+" : ""}${s}`;
+      }
+      return (!state.engaged || state.pypilotHealthy === false || state.target == null) ? "---" : Math.round(state.target * RAD2DEG) + "°";
+    } },
     depth: { label: "DEPTH", read: () => state.depth == null ? "---" : state.depth.toFixed(1) + " m" },
     mode:  { label: "MODE",  read: () => String(state.mode || "---") },
     // Rev58: polar-performance-plugin (opt-in per user via popup toggle).
@@ -9410,6 +9418,41 @@
   // (target - heading), which is where the target lies relative to the
   // boat bow. Wind modes: target IS a wind angle (already boat-frame),
   // so rotate by target directly.
+  // Rev684 (forum, Moeritsen; Carlos): "prepared heading". With the
+  // autopilot off, in compass / GPS mode, the +-1 / +-10 buttons add up
+  // from the heading at the first tap - like pypilot's own web page - so
+  // the sailor sees where the pilot will go before engaging. The diamond
+  // blinks red, semi-transparent; TGT shows "322° +30". Engaging takes it
+  // as the target. Cleared on engage, on a mode change or after 60 s idle.
+  // Wind and NAV modes are left as they were (the sign of a turn in
+  // wind depends on the tack; not guessed with the pilot off).
+  const PREPARED_IDLE_MS = 60000;
+  let _prepared = null;   // { baseRad, sumDeg, mode, lastTs }
+  let _preparedTimer = null;
+  function _preparedModeOk(m) { const s = String(m || "").toLowerCase(); return s === "compass" || s === "gps"; }
+  function _preparedClear() {
+    _prepared = null;
+    if (_preparedTimer) { clearTimeout(_preparedTimer); _preparedTimer = null; }
+  }
+  function _preparedRad() {
+    if (!_prepared) return null;
+    if (state.engaged || Date.now() - _prepared.lastTs > PREPARED_IDLE_MS
+        || String(state.mode || "") !== _prepared.mode) { _preparedClear(); return null; }
+    const twoPi = 2 * Math.PI;
+    return (((_prepared.baseRad + _prepared.sumDeg / RAD2DEG) % twoPi) + twoPi) % twoPi;
+  }
+  function _preparedNudge(deltaDeg) {
+    if (state.engaged || !_preparedModeOk(state.mode) || typeof state.heading !== "number") return false;
+    if (!_prepared || _preparedRad() == null) {
+      _prepared = { baseRad: state.heading, sumDeg: 0, mode: String(state.mode || ""), lastTs: 0 };
+    }
+    _prepared.sumDeg += deltaDeg;
+    _prepared.lastTs = Date.now();
+    if (_preparedTimer) clearTimeout(_preparedTimer);
+    _preparedTimer = setTimeout(() => { _preparedClear(); try { renderTargetArrow(); scheduleRenderControl(); } catch { /* silent */ } }, PREPARED_IDLE_MS + 50);
+    try { renderTargetArrow(); scheduleRenderControl(); } catch { /* silent */ }
+    return true;
+  }
   function renderTargetArrow() {
     const g = document.getElementById("rose-target-arrow");
     const raya = document.getElementById("rose-raya");
@@ -9440,6 +9483,19 @@
     // conexión con pypilot. Aunque state.engaged siga true (no llega
     // el delta de disengage porque el socket cayó), el target ya no
     // se refresca y quedarse pintándolo miente al sailor.
+    // Rev684: prepared heading with the pilot off - red, blinking, see-through.
+    const prepRad = _preparedRad();
+    g.classList.toggle("prepared-blink", prepRad != null && !state.engaged);
+    if (!state.engaged && prepRad != null && state.pypilotHealthy !== false && typeof state.heading === "number") {
+      let d = _wrap180((prepRad - state.heading) * RAD2DEG);
+      if (d === -180) d = 180;
+      _setAttr(g, "transform", `rotate(${d.toFixed(1)})`);
+      _setDisplay(g, "");
+      const pPath = g.querySelector("path");
+      if (pPath) { pPath.setAttribute("fill", "#ff3b30"); pPath.setAttribute("stroke", "#a82420"); }
+      if (raya) raya.style.display = "none";
+      return;
+    }
     if (!state.engaged || state.pypilotHealthy === false || targetRad == null) {
       g.style.display = "none";
       if (raya) raya.style.display = "none";
@@ -15115,6 +15171,7 @@
         const now = Date.now();
         if (!state.engaged) {
           b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
+          _preparedNudge(nudge);   // Rev684: compass / GPS only; otherwise nothing, as before
           return;
         }
         // Rev354 (Carlos, 2026-09-30, QA Rev353): if the current
@@ -15314,7 +15371,10 @@
       const modeStrEng = String(state.mode || "").toLowerCase();
       const isWindEng = modeStrEng.includes("wind");
       const isTrueWindEng = isWindEng && modeStrEng.includes("true");
-      const capturedTarget = isWindEng
+      // Rev684: a prepared heading (pilot off, compass / GPS) is the target.
+      const preparedEng = (!state.engaged && !isWindEng) ? _preparedRad() : null;
+      if (preparedEng != null) _mtLog("other", { via: "preparedHeading", deg: (preparedEng * RAD2DEG).toFixed(1), sumDeg: _prepared && _prepared.sumDeg });
+      const capturedTarget = preparedEng != null ? preparedEng : isWindEng
         ? (isTrueWindEng ? state.windAngleTrue : state.windAngle)
         : state.heading;
       // Optimistic: flip the visual state AND the target reference before
@@ -15364,6 +15424,7 @@
             capturedTarget != null ? _apRetry(() => apSetTargetRad(capturedTarget)) : Promise.resolve({ ok: true }),
           ]);
           ok = !!(rEng && rEng.ok);
+          if (ok) _preparedClear();   // Rev684: used
           if (rTgt && rTgt.ok && capturedTarget != null) renderControl();
         }
       } catch (_) { ok = false; }

@@ -225,7 +225,8 @@ body.nav-hidden nav#tabbar {
 @media (orientation: landscape) {
   .tab-btn {
     padding: 4px 4px;
-    font-size: 12px;
+    /* Rev684 (forum, Moeritsen): 12 -> 13 px, a little more readable. */
+    font-size: 13px;
     letter-spacing: 0.2px;
     border-bottom-width: 2px;
   }
@@ -235,7 +236,7 @@ body.nav-hidden nav#tabbar {
 @media (orientation: portrait) {
   .tab-btn {
     padding: 7px 3px;
-    font-size: 13px;
+    font-size: 14px;   /* Rev684: 13 -> 14 px */
     border-bottom-width: 2px;
   }
 }
@@ -537,6 +538,14 @@ main {
 }
 #rose-target-arrow.tack-target-blink {
   animation: tack-target-blink 0.6s ease-in-out infinite;
+}
+/* Rev684: prepared heading with the pilot off - red, see-through, blinking. */
+@keyframes prepared-blink {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 0.15; }
+}
+#rose-target-arrow.prepared-blink {
+  animation: prepared-blink 1s ease-in-out infinite;
 }
 /* Rev171 (Carlos): boat sprite glow while the post-tack stats HUD
    is visible so the skipper spots the summary panel at a glance. */
@@ -1756,7 +1765,8 @@ hr.tune-separator {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background: var(--bg-2);
+  /* Rev684 (forum, Moeritsen: low contrast in Tune): white on black. */
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 10px;
@@ -1769,9 +1779,9 @@ hr.tune-separator {
   min-width: 0;
 }
 .gain-row .name {
-  color: var(--fg-dim);
+  color: var(--fg);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4089,9 +4099,9 @@ body.setup-fullscreen-active #tabbar {
   align-items: center;
   gap: 6px;
   padding: 2px 4px 4px 8px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--fg-dim);
+  font-size: 13px;   /* Rev684: 11 -> 13 px, white (was dim grey) */
+  line-height: 1.4;
+  color: var(--fg);
 }
 .gain-help-short { flex: 1 1 auto; }
 .gain-help-btn {
@@ -4114,7 +4124,7 @@ body.setup-fullscreen-active #tabbar {
 }
 .gain-help-long {
   padding: 4px 8px 6px 8px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.4;
   color: var(--fg);
   background: rgba(255, 255, 255, 0.03);
