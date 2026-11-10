@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Rev694 on top of 3.15.1.
+
+### Fixed
+- The plugin icon was blank in the Signal K admin Webapps page and, without
+  internet, in the App Store: `signalk.appIcon` is relative to the served
+  folder (public/), so it is now `./icon-256.png` (was `./public/...`,
+  which the server asked for as /signalk-pypilot-newui/public/icon-256.png -> 404).
+
 ## 3.15.1 — 2026-11-11 — New logo, forum link
 
 Rev692-693 on top of 3.15.0. No change in behaviour.

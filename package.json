@@ -56,7 +56,7 @@
   },
   "signalk-plugin-enabled-by-default": true,
   "signalk": {
-    "appIcon": "./public/icon-256.png",
+    "appIcon": "./icon-256.png",
     "displayName": "PyPilot New-UI",
     "webapp": "./public",
     "recommends": [
