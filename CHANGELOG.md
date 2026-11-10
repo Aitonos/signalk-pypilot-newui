@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Rev692 on top of 3.15.0.
+
+### Changed
+- New logo: rounded square with an outline (App Store icon, the visor's
+  browser and home-screen icon, start-up screen, README header); corners
+  transparent so it sits cleanly on dark backgrounds.
+- README links to the PyPilot New-UI thread on the OpenMarine forum.
+
 ## 3.15.0 — 2026-11-11 — Prepared heading, larger and clearer text
 
 Rev684-691 on top of 3.14.0 (forum feedback).

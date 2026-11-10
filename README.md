@@ -8,6 +8,8 @@
 
 Spend more time sailing and less time guessing which slider to move.
 
+Questions, ideas and sailing reports: **[PyPilot New-UI thread on the OpenMarine forum](https://forum.openmarine.net/showthread.php?tid=7074)**.
+
 ![Control - compass rose with the apparent and true wind arrows, the controls and the live chart](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/01-control-rose.jpg)
 
 ---
@@ -322,7 +324,9 @@ The plugin exposes more (trips, AIS, watch, supervisor, recorders…) — see `s
 
 ## Support & feedback
 
-Found a bug or have an idea? Open an issue on [GitHub](https://github.com/Aitonos/signalk-pypilot-newui/issues). Please include the Rev (in the app under **Info** → top header, or via `GET /plugins/signalk-pypilot-newui/status`), what you expected, what happened, and a screenshot if possible.
+Questions, ideas and experiences from other boats: the [PyPilot New-UI thread on the OpenMarine forum](https://forum.openmarine.net/showthread.php?tid=7074).
+
+Found a bug? Use **Feedback** in the visor's Info tab, or open an issue on [GitHub](https://github.com/Aitonos/signalk-pypilot-newui/issues). Please include the Rev (in the app under **Info** → top header, or via `GET /plugins/signalk-pypilot-newui/status`), what you expected, what happened, and a screenshot if possible.
 
 ## Development
 
