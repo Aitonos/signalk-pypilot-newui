@@ -7,14 +7,14 @@ import { sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop, 
 describe("folder browser bounds (Rev673)", () => {
   it("home, /media and /mnt only - never system folders", () => {
     const { isAllowedFolder } = require("../tinypilot-sd");
-    assert.ok(isAllowedFolder("/home/pi", "/home/pi"));
-    assert.ok(isAllowedFolder("/home/pi/Backups", "/home/pi"));
-    assert.ok(isAllowedFolder("/media/pi/KINGSTON USB", "/home/pi"));
-    assert.ok(isAllowedFolder("/mnt/nas/boat/", "/home/pi"));
-    assert.ok(!isAllowedFolder("/etc", "/home/pi"));
-    assert.ok(!isAllowedFolder("/home/pirate", "/home/pi"), "a prefix is not a parent");
-    assert.ok(!isAllowedFolder("/", "/home/pi"));
-    assert.ok(!isAllowedFolder("relative/path", "/home/pi"));
+    assert.ok(isAllowedFolder("/srv/crew", "/srv/crew"));
+    assert.ok(isAllowedFolder("/srv/crew/Backups", "/srv/crew"));
+    assert.ok(isAllowedFolder("/media/pi/KINGSTON USB", "/srv/crew"));
+    assert.ok(isAllowedFolder("/mnt/nas/boat/", "/srv/crew"));
+    assert.ok(!isAllowedFolder("/etc", "/srv/crew"));
+    assert.ok(!isAllowedFolder("/srv/crewman", "/srv/crew"), "a prefix is not a parent");
+    assert.ok(!isAllowedFolder("/", "/srv/crew"));
+    assert.ok(!isAllowedFolder("relative/path", "/srv/crew"));
   });
 });
 
@@ -28,7 +28,7 @@ describe("SD image destinations (Rev672)", () => {
       "tmpfs /mnt/ram tmpfs rw 0 0",
       "/dev/sda2 /boot/firmware vfat rw 0 0",
     ].join("\n");
-    const d = sdDestinations(mounts, "/home/pi/Backups-pypilot-newui", "/home/pi");
+    const d = sdDestinations(mounts, "/srv/crew/Backups-pypilot-newui", "/srv/crew");
     assert.deepEqual(d.map((x) => x.id), ["default", "/media/pi/KINGSTON USB", "/mnt/nas"]);
     assert.equal(d[1].dir, "/media/pi/KINGSTON USB/Backups-pypilot-newui");
   });

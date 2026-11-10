@@ -26,7 +26,7 @@ describe("settings backup (Rev650)", () => {
     assert.equal(dayName(new Date(2026, 10, 7)), "pypilot-newui-2026-11-07.json");
     assert.ok(isBackupName("pypilot-newui-2026-11-07.json"));
     assert.ok(!isBackupName("../../etc/passwd"));
-    assert.equal(path.basename(backupDir("/home/pi")), "Backups-pypilot-newui");
+    assert.equal(path.basename(backupDir("/srv/crew")), "Backups-pypilot-newui");
   });
 
   it("the SSH password never reaches a backup or the config export", () => {
