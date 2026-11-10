@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Rev684-685 on top of 3.14.0 (forum feedback).
+Rev684-688 on top of 3.14.0 (forum feedback).
 
 ### Added
 - **Prepared heading**: with the autopilot off, in compass or GPS mode, the
@@ -15,7 +15,15 @@ Rev684-685 on top of 3.14.0 (forum feedback).
 ### Changed
 - Tune: every text white instead of grey (disabled controls stay greyed)
   and larger - gain names 16 px, explanations 14 px (were 11 px grey).
-- Tab bar text 14 px in both orientations (was 13 / 12 px).
+- The same treatment in Chart, Race, Setup and Info (Control unchanged):
+  grey text white, every text about 2 px larger.
+- Tab bar text 14 px in both orientations (was 13 / 12 px); 13 px on
+  phones and 12 px below 380 px so the six tabs fit, and the strip under
+  the full-screen button is kept free (INFO was partly under it).
+
+### Fixed
+- Setup, Technical: the PIN buttons, the "Ask for the PIN" switch and its
+  note were squeezed into the group title row.
 
 ## 3.14.0 — 2026-11-10 — Start-up check, PIN for Tune and profiles, settings in the visor, new name and logo
 
