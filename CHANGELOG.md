@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 3.15.1 — 2026-11-11 — New logo, forum link
 
-Rev692 on top of 3.15.0.
+Rev692-693 on top of 3.15.0. No change in behaviour.
 
 ### Changed
 - New logo: rounded square with an outline (App Store icon, the visor's
