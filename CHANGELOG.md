@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Rev684-688 on top of 3.14.0 (forum feedback).
+Rev684-690 on top of 3.14.0 (forum feedback).
 
 ### Added
 - **Prepared heading**: with the autopilot off, in compass or GPS mode, the
@@ -15,8 +15,10 @@ Rev684-688 on top of 3.14.0 (forum feedback).
 ### Changed
 - Tune: every text white instead of grey (disabled controls stay greyed)
   and larger - gain names 16 px, explanations 14 px (were 11 px grey).
-- The same treatment in Chart, Race, Setup and Info (Control unchanged):
-  grey text white, every text about 2 px larger.
+- Chart, Race, Setup, Info and the visor settings window (Control
+  unchanged): every text about 2 px larger, text boxes 15 px. Secondary
+  text keeps its grey so titles still stand out from their readings; only
+  Tune is all white.
 - Tab bar text 14 px in both orientations (was 13 / 12 px); 13 px on
   phones and 12 px below 380 px so the six tabs fit, and the strip under
   the full-screen button is kept free (INFO was partly under it).
