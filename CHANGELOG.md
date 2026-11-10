@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 3.15.0 — 2026-11-11 — Prepared heading, larger and clearer text
 
-Rev684-690 on top of 3.14.0 (forum feedback).
+Rev684-691 on top of 3.14.0 (forum feedback).
 
 ### Added
 - **Prepared heading**: with the autopilot off, in compass or GPS mode, the
