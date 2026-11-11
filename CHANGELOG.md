@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased — heading fallback, more cases
+## 3.15.3 — 2026-11-11 — Heading fallback, more cases (#6)
 
-Rev698-699 on top of 3.15.2.
+Rev698-700 on top of 3.15.2.
 
 ### Changed
 - **Heading fallback decided path by path**: heading, attitude and rate of
