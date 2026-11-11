@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev702" />
+  <link rel="stylesheet" href="style.css?v=Rev705" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -76,7 +76,7 @@
        SK WebSocket goes silent > 3 s or the /status ping RTT crosses
        1 s. Visual cue so the sailor can tell "red intermitente" from
        "bug del pilot" in agua. -->
-  <div id="net-health-banner" hidden style="position:fixed;top:0;left:0;right:0;padding:8px 14px;text-align:center;font-size:13px;font-weight:600;letter-spacing:0.3px;z-index:9998;background:rgba(255,149,0,0.92);color:#0a1220;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>
+  <div id="net-health-banner" hidden style="position:fixed;top:0;left:0;right:0;padding:8px 44px;white-space:normal;line-height:1.3;text-align:center;font-size:13px;font-weight:600;letter-spacing:0.3px;z-index:9998;background:rgba(255,149,0,0.92);color:#0a1220;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>
   <!-- Rev465 (Carlos safety audit 2026-10-12): bloqueante centrado que
        aparece cuando el plugin backend reporta pypilot core offline.
        Deshabilita visualmente los controles write-side (via CSS) +
@@ -2948,6 +2948,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev702"></script>
+  <script src="app.js?v=Rev705"></script>
 </body>
 </html>

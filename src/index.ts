@@ -92,7 +92,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev702";
+const PLUGIN_REVISION = "Rev705";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -943,7 +943,21 @@ module.exports = function (app: any) {
             if (!step) continue;
             changed = true;
             if (step === "on") { imuFallbackOn.add(p); _imuFallbackLog(`on ${p} - pypilot has it but nobody writes it to Signal K (pypilot without read/write access?); publishing it from the plugin`); }
-            else { imuFallbackOn.delete(p); _imuFallbackLog(`off ${p} - ${!enabled ? "switched off in Setup" : other ? "another source writes it" : has ? "the heading is back from pypilot" : "pypilot has no heading"}`); }
+            else {
+              imuFallbackOn.delete(p);
+              _imuFallbackLog(`off ${p} - ${!enabled ? "switched off in Setup" : other ? "another source writes it" : has ? "the heading is back from pypilot" : "pypilot has no heading"}`);
+              // Rev703: Signal K keeps the last value; with nobody else on
+              // this path ours would stay frozen (rate of turn, which pypilot
+              // never sends). Clear it, as pypilot does for missing data.
+              if (!other) {
+                try {
+                  app.handleMessage(PLUGIN_ID, {
+                    context: "vessels." + app.selfId,
+                    updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [{ path: p, value: null }] }],
+                  });
+                } catch { /* silent */ }
+              }
+            }
           }
           if (changed) {
             imuFallbackActive = imuFallbackOn.size > 0;

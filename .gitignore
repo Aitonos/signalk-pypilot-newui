@@ -13,3 +13,6 @@ WhatsApp Image*.jpg
 
 # Private deploy target (Pi address)
 deploy.local.ps1
+
+# Source artwork and loose captures (logo .AI/.FH11/.jpg, raw screenshots) - kept locally, not in git
+assets-src/

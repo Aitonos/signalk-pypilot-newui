@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 3.15.4 — 2026-11-11 — Visor settings reorganised, "too many connections" notice
 
-Rev701-702 on top of 3.15.3.
+Rev701-705 on top of 3.15.3.
 
 ### Changed
 - Visor settings: clearer section names - Rose corners, Arrows on the rose,
@@ -17,6 +17,24 @@ Rev701-702 on top of 3.15.3.
   boat: boat menu). They still described the old 4-card selector.
 - README title is "PyPilot New-UI" (no more "for Signal K"), and the rose
   feature lists the visor settings sections.
+- README screenshot of the visor settings shows the new sections.
+
+### Added
+- **"Too many connections" notice**: Signal K turns new WebSockets away
+  (HTTP 429) once one device holds too many (30 by default - every tab and
+  app on that device counts). The browser only sees a socket that never
+  opens, and the banner said "intermittent network" while everything else
+  worked. After three refused opens in a row with the HTTP ping answering,
+  the banner says Signal K is refusing the live connection and suggests
+  closing tabs or apps on that device. The banner now wraps instead of
+  cutting long text.
+
+### Fixed
+- Heading fallback: when it steps back on a path nobody else publishes
+  (rate of turn), it clears the value instead of leaving its last one
+  frozen in Signal K. Tested on board by cutting pypilot off Signal K: on
+  after 30 s, caveat in the check, off 3 s after pypilot reconnected, rate
+  of turn null.
 
 ## 3.15.3 — 2026-11-11 — Heading fallback, more cases (#6)
 

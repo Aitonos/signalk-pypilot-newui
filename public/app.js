@@ -765,6 +765,7 @@
       "net.silent":     "no data",
       "net.wsDown":     "WebSocket down",
       "net.pingFail":   "Ping failing",
+      "net.wsRefused": "Signal K refuses the live connection from this device: too many Signal K tabs or apps open on it? Close some - it reconnects by itself.",
       "tack.cancel":    "Cancel",
       "tune.gain.P.short":  "Corrects a heading error instantly with rudder. The 'act now' reflex.",
       "tune.gain.P.long":   "Raise if the AP takes too long to close a heading error. Lower if the rudder dances at every wave.",
@@ -2140,6 +2141,7 @@
       "net.silent":     "sin datos",
       "net.wsDown":     "WebSocket caído",
       "net.pingFail":   "Ping falla",
+      "net.wsRefused": "Signal K rechaza la conexión en vivo de este dispositivo: ¿demasiadas pestañas o apps de Signal K abiertas en él? Cierra alguna: se reconecta solo.",
       "tack.cancel":    "Cancelar",
       "tune.gain.P.short":  "Corrige el error de rumbo al instante con más rueda. Es el reflejo 'hay que corregir ya'.",
       "tune.gain.P.long":   "Subir si el AP tarda en cerrar un desvío. Bajar si el timón 'baila' a cada ola.",
@@ -3562,6 +3564,7 @@
       "net.silent": "keine Daten",
       "net.wsDown": "WebSocket getrennt",
       "net.pingFail": "Ping schlägt fehl",
+      "net.wsRefused": "Signal K lehnt die Live-Verbindung dieses Geräts ab: zu viele Signal-K-Tabs oder -Apps darauf offen? Einige schließen - es verbindet sich von selbst neu.",
       "tack.cancel": "Abbrechen",
       "tune.gain.ap.tack.delay.short": "Countdown (Sekunden) zwischen Druck auf WENDE und dem Beginn der Drehung.",
       "tune.gain.ap.tack.delay.long": "Erhöhen, um die Crew früher zu warnen. Auf null für sofortige Ausführung.",
@@ -4907,6 +4910,7 @@
       "net.silent": "pas de données",
       "net.wsDown": "WebSocket coupé",
       "net.pingFail": "Ping en échec",
+      "net.wsRefused": "Signal K refuse la connexion en direct de cet appareil : trop d'onglets ou d'applis Signal K ouverts dessus ? Fermez-en quelques-uns, il se reconnecte tout seul.",
       "tack.cancel": "Annuler",
       "tune.gain.ap.tack.delay.short": "Compte à rebours (secondes) entre l'appui sur VIRER et le début réel de la rotation.",
       "tune.gain.ap.tack.delay.long": "Augmentez pour prévenir l'équipage plus tôt. Mettez à zéro pour une exécution immédiate dès l'appui.",
@@ -5701,6 +5705,13 @@
     }
   }
   let _netDismissed = null;   // Rev644: which banner the sailor tapped away
+  // Rev703 (Carlos, 2026-11-11): Signal K turns new WebSockets away with
+  // HTTP 429 once one client address holds too many (30 by default, per
+  // IP - every tab and app of the device counts). The browser only sees
+  // a socket that never opens, and the banner said "intermittent network"
+  // while HTTP worked. Three refused opens in a row with the HTTP ping
+  // answering: say what it most likely is.
+  let _wsOpenFails = 0;
   function _netHealthTick() {
     const banner = document.getElementById("net-health-banner");
     if (!banner) return;
@@ -5731,7 +5742,8 @@
       const reason = wsBad ? (t("net.wsDown") || "WebSocket caído")
                     : gapMs > 3000 ? `${t("net.silent") || "Sin datos"} ${gapSec}s`
                     : (t("net.pingFail") || "Ping falla");
-      banner.textContent = `🌐 ${t("net.warn") || "Red intermitente"} — ${reason}`;
+      const refused = wsBad && _wsOpenFails >= 3 && !pingRecentErr && _lastPingRttMs != null;
+      banner.textContent = refused ? `🌐 ${t("net.wsRefused")}` : `🌐 ${t("net.warn") || "Red intermitente"} — ${reason}`;
       banner.style.background = "rgba(255,149,0,0.92)";
       banner.style.color = "#0a1220";
       banner.hidden = false;
@@ -5913,7 +5925,10 @@
     const sock = new WebSocket(url);
     ws = sock;
     _wsStartTs = Date.now();
+    let opened = false;
     ws.addEventListener("open", () => {
+      opened = true;
+      _wsOpenFails = 0;   // Rev703
       subscribeAll();
     });
     ws.addEventListener("message", (evt) => {
@@ -5933,6 +5948,7 @@
       // then marked pypilot offline and opened a second stream. Only the
       // current socket's close counts.
       if (sock !== ws) return;
+      if (!opened) _wsOpenFails += 1;   // Rev703: refused before it opened
       // Rev466 (Carlos safety 2026-10-12 trip): mark pypilot offline
       // immediately when the WS drops, without waiting for the next
       // /status poll (which may be seconds away). This activates the

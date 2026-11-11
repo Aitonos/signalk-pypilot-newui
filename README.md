@@ -53,7 +53,7 @@ Questions, ideas and sailing reports: **[PyPilot New-UI thread on the OpenMarine
 
 | | |
 |---|---|
-| ![Profile manager - history of each profile and look-alike names flagged](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/12-profile-manager.jpg) | ![Visor settings - rose corners, polar performance and custom Signal K paths](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/13-visor-settings.jpg) |
+| ![Profile manager - history of each profile and look-alike names flagged](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/12-profile-manager.jpg) | ![Visor settings in six sections - here Screen and sound: start-up screen, tab bar, chart in the background, tap sound](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/13-visor-settings.jpg) |
 
 ---
 
