@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 3.15.2 — 2026-11-11 — Heading when pypilot cannot write to Signal K (#6)
 
-Rev694-696 on top of 3.15.1.
+Rev694-697 on top of 3.15.1.
 
 ### Added
 - **Heading fallback** (GitHub #6): when nobody writes the heading to
