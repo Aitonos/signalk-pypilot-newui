@@ -820,6 +820,11 @@
       "setup.approve.title": "pypilot's access to Signal K",
       "setup.approve.hint": "pypilot asks Signal K for access again after every Signal K restart; approved as read-only, Signal K drops its heading. When on, the plugin approves it read/write by itself - only from the TinyPilot's address - and keeps a single pypilot device.",
       "setup.approve.toggle": "Approve pypilot's access automatically",
+      "setup.fallback.title": "Heading when pypilot cannot write to Signal K",
+      "setup.fallback.hint": "If pypilot has a heading but nobody writes it to Signal K (pypilot without read/write access, its Signal K output off, a different server), the plugin publishes pypilot's heading, attitude and rate of turn itself - each one only while no other source does. Switch it off if you keep pypilot's IMU out of Signal K on purpose.",
+      "setup.fallback.toggle": "Publish pypilot's heading when it does not",
+      "pc.navigation.headingMagnetic.viaFallback": "Published by this plugin: pypilot itself cannot write to Signal K, so its other data does not arrive either.",
+      "pc.navigation.attitude.viaFallback": "Published by this plugin: pypilot itself cannot write to Signal K, so its other data does not arrive either.",
       "lc.every": "every",
       "sess.enable": "Record a session every time the autopilot is engaged",
       "lc.view":     "Show recent",
@@ -2190,6 +2195,11 @@
       "setup.approve.title": "Acceso de pypilot a Signal K",
       "setup.approve.hint": "pypilot vuelve a pedir acceso a Signal K tras cada reinicio de Signal K; aprobado como solo lectura, Signal K tira su rumbo. Activado, el plugin lo aprueba solo con lectura y escritura - únicamente desde la dirección de la TinyPilot - y deja un único dispositivo pypilot.",
       "setup.approve.toggle": "Aprobar automáticamente el acceso de pypilot",
+      "setup.fallback.title": "Rumbo cuando pypilot no puede escribir en Signal K",
+      "setup.fallback.hint": "Si pypilot tiene rumbo pero nadie lo escribe en Signal K (pypilot sin acceso de lectura y escritura, su salida a Signal K apagada, otro servidor), el plugin publica él mismo el rumbo, la actitud y la velocidad de giro de pypilot, cada uno solo mientras ninguna otra fuente lo haga. Apágalo si dejas fuera de Signal K la IMU de pypilot a propósito.",
+      "setup.fallback.toggle": "Publicar el rumbo de pypilot cuando él no lo haga",
+      "pc.navigation.headingMagnetic.viaFallback": "Lo publica este plugin: pypilot no puede escribir en Signal K, así que tampoco llega el resto de sus datos.",
+      "pc.navigation.attitude.viaFallback": "Lo publica este plugin: pypilot no puede escribir en Signal K, así que tampoco llega el resto de sus datos.",
       "lc.every": "cada",
       "sess.enable": "Grabar una sesión cada vez que se conecta el piloto",
       "lc.view":     "Ver reciente",
@@ -2930,6 +2940,11 @@
       "setup.approve.title": "Zugriff von pypilot auf Signal K",
       "setup.approve.hint": "pypilot fragt nach jedem Signal-K-Neustart erneut nach Zugriff; nur lesend genehmigt, verwirft Signal K seinen Kurs. Eingeschaltet genehmigt das Plugin ihn selbst mit Lesen/Schreiben - nur von der Adresse des TinyPilot - und behält ein einziges pypilot-Gerät.",
       "setup.approve.toggle": "Zugriff von pypilot automatisch genehmigen",
+      "setup.fallback.title": "Kurs, wenn pypilot nicht in Signal K schreiben kann",
+      "setup.fallback.hint": "Hat pypilot einen Kurs, den aber niemand in Signal K schreibt (pypilot ohne Lese-/Schreibzugriff, seine Signal-K-Ausgabe aus, ein anderer Server), veröffentlicht das Plugin Kurs, Lage und Drehrate von pypilot selbst - jeweils nur, solange keine andere Quelle das tut. Ausschalten, wenn die IMU von pypilot absichtlich nicht in Signal K soll.",
+      "setup.fallback.toggle": "Kurs von pypilot veröffentlichen, wenn pypilot es nicht tut",
+      "pc.navigation.headingMagnetic.viaFallback": "Von diesem Plugin veröffentlicht: pypilot selbst kann nicht in Signal K schreiben, daher kommen auch seine übrigen Daten nicht an.",
+      "pc.navigation.attitude.viaFallback": "Von diesem Plugin veröffentlicht: pypilot selbst kann nicht in Signal K schreiben, daher kommen auch seine übrigen Daten nicht an.",
       "lc.every": "alle",
       "sess.enable": "Bei jedem Einschalten des Autopiloten eine Sitzung aufzeichnen",
       "lc.view":     "Neueste zeigen",
@@ -4270,6 +4285,11 @@
       "setup.approve.title": "Accès de pypilot à Signal K",
       "setup.approve.hint": "pypilot redemande l'accès à Signal K après chaque redémarrage de Signal K ; approuvé en lecture seule, Signal K jette son cap. Activé, le plugin l'approuve lui-même en lecture/écriture - uniquement depuis l'adresse du TinyPilot - et garde un seul appareil pypilot.",
       "setup.approve.toggle": "Approuver automatiquement l'accès de pypilot",
+      "setup.fallback.title": "Cap quand pypilot ne peut pas écrire dans Signal K",
+      "setup.fallback.hint": "Si pypilot a un cap mais que personne ne l'écrit dans Signal K (pypilot sans accès lecture/écriture, sa sortie Signal K désactivée, un autre serveur), le plugin publie lui-même le cap, l'assiette et la vitesse de giration de pypilot, chacun seulement tant qu'aucune autre source ne le fait. Désactivez-le si vous tenez volontairement l'IMU de pypilot hors de Signal K.",
+      "setup.fallback.toggle": "Publier le cap de pypilot quand il ne le fait pas",
+      "pc.navigation.headingMagnetic.viaFallback": "Publié par ce plugin : pypilot ne peut pas écrire dans Signal K, donc ses autres données n'arrivent pas non plus.",
+      "pc.navigation.attitude.viaFallback": "Publié par ce plugin : pypilot ne peut pas écrire dans Signal K, donc ses autres données n'arrivent pas non plus.",
       "lc.every": "toutes les",
       "sess.enable": "Enregistrer une session à chaque embrayage du pilote",
       "lc.view":     "Voir les récents",
@@ -8150,6 +8170,8 @@
     };
     const pa = document.getElementById("cfg-pypilot-approve");
     if (pa) pa.addEventListener("change", () => { const v = pa.checked; save(pa, { pypilotAutoApprove: v }, () => { pa.checked = !v; }); });
+    const hf = document.getElementById("cfg-heading-fallback");   // Rev698
+    if (hf) hf.addEventListener("change", () => { const v = hf.checked; save(hf, { headingFallback: v }, () => { hf.checked = !v; }); });
     const se = document.getElementById("sess-enabled");
     if (se) se.addEventListener("change", () => { const v = se.checked; save(se, { sessionRecorderEnabled: v }, () => { se.checked = !v; }); });
     const li = document.getElementById("lc-interval");
@@ -16933,6 +16955,7 @@
       const ab = $("#cfg-absorb"); if (ab) ab.checked = !!j.absorbProvider;
       // Rev676: options moved here from the Signal K admin.
       const pa = $("#cfg-pypilot-approve"); if (pa && document.activeElement !== pa) pa.checked = j.pypilotAutoApprove !== false;
+      const hf = $("#cfg-heading-fallback"); if (hf && document.activeElement !== hf) hf.checked = j.headingFallbackEnabled !== false;   // Rev698
       const se = $("#sess-enabled"); if (se && document.activeElement !== se) se.checked = !!j.sessionRecorderEnabled;
       const li = $("#lc-interval"); if (li && document.activeElement !== li && typeof j.logCaptureIntervalSec === "number") li.value = String(j.logCaptureIntervalSec);
       // Rev55: SSH creds - prefill user, mask password (only show if set).
@@ -22827,19 +22850,19 @@
       // Rev695: sensor items are listed under sensor quality - except a
       // heading that pypilot has but Signal K does not get (#6): that one is
       // explained here, with its real cause, and left out below.
-      const items = (snap.items || []).filter((it) => !String(it.id).includes(".") || it.code === "notInSk");
+      const items = (snap.items || []).filter((it) => !String(it.id).includes(".") || it.code === "notInSk" || it.code === "viaFallback");
       notInSk = new Set(items.filter((it) => it.code === "notInSk").map((it) => it.id));
       if (lastSq) sqRenderBoot(lastSq);
       const bad = items.filter((it) => it.status === "fail").concat(items.filter((it) => it.status === "warn"));
       for (const it of bad) {
         const tx = it.id === "visor-access" ? it : _pcText(it);
         const row = problemRow(it.status, tx.label, tx.detail, tx.hint, _bootBlockFor(it.id));
-        if (it.id === "visor-access" || it.code === "notInSk") {
+        if (it.id === "visor-access" || it.code === "notInSk" || it.code === "viaFallback") {
           // The fix is in the Signal K admin, not in a Setup card.
           const go = row.querySelector(".boot-go");
           go.textContent = t("boot.access.go");
           go.replaceWith(go.cloneNode(true));
-          const page = it.code === "notInSk" ? "devices" : "access";
+          const page = it.code === "notInSk" || it.code === "viaFallback" ? "devices" : "access";
           row.querySelector(".boot-go").addEventListener("pointerup", (ev) => {
             ev.stopPropagation();
             window.open(`${location.origin}/admin/#/security/${page}`, "_blank");

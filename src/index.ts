@@ -80,7 +80,7 @@ import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
-import { IMU_FALLBACK_KEYS, otherSourceFresh, imuFallbackValues } from "./imu-fallback";
+import { IMU_FALLBACK_KEYS, IMU_FALLBACK_PATHS, otherSourceFresh, imuFallbackValues, newFallbackPathState, stepFallbackPath } from "./imu-fallback";
 import { withLocalAliases, requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
@@ -92,7 +92,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev697";
+const PLUGIN_REVISION = "Rev699";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -180,6 +180,8 @@ interface PluginProps {
   adminPinReset?: boolean;
   /** Rev659: approve pypilot's Signal K access (read/write) by itself. */
   pypilotAutoApprove?: boolean;
+  /** Rev698: publish pypilot's heading / attitude / rate of turn when nobody else does (default on). */
+  headingFallback?: boolean;
   // Rev322 (Carlos, 2026-09-27): maneuver trace log. Records every
   // user-driven maneuver event posted by the visor (aproado_pick,
   // empopado_pick, tack_tap, mode_change, target_put, engage,
@@ -777,10 +779,38 @@ module.exports = function (app: any) {
   let logCaptureTimer: NodeJS.Timeout | null = null;
   let logRetentionTimer: NodeJS.Timeout | null = null;   // Rev647
   // Rev696 (GitHub #6): heading / attitude fallback (see imu-fallback.ts).
+  // Rev698: one state per path; imuFallbackActive = any of them on.
   let imuFallbackActive = false;
   let imuFallbackTimer: NodeJS.Timeout | null = null;
-  let imuFallbackMissTicks = 0;
+  const imuFallbackPaths = new Map(IMU_FALLBACK_PATHS.map((p) => [p, newFallbackPathState()]));
+  const imuFallbackOn = new Set<string>();
   let imuFallbackLastPub = 0;
+  let imuFallbackLogHour = 0;
+  let imuFallbackLogCount = 0;
+  const _imuFallbackReset = (): void => {
+    for (const p of IMU_FALLBACK_PATHS) imuFallbackPaths.set(p, newFallbackPathState());
+    imuFallbackOn.clear(); imuFallbackActive = false;
+  };
+  // At most 20 on/off lines an hour - a patchy source must not fill the log.
+  const _imuFallbackLog = (msg: string): void => {
+    const h = Math.floor(Date.now() / 3600_000);
+    if (h !== imuFallbackLogHour) { imuFallbackLogHour = h; imuFallbackLogCount = 0; }
+    imuFallbackLogCount += 1;
+    // eslint-disable-next-line no-console
+    if (imuFallbackLogCount <= 20) console.log(`[imu-fallback] ${msg}`);
+    // eslint-disable-next-line no-console
+    else if (imuFallbackLogCount === 21) console.log("[imu-fallback] more changes this hour, not logged");
+  };
+  // Rev698: pypilot has a heading - ap.heading or, for a pypilot without
+  // it, the IMU's own heading (watched while the fallback is on).
+  const _pypilotHasHeading = (): boolean => {
+    if (!client || !client.connected) return false;
+    const vals = client.getValues();
+    return ["ap.heading", "imu.heading_lowpass"].some((k) => {
+      const age = (client as any).getValueAgeMs?.(k);
+      return typeof age === "number" && age < 60_000 && Number.isFinite(Number(vals[k]));
+    });
+  };
   let logRetentionFirst: NodeJS.Timeout | null = null;
   let logCaptureLastRunTs: number | null = null;
   let logCaptureLastError: string | null = null;
@@ -890,29 +920,33 @@ module.exports = function (app: any) {
       if (logRetentionFirst) clearTimeout(logRetentionFirst);
       logRetentionFirst = setTimeout(_lcRetention, 120_000);
       // Rev696 (GitHub #6): every 5 s - does anybody else write the heading
-      // to Signal K? If nobody has for 10 s and pypilot has one, publish it
+      // to Signal K? If nobody does and pypilot has one, publish it
       // ourselves; step back as soon as another source does.
+      // Rev698: decided path by path (heading, attitude, rate of turn), with
+      // a longer wait to come back on, and a switch in the visor Setup.
       if (imuFallbackTimer) clearInterval(imuFallbackTimer);
       imuFallbackTimer = setInterval(() => {
         try {
           const now = Date.now();
-          const other = otherSourceFresh(app.getSelfPath ? app.getSelfPath("navigation.headingMagnetic") : null, SOURCE_LABEL, now, 5000);
-          const age = client && client.connected ? (client as any).getValueAgeMs?.("ap.heading") : null;
-          const pypilotHas = typeof age === "number" && age < 60_000;
-          if (imuFallbackActive) {
-            if (other || !pypilotHas) {
-              imuFallbackActive = false; imuFallbackMissTicks = 0;
-              // eslint-disable-next-line no-console
-              console.log(`[imu-fallback] off - ${other ? "another source writes the heading" : "pypilot has no heading"}`);
-              if (client) try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
-            }
-            return;
+          const has = _pypilotHasHeading();
+          const enabled = props.headingFallback !== false;
+          let changed = false;
+          for (const p of IMU_FALLBACK_PATHS) {
+            const st = imuFallbackPaths.get(p)!;
+            const other = otherSourceFresh(app.getSelfPath ? app.getSelfPath(p) : null, SOURCE_LABEL, now, 5000);
+            // pypilot never sends rate of turn itself (its signalk.py does not
+            // watch imu.headingrate_lowpass): only alongside our own heading,
+            // so nothing new is added while pypilot writes to Signal K.
+            const headingOn = imuFallbackPaths.get("navigation.headingMagnetic")!.active;
+            const hasFor = p === "navigation.rateOfTurn" ? has && headingOn : has;
+            const step = stepFallbackPath(st, other, hasFor, enabled);
+            if (!step) continue;
+            changed = true;
+            if (step === "on") { imuFallbackOn.add(p); _imuFallbackLog(`on ${p} - pypilot has it but nobody writes it to Signal K (pypilot without read/write access?); publishing it from the plugin`); }
+            else { imuFallbackOn.delete(p); _imuFallbackLog(`off ${p} - ${!enabled ? "switched off in Setup" : other ? "another source writes it" : has ? "the heading is back from pypilot" : "pypilot has no heading"}`); }
           }
-          imuFallbackMissTicks = (!other && pypilotHas) ? imuFallbackMissTicks + 1 : 0;
-          if (imuFallbackMissTicks >= 2) {
-            imuFallbackActive = true;
-            // eslint-disable-next-line no-console
-            console.log("[imu-fallback] on - pypilot has a heading but nobody writes it to Signal K (pypilot without read/write access?); publishing it from the plugin");
+          if (changed) {
+            imuFallbackActive = imuFallbackOn.size > 0;
             if (client) try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
           }
         } catch { /* next tick */ }
@@ -1021,7 +1055,7 @@ module.exports = function (app: any) {
         // Rev696: heading fallback - one delta per new heading, at most 5 Hz.
         if (imuFallbackActive && name === "imu.heading_lowpass" && Date.now() - imuFallbackLastPub >= 200) {
           imuFallbackLastPub = Date.now();
-          const vals = imuFallbackValues(client ? client.getValues() : {});
+          const vals = imuFallbackValues(client ? client.getValues() : {}, imuFallbackOn);
           if (vals.length) {
             try {
               app.handleMessage(PLUGIN_ID, {
@@ -1577,7 +1611,7 @@ module.exports = function (app: any) {
       }
       if (logRetentionTimer) { clearInterval(logRetentionTimer); logRetentionTimer = null; }   // Rev647
       if (imuFallbackTimer) { clearInterval(imuFallbackTimer); imuFallbackTimer = null; }   // Rev696
-      imuFallbackActive = false; imuFallbackMissTicks = 0;
+      _imuFallbackReset();
       if (pypilotAccessTimer) { clearInterval(pypilotAccessTimer); pypilotAccessTimer = null; }   // Rev659
       if (pypilotTidyTimer) { clearInterval(pypilotTidyTimer); pypilotTidyTimer = null; }
       if (logRetentionFirst) { clearTimeout(logRetentionFirst); logRetentionFirst = null; }
@@ -1739,6 +1773,8 @@ module.exports = function (app: any) {
           // Rev676: options moved from the Signal K admin to the visor.
           pypilotAutoApprove: props.pypilotAutoApprove !== false,
           headingFallback: imuFallbackActive,   // Rev696
+          headingFallbackPaths: [...imuFallbackOn],   // Rev698
+          headingFallbackEnabled: props.headingFallback !== false,
           sessionRecorderEnabled: !!props.sessionRecorderEnabled,
           logCaptureIntervalSec: Math.max(30, Number(props.logCaptureIntervalSec) || 60),
           // Rev93: historian buffer state (count / capacity / oldest+newest ts).
@@ -2252,12 +2288,8 @@ module.exports = function (app: any) {
           sample: null,   // prechecks only need aggregate signals
           quality: sensorQuality ? sensorQuality.snapshot() : null,
           servoHealth: servoHealth ? servoHealth.snapshot() : null,
-          pypilotHeadingFresh: (() => {
-            if (!client || !client.connected) return false;
-            const age = (client as any).getValueAgeMs?.("ap.heading");
-            const h = Number(client.getValues()["ap.heading"]);
-            return typeof age === "number" && age < 60_000 && Number.isFinite(h);
-          })(),
+          pypilotHeadingFresh: _pypilotHasHeading(),
+          fallbackPaths: [...imuFallbackOn],   // Rev698
         });
         res.json(snap);
       });
@@ -4969,6 +5001,7 @@ module.exports = function (app: any) {
       tripRecorderEnabled: options.tripRecorderEnabled !== false,
       adminPinReset: options.adminPinReset === true,
       pypilotAutoApprove: options.pypilotAutoApprove !== false,
+      headingFallback: options.headingFallback !== false,
       autoProfileEnabled: options.autoProfileEnabled === true,
       autoProfileLight:   typeof options.autoProfileLight  === "string" ? options.autoProfileLight.trim()  : "",
       autoProfileMedium:  typeof options.autoProfileMedium === "string" ? options.autoProfileMedium.trim() : "",

@@ -95,6 +95,10 @@ export function visorOptionsPatch(body: Record<string, unknown>): VisorOptionsPl
         if (typeof v !== "boolean") return fail("pypilotAutoApprove must be true or false");
         patch.pypilotAutoApprove = v; technical = true;
         break;
+      case "headingFallback":   // Rev698
+        if (typeof v !== "boolean") return fail("headingFallback must be true or false");
+        patch.headingFallback = v; technical = true;
+        break;
       case "sessionRecorderEnabled":
         if (typeof v !== "boolean") return fail("sessionRecorderEnabled must be true or false");
         patch.sessionRecorderEnabled = v;

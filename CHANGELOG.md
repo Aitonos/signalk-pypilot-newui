@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased — heading fallback, more cases
+
+Rev698-699 on top of 3.15.2.
+
+### Changed
+- **Heading fallback decided path by path**: heading, attitude and rate of
+  turn each published only while no other source writes that path, so a
+  boat with its own attitude sensor does not get a second one. Rate of turn
+  only together with the heading: pypilot itself never sends it (its
+  signalk.py does not watch imu.headingrate_lowpass), so nothing new is
+  added while pypilot writes to Signal K.
+- Once another source has been seen on a path, the fallback waits 30 s (not
+  10 s) before coming back on: a slow or patchy source no longer makes it
+  flap. At most 20 on/off log lines an hour.
+- "pypilot has a heading" also counts imu.heading_lowpass, for a pypilot
+  without ap.heading.
+
+### Added
+- Switch in Setup > pypilot connection: "Publish pypilot's heading when it
+  does not" (on by default, admin PIN). /status shows
+  headingFallbackEnabled and headingFallbackPaths.
+- The Autopilot Check (and the start-up check) shows a caveat when the
+  heading or attitude comes from the fallback: pypilot itself still cannot
+  write to Signal K, so its other data does not arrive. Link to Security >
+  Devices.
+
 ## 3.15.2 — 2026-11-11 — Heading when pypilot cannot write to Signal K (#6)
 
 Rev694-697 on top of 3.15.1.

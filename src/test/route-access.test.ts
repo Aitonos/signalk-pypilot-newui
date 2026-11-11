@@ -76,5 +76,9 @@ describe("visor options (Rev664)", () => {
     assert.equal(l.technical, true);
     assert.equal(visorOptionsPatch({ logCaptureIntervalSec: 10 }).ok, false);
     assert.equal(visorOptionsPatch({ pypilotAutoApprove: "yes" }).ok, false);
+    const h = visorOptionsPatch({ headingFallback: false });   // Rev698
+    assert.deepEqual(h.patch, { headingFallback: false });
+    assert.equal(h.technical, true);
+    assert.equal(visorOptionsPatch({ headingFallback: 1 }).ok, false);
   });
 });

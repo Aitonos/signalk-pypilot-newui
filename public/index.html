@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev697" />
+  <link rel="stylesheet" href="style.css?v=Rev699" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1660,6 +1660,15 @@
             <span data-i18n="setup.approve.toggle">Approve pypilot's access automatically</span>
           </label>
         </div>
+        <!-- Rev698 (GitHub #6): heading fallback switch. -->
+        <div class="conn-sub">
+          <div class="conn-sub-title" data-i18n="setup.fallback.title">Heading when pypilot cannot write to Signal K</div>
+          <div class="hint" data-i18n="setup.fallback.hint">If pypilot has a heading but nobody writes it to Signal K (pypilot without read/write access, its Signal K output off, a different server), the plugin publishes pypilot's heading, attitude and rate of turn itself - each one only while no other source does. Switch it off if you keep pypilot's IMU out of Signal K on purpose.</div>
+          <label class="row" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="cfg-heading-fallback" />
+            <span data-i18n="setup.fallback.toggle">Publish pypilot's heading when it does not</span>
+          </label>
+        </div>
       </div>
 
       <!-- Rev167 (Carlos): Smart Pilot card. Wraps the supervisor
@@ -2933,6 +2942,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev697"></script>
+  <script src="app.js?v=Rev699"></script>
 </body>
 </html>

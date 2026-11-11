@@ -48,6 +48,8 @@ export interface PrecheckInputs {
   /** Rev695 (GitHub #6): pypilot itself reports a fresh heading. When
    *  Signal K has none, the IMU is fine - pypilot cannot write to Signal K. */
   pypilotHeadingFresh?: boolean;
+  /** Rev698: Signal K paths the plugin is publishing for pypilot (heading fallback). */
+  fallbackPaths?: string[];
   /** Voltage thresholds - overridable per install. */
   batteryOkV?: number;
   batteryWarnV?: number;
@@ -145,6 +147,22 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
         it.hintCode = "skAccess";
         it.params = {};
       }
+    }
+  }
+
+  // Rev698: the heading reaches Signal K, but through the plugin's
+  // fallback - pypilot itself still cannot write (its other data, such as
+  // the autopilot state other apps read, does not arrive). A caveat, not a
+  // stop: the autopilot works.
+  const viaFallback = new Set(inputs.fallbackPaths || []);
+  for (const it of items) {
+    if (viaFallback.has(it.id) && it.status === "pass") {
+      it.status = "warn";
+      it.detail = "Published by this plugin: pypilot itself cannot write to Signal K.";
+      it.hint = "pypilot needs read/write access in Signal K: Security > Access Requests / Devices.";
+      it.code = "viaFallback";
+      it.hintCode = "skAccess";
+      it.params = {};
     }
   }
 

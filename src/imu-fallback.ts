@@ -35,8 +35,8 @@ export function otherSourceFresh(pathObj: unknown, ownLabel: string, now: number
 }
 
 /** Signal K values from pypilot's IMU readings (degrees). Paths whose
- *  inputs are missing are left out. */
-export function imuFallbackValues(v: Record<string, unknown>): { path: string; value: unknown }[] {
+ *  inputs are missing, or not in `only` when given, are left out. */
+export function imuFallbackValues(v: Record<string, unknown>, only?: ReadonlySet<string>): { path: string; value: unknown }[] {
   const num = (k: string): number | null => {
     const n = Number(v[k]);
     return v[k] == null || !Number.isFinite(n) ? null : n;
@@ -51,5 +51,34 @@ export function imuFallbackValues(v: Record<string, unknown>): { path: string; v
   out.push({ path: "navigation.headingMagnetic", value: hRad });
   if (pitch != null && roll != null) out.push({ path: "navigation.attitude", value: { pitch: pitch * D2R, roll: roll * D2R, yaw: hRad } });
   if (rate != null) out.push({ path: "navigation.rateOfTurn", value: rate * D2R });
-  return out;
+  return only ? out.filter((x) => only.has(x.path)) : out;
+}
+
+// Rev698 (Carlos: "¿se te ocurren otras casuísticas?"): each of the three
+// paths is decided on its own, so a boat with its own attitude sensor but
+// no heading (or the other way round) gets only what is missing.
+// Rate of turn only together with the heading (decided in index.ts):
+// pypilot itself never sends it.
+export const IMU_FALLBACK_PATHS = ["navigation.headingMagnetic", "navigation.attitude", "navigation.rateOfTurn"];
+
+export interface FallbackPathState { active: boolean; miss: number; offs: number }
+export const newFallbackPathState = (): FallbackPathState => ({ active: false, miss: 0, offs: 0 });
+
+/** One 5 s pass for one path. Steps back at once when another source
+ *  writes it, pypilot has no heading or the user switched the fallback
+ *  off. Comes on after 2 quiet passes (10 s) - 6 (30 s) once another
+ *  source has been seen, so a slow or patchy source does not make it
+ *  flap on and off. Returns the change, if any. */
+export function stepFallbackPath(st: FallbackPathState, otherFresh: boolean, pypilotHas: boolean, enabled: boolean): "on" | "off" | null {
+  if (st.active) {
+    if (enabled && !otherFresh && pypilotHas) return null;
+    st.active = false; st.miss = 0;
+    if (otherFresh) st.offs += 1;
+    return "off";
+  }
+  if (otherFresh) st.offs = Math.max(st.offs, 1);
+  st.miss = enabled && !otherFresh && pypilotHas ? st.miss + 1 : 0;
+  if (st.miss < (st.offs ? 6 : 2)) return null;
+  st.active = true; st.miss = 0;
+  return "on";
 }
