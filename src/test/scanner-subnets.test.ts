@@ -14,7 +14,7 @@ describe("localSubnets (Rev656)", () => {
       wlan0: [v4("192.168.30.1")],          // AvNav hotspot, listed first
       eth0: [v4("192.168.1.20")],           // the boat network with the TinyPilot
       docker0: [v4("172.17.0.1")],
-      tailscale0: [{ ...v4("100.127.222.27"), netmask: "255.255.255.255" }],
+      tailscale0: [{ ...v4("100.64.0.7"), netmask: "255.255.255.255" }],
       eth1: [v4("169.254.10.2")],
       wlan1: [v4("192.168.1.21")],          // same /24 as eth0
     } as any);

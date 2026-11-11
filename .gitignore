@@ -16,3 +16,6 @@ deploy.local.ps1
 
 # Source artwork and loose captures (logo .AI/.FH11/.jpg, raw screenshots) - kept locally, not in git
 assets-src/
+
+# Internal notes live in the private repo Aitonos/tunatunes-notes (docs/ is a local link to it)
+docs/
