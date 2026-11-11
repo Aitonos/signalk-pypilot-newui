@@ -1033,7 +1033,7 @@
       "dash.custom.label.ph": "Label",
       "dash.custom.unit.ph": "Unit (opt)",
       "dash.custom.add": "Add",
-      "dash.helmBar.title":  "BOTTOM BAR (indicator)",
+      "dash.helmBar.title":  "BAR (heel or rudder)",
       "dash.helmBar.hint":   "What the multifunction panel shows as a bar: boat heel or rudder angle.",
       "dash.helmChart.title": "MULTIFUNCTION PANEL CHART",
       "dash.helmChart.hint":  "Double tap the panel to switch view. Long press opens these settings; a finger on the chart shows the values of that moment.",
@@ -2409,7 +2409,7 @@
       "dash.custom.label.ph": "Etiqueta",
       "dash.custom.unit.ph": "Unidad (opt)",
       "dash.custom.add": "Añadir",
-      "dash.helmBar.title":  "BARRA INFERIOR (indicador)",
+      "dash.helmBar.title":  "BARRA (escora o timón)",
       "dash.helmBar.hint":   "Qué muestra el panel multifunción como barra: la escora del barco o el ángulo del timón.",
       "dash.helmChart.title": "GRÁFICA DEL PANEL MULTIFUNCIÓN",
       "dash.helmChart.hint":  "Doble toque en el panel para cambiar de vista. Pulsación larga abre estos ajustes; con el dedo sobre la gráfica ves los valores de ese momento.",
@@ -3781,7 +3781,7 @@
       "dash.custom.label.ph": "Bezeichnung",
       "dash.custom.unit.ph": "Einheit (opt.)",
       "dash.custom.add": "Hinzufügen",
-      "dash.helmBar.title": "UNTERE LEISTE (Anzeige)",
+      "dash.helmBar.title": "LEISTE (Krängung oder Ruder)",
       "dash.helmBar.hint": "Was das Multifunktions-Panel als Leiste zeigt: Krängung oder Ruderwinkel.",
       "dash.helmChart.title": "GRAFIK DES MULTIFUNKTIONS-PANELS",
       "dash.helmChart.hint": "Doppeltipp auf das Panel wechselt die Ansicht. Langer Druck öffnet diese Einstellungen; ein Finger auf der Grafik zeigt die Werte dieses Moments.",
@@ -5126,7 +5126,7 @@
       "dash.custom.label.ph": "Libellé",
       "dash.custom.unit.ph": "Unité (opt.)",
       "dash.custom.add": "Ajouter",
-      "dash.helmBar.title": "BARRE DU BAS (affichage)",
+      "dash.helmBar.title": "BARRE (gîte ou safran)",
       "dash.helmBar.hint": "Ce que le panneau multifonction affiche en barre : gîte ou angle de barre.",
       "dash.helmChart.title": "GRAPHIQUE DU PANNEAU MULTIFONCTION",
       "dash.helmChart.hint": "Un double tap sur le panneau change de vue. Un appui long ouvre ces réglages ; un doigt sur le graphique affiche les valeurs de cet instant.",
@@ -22732,7 +22732,7 @@
     const el = document.querySelector(`.setup-block[data-block-key="${key}"] .section-title`);
     return el ? el.textContent.trim() : key;
   }
-  // Rev681: start-up screen on/off, per device (Settings > Sound and chart).
+  // Rev681: start-up screen on/off, per device (Visor settings > Screen and sound).
   const BOOT_SPLASH_OFF_KEY = "pypilot-newui.bootSplashOff";
   function _bootSplashOn() { try { return localStorage.getItem(BOOT_SPLASH_OFF_KEY) !== "1"; } catch { return true; } }
   function _bootSplashSet(on) { try { if (on) localStorage.removeItem(BOOT_SPLASH_OFF_KEY); else localStorage.setItem(BOOT_SPLASH_OFF_KEY, "1"); } catch { /* silent */ } }

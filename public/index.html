@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev701" />
+  <link rel="stylesheet" href="style.css?v=Rev702" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -939,7 +939,7 @@
               <label class="chart-path-chip"><input type="checkbox" data-hview="chart"><span data-i18n="dash.helmViews.chart">Chart</span></label>
               <label class="chart-path-chip"><input type="checkbox" data-hview="fb"><span>Freeboard</span></label>
             </div>
-            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px;margin-top:10px" data-i18n="dash.helmChart.title">CHART IN THE BOTTOM BAR</div>
+            <div style="font-weight:700;color:var(--fg-dim);font-size:13px;letter-spacing:1px;margin-top:10px" data-i18n="dash.helmChart.title">MULTIFUNCTION PANEL CHART</div>
             <div class="hint" style="font-size:12px;margin:0 0 4px" data-i18n="dash.helmChart.hint">Double tap the bottom bar to switch between the bar and this chart. Long press opens these settings; a finger on the chart shows the values of that moment.</div>
             <div class="chart-window-row" id="helm-chart-windows">
               <button class="chart-window-btn" data-hwindow="2m">2 min</button>
@@ -2259,8 +2259,7 @@
               <li><b>Control</b>: tap <b>AP</b> to engage the pilot on the current heading. <b>&plusmn;1 / &plusmn;10</b> nudges the target. <b>TACK &lang; / &rang;</b> tacks to port or starboard. The centre dropdown switches the mode (compass / gps / wind / true wind / nav).</li>
               <li><b>Rose</b>: N (orange) / E (green) / S (blue) / W (red) plus degree ticks every 30&deg;. Green / red wedges are hull-fixed and mark the sailing zones.</li>
               <li><b>Target &amp; Wind arrows</b>: three concentric arrow pieces on the rose &mdash; cyan diamond (AP target), amber (AWA, marked <b>A</b>), sea-green (TWA, marked <b>T</b>). When target &equiv; AWA &equiv; TWA they interlock into one clean droplet shape; the moment any of the three drifts, its V-notch opens and its color ring-tick reveals the exact angle.</li>
-              <li><b>Overlays</b>: long-press any corner OR the boat sprite to open the 4-card selector for AWA / TWA / COG line / current vector (SOG&minus;SOW). Each card lists what data it needs.</li>
-              <li><b>Corners</b>: same long-press menu picks which datum shows in each corner (HDG, wind, SOG, COG, target, depth, mode, polars&hellip;).</li>
+              <li><b>Visor settings</b>: long-press a corner (or the boat &rarr; Visor settings). Sections: <i>Rose corners</i>, <i>Arrows on the rose</i>, <i>Multifunction panel</i>, <i>Collision alarm (AIS)</i>, <i>Screen and sound</i> and <i>Saved displays</i>.</li>
               <li><b>Tune</b>: tick <b>Unlock settings</b> before touching. Each slider has &minus;10 / &minus;1 / slider / +1 / +10. When unlocked, the previous value is shown in orange as a reference.</li>
               <li><b>Race</b>: T1/T2 countdown timer with audible beeps + screen flash + spoken seconds. Runs in the background across tabs.</li>
               <li><b>Paths &amp; API</b>: Signal K paths this plugin publishes. Wire the <i>Simple Switch</i> rows (blue) to KIP.</li>
@@ -2276,8 +2275,7 @@
               <li><b>Control</b>: pulsa <b>AP</b> para enganchar el piloto en el rumbo actual. <b>&plusmn;1 / &plusmn;10</b> mueve el rumbo objetivo. <b>VIRAR &lang; / &rang;</b> vira por babor o estribor. El desplegable central cambia el modo (compass / gps / wind / true wind / nav).</li>
               <li><b>Rosa</b>: N (naranja) / E (verde) / S (azul) / W (rojo) y grados cada 30&deg;. Sectores verde/rojo fijos a la cruj&iacute;a marcan las zonas de amura.</li>
               <li><b>Flechas Target y Viento</b>: tres piezas conc&eacute;ntricas en la rosa &mdash; diamante cyan (target del AP), amber (AWA, letra <b>A</b>), verde-mar (TWA, letra <b>T</b>). Cuando target &equiv; AWA &equiv; TWA se ensamblan en una forma de gota limpia; en cuanto una se desalinea, su V-hembra queda hueca y su rayita de color en el aro marca el &aacute;ngulo exacto.</li>
-              <li><b>Capas</b>: long-press en cualquier esquina O sobre el barco abre el selector de 4 tarjetas: AWA / TWA / l&iacute;nea COG / vector corriente (SOG&minus;SOW). Cada tarjeta indica qu&eacute; datos necesita.</li>
-              <li><b>Esquinas</b>: el mismo men&uacute; long-press elige qu&eacute; dato ver en cada esquina (HDG, viento, SOG, COG, target, sonda, modo, polares&hellip;).</li>
+              <li><b>Configuraci&oacute;n del visor</b>: pulsaci&oacute;n larga en una esquina (o en el barco &rarr; Configuraci&oacute;n del visor). Apartados: <i>Esquinas de la rosa</i>, <i>Flechas en la rosa</i>, <i>Panel multifunci&oacute;n</i>, <i>Alarma de colisi&oacute;n (AIS)</i>, <i>Pantalla y sonido</i> y <i>Pantallas guardadas</i>.</li>
               <li><b>Ajustes</b>: marca <b>Desbloquear ajustes</b> antes de tocar. Cada slider tiene &minus;10 / &minus;1 / slider / +1 / +10. Al desbloquear ves el valor original en naranja para saber contra qu&eacute; comparas.</li>
               <li><b>Regata</b>: timer T1/T2 con beeps + flash de pantalla + voz. Corre de fondo en cualquier pesta&ntilde;a.</li>
               <li><b>Paths &amp; API</b>: paths SK que este plugin publica. Usa los <i>Simple Switch</i> (fila azul) para conectar con KIP.</li>
@@ -2299,11 +2297,15 @@
               <li><b>TACK</b>: choose port / starboard; a countdown modal appears with the maneuver kind (tack or gybe based on AWA) and the planned final heading. Cancel or nudge during arming to abort / adjust.</li>
               <li><b>Mode selector</b>: compass, GPS, apparent wind, true wind, waypoint, and HEAD TO WIND (aproado). Wind modes pin the target to the wind angle; the diamond turns amber for AWA-lock, teal for TWA.</li>
               <li><b>Compass rose</b>: rotates so N always points to real north; the boat outline is hull-fixed. Ticks every 30&deg; with N (orange) / E (green) / S (blue) / W (red) cardinals. Green / red hull-fixed wedges mark the sailing zones (close-hauled and no-go).</li>
-              <li><b>Overlays</b>: long-press any corner OR the boat sprite to open the 4-card selector: AWA (amber A), TWA (teal T), COG line (yellow chevrons, appears when SOG &gt; 0.15 kn), current vector (blue wavy arrow, needs SOW).</li>
+              <li><b>Visor settings</b>: long-press a corner, or long-press the boat &rarr; Visor settings. Six sections, described below.</li>
+              <li><b>Arrows on the rose</b> <i>(Visor settings)</i>: AWA (amber A), TWA (teal T), COG line (yellow chevrons, appears when SOG &gt; 0.15 kn), current vector (blue wavy arrow, needs SOW). Each card lists what data it needs.</li>
               <li><b>Gust marker</b>: optional ghost A arrow that stays at the peak wind for 10 s so you see where the last gust came from.</li>
-              <li><b>Corners</b>: same long-press menu picks the datum in each of the 4 corners &mdash; HDG, wind, SOG, COG, target, depth, mode, polars, custom SK path.</li>
-              <li><b>Bottom bar (indicator)</b>: switch between <i>heel</i> and <i>rudder angle</i> from the corner-config popup. Live big-number display with triangle markers.</li>
-              <li><b>Long-press on the boat</b>: also opens the <i>Tack history</i> log &mdash; every tack you did with SOG retention and recovery time.</li>
+              <li><b>Rose corners</b> <i>(Visor settings)</i>: the datum in each of the 4 corners &mdash; HDG, wind, SOG, COG, target, depth, mode, polars, custom SK path.</li>
+              <li><b>Multifunction panel</b> <i>(Visor settings, or long-press the panel)</i>: heel or rudder bar, a live chart or Freeboard-SK. Double tap cycles through the views you choose.</li>
+              <li><b>Collision alarm (AIS)</b> <i>(Visor settings)</i>: Harbour / At anchor / Sailing, voice alert, harbour zones.</li>
+              <li><b>Screen and sound</b> <i>(Visor settings)</i>: start-up screen, tab bar always visible, chart in the background, tap sound. Saved on this device.</li>
+              <li><b>Saved displays</b> <i>(Visor settings)</i>: save the layout with a name, on this device or for every device, and switch in one tap.</li>
+              <li><b>Long-press on the boat</b>: opens the boat menu &mdash; Visor settings, Guided tour and <i>Tack history</i> (every tack with SOG retention and recovery time).</li>
             </ul>
 
             <h5 style="margin:14px 0 4px">Tune tab</h5>
@@ -2369,7 +2371,7 @@
             <h5 style="margin:14px 0 4px">Gestures</h5>
             <ul class="info-list">
               <li><b>Swipe</b> horizontally across a tab to go to the next / previous. Blocked over unlocked sliders and horizontally-scrollable tables.</li>
-              <li><b>Long-press</b>: opens config popups. On any corner or the boat sprite &rarr; overlays + corners menu. On a slider name &rarr; raw pypilot key.</li>
+              <li><b>Long-press</b>: on a corner or the multifunction panel &rarr; Visor settings. On the boat &rarr; boat menu. On a slider name &rarr; raw pypilot key.</li>
               <li><b>Yellow triangle</b> at the bottom-centre hides the tab bar to give the rose more room. Tap again to bring it back.</li>
             </ul>
           </div>
@@ -2383,11 +2385,15 @@
               <li><b>VIRAR</b>: elige babor / estribor; aparece un modal con cuenta atr&aacute;s indicando el tipo de maniobra (virada o trasluchada seg&uacute;n el AWA) y el rumbo final previsto. Cancela o toca un nudge durante el arming para abortar / ajustar.</li>
               <li><b>Selector de modo</b>: compass, GPS, viento aparente, viento real, waypoint y APROADO (head-to-wind). Los modos de viento fijan el target al &aacute;ngulo de viento; el diamante se vuelve amber para AWA-lock y verde-mar para TWA.</li>
               <li><b>Rosa de los vientos</b>: gira para que N siempre apunte al norte real; el barco est&aacute; fijo a la cruj&iacute;a. Marcas cada 30&deg; con N (naranja) / E (verde) / S (azul) / W (rojo). Sectores verde/rojo fijos al barco marcan las zonas de amura (ce&ntilde;ida y no-go).</li>
-              <li><b>Capas</b>: long-press en cualquier esquina O sobre el barco abre el selector de 4 tarjetas: AWA (amber A), TWA (verde-mar T), l&iacute;nea COG (chevrones amarillos, aparece con SOG &gt; 0,15 kn), vector corriente (flecha ondulada azul, necesita SOW).</li>
+              <li><b>Configuraci&oacute;n del visor</b>: pulsaci&oacute;n larga en una esquina, o en el barco &rarr; Configuraci&oacute;n del visor. Seis apartados, explicados abajo.</li>
+              <li><b>Flechas en la rosa</b> <i>(Configuraci&oacute;n del visor)</i>: AWA (A &aacute;mbar), TWA (T verde-mar), l&iacute;nea COG (chevrones amarillos, aparece con SOG &gt; 0,15 kn), vector corriente (flecha ondulada azul, necesita SOW). Cada tarjeta indica qu&eacute; datos necesita.</li>
               <li><b>Marca de r&aacute;fagas</b>: flecha A fantasma opcional que queda 10 s en el pico de la r&aacute;faga para que veas de d&oacute;nde vino.</li>
-              <li><b>Esquinas</b>: el mismo men&uacute; long-press elige el dato en cada una de las 4 esquinas &mdash; HDG, viento, SOG, COG, target, sonda, modo, polares, path SK personalizado.</li>
-              <li><b>Barra inferior (indicador)</b>: alterna entre <i>escora</i> y <i>&aacute;ngulo del tim&oacute;n</i> desde el popup de configuraci&oacute;n de esquinas. Muestra el valor en n&uacute;mero grande con marcadores triangulares.</li>
-              <li><b>Long-press sobre el barco</b>: tambi&eacute;n abre el <i>Historial de bordos</i> &mdash; cada virada con retenci&oacute;n de SOG y tiempo de recuperaci&oacute;n.</li>
+              <li><b>Esquinas de la rosa</b> <i>(Configuraci&oacute;n del visor)</i>: el dato de cada una de las 4 esquinas &mdash; HDG, viento, SOG, COG, target, sonda, modo, polares, path SK personalizado.</li>
+              <li><b>Panel multifunci&oacute;n</b> <i>(Configuraci&oacute;n del visor, o pulsaci&oacute;n larga en el panel)</i>: barra de escora o tim&oacute;n, gr&aacute;fica en vivo o Freeboard-SK. El doble toque pasa por las vistas que elijas.</li>
+              <li><b>Alarma de colisi&oacute;n (AIS)</b> <i>(Configuraci&oacute;n del visor)</i>: Puerto / Fondeado / Navegando, aviso por voz, zonas de puerto.</li>
+              <li><b>Pantalla y sonido</b> <i>(Configuraci&oacute;n del visor)</i>: pantalla de inicio, barra de pesta&ntilde;as siempre visible, carta en segundo plano, sonido al tocar. Se guarda en este dispositivo.</li>
+              <li><b>Pantallas guardadas</b> <i>(Configuraci&oacute;n del visor)</i>: guarda la disposici&oacute;n con un nombre, en este dispositivo o para todos, y cambia de una a otra de un toque.</li>
+              <li><b>Pulsaci&oacute;n larga en el barco</b>: abre el men&uacute; del barco &mdash; Configuraci&oacute;n del visor, Tour guiado e <i>Historial de bordos</i> (cada virada con retenci&oacute;n de SOG y tiempo de recuperaci&oacute;n).</li>
             </ul>
 
             <h5 style="margin:14px 0 4px">Pesta&ntilde;a Ajustes (Tune)</h5>
@@ -2453,7 +2459,7 @@
             <h5 style="margin:14px 0 4px">Gestos</h5>
             <ul class="info-list">
               <li><b>Swipe</b> horizontal en cualquier pesta&ntilde;a para cambiar a la siguiente / anterior. Bloqueado sobre sliders desbloqueados y tablas con scroll horizontal.</li>
-              <li><b>Long-press</b>: abre popups de configuraci&oacute;n. En cualquier esquina o sobre el barco &rarr; men&uacute; de capas + esquinas. Sobre el nombre de un slider &rarr; clave pypilot cruda.</li>
+              <li><b>Pulsaci&oacute;n larga</b>: en una esquina o en el panel multifunci&oacute;n &rarr; Configuraci&oacute;n del visor. En el barco &rarr; men&uacute; del barco. En el nombre de un slider &rarr; clave pypilot cruda.</li>
               <li><b>Tri&aacute;ngulo amarillo</b> abajo del centro oculta la barra de pesta&ntilde;as para ganar espacio para la rosa. Otra pulsaci&oacute;n la vuelve a mostrar.</li>
             </ul>
           </div>
@@ -2942,6 +2948,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev701"></script>
+  <script src="app.js?v=Rev702"></script>
 </body>
 </html>

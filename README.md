@@ -1,4 +1,4 @@
-# PyPilot New-UI for Signal K
+# PyPilot New-UI
 
 <p align="center"><img src="https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/logo-512.png" width="160" alt="PyPilot New-UI logo" /></p>
 
@@ -53,7 +53,7 @@ Questions, ideas and sailing reports: **[PyPilot New-UI thread on the OpenMarine
 
 | | |
 |---|---|
-| ![Profile manager - history of each profile and look-alike names flagged](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/12-profile-manager.jpg) | ![Visor settings - corner data, polar performance and custom Signal K paths](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/13-visor-settings.jpg) |
+| ![Profile manager - history of each profile and look-alike names flagged](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/12-profile-manager.jpg) | ![Visor settings - rose corners, polar performance and custom Signal K paths](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/13-visor-settings.jpg) |
 
 ---
 
@@ -129,7 +129,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 ### Touch visor (14)
 
-16. **Compass rose** with colour-coded cardinals, hull-fixed sailing wedges and 4 corner tiles configurable by long-press.
+16. **Compass rose** with colour-coded cardinals, hull-fixed sailing wedges and 4 corner tiles. Long-press a corner for the visor settings: rose corners, arrows on the rose, multifunction panel, collision alarm (AIS), screen and sound (start-up screen, tab bar, chart in the background, tap sound) and saved displays.
 17. **Concentric Target + Wind arrows** — target diamond tinted by mode (red compass, amber apparent, teal true), amber `A` and teal `T` arrows. They interlock into a droplet when aligned and open into V-notches with a colour tick when they drift.
 18. **Gust marker overlay** — a notable gust or wind shift leaves a ghost `A` / `T` at the angle it hit, with its speed, fading over 15 s. Per-device on / off with a test button.
 19. **COG line + Current vector** overlays.

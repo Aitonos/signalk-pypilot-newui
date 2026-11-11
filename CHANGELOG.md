@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Rev701 on top of 3.15.3.
+Rev701-702 on top of 3.15.3.
 
 ### Changed
 - Visor settings: clearer section names - Rose corners, Arrows on the rose,
@@ -10,6 +10,13 @@ Rev701 on top of 3.15.3.
   and charts"), Saved displays. In Screen and sound, the screen cards come
   first (start-up screen, tab bar, chart in the background) and the tap
   sound last.
+- Inside Multifunction panel, the bar is "Bar (heel or rudder)" (was
+  "Bottom bar (indicator)").
+- Info tab instructions (EN / ES) describe the visor settings by their
+  sections and where each long-press goes (corner or panel: visor settings;
+  boat: boat menu). They still described the old 4-card selector.
+- README title is "PyPilot New-UI" (no more "for Signal K"), and the rose
+  feature lists the visor settings sections.
 
 ## 3.15.3 — 2026-11-11 — Heading fallback, more cases (#6)
 
