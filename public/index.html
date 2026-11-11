@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev700" />
+  <link rel="stylesheet" href="style.css?v=Rev701" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -796,7 +796,7 @@
           <!-- Rev607 (Carlos: "ordenar, que ya no me aclaro"): one
                folding section per subject, same controls and ids. -->
           <details class="cfg-section" open>
-            <summary data-i18n="cfg.sec.corners">CORNERS OF THE ROSE</summary>
+            <summary data-i18n="cfg.sec.corners">ROSE CORNERS</summary>
             <div class="cfg-body">
           <div class="dash-corner-cfg">
             <label><span data-i18n="dash.corner.tl">Top left</span> <select id="dash-corner-tl" data-corner="tl"></select></label>
@@ -824,7 +824,7 @@
             </div>
           </details>
           <details class="cfg-section">
-            <summary data-i18n="cfg.sec.rose">ON THE ROSE</summary>
+            <summary data-i18n="cfg.sec.rose">ARROWS ON THE ROSE</summary>
             <div class="cfg-body">
               <div class="overlay-cards">
               <!-- Rev123 (Carlos): tras el swap, la pieza AMARILLA
@@ -915,7 +915,7 @@
             </div>
           </details>
           <details class="cfg-section">
-            <summary data-i18n="cfg.sec.bar">BOTTOM BAR</summary>
+            <summary data-i18n="cfg.sec.bar">MULTIFUNCTION PANEL</summary>
             <div class="cfg-body">
           <!-- Rev183 (Carlos): helm-bar source selector. Lives here in
                the corner-config popup (no chip on the strip). Two
@@ -963,7 +963,7 @@
             </div>
           </details>
           <details class="cfg-section">
-            <summary data-i18n="cfg.sec.ais">AIS COLLISION ALARM</summary>
+            <summary data-i18n="cfg.sec.ais">COLLISION ALARM (AIS)</summary>
             <div class="cfg-body">
               <div class="overlay-cards">
               <!-- Rev434 (Carlos QA Rev433): AIS collision overlay toggle.
@@ -1041,19 +1041,9 @@
             </div>
           </details>
           <details class="cfg-section">
-            <summary data-i18n="cfg.sec.other">SOUND AND CHART</summary>
+            <summary data-i18n="cfg.sec.other">SCREEN AND SOUND</summary>
             <div class="cfg-body">
               <div class="overlay-cards">
-              <!-- Rev661 (forum 2026-11-08 + Carlos): keep the tab bar on screen in Control. -->
-              <label class="overlay-card">
-                <input type="checkbox" id="dash-nav-always" />
-                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
-                  <rect x="-26" y="-54" width="52" height="12" rx="3" fill="#37b6ff"/>
-                  <rect x="-26" y="-36" width="52" height="30" rx="3" fill="none" stroke="#b8c4d0" stroke-width="2"/>
-                </svg>
-                <div class="overlay-title" data-i18n="dash.overlay.nav.title">Tab bar always visible</div>
-                <div class="overlay-needs" data-i18n="dash.overlay.nav.needs">In Control the tab bar no longer hides itself after 5 s. Saved on this device.</div>
-              </label>
               <!-- Rev681 (Carlos): start-up screen on/off, per device. -->
               <label class="overlay-card">
                 <input type="checkbox" id="dash-boot-splash" />
@@ -1065,24 +1055,15 @@
                 <div class="overlay-title" data-i18n="dash.overlay.splash.title">Start-up screen</div>
                 <div class="overlay-needs" data-i18n="dash.overlay.splash.needs">Logo, autopilot check and sensor quality when the visor opens. Saved on this device.</div>
               </label>
-              <!-- Rev522 (Carlos): tap sound toggle, same overlay-card look. -->
+              <!-- Rev661 (forum 2026-11-08 + Carlos): keep the tab bar on screen in Control. -->
               <label class="overlay-card">
-                <input type="checkbox" id="dash-tap-sound" />
+                <input type="checkbox" id="dash-nav-always" />
                 <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
-                  <path d="M -14,-38 L -6,-38 L 4,-48 L 4,-12 L -6,-22 L -14,-22 Z" fill="#ffffff"/>
-                  <path d="M 10,-38 Q 15,-30 10,-22" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
-                  <path d="M 15,-44 Q 24,-30 15,-16" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
+                  <rect x="-26" y="-54" width="52" height="12" rx="3" fill="#37b6ff"/>
+                  <rect x="-26" y="-36" width="52" height="30" rx="3" fill="none" stroke="#b8c4d0" stroke-width="2"/>
                 </svg>
-                <div class="overlay-title" data-i18n="dash.overlay.tap.title">Tap sound</div>
-                <div class="overlay-needs" data-i18n="dash.overlay.tap.needs">A short click on every button you tap.</div>
-                <!-- Rev523: sound picker + test (choosing one plays it). -->
-                <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
-                  <select id="dash-tap-sound-type" onclick="event.stopPropagation();"></select>
-                  <button type="button" id="dash-tap-sound-test" class="ghost"
-                          style="padding:6px 10px;font-size:12px"
-                          data-i18n="dash.overlay.gust.test"
-                          onclick="event.preventDefault();event.stopPropagation();">Test now</button>
-                </div>
+                <div class="overlay-title" data-i18n="dash.overlay.nav.title">Tab bar always visible</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.nav.needs">In Control the tab bar no longer hides itself after 5 s. Saved on this device.</div>
               </label>
               <!-- Rev477 (Carlos 2026-10-14): own card for the Freeboard
                    background preload (Rev475/476) + "?" explaining when to
@@ -1105,6 +1086,25 @@
                 </div>
                 <div class="gain-help-long" id="dash-fb-help" hidden data-i18n="dash.overlay.fb.help">Freeboard stays open in the background: it uses some CPU, data and battery even when you do not see it. If the visor feels slow (lag) or you want to save battery, turn this off: the chart will then load only when you open it (a few seconds slower). This setting applies to this device only.</div>
               </div>
+              <!-- Rev522 (Carlos): tap sound toggle, same overlay-card look. -->
+              <label class="overlay-card">
+                <input type="checkbox" id="dash-tap-sound" />
+                <svg class="overlay-preview" viewBox="-30 -60 60 60" preserveAspectRatio="xMidYMid meet">
+                  <path d="M -14,-38 L -6,-38 L 4,-48 L 4,-12 L -6,-22 L -14,-22 Z" fill="#ffffff"/>
+                  <path d="M 10,-38 Q 15,-30 10,-22" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
+                  <path d="M 15,-44 Q 24,-30 15,-16" fill="none" stroke="#37b6ff" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <div class="overlay-title" data-i18n="dash.overlay.tap.title">Tap sound</div>
+                <div class="overlay-needs" data-i18n="dash.overlay.tap.needs">A short click on every button you tap.</div>
+                <!-- Rev523: sound picker + test (choosing one plays it). -->
+                <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
+                  <select id="dash-tap-sound-type" onclick="event.stopPropagation();"></select>
+                  <button type="button" id="dash-tap-sound-test" class="ghost"
+                          style="padding:6px 10px;font-size:12px"
+                          data-i18n="dash.overlay.gust.test"
+                          onclick="event.preventDefault();event.stopPropagation();">Test now</button>
+                </div>
+              </label>
               </div>
             </div>
           </details>
@@ -2711,8 +2711,8 @@
         <button class="primary" id="boat-menu-corners" style="padding:16px;font-size:16px;text-align:left">
           <span data-lang="en">Visor settings</span>
           <span data-lang="es">Configuración del visor</span>
-          <span data-lang="en" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Corner data, data on the visor, multifunction panel and alarms.</span>
-          <span data-lang="es" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Datos en esquinas, datos sobre el visor, panel multifunción y alarmas.</span>
+          <span data-lang="en" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Rose corners and arrows, multifunction panel, collision alarm, screen and sound.</span>
+          <span data-lang="es" style="display:block;font-size:12px;opacity:0.7;font-weight:400;margin-top:2px">Esquinas y flechas de la rosa, panel multifunción, alarma de colisión, pantalla y sonido.</span>
         </button>
         <button class="primary" id="boat-menu-tour" style="padding:16px;font-size:16px;text-align:left">
           <span data-lang="en">Guided tour</span>
@@ -2942,6 +2942,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev700"></script>
+  <script src="app.js?v=Rev701"></script>
 </body>
 </html>

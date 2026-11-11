@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+Rev701 on top of 3.15.3.
+
+### Changed
+- Visor settings: clearer section names - Rose corners, Arrows on the rose,
+  Multifunction panel, Collision alarm (AIS), Screen and sound (was "Sounds
+  and charts"), Saved displays. In Screen and sound, the screen cards come
+  first (start-up screen, tab bar, chart in the background) and the tap
+  sound last.
+
 ## 3.15.3 — 2026-11-11 — Heading fallback, more cases (#6)
 
 Rev698-700 on top of 3.15.2.
