@@ -2,7 +2,16 @@
 
 ## Unreleased
 
-Rev694-695 on top of 3.15.1.
+Rev694-696 on top of 3.15.1.
+
+### Added
+- **Heading fallback** (GitHub #6): when nobody writes the heading to
+  Signal K for 10 s but pypilot has one (pypilot without read/write access,
+  not finding the server, or with its Signal K output off), the plugin
+  publishes navigation.headingMagnetic, navigation.attitude and
+  navigation.rateOfTurn itself from pypilot's IMU - same data and units as
+  pypilot's own output. It steps back as soon as another source writes the
+  heading. /status shows headingFallback.
 
 ### Fixed
 - Heading missing when pypilot runs on the Signal K machine itself (GitHub

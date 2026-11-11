@@ -80,6 +80,7 @@ import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
+import { IMU_FALLBACK_KEYS, otherSourceFresh, imuFallbackValues } from "./imu-fallback";
 import { withLocalAliases, requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
@@ -91,7 +92,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev695";
+const PLUGIN_REVISION = "Rev696";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -775,6 +776,11 @@ module.exports = function (app: any) {
   // Rev138 (Carlos): Pi Zero log capture runtime state.
   let logCaptureTimer: NodeJS.Timeout | null = null;
   let logRetentionTimer: NodeJS.Timeout | null = null;   // Rev647
+  // Rev696 (GitHub #6): heading / attitude fallback (see imu-fallback.ts).
+  let imuFallbackActive = false;
+  let imuFallbackTimer: NodeJS.Timeout | null = null;
+  let imuFallbackMissTicks = 0;
+  let imuFallbackLastPub = 0;
   let logRetentionFirst: NodeJS.Timeout | null = null;
   let logCaptureLastRunTs: number | null = null;
   let logCaptureLastError: string | null = null;
@@ -883,6 +889,34 @@ module.exports = function (app: any) {
       if (logRetentionTimer) clearInterval(logRetentionTimer);
       if (logRetentionFirst) clearTimeout(logRetentionFirst);
       logRetentionFirst = setTimeout(_lcRetention, 120_000);
+      // Rev696 (GitHub #6): every 5 s - does anybody else write the heading
+      // to Signal K? If nobody has for 10 s and pypilot has one, publish it
+      // ourselves; step back as soon as another source does.
+      if (imuFallbackTimer) clearInterval(imuFallbackTimer);
+      imuFallbackTimer = setInterval(() => {
+        try {
+          const now = Date.now();
+          const other = otherSourceFresh(app.getSelfPath ? app.getSelfPath("navigation.headingMagnetic") : null, SOURCE_LABEL, now, 5000);
+          const age = client && client.connected ? (client as any).getValueAgeMs?.("ap.heading") : null;
+          const pypilotHas = typeof age === "number" && age < 60_000;
+          if (imuFallbackActive) {
+            if (other || !pypilotHas) {
+              imuFallbackActive = false; imuFallbackMissTicks = 0;
+              // eslint-disable-next-line no-console
+              console.log(`[imu-fallback] off - ${other ? "another source writes the heading" : "pypilot has no heading"}`);
+              if (client) try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
+            }
+            return;
+          }
+          imuFallbackMissTicks = (!other && pypilotHas) ? imuFallbackMissTicks + 1 : 0;
+          if (imuFallbackMissTicks >= 2) {
+            imuFallbackActive = true;
+            // eslint-disable-next-line no-console
+            console.log("[imu-fallback] on - pypilot has a heading but nobody writes it to Signal K (pypilot without read/write access?); publishing it from the plugin");
+            if (client) try { _applyWatches(client, lastCatalog); } catch { /* silent */ }
+          }
+        } catch { /* next tick */ }
+      }, 5000);
       logRetentionTimer = setInterval(_lcRetention, 6 * 3600_000);
       if (!props.host) {
         app.setPluginStatus(
@@ -984,6 +1018,19 @@ module.exports = function (app: any) {
       });
 
       client.on("value", (name: string, value: unknown) => {
+        // Rev696: heading fallback - one delta per new heading, at most 5 Hz.
+        if (imuFallbackActive && name === "imu.heading_lowpass" && Date.now() - imuFallbackLastPub >= 200) {
+          imuFallbackLastPub = Date.now();
+          const vals = imuFallbackValues(client ? client.getValues() : {});
+          if (vals.length) {
+            try {
+              app.handleMessage(PLUGIN_ID, {
+                context: "vessels." + app.selfId,
+                updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: vals }],
+              });
+            } catch { /* silent */ }
+          }
+        }
         // Rev513: ap.tack.direction is meaningless in standby and pypilot
         // flips it none <-> port/starboard ~40 times a minute there.
         if (name === "ap.tack.direction") _publishTackDirection(value);
@@ -1529,6 +1576,8 @@ module.exports = function (app: any) {
         logCaptureTimer = null;
       }
       if (logRetentionTimer) { clearInterval(logRetentionTimer); logRetentionTimer = null; }   // Rev647
+      if (imuFallbackTimer) { clearInterval(imuFallbackTimer); imuFallbackTimer = null; }   // Rev696
+      imuFallbackActive = false; imuFallbackMissTicks = 0;
       if (pypilotAccessTimer) { clearInterval(pypilotAccessTimer); pypilotAccessTimer = null; }   // Rev659
       if (pypilotTidyTimer) { clearInterval(pypilotTidyTimer); pypilotTidyTimer = null; }
       if (logRetentionFirst) { clearTimeout(logRetentionFirst); logRetentionFirst = null; }
@@ -1689,6 +1738,7 @@ module.exports = function (app: any) {
           sshPasswordSet: !!(props.sshPassword && props.sshPassword.length),
           // Rev676: options moved from the Signal K admin to the visor.
           pypilotAutoApprove: props.pypilotAutoApprove !== false,
+          headingFallback: imuFallbackActive,   // Rev696
           sessionRecorderEnabled: !!props.sessionRecorderEnabled,
           logCaptureIntervalSec: Math.max(30, Number(props.logCaptureIntervalSec) || 60),
           // Rev93: historian buffer state (count / capacity / oldest+newest ts).
@@ -7009,6 +7059,8 @@ module.exports = function (app: any) {
     // Rev695: pypilot's own heading, slowly - lets the autopilot check tell
     // "the IMU is silent" from "pypilot cannot write to Signal K" (#6).
     if (name === "ap.heading") return WATCH_LOW;
+    // Rev696: the IMU readings the heading fallback publishes, only while on.
+    if (imuFallbackActive && IMU_FALLBACK_KEYS.includes(name)) return WATCH_HIGH;
     // Rev191 (Carlos): tack.* paths MUST be watched core. Without a
     // subscribe pypilot never emits them, so the visor never sees the
     // "port|starboard|none" state machine after POST /tack/{dir}. The
