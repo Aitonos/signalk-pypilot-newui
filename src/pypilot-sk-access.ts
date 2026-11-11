@@ -37,6 +37,21 @@ export function isPypilotDevice(d: { clientId?: string; description?: string }):
   return PYPILOT_CLIENT_RE.test(String(d.clientId || "")) && String(d.description || "") === "pypilot";
 }
 
+const LOOPBACK = ["127.0.0.1", "::1"];
+function isLoopback(ip: string): boolean { return /^127\./.test(ip) || ip === "::1"; }
+
+/** Rev695 (GitHub #6): pypilot can run on the Signal K machine itself
+ *  (OpenPlotter, IMU on the Pi). Its request then comes from 127.0.0.1 /
+ *  ::1 or from any of the machine's own addresses, not from the address
+ *  set in Setup. When the configured pypilot address is the loopback or
+ *  one of this machine's addresses, all of those count as pypilot's. */
+export function withLocalAliases(pypilotIps: string[], ownAddrs: string[]): string[] {
+  const ips = pypilotIps.map(plainIp).filter(Boolean);
+  const own = ownAddrs.map(plainIp).filter(Boolean);
+  const local = ips.some((ip) => isLoopback(ip) || own.includes(ip));
+  return local ? [...new Set([...ips, ...LOOPBACK, ...own])] : ips;
+}
+
 /** Pending pypilot requests coming from the TinyPilot's address. */
 export function requestsToApprove(pending: PendingRequest[], tinypilotIps: string[]): PendingRequest[] {
   const ips = new Set(tinypilotIps.map(plainIp).filter(Boolean));

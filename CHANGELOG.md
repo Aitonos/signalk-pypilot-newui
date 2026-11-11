@@ -2,9 +2,20 @@
 
 ## Unreleased
 
-Rev694 on top of 3.15.1.
+Rev694-695 on top of 3.15.1.
 
 ### Fixed
+- Heading missing when pypilot runs on the Signal K machine itself (GitHub
+  #6): pypilot's Signal K access request comes from 127.0.0.1 / ::1 or the
+  machine's own address, not from the address set in Setup, so it was never
+  approved automatically and Signal K got no heading or attitude. When the
+  configured pypilot address is this machine, those addresses count too
+  (still only devices that identify as pypilot).
+- Autopilot check: when pypilot has a heading but Signal K does not, Heading
+  and IMU attitude now say so - "pypilot has it, but Signal K is not
+  receiving it" - and point to pypilot's Signal K access, instead of "No
+  data / run the IMU calibration". pypilot's own heading is watched every
+  10 s for this.
 - The plugin icon was blank in the Signal K admin Webapps page and, without
   internet, in the App Store: `signalk.appIcon` is relative to the served
   folder (public/), so it is now `./icon-256.png` (was `./public/...`,

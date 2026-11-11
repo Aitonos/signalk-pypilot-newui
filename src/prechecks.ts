@@ -45,6 +45,9 @@ export interface PrecheckInputs {
   sample: Sample | null;
   quality: QualitySnapshot | null;
   servoHealth: ServoHealthSnapshot | null;
+  /** Rev695 (GitHub #6): pypilot itself reports a fresh heading. When
+   *  Signal K has none, the IMU is fine - pypilot cannot write to Signal K. */
+  pypilotHeadingFresh?: boolean;
   /** Voltage thresholds - overridable per install. */
   batteryOkV?: number;
   batteryWarnV?: number;
@@ -129,6 +132,21 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
     "GPS is publishing position but no SOG."));
   items.push(qualityCheck(qi, "environment.wind.angleApparent", "Wind sensor",
     "Wind mode will not work until the sensor publishes."));
+
+  // Rev695: say what is really wrong when pypilot has the heading but
+  // Signal K does not (pypilot without read/write access in Signal K).
+  if (inputs.pypilotHeadingFresh && inputs.connected) {
+    for (const it of items) {
+      if ((it.id === "navigation.headingMagnetic" || it.id === "navigation.attitude") && it.status !== "pass") {
+        it.status = "fail";
+        it.detail = "pypilot has it, but Signal K is not receiving it.";
+        it.hint = "pypilot needs read/write access in Signal K: Security > Access Requests / Devices.";
+        it.code = "notInSk";
+        it.hintCode = "skAccess";
+        it.params = {};
+      }
+    }
+  }
 
   // ---- 7. Servo current is reaching us ----
   const sh = inputs.servoHealth;

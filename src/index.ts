@@ -80,7 +80,7 @@ import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
-import { requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
+import { withLocalAliases, requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -91,7 +91,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev694";
+const PLUGIN_REVISION = "Rev695";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -635,11 +635,20 @@ module.exports = function (app: any) {
   const _refreshTinypilotIps = (): void => {
     const host = String(props.host || "").trim();
     if (!host) { _tinypilotIps = { host: "", ips: [], ts: Date.now() }; return; }
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) { _tinypilotIps = { host, ips: [host], ts: Date.now() }; return; }
+    // Rev695 (GitHub #6): pypilot on this same machine asks from the
+    // loopback or one of our own addresses.
+    const ownAddrs = (): string[] => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const nets = require("os").networkInterfaces() as Record<string, { address: string }[] | undefined>;
+        return Object.values(nets).flatMap((l) => (l || []).map((n) => n.address));
+      } catch { return []; }
+    };
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) { _tinypilotIps = { host, ips: withLocalAliases([host], ownAddrs()), ts: Date.now() }; return; }
     if (_tinypilotIps.host === host && Date.now() - _tinypilotIps.ts < 60_000) return;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("dns").lookup(host, { all: true, family: 4 }, (err: any, addrs: { address: string }[]) => {
-      _tinypilotIps = { host, ips: err ? [] : addrs.map((x) => x.address), ts: Date.now() };
+      _tinypilotIps = { host, ips: err ? [] : withLocalAliases(addrs.map((x) => x.address), ownAddrs()), ts: Date.now() };
     });
   };
   /** Keep the newest pypilot device read/write and remove the rest. */
@@ -2193,6 +2202,12 @@ module.exports = function (app: any) {
           sample: null,   // prechecks only need aggregate signals
           quality: sensorQuality ? sensorQuality.snapshot() : null,
           servoHealth: servoHealth ? servoHealth.snapshot() : null,
+          pypilotHeadingFresh: (() => {
+            if (!client || !client.connected) return false;
+            const age = (client as any).getValueAgeMs?.("ap.heading");
+            const h = Number(client.getValues()["ap.heading"]);
+            return typeof age === "number" && age < 60_000 && Number.isFinite(h);
+          })(),
         });
         res.json(snap);
       });
@@ -6991,6 +7006,9 @@ module.exports = function (app: any) {
     if (name === "ap.mode") return WATCH_HIGH;
     if (name === "ap.heading_command") return WATCH_HIGH;
     if (name === "servo.engaged") return WATCH_HIGH;
+    // Rev695: pypilot's own heading, slowly - lets the autopilot check tell
+    // "the IMU is silent" from "pypilot cannot write to Signal K" (#6).
+    if (name === "ap.heading") return WATCH_LOW;
     // Rev191 (Carlos): tack.* paths MUST be watched core. Without a
     // subscribe pypilot never emits them, so the visor never sees the
     // "port|starboard|none" state machine after POST /tack/{dir}. The

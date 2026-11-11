@@ -66,6 +66,8 @@ export class PypilotClient extends EventEmitter {
   private opts: Required<PypilotClientOpts>;
   private catalog: PypilotCatalog = {};
   private lastValues: Record<string, unknown> = {};
+  /** Rev695: when each value last arrived (ms). */
+  private lastValueTs: Record<string, number> = {};
   private watches: Record<string, true | number> = {};
   private pingTimer: NodeJS.Timeout | null = null;
   private pingStartMs = 0;
@@ -132,6 +134,12 @@ export class PypilotClient extends EventEmitter {
 
   getValues(): Record<string, unknown> {
     return this.lastValues;
+  }
+
+  /** Rev695: ms since `name` last arrived, or null if never. */
+  getValueAgeMs(name: string, now = Date.now()): number | null {
+    const ts = this.lastValueTs[name];
+    return typeof ts === "number" ? now - ts : null;
   }
 
   start(): void {
@@ -243,6 +251,7 @@ export class PypilotClient extends EventEmitter {
         }
         for (const [name, value] of Object.entries(dict)) {
           this.lastValues[name] = value;
+          this.lastValueTs[name] = Date.now();
           this.emit("value", name, value);
         }
       } catch (e: any) {

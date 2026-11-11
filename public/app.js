@@ -218,6 +218,10 @@
       "setup.precheck.refresh":    "Refresh",
       "setup.precheck.unknown":    "Checking...",
       "boot.tapToClose": "Double tap to close",
+      "pc.navigation.headingMagnetic.notInSk": "pypilot has it, but Signal K is not receiving it - the IMU is fine.",
+      "pc.navigation.headingMagnetic.hint.skAccess": "pypilot needs read/write access in Signal K: approve it in Security > Access Requests, or set its device to Read/Write in Security > Devices.",
+      "pc.navigation.attitude.notInSk": "pypilot has it, but Signal K is not receiving it - the IMU is fine.",
+      "pc.navigation.attitude.hint.skAccess": "pypilot needs read/write access in Signal K: approve it in Security > Access Requests, or set its device to Read/Write in Security > Devices.",
       "pc.pypilot-connect.label": "pypilot connectivity",
       "pc.pypilot-connect.ok": "Connected to pypilot on the TinyPilot.",
       "pc.pypilot-connect.down": "Disconnected for {sec} s.",
@@ -1585,6 +1589,10 @@
       "setup.precheck.refresh":    "Actualizar",
       "setup.precheck.unknown":    "Comprobando...",
       "boot.tapToClose": "Doble toque para cerrar",
+      "pc.navigation.headingMagnetic.notInSk": "pypilot lo tiene, pero no llega a Signal K: la IMU está bien.",
+      "pc.navigation.headingMagnetic.hint.skAccess": "pypilot necesita acceso de lectura y escritura en Signal K: apruébalo en Security > Access Requests, o pon su dispositivo en Read/Write en Security > Devices.",
+      "pc.navigation.attitude.notInSk": "pypilot lo tiene, pero no llega a Signal K: la IMU está bien.",
+      "pc.navigation.attitude.hint.skAccess": "pypilot necesita acceso de lectura y escritura en Signal K: apruébalo en Security > Access Requests, o pon su dispositivo en Read/Write en Security > Devices.",
       "pc.pypilot-connect.label": "Conexión con pypilot",
       "pc.pypilot-connect.ok": "Conectado a pypilot en la TinyPilot.",
       "pc.pypilot-connect.down": "Sin conexión desde hace {sec} s.",
@@ -3094,6 +3102,10 @@
       "setup.precheck.refresh": "Aktualisieren",
       "setup.precheck.unknown": "Prüfe...",
       "boot.tapToClose": "Doppeltippen zum Schließen",
+      "pc.navigation.headingMagnetic.notInSk": "pypilot hat ihn, aber Signal K erhält ihn nicht - die IMU ist in Ordnung.",
+      "pc.navigation.headingMagnetic.hint.skAccess": "pypilot braucht Lese-/Schreibzugriff in Signal K: in Security > Access Requests genehmigen oder sein Gerät in Security > Devices auf Read/Write setzen.",
+      "pc.navigation.attitude.notInSk": "pypilot hat ihn, aber Signal K erhält ihn nicht - die IMU ist in Ordnung.",
+      "pc.navigation.attitude.hint.skAccess": "pypilot braucht Lese-/Schreibzugriff in Signal K: in Security > Access Requests genehmigen oder sein Gerät in Security > Devices auf Read/Write setzen.",
       "pc.pypilot-connect.label": "Verbindung zu pypilot",
       "pc.pypilot-connect.ok": "Mit pypilot auf dem TinyPilot verbunden.",
       "pc.pypilot-connect.down": "Seit {sec} s getrennt.",
@@ -4430,6 +4442,10 @@
       "setup.precheck.refresh": "Actualiser",
       "setup.precheck.unknown": "Vérification...",
       "boot.tapToClose": "Touchez deux fois pour fermer",
+      "pc.navigation.headingMagnetic.notInSk": "pypilot l'a, mais Signal K ne le reçoit pas : l'IMU va bien.",
+      "pc.navigation.headingMagnetic.hint.skAccess": "pypilot a besoin d'un accès lecture/écriture dans Signal K : approuvez-le dans Security > Access Requests, ou passez son appareil en Read/Write dans Security > Devices.",
+      "pc.navigation.attitude.notInSk": "pypilot l'a, mais Signal K ne le reçoit pas : l'IMU va bien.",
+      "pc.navigation.attitude.hint.skAccess": "pypilot a besoin d'un accès lecture/écriture dans Signal K : approuvez-le dans Security > Access Requests, ou passez son appareil en Read/Write dans Security > Devices.",
       "pc.pypilot-connect.label": "Connexion à pypilot",
       "pc.pypilot-connect.ok": "Connecté à pypilot sur le TinyPilot.",
       "pc.pypilot-connect.down": "Déconnecté depuis {sec} s.",
@@ -22794,6 +22810,8 @@
     // Rev681 (Carlos): a screen Signal K has not approved said "ready" and
     // then "no connection". The check now includes this screen's own access.
     let noAccess = false;
+    let notInSk = new Set();   // Rev695
+    let lastSq = null;
     const pcRender = (snap) => {
       if (noAccess) {
         snap = { ...snap, overall: "do-not-engage", failCount: (snap.failCount || 0) + 1,
@@ -22806,19 +22824,25 @@
       const box = ov.querySelector(".boot-pc-items");
       box.textContent = "";
       // Sensor items are listed below, under sensor quality.
-      const items = (snap.items || []).filter((it) => !String(it.id).includes("."));
+      // Rev695: sensor items are listed under sensor quality - except a
+      // heading that pypilot has but Signal K does not get (#6): that one is
+      // explained here, with its real cause, and left out below.
+      const items = (snap.items || []).filter((it) => !String(it.id).includes(".") || it.code === "notInSk");
+      notInSk = new Set(items.filter((it) => it.code === "notInSk").map((it) => it.id));
+      if (lastSq) sqRenderBoot(lastSq);
       const bad = items.filter((it) => it.status === "fail").concat(items.filter((it) => it.status === "warn"));
       for (const it of bad) {
         const tx = it.id === "visor-access" ? it : _pcText(it);
         const row = problemRow(it.status, tx.label, tx.detail, tx.hint, _bootBlockFor(it.id));
-        if (it.id === "visor-access") {
+        if (it.id === "visor-access" || it.code === "notInSk") {
           // The fix is in the Signal K admin, not in a Setup card.
           const go = row.querySelector(".boot-go");
           go.textContent = t("boot.access.go");
           go.replaceWith(go.cloneNode(true));
+          const page = it.code === "notInSk" ? "devices" : "access";
           row.querySelector(".boot-go").addEventListener("pointerup", (ev) => {
             ev.stopPropagation();
-            window.open(`${location.origin}/admin/#/security/access`, "_blank");
+            window.open(`${location.origin}/admin/#/security/${page}`, "_blank");
           });
         }
         box.appendChild(row);
@@ -22826,12 +22850,14 @@
       if (snap.failCount || snap.warnCount) hold();
     };
     const sqRenderBoot = (data) => {
+      lastSq = data;
       const ignored = new Set(Array.isArray(data.ignored) ? data.ignored : [..._sqIgnored]);
       const rows = data.items || [];
       let g = 0, w = 0, f = 0;
       const bad = [];
       for (const r of rows) {
         if (ignored.has(r.path) || r.level === "good") { g += 1; continue; }
+        if (notInSk.has(r.path)) { f += 1; continue; }   // explained above
         if (r.level === "degraded" || r.level === "unknown") w += 1; else f += 1;
         bad.push(r);
       }

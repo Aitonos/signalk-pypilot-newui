@@ -2,7 +2,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { requestsToApprove, pypilotDevicePlan, plainIp } from "../pypilot-sk-access";
+import { requestsToApprove, pypilotDevicePlan, plainIp, withLocalAliases } from "../pypilot-sk-access";
 
 describe("pypilot Signal K access (Rev659)", () => {
   it("approves only pypilot requests from the TinyPilot's address", () => {
@@ -34,5 +34,20 @@ describe("pypilot Signal K access (Rev659)", () => {
   it("nothing to do without pypilot devices", () => {
     assert.deepEqual(pypilotDevicePlan([]), { keep: null, makeReadWrite: false, remove: [] });
     assert.equal(plainIp("::ffff:10.0.0.2"), "10.0.0.2");
+  });
+
+  it("pypilot on the Signal K machine: loopback and own addresses count (Rev695, #6)", () => {
+    const own = ["127.0.0.1", "10.10.10.100", "::1", "fe80::1"];
+    const ips = withLocalAliases(["10.10.10.100"], own);
+    for (const ip of ["127.0.0.1", "::1", "10.10.10.100"]) assert.ok(ips.includes(ip), ip);
+    const pending = [
+      { accessIdentifier: "pypilot-123", accessDescription: "pypilot", ip: "::1", state: "PENDING", type: "accessRequest" },
+      { accessIdentifier: "pypilot-456", accessDescription: "pypilot", ip: "::ffff:127.0.0.1", state: "PENDING", type: "accessRequest" },
+      { accessIdentifier: "kip-1", accessDescription: "KIP", ip: "::1", state: "PENDING", type: "accessRequest" },
+    ];
+    assert.deepEqual(requestsToApprove(pending, ips).map((r) => r.accessIdentifier), ["pypilot-123", "pypilot-456"]);
+    assert.ok(withLocalAliases(["localhost-resolved", "127.0.0.1"], []).includes("::1"));
+    // a separate TinyPilot: nothing added
+    assert.deepEqual(withLocalAliases(["192.168.1.115"], own), ["192.168.1.115"]);
   });
 });
