@@ -92,7 +92,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev705";
+const PLUGIN_REVISION = "Rev706";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2293,12 +2293,27 @@ module.exports = function (app: any) {
       // Rev102: Pre-departure autopilot check. Pure aggregation over
       // data already collected by the historian / sensor quality /
       // servo health modules, so no separate sampling budget.
+      // Rev706 (#7): with absorbProvider off, another plugin (usually
+      // pypilot-autopilot-provider) may hold the SK autopilot. The server
+      // keeps the list behind GET /signalk/v2/api/vessels/self/autopilots;
+      // app.autopilotApi is internal, so read it defensively.
+      const _externalAutopilotLabel = (): string | null => {
+        try {
+          const devs = app.autopilotApi?.getDevices?.();
+          if (!devs || typeof devs !== "object") return null;
+          const ids = Object.keys(devs).filter((k) => devs[k]?.provider !== PLUGIN_ID);
+          if (!ids.length) return null;
+          const id = ids.find((k) => devs[k]?.isDefault) || ids[0];
+          const prov = devs[id]?.provider;
+          return prov && prov !== id ? `${id} (${prov})` : id;
+        } catch { return null; }
+      };
       router.get("/prechecks", (_req: any, res: any) => {
         const snap = runPrechecks({
           connected: !!(client && client.connected),
           disconnectedSinceMs,
           hasAutopilotProvider: !!apProvider,
-          autopilotId: apProvider ? "pypilot-newui" : null,
+          autopilotId: apProvider ? "pypilot-newui" : _externalAutopilotLabel(),
           sample: null,   // prechecks only need aggregate signals
           quality: sensorQuality ? sensorQuality.snapshot() : null,
           servoHealth: servoHealth ? servoHealth.snapshot() : null,

@@ -49,3 +49,16 @@ describe("prechecks: heading through the plugin's fallback (Rev698)", () => {
     assert.equal(snap.items.find((x) => x.id === "navigation.headingMagnetic")!.status, "pass");
   });
 });
+
+describe("prechecks: autopilot held by another plugin (Rev706, GitHub #7)", () => {
+  it("passes with the external provider's id", () => {
+    const snap = runPrechecks({ ...base, hasAutopilotProvider: false, autopilotId: "pypilot-sk (pypilot-autopilot-provider)" });
+    const it = snap.items.find((x) => x.id === "ap-provider")!;
+    assert.equal(it.status, "pass");
+    assert.equal(it.code, "external");
+  });
+  it("fails when nobody holds it", () => {
+    const snap = runPrechecks({ ...base, hasAutopilotProvider: false, autopilotId: null });
+    assert.equal(snap.items.find((x) => x.id === "ap-provider")!.code, "none");
+  });
+});

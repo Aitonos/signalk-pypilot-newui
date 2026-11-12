@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Rev706
+
+### Fixed
+- Autopilot Check: "No autopilot registered" when another plugin, usually
+  pypilot-autopilot-provider, holds the Signal K autopilot and 'absorb
+  provider' is off. The check now reads the autopilots registered on the
+  server and passes with the external provider's name (#7).
+
 ## 3.15.4 — 2026-11-11 — Visor settings reorganised, "too many connections" notice
 
 Rev701-705 on top of 3.15.3.
