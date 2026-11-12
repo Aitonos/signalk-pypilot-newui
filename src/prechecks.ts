@@ -50,6 +50,14 @@ export interface PrecheckInputs {
   pypilotHeadingFresh?: boolean;
   /** Rev698: Signal K paths the plugin is publishing for pypilot (heading fallback). */
   fallbackPaths?: string[];
+  /** Rev707: pypilot's ap.mode. GPS is only critical in gps / nav mode. */
+  apMode?: string | null;
+  /** Rev707: age of navigation.headingTrue in Signal K (boats whose compass
+   *  only publishes true heading). */
+  headingTrueAgeMs?: number | null;
+  /** Rev707: Signal K's autopilot list (GET .../autopilots), to see a second
+   *  provider or another default autopilot. */
+  autopilotDevices?: Record<string, { provider?: string; isDefault?: boolean }> | null;
   /** Voltage thresholds - overridable per install. */
   batteryOkV?: number;
   batteryWarnV?: number;
@@ -57,6 +65,7 @@ export interface PrecheckInputs {
   servoTempFailC?: number;
 }
 
+const OWN_PROVIDER = "signalk-pypilot-newui";
 const DEFAULT_BATTERY_OK_V   = 12.0;
 const DEFAULT_BATTERY_WARN_V = 11.5;
 const DEFAULT_SERVO_TEMP_WARN_C = 55;
@@ -122,6 +131,27 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
     });
   }
 
+  // Rev707: we are a provider, but Signal K also has another one. With
+  // pypilot-autopilot-provider too, there are two pypilot autopilots; with
+  // another default autopilot, KIP and the other apps steer that one.
+  if (inputs.hasAutopilotProvider && inputs.autopilotDevices) {
+    const others = Object.entries(inputs.autopilotDevices).filter(([, d]) => d?.provider !== OWN_PROVIDER);
+    const panaaj = others.find(([, d]) => d?.provider === "pypilot-autopilot-provider");
+    const dflt = others.find(([, d]) => d?.isDefault);
+    const ap = items.find((x) => x.id === "ap-provider");
+    if (ap && panaaj) {
+      ap.status = "warn";
+      ap.detail = `pypilot-autopilot-provider is also active ('${panaaj[0]}').`;
+      ap.hint = "Leave only one: disable pypilot-autopilot-provider, or turn 'absorb provider' off.";
+      ap.code = "both"; ap.hintCode = "both"; ap.params = { id: panaaj[0] };
+    } else if (ap && dflt) {
+      ap.status = "warn";
+      ap.detail = `Signal K's default autopilot is '${dflt[0]}', not pypilot.`;
+      ap.hint = "Apps that use the default autopilot (KIP and others) steer that one, not pypilot.";
+      ap.code = "notDefault"; ap.hintCode = "notDefault"; ap.params = { id: dflt[0] };
+    }
+  }
+
   // ---- 3-6. Sensor freshness (heading, IMU attitude, GPS, wind) ----
   const qi = qualityIndex(inputs.quality);
   items.push(qualityCheck(qi, "navigation.headingMagnetic", "Heading",
@@ -134,6 +164,23 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
     "GPS is publishing position but no SOG."));
   items.push(qualityCheck(qi, "environment.wind.angleApparent", "Wind sensor",
     "Wind mode will not work until the sensor publishes."));
+
+  // Rev707: a compass that only publishes true heading is a heading too.
+  const hdg = items.find((x) => x.id === "navigation.headingMagnetic");
+  if (hdg && hdg.status !== "pass" && typeof inputs.headingTrueAgeMs === "number" && inputs.headingTrueAgeMs < 2000) {
+    hdg.status = "pass";
+    hdg.detail = "True heading only (navigation.headingTrue).";
+    hdg.hint = undefined; hdg.hintCode = undefined;
+    hdg.code = "viaTrue"; hdg.params = {};
+  }
+
+  // Rev707: compass mode steers without GPS; only gps / nav need it.
+  const gpsNeeded = inputs.apMode === "gps" || inputs.apMode === "nav";
+  if (!gpsNeeded) {
+    for (const it of items) {
+      if ((it.id === "navigation.position" || it.id === "navigation.speedOverGround") && it.status === "fail") it.status = "warn";
+    }
+  }
 
   // Rev695: say what is really wrong when pypilot has the heading but
   // Signal K does not (pypilot without read/write access in Signal K).
@@ -294,7 +341,7 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
     "ap-provider",
     "navigation.headingMagnetic",
     "navigation.attitude",
-    "navigation.position",
+    ...(gpsNeeded ? ["navigation.position"] : []),   // Rev707
   ]);
   const criticalUnknowns = items.filter(
     (i) => i.status === "unknown" && CRITICAL_IDS.has(i.id)

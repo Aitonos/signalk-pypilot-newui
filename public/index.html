@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev706" />
+  <link rel="stylesheet" href="style.css?v=Rev708" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1864,7 +1864,7 @@
         <!-- Rev304 unified: SSH credentials subsection. -->
         <div class="conn-sub">
           <div class="conn-sub-title" data-i18n="setup.ssh.title">SSH credentials</div>
-          <div class="hint" data-i18n-html="setup.ssh.defaultHint">TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.</div>
+          <div class="hint" id="cfg-ssh-hint" data-i18n-html="setup.ssh.defaultHint">TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.</div>
           <div class="row">
             <label data-i18n="setup.ssh.user">SSH user</label>
             <input type="text"     id="cfg-ssh-user"     placeholder="tc" value="tc" autocomplete="off" />
@@ -2141,7 +2141,7 @@
         <div id="bk-note" class="hint"></div>
         <div id="bk-list" class="bk-list"></div>
         <!-- Rev671 (Carlos 2026-11-09): image of the TinyPilot's SD card. -->
-        <div class="conn-sub">
+        <div class="conn-sub" id="sd-section">
           <div class="conn-sub-title" data-i18n="sd.title">TinyPilot SD card</div>
           <div class="hint" data-i18n="sd.hint">A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off; it takes a few minutes and loads the TinyPilot meanwhile. The last 3 are kept.</div>
           <!-- Rev672: destination with its free space, and the copy's progress
@@ -2948,6 +2948,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev706"></script>
+  <script src="app.js?v=Rev708"></script>
 </body>
 </html>

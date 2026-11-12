@@ -10,6 +10,7 @@ import {
 } from "./publisher";
 import { scanLanReport } from "./scanner";
 import { AutopilotProvider } from "./autopilot-provider";
+import { isLocalPypilotHost, defaultSshUser, pypilotRestartCommand } from "./pypilot-host";
 import { Historian, Sample, SamplePath } from "./historian";
 import { KPIComputer, KPISnapshot } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
@@ -92,7 +93,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev706";
+const PLUGIN_REVISION = "Rev708";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -654,6 +655,14 @@ module.exports = function (app: any) {
       _tinypilotIps = { host, ips: err ? [] : withLocalAliases(addrs.map((x) => x.address), ownAddrs()), ts: Date.now() };
     });
   };
+  // Rev707: pypilot on this Signal K machine (OpenPlotter) instead of a
+  // TinyPilot - no "reboot Pi" or SD image of the server from here.
+  const _pypilotIsLocal = (): boolean => {
+    _refreshTinypilotIps();
+    const host = String(props.host || "").trim();
+    return isLocalPypilotHost(host, _tinypilotIps.host === host ? _tinypilotIps.ips : []);
+  };
+  const _sshUser = (): string => props.sshUser || defaultSshUser(_pypilotIsLocal());
   /** Keep the newest pypilot device read/write and remove the rest. */
   const _tidyPypilotDevices = (): void => {
     const sec = _skSecurity();
@@ -1782,7 +1791,8 @@ module.exports = function (app: any) {
           apData: apProvider ? apProvider.data : null,
           enabledPaths: props.enabledPaths || {},
           publishOnlyEssentials: !!props.publishOnlyEssentials,
-          sshUser: props.sshUser || "tc",
+          sshUser: _sshUser(),
+          pypilotLocal: _pypilotIsLocal(),   // Rev707
           sshPasswordSet: !!(props.sshPassword && props.sshPassword.length),
           // Rev676: options moved from the Signal K admin to the visor.
           pypilotAutoApprove: props.pypilotAutoApprove !== false,
@@ -2297,10 +2307,16 @@ module.exports = function (app: any) {
       // pypilot-autopilot-provider) may hold the SK autopilot. The server
       // keeps the list behind GET /signalk/v2/api/vessels/self/autopilots;
       // app.autopilotApi is internal, so read it defensively.
-      const _externalAutopilotLabel = (): string | null => {
+      const _skAutopilotDevices = (): Record<string, { provider?: string; isDefault?: boolean }> | null => {
         try {
           const devs = app.autopilotApi?.getDevices?.();
-          if (!devs || typeof devs !== "object") return null;
+          return devs && typeof devs === "object" ? devs : null;
+        } catch { return null; }
+      };
+      const _externalAutopilotLabel = (): string | null => {
+        try {
+          const devs = _skAutopilotDevices();
+          if (!devs) return null;
           const ids = Object.keys(devs).filter((k) => devs[k]?.provider !== PLUGIN_ID);
           if (!ids.length) return null;
           const id = ids.find((k) => devs[k]?.isDefault) || ids[0];
@@ -2319,6 +2335,17 @@ module.exports = function (app: any) {
           servoHealth: servoHealth ? servoHealth.snapshot() : null,
           pypilotHeadingFresh: _pypilotHasHeading(),
           fallbackPaths: [...imuFallbackOn],   // Rev698
+          // Rev707: other boats - no GPS in compass mode, true heading only,
+          // a second autopilot provider.
+          apMode: (() => { const m = client?.getValues()?.["ap.mode"]; return typeof m === "string" ? m : null; })(),
+          headingTrueAgeMs: (() => {
+            try {
+              const h = (app as any).getSelfPath?.("navigation.headingTrue");
+              const ts = h && typeof h.value === "number" ? Date.parse(h.timestamp) : NaN;
+              return isFinite(ts) ? Math.max(0, Date.now() - ts) : null;
+            } catch { return null; }
+          })(),
+          autopilotDevices: _skAutopilotDevices(),
         });
         res.json(snap);
       });
@@ -2767,29 +2794,12 @@ module.exports = function (app: any) {
         if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const host = props.host;
-        const sshUser = props.sshUser || "tc";
+        const sshUser = _sshUser();
         const sshPassword = props.sshPassword || "";
-        // Rev66 / 2.0.4: TinyPilot runs piCore Linux which uses runit,
-        // NOT systemd. Our previous `sudo systemctl restart ...` command
-        // was silently falling through to `|| true` on every install
-        // because systemctl does not exist. The only step that had any
-        // effect was the pkill; runsv then auto-relaunched the killed
-        // processes. That inconsistent "kill without a clean start"
-        // pattern was accumulating zombies + saturating the Pi Zero's
-        // RAM until it hung.
-        //
-        // The runit-native way: `sudo sv restart /etc/sv/<service>` sends
-        // SIGTERM to the child, waits for it to exit, and starts it back
-        // up under supervision. Clean by design. We keep pkill as a
-        // belt-and-braces safety net in case a python child ignores TERM
-        // (some pypilot subprocesses have historically done that).
-        const restartCmd = [
-          "sudo sv restart /etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat 2>&1 || true",
-          "sleep 2",
-          "sudo pkill -9 -f 'python.*pypilot --version' 2>&1 || true",
-          "sleep 1",
-          "sudo sv up /etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat 2>&1 || true",
-        ].join(" ; ");
+        // Rev66: runit on the TinyPilot. Rev707: systemd on OpenPlotter /
+        // Raspberry Pi OS, where `sv` does not exist and every step used to
+        // fail behind `|| true` while the visor said "restarted".
+        const restartCmd = pypilotRestartCommand("all");
         // `doReconnect` is defined at the router scope (Rev66) and reused by
         // /restart-pypilot, /debug-cmd and the watchdog.
         if (!sshPassword) {
@@ -2891,7 +2901,7 @@ module.exports = function (app: any) {
         // steering. Kept as an advanced preset in the Debug console
         // (the Emergency triad simplified to 2 levels: RESTART pypilot
         // + reboot Pi).
-        "restart.web":       "sudo sv restart /etc/sv/pypilot_web 2>&1 && echo OK",
+        "restart.web":       pypilotRestartCommand("web"),   // Rev707: runit or systemd
         "reboot.pi":         "sudo reboot",
         // Rev113 / Rev114 (Carlos feedback on piCore + BusyBox): all
         // extras now have BusyBox-safe fallbacks. TinyCore ships busybox
@@ -2911,7 +2921,7 @@ module.exports = function (app: any) {
       async function _runSsh(cmd: string, timeoutMs: number = 30000):
         Promise<{ ok: boolean; stdout: string; code?: number; elapsedMs: number; error?: string }>
       {
-        const sshUser = props.sshUser || "tc";
+        const sshUser = _sshUser();
         const sshPassword = props.sshPassword || "";
         if (!sshPassword) {
           return { ok: false, stdout: "", elapsedMs: 0, error: "SSH password not set" };
@@ -3427,13 +3437,14 @@ module.exports = function (app: any) {
           });
           conn.on("error", (e: any) => finish({ ok: false, bytes, error: e?.message || String(e) }));
           try {
-            conn.connect({ host: props.host, port: 22, username: props.sshUser || "tc", password: props.sshPassword, readyTimeout: 8000 });
+            conn.connect({ host: props.host, port: 22, username: _sshUser(), password: props.sshPassword, readyTimeout: 8000 });
           } catch (e: any) { finish({ ok: false, bytes: 0, error: e?.message || String(e) }); }
         });
       };
       router.post("/tinypilot/sd-backup", async (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;
         if (!props.sshPassword) { res.status(409).json({ error: "SSH to the TinyPilot is not configured" }); return; }
+        if (_pypilotIsLocal()) { res.status(409).json({ error: "pypilot runs on this Signal K machine: there is no TinyPilot card to copy" }); return; }   // Rev707
         if (_sdJob?.running) { res.status(409).json({ error: "a copy is already running" }); return; }
         if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
         // Rev673: a folder picked in the folder browser, checked again here.
@@ -4819,7 +4830,7 @@ module.exports = function (app: any) {
         if (!requireAdmin(req, res)) return;   // Rev653
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         if (!props.sshPassword) return res.status(400).json({ error: "sshPassword not set" });
-        const r = await _runSsh("sv restart pypilot_web 2>&1", 15000);
+        const r = await _runSsh(pypilotRestartCommand("web"), 15000);   // Rev707
         return res.json({
           ok: r.ok,
           elapsedMs: r.elapsedMs,
@@ -4855,13 +4866,18 @@ module.exports = function (app: any) {
         if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
         const preset = (req.body && req.body.preset) || "";
         const cmd = DEBUG_PRESETS[preset];
+        // Rev707: with pypilot on this machine, "reboot Pi" is the Signal K
+        // server itself (plotter, AIS, everything).
+        if (preset === "reboot.pi" && _pypilotIsLocal()) {
+          return res.status(409).json({ error: "pypilot runs on this Signal K machine: reboot it from the system, not from here" });
+        }
         if (!cmd) {
           return res.status(400).json({
             error: "unknown preset",
             available: Object.keys(DEBUG_PRESETS),
           });
         }
-        const sshUser = props.sshUser || "tc";
+        const sshUser = _sshUser();
         const sshPassword = props.sshPassword || "";
         if (!sshPassword) {
           return res.status(202).json({
@@ -5015,7 +5031,7 @@ module.exports = function (app: any) {
         : {},
       publishOnlyEssentials: poe,
       sshUser: typeof options.sshUser === "string" && options.sshUser.trim()
-        ? options.sshUser.trim() : "tc",
+        ? options.sshUser.trim() : "",   // Rev707: empty = tc on a TinyPilot, pi on this machine
       sshPassword: typeof options.sshPassword === "string" ? options.sshPassword : "",
       logCaptureEnabled: options.logCaptureEnabled === true,
       logCaptureIntervalSec: typeof options.logCaptureIntervalSec === "number"

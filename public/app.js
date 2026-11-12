@@ -232,6 +232,11 @@
       "pc.ap-provider.external": "External provider '{id}' active.",
       "pc.ap-provider.none": "No autopilot registered on this Signal K server.",
       "pc.ap-provider.hint": "Turn on 'absorb provider' in Setup > pypilot connection, or enable pypilot-autopilot-provider.",
+      "pc.ap-provider.both": "pypilot-autopilot-provider is also active ('{id}').",
+      "pc.ap-provider.hint.both": "Leave only one: disable pypilot-autopilot-provider in the Signal K admin, or turn 'absorb provider' off in Setup > pypilot connection.",
+      "pc.ap-provider.notDefault": "Signal K's default autopilot is '{id}', not pypilot.",
+      "pc.ap-provider.hint.notDefault": "Apps that use the default autopilot (KIP and others) steer that one, not pypilot.",
+      "pc.navigation.headingMagnetic.viaTrue": "True heading only (navigation.headingTrue).",
       "pc.navigation.headingMagnetic.label": "Heading",
       "pc.navigation.headingMagnetic.hint": "Fix the compass / IMU source - the autopilot cannot steer without heading.",
       "pc.navigation.attitude.label": "IMU attitude",
@@ -459,6 +464,7 @@
       "setup.ssh.password.ph.default": "tc (TinyPilot default)",
       "setup.ssh.password.ph.set": "(set - retype to change)",
       "setup.ssh.defaultHint": "TinyPilot ships with default credentials user <b>tc</b> / password <b>tc</b>. Change them on the Pi if you want tighter security.",
+      "setup.ssh.localHint": "pypilot runs on this same machine as Signal K: use this machine's user (usually <b>pi</b>) and its password. Reboot and the SD card copy are not offered here: they would act on the Signal K server itself.",
       "setup.pypilotWebRestart":         "Restart pypilot_web",
       "setup.pypilotWebRestart.running": "restarting...",
       "setup.pypilotWebRestart.ok":      "OK",
@@ -1609,6 +1615,11 @@
       "pc.ap-provider.external": "Proveedor externo '{id}' activo.",
       "pc.ap-provider.none": "No hay ningún piloto registrado en este servidor Signal K.",
       "pc.ap-provider.hint": "Activa 'absorber proveedor' en Setup > Conexión pypilot, o activa pypilot-autopilot-provider.",
+      "pc.ap-provider.both": "pypilot-autopilot-provider también está activo ('{id}').",
+      "pc.ap-provider.hint.both": "Deja solo uno: desactiva pypilot-autopilot-provider en el admin de Signal K, o apaga 'absorber proveedor' en Setup > Conexión pypilot.",
+      "pc.ap-provider.notDefault": "El piloto predeterminado de Signal K es '{id}', no pypilot.",
+      "pc.ap-provider.hint.notDefault": "Las apps que usan el piloto predeterminado (KIP y otras) gobiernan ese, no pypilot.",
+      "pc.navigation.headingMagnetic.viaTrue": "Solo rumbo verdadero (navigation.headingTrue).",
       "pc.navigation.headingMagnetic.label": "Rumbo",
       "pc.navigation.headingMagnetic.hint": "Arregla la fuente de compás / IMU: sin rumbo el piloto no puede gobernar.",
       "pc.navigation.attitude.label": "Actitud IMU",
@@ -1830,6 +1841,7 @@
       "setup.ssh.password.ph.notset": "(sin configurar)",
       "setup.ssh.password.ph.default": "tc (por defecto en TinyPilot)",
       "setup.ssh.defaultHint": "TinyPilot viene con credenciales por defecto: usuario <b>tc</b> / contrasena <b>tc</b>. Cambialas en el Pi si quieres mayor seguridad.",
+      "setup.ssh.localHint": "pypilot corre en esta misma máquina que Signal K: usa el usuario de esta máquina (normalmente <b>pi</b>) y su contraseña. Reiniciar la Pi y copiar la tarjeta SD no se ofrecen aquí: actuarían sobre el propio servidor Signal K.",
       "setup.pypilotWebRestart":         "Reiniciar pypilot_web",
       "setup.pypilotWebRestart.running": "reiniciando...",
       "setup.pypilotWebRestart.ok":      "OK",
@@ -3133,6 +3145,11 @@
       "pc.ap-provider.external": "Externer Anbieter '{id}' aktiv.",
       "pc.ap-provider.none": "Kein Autopilot auf diesem Signal-K-Server registriert.",
       "pc.ap-provider.hint": "'Anbieter übernehmen' in Setup > pypilot-Verbindung einschalten oder pypilot-autopilot-provider aktivieren.",
+      "pc.ap-provider.both": "pypilot-autopilot-provider ist ebenfalls aktiv ('{id}').",
+      "pc.ap-provider.hint.both": "Nur einen behalten: pypilot-autopilot-provider im Signal-K-Admin deaktivieren oder 'Anbieter übernehmen' in Setup > pypilot-Verbindung ausschalten.",
+      "pc.ap-provider.notDefault": "Der Standard-Autopilot von Signal K ist '{id}', nicht pypilot.",
+      "pc.ap-provider.hint.notDefault": "Apps, die den Standard-Autopiloten nutzen (KIP und andere), steuern diesen, nicht pypilot.",
+      "pc.navigation.headingMagnetic.viaTrue": "Nur wahrer Kurs (navigation.headingTrue).",
       "pc.navigation.headingMagnetic.label": "Kurs",
       "pc.navigation.headingMagnetic.hint": "Kompass- / IMU-Quelle reparieren - ohne Kurs kann der Autopilot nicht steuern.",
       "pc.navigation.attitude.label": "IMU-Lage",
@@ -3312,6 +3329,7 @@
       "setup.ssh.password.ph.default": "tc (TinyPilot-Standard)",
       "setup.ssh.password.ph.set": "(gesetzt - zum Ändern neu eingeben)",
       "setup.ssh.defaultHint": "TinyPilot wird mit Benutzer <b>tc</b> / Passwort <b>tc</b> ausgeliefert. Für mehr Sicherheit auf dem Pi ändern.",
+      "setup.ssh.localHint": "pypilot läuft auf demselben Rechner wie Signal K: Benutzer dieses Rechners (meist <b>pi</b>) und sein Passwort verwenden. Neustart des Pi und Kopie der SD-Karte gibt es hier nicht: sie würden den Signal-K-Server selbst treffen.",
       "smart.title": "Intelligenter Pilot",
       "smart.hint": "Steuerung auf höherer Ebene über pypilot: wählt das Profil nach Windstärke, reagiert auf Böen (einfrieren / D erhöhen / Starkwindprofil), schaltet ab, wenn der Pilot die Kontrolle verliert.",
       "smart.autoProfile.title": "Pilotprofil automatisch nach Wind",
@@ -4479,6 +4497,11 @@
       "pc.ap-provider.external": "Fournisseur externe '{id}' actif.",
       "pc.ap-provider.none": "Aucun pilote enregistré sur ce serveur Signal K.",
       "pc.ap-provider.hint": "Activez 'absorber le fournisseur' dans Setup > Connexion pypilot, ou activez pypilot-autopilot-provider.",
+      "pc.ap-provider.both": "pypilot-autopilot-provider est aussi actif ('{id}').",
+      "pc.ap-provider.hint.both": "N'en garder qu'un : désactivez pypilot-autopilot-provider dans l'admin Signal K, ou coupez 'absorber le fournisseur' dans Setup > Connexion pypilot.",
+      "pc.ap-provider.notDefault": "Le pilote par défaut de Signal K est '{id}', pas pypilot.",
+      "pc.ap-provider.hint.notDefault": "Les apps qui utilisent le pilote par défaut (KIP et autres) pilotent celui-là, pas pypilot.",
+      "pc.navigation.headingMagnetic.viaTrue": "Cap vrai seulement (navigation.headingTrue).",
       "pc.navigation.headingMagnetic.label": "Cap",
       "pc.navigation.headingMagnetic.hint": "Réparez la source compas / IMU : sans cap le pilote ne peut pas barrer.",
       "pc.navigation.attitude.label": "Assiette IMU",
@@ -4658,6 +4681,7 @@
       "setup.ssh.password.ph.default": "tc (défaut TinyPilot)",
       "setup.ssh.password.ph.set": "(défini - retapez pour changer)",
       "setup.ssh.defaultHint": "TinyPilot est livré avec les identifiants par défaut utilisateur <b>tc</b> / mot de passe <b>tc</b>. Changez-les sur le Pi si vous voulez plus de sécurité.",
+      "setup.ssh.localHint": "pypilot tourne sur la même machine que Signal K : utilisez l'utilisateur de cette machine (souvent <b>pi</b>) et son mot de passe. Le redémarrage du Pi et la copie de la carte SD ne sont pas proposés ici : ils agiraient sur le serveur Signal K lui-même.",
       "smart.title": "Pilote intelligent",
       "smart.hint": "Contrôle de plus haut niveau au-dessus de pypilot : choisit le profil de pilote selon la plage de vent, réagit aux rafales (gel / boost D / profil gros temps), se désengage si le pilote perd l'autorité.",
       "smart.autoProfile.title": "Profil de pilote automatique selon le vent",
@@ -16976,6 +17000,13 @@
       const li = $("#lc-interval"); if (li && document.activeElement !== li && typeof j.logCaptureIntervalSec === "number") li.value = String(j.logCaptureIntervalSec);
       // Rev55: SSH creds - prefill user, mask password (only show if set).
       const su = $("#cfg-ssh-user"); if (su) su.value = j.sshUser || "tc";
+      // Rev707: pypilot on this Signal K machine - its user, and no
+      // reboot / SD copy (they would hit the server itself).
+      const local = !!j.pypilotLocal;
+      const sh = $("#cfg-ssh-hint");
+      if (sh) sh.innerHTML = t(local ? "setup.ssh.localHint" : "setup.ssh.defaultHint");
+      const rb = $("#btn-reboot-pi"); if (rb) rb.hidden = local;
+      const sdSec = $("#sd-section"); if (sdSec) sdSec.hidden = local;
       const sp = $("#cfg-ssh-password");
       if (sp) sp.placeholder = t(j.sshPasswordSet ? "setup.ssh.password.ph.set" : "setup.ssh.password.ph.notset");
       const sst = $("#cfg-ssh-status");

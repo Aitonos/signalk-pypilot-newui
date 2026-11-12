@@ -62,3 +62,52 @@ describe("prechecks: autopilot held by another plugin (Rev706, GitHub #7)", () =
     assert.equal(snap.items.find((x) => x.id === "ap-provider")!.code, "none");
   });
 });
+
+describe("prechecks: other boats (Rev707)", () => {
+  const good = (path: string) => ({ path, label: path, level: "good", ageMs: 200, hz: 5, source: "x" });
+  const lost = (path: string) => ({ path, label: path, level: "lost", ageMs: 60000, hz: 0, source: "x" });
+  const q = (items: any[]) => ({ computedTs: 0, windowSec: 30, items } as any);
+  const noGps = q([good("navigation.headingMagnetic"), good("navigation.attitude"), lost("navigation.position")]);
+  it("no GPS in compass mode: a caveat, not do-not-engage", () => {
+    const snap = runPrechecks({ ...base, quality: noGps, apMode: "compass" });
+    assert.equal(snap.items.find((x) => x.id === "navigation.position")!.status, "warn");
+    assert.notEqual(snap.overall, "do-not-engage");
+  });
+  it("no GPS in gps mode: still do-not-engage", () => {
+    const snap = runPrechecks({ ...base, quality: noGps, apMode: "gps" });
+    assert.equal(snap.items.find((x) => x.id === "navigation.position")!.status, "fail");
+    assert.equal(snap.overall, "do-not-engage");
+  });
+  it("true heading only counts as heading", () => {
+    const snap = runPrechecks({ ...base, quality: q([good("navigation.attitude"), good("navigation.position")]), headingTrueAgeMs: 300 });
+    const h = snap.items.find((x) => x.id === "navigation.headingMagnetic")!;
+    assert.equal(h.status, "pass");
+    assert.equal(h.code, "viaTrue");
+  });
+  it("a stale true heading does not", () => {
+    const snap = runPrechecks({ ...base, quality: q([]), headingTrueAgeMs: 9000 });
+    assert.notEqual(snap.items.find((x) => x.id === "navigation.headingMagnetic")!.status, "pass");
+  });
+  it("warns when pypilot-autopilot-provider is active as well", () => {
+    const snap = runPrechecks({ ...base, autopilotDevices: {
+      "pypilot-newui": { provider: "signalk-pypilot-newui", isDefault: false },
+      "pypilot-sk": { provider: "pypilot-autopilot-provider", isDefault: true },
+    } });
+    const it = snap.items.find((x) => x.id === "ap-provider")!;
+    assert.equal(it.status, "warn");
+    assert.equal(it.code, "both");
+  });
+  it("warns when another autopilot is Signal K's default", () => {
+    const snap = runPrechecks({ ...base, autopilotDevices: {
+      "pypilot-newui": { provider: "signalk-pypilot-newui", isDefault: false },
+      "raymarine": { provider: "raymarine-autopilot", isDefault: true },
+    } });
+    const it = snap.items.find((x) => x.id === "ap-provider")!;
+    assert.equal(it.code, "notDefault");
+    assert.equal(it.params!.id, "raymarine");
+  });
+  it("only us and default: plain pass", () => {
+    const snap = runPrechecks({ ...base, autopilotDevices: { "pypilot-newui": { provider: "signalk-pypilot-newui", isDefault: true } } });
+    assert.equal(snap.items.find((x) => x.id === "ap-provider")!.status, "pass");
+  });
+});

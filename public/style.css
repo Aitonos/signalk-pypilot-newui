@@ -1604,6 +1604,7 @@ body.nav-hidden .nav-toggle .tri { transform: rotate(180deg); }
    assumed a 28 px badge column, which stretched the title into two
    awkward lines with the sub label overlapping. Flex column stacks
    title on top of sub cleanly regardless of button width. */
+.restart-btn[hidden] { display: none; }   /* Rev707: reboot Pi hidden with pypilot on this machine */
 .restart-btn {
   display: flex;
   flex-direction: column;

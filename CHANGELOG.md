@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — Rev707-708
+
+Setups other than a TinyPilot with its own provider.
+
+### Fixed
+- "RESTART pypilot" and the pypilot_web restart now work when pypilot runs
+  under systemd (OpenPlotter, Raspberry Pi OS). Before, they used the
+  TinyPilot's runit commands, which do not exist there, and still reported
+  "restarted". Now only running services are restarted, and the visor says
+  so when nothing was restarted.
+- With pypilot on the Signal K machine itself, "reboot Pi" and the SD card
+  copy are no longer offered: they would act on the Signal K server. The SSH
+  hint and the default user (pi instead of tc) follow.
+- Autopilot Check:
+  - no GPS is a caveat in compass or wind mode, not "do not engage"; it stays
+    critical in gps and nav mode;
+  - a compass that only publishes true heading counts as heading;
+  - warns when pypilot-autopilot-provider is also active next to 'absorb
+    provider', or when another autopilot is Signal K's default (KIP and other
+    apps would steer that one).
+
 ## 3.15.5 — 2026-11-12 — Autopilot Check sees an external provider
 
 Rev706 on top of 3.15.4.
