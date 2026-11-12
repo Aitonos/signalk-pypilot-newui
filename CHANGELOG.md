@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — Rev706
+## 3.15.5 — 2026-11-12 — Autopilot Check sees an external provider
+
+Rev706 on top of 3.15.4.
 
 ### Fixed
 - Autopilot Check: "No autopilot registered" when another plugin, usually
