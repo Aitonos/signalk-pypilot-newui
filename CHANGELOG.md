@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — Rev707-708
+## 3.15.6 — 2026-11-12 — Other setups: pypilot under systemd or on the Signal K machine
+
+Rev707-708 on top of 3.15.5.
 
 Setups other than a TinyPilot with its own provider.
 
