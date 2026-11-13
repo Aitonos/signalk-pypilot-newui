@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { decideReAnchor } from "../mode-reanchor";
+import { decideReAnchor, decideEngageAnchor } from "../mode-reanchor";
 
 // Realistic pypilot catalog snapshot for the fixtures.
 const CATALOG = (over: Record<string, unknown> = {}) => ({
@@ -166,5 +166,30 @@ describe("decideReAnchor — edge case: value at zero", () => {
     const d = decideReAnchor("compass", "wind", CATALOG({ "wind.direction": -179.9 }));
     assert.equal(d.shouldReAnchor, true);
     assert.equal(d.valueDeg, -179.9);
+  });
+});
+
+describe("decideEngageAnchor (Rev709, engage = heading_command then enabled)", () => {
+  it("compass: anchors to ap.heading", () => {
+    const d = decideEngageAnchor("compass", { "ap.heading": 212.5, "ap.heading_command": 90 });
+    assert.equal(d.shouldReAnchor, true);
+    assert.equal(d.valueDeg, 212.5);
+    assert.equal(d.sourceKey, "ap.heading");
+  });
+  it("compass without ap.heading: falls back to the IMU heading", () => {
+    const d = decideEngageAnchor("compass", { "imu.heading_lowpass": 33 });
+    assert.equal(d.valueDeg, 33);
+    assert.equal(d.sourceKey, "imu.heading_lowpass");
+  });
+  it("wind: ap.heading is already the wind angle; falls back to wind.direction", () => {
+    assert.equal(decideEngageAnchor("wind", { "ap.heading": -40 }).valueDeg, -40);
+    assert.equal(decideEngageAnchor("wind", { "wind.direction": 35 }).sourceKey, "wind.direction");
+    assert.equal(decideEngageAnchor("true wind", { "wind.true_direction": 120 }).sourceKey, "wind.true_direction");
+  });
+  it("gps without ap.heading: no compass fallback (track is not the IMU heading)", () => {
+    assert.equal(decideEngageAnchor("gps", { "imu.heading_lowpass": 10 }).shouldReAnchor, false);
+  });
+  it("nav: never anchors", () => {
+    assert.equal(decideEngageAnchor("nav", { "ap.heading": 10 }).shouldReAnchor, false);
   });
 });

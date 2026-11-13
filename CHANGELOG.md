@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — Rev709
+
+### Fixed
+- Engaging through the Signal K autopilot API (Freeboard, KIP) with 'absorb
+  provider' on now locks the current heading first (the wind angle in wind
+  modes), as pypilot's own web page does. pypilot keeps its old heading
+  command while in standby, so after hand-steering onto a new course the
+  pilot turned back to the course it held before the last disengage. A
+  target sent just before the engage is kept. The visor's AP button already
+  did this.
+
+### Added
+- Signal K log lines for every step of an engage through the autopilot API
+  (NAV or current mode, anchored heading, result). The failure of the
+  delayed NAV engage used to be silent.
+- README: how absorb mode differs from pypilot-autopilot-provider (manual
+  steering from KIP needs `allowDirectServo`; engage locks the heading).
+
 ## 3.15.6 — 2026-11-12 — Other setups: pypilot under systemd or on the Signal K machine
 
 Rev707-708 on top of 3.15.5.

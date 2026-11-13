@@ -82,3 +82,30 @@ export function decideReAnchor(
     reason: `${oldMode} → ${newMode}: anchor to ${sourceKey}=${raw.toFixed(2)}°`,
   };
 }
+
+/** Rev709: engaging is a two-step contract in pypilot, done by the client:
+ *  `ap.heading_command = heading` and then `ap.enabled = true` (pypilot's own
+ *  web/static/pypilot_control.js). The core keeps the old command while in
+ *  standby, so engaging without it turns the boat back to the course held
+ *  before the last disengage (panaaj/pypilot-autopilot-provider#6).
+ *
+ *  `ap.heading` is already in the current mode's space (compass heading,
+ *  GPS track, or wind angle), which is why pypilot's web uses it for every
+ *  mode. Fallbacks when it is missing: the IMU heading in compass mode, the
+ *  wind angle in the wind modes. NAV is left alone: pypilot steers the route. */
+export function decideEngageAnchor(mode: string, values: Record<string, unknown>): ReAnchorDecision {
+  const m = String(mode || "").toLowerCase();
+  if (m === "nav") {
+    return { shouldReAnchor: false, valueDeg: null, sourceKey: null, reason: "nav: pypilot steers the route" };
+  }
+  const keys = ["ap.heading"];
+  if (IS_WIND(m)) keys.push(IS_TRUE_WIND(m) ? "wind.true_direction" : "wind.direction");
+  else if (m === "compass") keys.push("imu.heading_lowpass");
+  for (const k of keys) {
+    const raw = values[k];
+    if (typeof raw === "number" && isFinite(raw)) {
+      return { shouldReAnchor: true, valueDeg: raw, sourceKey: k, reason: `engage in ${m}: anchor to ${k}=${raw.toFixed(2)}°` };
+    }
+  }
+  return { shouldReAnchor: false, valueDeg: null, sourceKey: null, reason: `engage in ${m}: no measurement (${keys.join(", ")})` };
+}

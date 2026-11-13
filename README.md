@@ -212,6 +212,11 @@ Signal K allows only one provider per pilot ID, so if you enable absorb mode, di
 
 Absorb mode lives in **Setup → Autopilot Provider (one-socket mode)**.
 
+Two differences to know when you switch from Panaaj's plugin to absorb mode:
+
+- **Manual steering from KIP with the autopilot off.** Panaaj's plugin turns the ±1 / ±10 buttons and dodge into direct rudder commands while the pilot is in standby. Here that needs `allowDirectServo` on (off by default, see above); without it, those buttons return an error while the pilot is off.
+- **Engage from KIP or Freeboard** locks the current heading (or wind angle in wind modes) before engaging, like pypilot's own web page, so the pilot never goes back to the course it held before the last disengage. A target sent just before the engage is kept.
+
 ### Remote restart, reboot and consoles
 
 When the autopilot process on the TinyPilot gets wedged, no manual SSH session is needed. Save the TinyPilot's SSH user + password once in **Setup → Technical → Emergency** and you get two big buttons, each behind a confirmation that asks whether someone is at the helm:

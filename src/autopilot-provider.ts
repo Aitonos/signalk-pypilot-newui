@@ -10,7 +10,7 @@
 // single socket to pypilot_web. See NOTICE + CHANGELOG for attribution.
 
 import { PypilotClient } from "./pypilot-client";
-import { decideReAnchor } from "./mode-reanchor";
+import { decideReAnchor, decideEngageAnchor } from "./mode-reanchor";
 import {
   awaEmaStep,
   computeTackGeometry,
@@ -166,8 +166,12 @@ export class AutopilotProvider {
     }, TARGET_PENDING_MS + 150);
     try { (this._targetReconcileTimer as any).unref?.(); } catch { /* silent */ }
   }
+  /** Rev709: when the last target order was written (setTarget or
+   *  adjustTarget); an engage right after it keeps that target. */
+  private _lastTargetOrderTs = 0;
   private _noteTargetWrite(rad: number, prev: number | null): void {
     const now = Date.now();
+    this._lastTargetOrderTs = now;
     const add = [{ rad, ts: now }];
     if (typeof prev === "number") add.push({ rad: prev, ts: now });
     this._recentTargetWrites = this._recentTargetWrites.filter((w) => now - w.ts < TARGET_PENDING_MS).concat(add).slice(-20);
@@ -1731,11 +1735,40 @@ export class AutopilotProvider {
     // fresh engage. setNavMode now returns silently on supersede
     // (does not throw), but we still filter defensively so a
     // superseded throw from lower layers cannot re-arm engage either.
+    // Rev709: every step is logged. A Freeboard engage sometimes needed
+    // several taps; these lines say what each tap did.
+    console.log(`[apProvider.engage] API engage: engaged=${this.data.engaged} mode=${this.data.mode}`);
     try {
       await this.setNavMode();
     } catch (e: any) {
       if (/superseded/.test(String(e?.message))) return;
+      console.log(`[apProvider.engage] no NAV (${e?.message || e}): engaging in ${this.data.mode}`);
+      await this._anchorBeforeEngage();
       await this.setState("enabled");
+      console.log(`[apProvider.engage] enabled in ${this.data.mode}`);
+    }
+  }
+
+  /** Rev709: pypilot's engage contract is heading_command first, then
+   *  enabled; the core keeps the old command in standby. Without this an
+   *  engage from Freeboard / KIP after hand-steering onto a new course
+   *  turned the boat back to the old one. Only on the API path: the visor
+   *  sends its own target (captured or prepared with the +-1/+-10 taps), and
+   *  a target written in the last 2.5 s (an app that sends the target and
+   *  then engages) is respected. */
+  private async _anchorBeforeEngage(): Promise<void> {
+    if (this.data.engaged) return;
+    if (Date.now() - this._lastTargetOrderTs < TARGET_PENDING_MS) {
+      console.log("[apProvider.engage] anchor skipped: a target was just set");
+      return;
+    }
+    const d = decideEngageAnchor(String(this.data.mode || ""), (this.client as any).getValues?.() || {});
+    console.log(`[apProvider.engage] ${d.reason}`);
+    if (!d.shouldReAnchor || d.valueDeg == null) return;
+    try {
+      await this.setTarget(d.valueDeg / RAD_TO_DEG);
+    } catch (e: any) {
+      console.log(`[apProvider.engage] anchor failed: ${e?.message || e}`);
     }
   }
 
@@ -1780,10 +1813,15 @@ export class AutopilotProvider {
       }
       if (isStale()) return;
       if (this.navPendingTimer) clearTimeout(this.navPendingTimer);
+      console.log(`[apProvider.engage] NAV: mode set, enabling in 500 ms (engaged=${this.data.engaged})`);
       this.navPendingTimer = setTimeout(() => {
         this.navPendingTimer = null;
-        if (isStale()) return; // superseded, do nothing
-        this.setState("enabled").catch(() => {});
+        if (isStale()) { console.log("[apProvider.engage] NAV enable skipped: newer order"); return; } // superseded, do nothing
+        // Rev709: this failure used to be silent.
+        this.setState("enabled").then(
+          () => console.log("[apProvider.engage] NAV enabled"),
+          (e: any) => console.log(`[apProvider.engage] NAV enable failed: ${e?.message || e}`),
+        );
       }, 500);
     } else {
       throw new Error("Nav mode is not available");
