@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — Rev709
+## 3.15.7 — 2026-11-13 — Engage from Freeboard / KIP locks the current heading
+
+Rev709 on top of 3.15.6.
 
 ### Fixed
 - Engaging through the Signal K autopilot API (Freeboard, KIP) with 'absorb
