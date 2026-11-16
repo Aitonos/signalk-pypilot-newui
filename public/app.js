@@ -13912,7 +13912,10 @@
     if (!await ensureAutopilotId()) return;
     _mtLog("disengage", { via: "apDisengage" });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
-    return handleAuth(await skFetch(url, { method: "POST" }));
+    // Rev712 (self-audit): with the Pi out of reach the POST could hang for
+    // minutes, keeping the button locked and the warning unsaid. 8 s, then
+    // the caller reports it did not get through.
+    return handleAuth(await skFetch(url, { method: "POST", signal: AbortSignal.timeout(8000) }));
   }
   async function apSetMode(mode) {
     if (_pypilotWriteBlocked("apSetMode")) return { ok: false, blocked: true };

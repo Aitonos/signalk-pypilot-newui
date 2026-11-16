@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — Rev710-712 (feedback from the OpenMarine forum)
+## 3.15.8 — 2026-11-16 — Disengage always possible, AP state kept when the link drops
+
+Rev710-712 on top of 3.15.7, from feedback on the OpenMarine forum.
 
 ### Fixed
 - The spoken "pypilot disconnected for …" uses round steps (5 s under half a
