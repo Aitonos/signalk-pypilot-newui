@@ -24134,6 +24134,37 @@
       ctx.textAlign = tk.frac === 0 ? "left" : tk.frac === 1 ? "right" : "center";
       ctx.fillText(tk.txt, x, cssH - 4);
     }
+    // Rev717 (Carlos): with the chart in the multifunction panel the heel bar
+    // is gone, so a small one rides in the free gap between the left time
+    // label and the centre tab toggle. Same reading as the big bar: +-30 deg,
+    // the side is where the mark is, the number is the plain magnitude.
+    if (c.heelGauge) {
+      const leftLabelW = ctx.measureText(`-${c.window}`).width;
+      const gx0 = marginL + leftLabelW + 14;
+      const numW = ctx.measureText("30").width + 6;
+      const gx1 = marginL + plotW / 2 - 34 - numW;   // keep clear of the centre toggle
+      if (gx1 - gx0 > 40) {
+        const gy = cssH - 4 - fs * 0.35;
+        const mid = (gx0 + gx1) / 2;
+        ctx.save();
+        ctx.strokeStyle = "#4a5a6e";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(gx0, gy); ctx.lineTo(gx1, gy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(mid, gy - fs * 0.35); ctx.lineTo(mid, gy + fs * 0.35); ctx.stroke();
+        const heelDeg = (state.heelRad == null) ? null : state.heelRad * RAD2DEG;
+        ctx.textAlign = "left";
+        ctx.fillStyle = CHART_COLORS.heel;
+        if (heelDeg == null) {
+          ctx.fillText("--", gx1 + 6, cssH - 4);
+        } else {
+          const pct = Math.max(-1, Math.min(1, heelDeg / 30));
+          const mx = mid + pct * (gx1 - gx0) / 2;
+          ctx.beginPath(); ctx.arc(mx, gy, Math.max(3, fs * 0.32), 0, Math.PI * 2); ctx.fill();
+          ctx.fillText(String(Math.round(Math.abs(heelDeg))), gx1 + 6, cssH - 4);
+        }
+        ctx.restore();
+      }
+    }
 
     // Pass 2: grid, scale labels, traces, legend. Snapshot the band
     // geometry so the hover handler can hit-test without re-computing.
@@ -24401,6 +24432,7 @@
     emptyKey: "helmChart.empty",
     fontPx: 13,
     hideMidTime: true,   // Rev613: the tab-bar toggle sits at the bottom centre
+    heelGauge: true,     // Rev717: small heel bar in the free bottom-left gap
     window: "10m",
     enabled: new Set(["sog", "polarSpeed", "aws", "tws"]),
     lastSamples: [],

@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased — Rev713-716
+## Unreleased — Rev713-717
+
+### Added
+- With the chart in the multifunction panel, a small heel bar sits in the
+  free space at the bottom left (between the time label and the view
+  toggle): +-30 deg, the side is where the mark is, the number is the
+  magnitude, as in the big bar.
 
 ### Changed
 - The automatic full screen on the first tap is now for phones and tablets
