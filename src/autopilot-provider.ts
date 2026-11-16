@@ -462,10 +462,16 @@ export class AutopilotProvider {
     return changedField;
   }
 
+  // Rev711 (forum, Moeritsen 2026-11-16; tested on Tunatunes): losing the
+  // link to pypilot_web does NOT disengage the TinyPilot - it keeps
+  // steering on its own. Reporting engaged=false here showed "AP off" in
+  // the visor, KIP and Signal K while the pilot was steering, and the visor
+  // greyed the AP button so it could not be taken off. Keep the last known
+  // engaged state; only the state says "off-line". pypilot's own ap.enabled
+  // corrects it when the link is back.
   markOffline(): void {
-    if (this.data.state !== "off-line" || this.data.engaged) {
+    if (this.data.state !== "off-line") {
       this.data.state = "off-line";
-      this.data.engaged = false;
       this.pendingEngaged = null;
       this.pendingTarget = null;
       this.recomputeActions();

@@ -4211,6 +4211,14 @@ body.pypilot-offline .pypilot-write {
   cursor: not-allowed;
   pointer-events: none;
 }
+/* Rev711: the AP stays engaged on the TinyPilot when the link drops; the AP
+   button must still take it off (one attempt, nothing queued). */
+body.pypilot-offline.pypilot-offline-engaged #engage-toggle {
+  opacity: 1;
+  filter: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
 /* Rev465: full-width centred banner. Hidden unless pypilot-offline. */
 #pypilot-offline-banner {
   position: fixed;

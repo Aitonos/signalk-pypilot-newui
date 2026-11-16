@@ -6037,6 +6037,7 @@
         if (state && state.pypilotHealthy !== false) {
           state.pypilotHealthy = false;
           document.body.classList.add("pypilot-offline");
+          if (state.engaged) document.body.classList.add("pypilot-offline-engaged");   // Rev711
           console.warn("[pypilot-newui] WS closed → pypilot marked offline (banner activated)");
         }
       } catch { /* silent */ }
@@ -9722,6 +9723,10 @@
     // the toggle from per-node to `body.pypilot-offline` so the CSS
     // selector list stays in one place.
     document.body.classList.toggle("pypilot-offline", state.pypilotHealthy === false);
+    // Rev711: with the link down and the AP last known ON, the AP button stays
+    // usable - to DISENGAGE only (doEngage never engages while offline). The
+    // other controls stay greyed (Rev465: nothing queued for later).
+    document.body.classList.toggle("pypilot-offline-engaged", state.pypilotHealthy === false && !!state.engaged);
     // Rev644 (Carlos 2026-11-06): the red box can be tapped away (the
     // controls stay disabled while offline); it is shown again next time.
     if (state.pypilotHealthy !== false) document.body.classList.remove("pypilot-offline-dismissed");
@@ -15505,6 +15510,8 @@
     const doEngage = async () => {
       _tackStatsDismissIfShown();
       if (_apPending) return;
+      // Rev711: offline, the button only takes the AP off, never puts it on.
+      if (state.pypilotHealthy === false && !state.engaged) return;
       // Rev69: cooldown gate before the async guard fires. Blocks the
       // second edge of a rapid double-click (and any touch-emulated
       // ghost click after touchend) from producing an engage-disengage

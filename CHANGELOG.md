@@ -1,8 +1,15 @@
 # Changelog
 
-## Unreleased — Rev710 (feedback from the OpenMarine forum)
+## Unreleased — Rev710-711 (feedback from the OpenMarine forum)
 
 ### Fixed
+- Losing the link to pypilot no longer shows the autopilot as disengaged.
+  The TinyPilot keeps steering on its own, but the visor, KIP and Signal K
+  showed "AP off", and the visor greyed the AP button so it could not be
+  taken off. The last known state is kept (state "off-line"), and while
+  the link is down the AP button stays usable to disengage only. It never
+  engages, the other controls stay greyed, and nothing is queued for when
+  the link comes back.
 - Disengaging from the visor is always sent. While the visor thought pypilot
   or the Signal K connection was down, it sent no order at all, disengage
   included, and only flashed the button red. If the disengage does not get
