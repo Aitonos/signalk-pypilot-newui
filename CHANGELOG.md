@@ -1,13 +1,12 @@
 # Changelog
 
-## Unreleased — Rev713-718
+## Unreleased — Rev713-719
 
 ### Added
-- With the chart in the multifunction panel, a small heel bar sits over the
-  free space at the bottom left (between the time label and the view
-  toggle), live with every heel reading: +-30 deg, a bar grows from the
-  centre towards the heeled side, the number is the magnitude, as in the
-  big bar.
+- With the chart in the multifunction panel, a heel bar runs across the
+  chart just above the time labels, live with every heel reading: +-30 deg,
+  the moving tag shows the heel in large digits, red to port and green to
+  starboard, and a tick holds the largest heel of the last 5 seconds.
 
 ### Changed
 - The automatic full screen on the first tap is now for phones and tablets
