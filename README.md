@@ -271,9 +271,11 @@ Under `electrical.switches.pypilot.*`, all boolean (`true` / `false`), with `sup
 - `mode.{compass,gps,wind,trueWind}` — radio (mutually exclusive).
 - `profile.<name>` — radio, dynamic per pilot profile.
 
-In KIP, add a **Switch Panel** and pick these paths with the **boolean** path type (a push button suits the momentary ones). KIP must be logged in with a read/write user, and **Allow writes** must be on in the plugin settings. KIP's Autopilot widget does not support this plugin. A PUT also accepts `1` / `0`.
+A PUT also accepts `1` / `0`.
 
-`steering.autopilot.pypilot.actions.tackInt` is numeric (`1` port, `2` starboard, `0` cancel), for buttons that send a value, not for an on/off toggle.
+**KIP:** tested on KIP's Switch Panel, engaging works with the **numeric** path `steering.autopilot.pypilot.actions.engageInt` (`1` engage, `0` disengage) as an on/off toggle. With the boolean `electrical.switches.pypilot.ap.state` KIP showed the state but sent no command. KIP must be logged in with a read/write user, and **Allow writes** must be on in the plugin settings. KIP's Autopilot widget does not support this plugin.
+
+`steering.autopilot.pypilot.actions.tackInt` is numeric too (`1` port, `2` starboard, `0` cancel); an on/off toggle only sends `1` and `0`, so starboard needs a control that sends `2`.
 
 ### HTTP endpoints
 
