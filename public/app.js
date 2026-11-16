@@ -11955,12 +11955,12 @@
   function _renderHelmChartHeel() {
     const tag = document.getElementById("helm-chart-heel-tag");
     if (!tag) return;
+    const box = document.getElementById("helm-chart-heel");
     const peak = document.getElementById("helm-chart-heel-peak");
     const fill = document.getElementById("helm-chart-heel-fill");
     if (state.heelRad == null) {
-      if (tag.style.left !== "50%") tag.style.left = "50%";
-      tag.style.transform = "translateX(-50%)";
       _setText(tag, "--");
+      tag.style.left = Math.max(0, (box.clientWidth - tag.offsetWidth) / 2) + "px";
       if (fill) fill.style.width = "0%";
       if (peak) peak.hidden = true;
       _helmHeelPeak = null;
@@ -11969,13 +11969,16 @@
     const deg = state.heelRad * RAD2DEG;
     const pct = Math.max(-1, Math.min(1, deg / 30));
     const now = Date.now();
-    // The number is the bar's tip: its outer side sits on the end that
-    // grows (never past the bar's ends, so it always stays inside).
-    const left = Number((50 + pct * 50).toFixed(1)) + "%";
-    if (tag.style.left !== left) tag.style.left = left;
-    const tr = deg > 0.5 ? "translateX(-100%)" : deg < -0.5 ? "translateX(0)" : "translateX(-50%)";
-    if (tag.style.transform !== tr) tag.style.transform = tr;
+    // Rev723 (Carlos): the bar's end is the heel; the number goes right
+    // after it, outside the bar (to the right to starboard, to the left to
+    // port), kept inside the panel at big heels.
     _setText(tag, String(Math.round(Math.abs(deg))));
+    const W = box.clientWidth, w = tag.offsetWidth, gap = 4;
+    const endX = W * (0.5 + pct * 0.5);
+    let x = deg >= 0 ? endX + gap : endX - gap - w;
+    x = Math.max(0, Math.min(W - w, x));
+    const px = Math.round(x) + "px";
+    if (tag.style.left !== px) tag.style.left = px;
     if (fill) {
       const fl = Number((50 + Math.min(0, pct) * 50).toFixed(1)) + "%";
       const fw = Number((Math.abs(pct) * 50).toFixed(1)) + "%";

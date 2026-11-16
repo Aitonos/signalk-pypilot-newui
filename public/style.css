@@ -2694,15 +2694,15 @@ main { touch-action: pan-y; overflow-x: hidden; }
   background: rgba(255, 207, 71, 0.75);
 }
 .helm-chart-heel .hch-peak[hidden] { display: none; }
-/* Rev721 (Carlos): big, heavy, no frame, no glow; sits on the bottom edge
-   and grows upwards (it may cover a bit of the 0 line, only where it is). */
+/* Rev723 (Carlos): white, heavy, no frame, resting on the panel's bottom
+   edge and kept under the 0 line; placed by JS right after the bar's end. */
 .helm-chart-heel .hch-tag {
   position: absolute;
-  bottom: 0;
-  color: #ffcf47;
+  bottom: -1px;
+  color: #ffffff;
   font-family: ui-monospace, monospace;
   font-weight: 900;
-  font-size: 48px;
+  font-size: 25px;
   line-height: 0.85;
   letter-spacing: -2px;
   white-space: nowrap;
