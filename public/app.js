@@ -11960,7 +11960,8 @@
     const fill = document.getElementById("helm-chart-heel-fill");
     if (state.heelRad == null) {
       _setText(tag, "--");
-      tag.style.left = Math.max(0, (box.clientWidth - tag.offsetWidth) / 2) + "px";
+      const z = (box.parentElement ? box.parentElement.clientWidth / 2 : box.clientWidth / 2) - box.offsetLeft;
+      tag.style.left = Math.max(0, Math.round(z - tag.offsetWidth / 2)) + "px";
       if (fill) fill.style.width = "0%";
       if (peak) peak.hidden = true;
       _helmHeelPeak = null;
@@ -11969,19 +11970,27 @@
     const deg = state.heelRad * RAD2DEG;
     const pct = Math.max(-1, Math.min(1, deg / 30));
     const now = Date.now();
+    // Rev724 (Carlos: "el centro no es el centro"): the box runs from the
+    // left time label to "NOW", which is not symmetric (the scale is on the
+    // right). 0 deg is the PANEL's centre (the menu toggle), and both sides
+    // use the same deg -> px scale, +-30 reaching the shorter side.
+    const W = box.clientWidth;
+    const zeroX = (box.parentElement ? box.parentElement.clientWidth / 2 : W / 2) - box.offsetLeft;
+    const half = Math.max(1, Math.min(zeroX, W - zeroX));
+    const xOf = (p) => zeroX + p * half;
     // Rev723 (Carlos): the bar's end is the heel; the number goes right
     // after it, outside the bar (to the right to starboard, to the left to
     // port), kept inside the panel at big heels.
     _setText(tag, String(Math.round(Math.abs(deg))));
-    const W = box.clientWidth, w = tag.offsetWidth, gap = 4;
-    const endX = W * (0.5 + pct * 0.5);
+    const w = tag.offsetWidth, gap = 4;
+    const endX = xOf(pct);
     let x = deg >= 0 ? endX + gap : endX - gap - w;
     x = Math.max(0, Math.min(W - w, x));
     const px = Math.round(x) + "px";
     if (tag.style.left !== px) tag.style.left = px;
     if (fill) {
-      const fl = Number((50 + Math.min(0, pct) * 50).toFixed(1)) + "%";
-      const fw = Number((Math.abs(pct) * 50).toFixed(1)) + "%";
+      const fl = Math.round(Math.min(zeroX, endX)) + "px";
+      const fw = Math.round(Math.abs(endX - zeroX)) + "px";
       if (fill.style.left !== fl) fill.style.left = fl;
       if (fill.style.width !== fw) fill.style.width = fw;
       fill.classList.toggle("port", deg < 0);
@@ -11993,7 +12002,7 @@
       const show = Math.abs(_helmHeelPeak.pct) > Math.abs(pct) + 0.02;
       peak.hidden = !show;
       if (show) {
-        peak.style.left = Number((50 + _helmHeelPeak.pct * 50).toFixed(1)) + "%";
+        peak.style.left = Math.round(xOf(_helmHeelPeak.pct)) + "px";
       }
     }
   }
