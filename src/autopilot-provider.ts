@@ -64,6 +64,8 @@ function shortestArcRad(a: number, b: number): number {
 }
 
 export type ApState = "enabled" | "disabled" | "off-line" | "standby" | "auto";
+/** Rev713: a second tack within this window is ignored (double-fired tap). */
+export const TACK_REPEAT_GUARD_MS = 3000;
 
 export interface ApAction {
   id: string;
@@ -114,6 +116,10 @@ export class AutopilotProvider {
   // 500 ms NAV-mode setTimeout that setNavMode arms, so a disengage
   // during that window cannot be undone by the timer waking up.
   private engageGen = 0;
+  // Rev713 (KIP test on Tunatunes 2026-11-16): KIP's switch sent every tap
+  // twice, 120-130 ms apart, and each one tacked: 100 + 100 deg in compass.
+  // Whatever the client, a second tack this soon after one is never meant.
+  private _lastTackOrderMs = 0;
   // Rev279 (audit follow-up A / B): parallel counters for target and
   // mode writes. Bumped on every setTarget / setMode / adjustTarget
   // and consulted by the retry loop, so a stale write that was
@@ -1119,6 +1125,13 @@ export class AutopilotProvider {
     // target-shift behaviour because pypilot's short-arc choice already
     // matches the requested direction when the rotation is < 180°.
     if (!this.data.engaged || this.data.target == null) return;
+    const nowMs = Date.now();
+    if (nowMs - this._lastTackOrderMs < TACK_REPEAT_GUARD_MS) {
+      // eslint-disable-next-line no-console
+      console.log(`[apProvider.tack] ${direction} ignored: another tack was ordered ${nowMs - this._lastTackOrderMs} ms ago`);
+      throw new Error("tack ignored: another tack was ordered less than 3 s ago");
+    }
+    this._lastTackOrderMs = nowMs;
     const modeStr = String(this.data.mode || "").toLowerCase();
     // Rev545: in NAV the route decides the heading; a tack there would be
     // overwritten by the next APB. Leave NAV first.

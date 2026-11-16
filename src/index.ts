@@ -93,7 +93,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev712";
+const PLUGIN_REVISION = "Rev713";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -7719,6 +7719,13 @@ module.exports = function (app: any) {
     const SW_TACK_PREFIX  = "electrical.switches.pypilot.tack";
     const momentaryPaths: string[] = [];
 
+    // Rev713 (KIP test on Tunatunes 2026-11-16): KIP's Switch Panel sent each
+    // tap twice, 120-130 ms apart. A second true on the same switch within
+    // MOMENTARY_REPEAT_GUARD_MS is that echo, not a second tap. Only here: the
+    // visor and the Signal K API send each order once (three quick +1 from
+    // them are three real taps, Rev542).
+    const MOMENTARY_REPEAT_GUARD_MS = 250;
+    const momentaryLastTrueMs = new Map<string, number>();
     const registerMomentaryBool = (skPath: string, displayName: string, action: () => void) => {
       try {
         app.registerPutHandler("vessels.self", skPath, (_c: string, _p: string, value: unknown) => {
@@ -7727,6 +7734,13 @@ module.exports = function (app: any) {
           if (b === null) return bad("value must be boolean-like");
           if (!client?.connected) return noConn();
           if (b) {
+            const nowMs = Date.now();
+            const lastMs = momentaryLastTrueMs.get(skPath) ?? 0;
+            momentaryLastTrueMs.set(skPath, nowMs);
+            if (nowMs - lastMs < MOMENTARY_REPEAT_GUARD_MS) {
+              app.debug(`[actions] ${skPath} repeated after ${nowMs - lastMs} ms: ignored (double-sent tap)`);
+              return okLog(skPath, "repeat ignored");
+            }
             try { action(); } catch (e: any) { app.error(`[actions] ${skPath} action failed: ${e?.message || e}`); }
             // Auto-reset to false so the KIP switch returns to OFF and can be
             // pressed again. 200 ms is enough for the round-trip to be visible.

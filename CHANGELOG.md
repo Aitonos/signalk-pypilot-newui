@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Rev713
+
+### Fixed
+- A tack sent twice no longer turns the boat twice. KIP's Switch Panel sent
+  each tap twice, 120-130 ms apart, and in compass mode each one tacked
+  (100° + 100°). A second tack within 3 s of the previous one is refused,
+  from any app, and logged. The KIP switches (`electrical.switches.pypilot.*`)
+  also ignore the same tap repeated within 250 ms.
+
 ## 3.15.8 — 2026-11-16 — Disengage always possible, AP state kept when the link drops
 
 Rev710-712 on top of 3.15.7, from feedback on the OpenMarine forum.
