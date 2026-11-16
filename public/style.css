@@ -2684,26 +2684,16 @@ main { touch-action: pan-y; overflow-x: hidden; }
   background: #2ecc71;
 }
 .helm-chart-heel .hch-fill.port { background: #e74c3c; }
-.helm-chart-heel .hch-peak {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  margin-left: -1.5px;
-  border-radius: 2px;
-  background: rgba(255, 207, 71, 0.75);
-}
-.helm-chart-heel .hch-peak[hidden] { display: none; }
 /* Rev723 (Carlos): white, heavy, no frame, resting on the panel's bottom
    edge and kept under the 0 line; placed by JS right after the bar's end. */
 .helm-chart-heel .hch-tag {
   position: absolute;
-  bottom: -1px;
+  bottom: -4px;               /* Rev725: down to the panel's bottom edge */
   color: #ffffff;
   font-family: ui-monospace, monospace;
   font-weight: 900;
-  font-size: 25px;
-  line-height: 0.85;
+  font-size: 30px;
+  line-height: 0.72;
   letter-spacing: -2px;
   white-space: nowrap;
 }

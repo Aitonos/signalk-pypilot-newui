@@ -1,13 +1,13 @@
 # Changelog
 
-## Unreleased — Rev713-724
+## Unreleased — Rev713-725
 
 ### Added
 - With the chart in the multifunction panel, a heel bar runs along the
   bottom of the chart (from the left time label to the "NOW" label, under
   the 0 line), live with every heel reading: it grows from the centre, red
   to port and green to starboard (+-30 deg), the heel in heavy white digits
-  right after its end, and a tick holds the largest heel of the last 5 seconds.
+  right after its end, from the bottom edge up to the 0 line.
 
 ### Changed
 - The automatic full screen on the first tap is now for phones and tablets

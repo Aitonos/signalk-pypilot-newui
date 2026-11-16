@@ -11948,28 +11948,21 @@
   // labels, as its own element so it moves with every heel delta. Rev722:
   // a bar grows from the centre, red to port / green to starboard, from
   // where "-10m" starts to where "NOW" starts, under the 0 line; the big
-  // number is the bar's moving tip; a tick holds the largest heel of the
-  // last HELM_HEEL_PEAK_MS.
-  const HELM_HEEL_PEAK_MS = 5000;
-  let _helmHeelPeak = null;   // { pct, ts }
+  // number goes right after the bar's end (Rev725: no peak tick).
   function _renderHelmChartHeel() {
     const tag = document.getElementById("helm-chart-heel-tag");
     if (!tag) return;
     const box = document.getElementById("helm-chart-heel");
-    const peak = document.getElementById("helm-chart-heel-peak");
     const fill = document.getElementById("helm-chart-heel-fill");
     if (state.heelRad == null) {
       _setText(tag, "--");
       const z = (box.parentElement ? box.parentElement.clientWidth / 2 : box.clientWidth / 2) - box.offsetLeft;
       tag.style.left = Math.max(0, Math.round(z - tag.offsetWidth / 2)) + "px";
       if (fill) fill.style.width = "0%";
-      if (peak) peak.hidden = true;
-      _helmHeelPeak = null;
       return;
     }
     const deg = state.heelRad * RAD2DEG;
     const pct = Math.max(-1, Math.min(1, deg / 30));
-    const now = Date.now();
     // Rev724 (Carlos: "el centro no es el centro"): the box runs from the
     // left time label to "NOW", which is not symmetric (the scale is on the
     // right). 0 deg is the PANEL's centre (the menu toggle), and both sides
@@ -11994,16 +11987,6 @@
       if (fill.style.left !== fl) fill.style.left = fl;
       if (fill.style.width !== fw) fill.style.width = fw;
       fill.classList.toggle("port", deg < 0);
-    }
-    if (!_helmHeelPeak || Math.abs(pct) >= Math.abs(_helmHeelPeak.pct) || now - _helmHeelPeak.ts > HELM_HEEL_PEAK_MS) {
-      _helmHeelPeak = { pct, ts: now };
-    }
-    if (peak) {
-      const show = Math.abs(_helmHeelPeak.pct) > Math.abs(pct) + 0.02;
-      peak.hidden = !show;
-      if (show) {
-        peak.style.left = Math.round(xOf(_helmHeelPeak.pct)) + "px";
-      }
     }
   }
   // Rev182 (Carlos): the actual helm-bar renderer. Reads the current
