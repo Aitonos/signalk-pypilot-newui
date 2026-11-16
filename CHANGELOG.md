@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Rev713-725
+## Unreleased — Rev713-726
 
 ### Added
 - With the chart in the multifunction panel, a heel bar runs along the

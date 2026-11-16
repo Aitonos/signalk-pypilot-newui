@@ -2670,8 +2670,8 @@ main { touch-action: pan-y; overflow-x: hidden; }
   z-index: 5;
   left: 12px;
   right: 56px;
-  bottom: 4px;
-  height: 18px;
+  bottom: 0;                  /* Rev726: bar and number share the same */
+  height: 22px;               /* height, bottom edge -> under the 0 line */
   pointer-events: none;
 }
 .helm-chart-heel .hch-fill {
@@ -2688,7 +2688,7 @@ main { touch-action: pan-y; overflow-x: hidden; }
    edge and kept under the 0 line; placed by JS right after the bar's end. */
 .helm-chart-heel .hch-tag {
   position: absolute;
-  bottom: -4px;               /* Rev725: down to the panel's bottom edge */
+  bottom: 0;
   color: #ffffff;
   font-family: ui-monospace, monospace;
   font-weight: 900;
