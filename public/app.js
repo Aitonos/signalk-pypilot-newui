@@ -11945,23 +11945,19 @@
   }
   // Rev717-719 (Carlos): with the chart in the multifunction panel the heel
   // bar is gone, so a heel bar runs across the chart just above the time
-  // labels, as its own element so it moves with every heel delta. +-30 deg
-  // like the big bar; the moving tag is the value (plain magnitude), red to
-  // port and green to starboard (the rose's sector colours); a tick holds
-  // the largest heel of the last HELM_HEEL_PEAK_MS.
+  // labels, as its own element so it moves with every heel delta. Rev720:
+  // a small copy of the big bar - same red/green band, the glowing yellow
+  // number sliding on it, edge to edge at the bottom; a tick holds the
+  // largest heel of the last HELM_HEEL_PEAK_MS.
   const HELM_HEEL_PEAK_MS = 5000;
   let _helmHeelPeak = null;   // { pct, ts }
   function _renderHelmChartHeel() {
     const tag = document.getElementById("helm-chart-heel-tag");
     if (!tag) return;
-    const box = document.getElementById("helm-chart-heel");
-    const fill = document.getElementById("helm-chart-heel-fill");
     const peak = document.getElementById("helm-chart-heel-peak");
     if (state.heelRad == null) {
       if (tag.style.left !== "50%") tag.style.left = "50%";
       _setText(tag, "--");
-      box.classList.remove("port", "stbd");
-      if (fill) fill.style.width = "0%";
       if (peak) peak.hidden = true;
       _helmHeelPeak = null;
       return;
@@ -11969,19 +11965,11 @@
     const deg = state.heelRad * RAD2DEG;
     const pct = Math.max(-1, Math.min(1, deg / 30));
     const now = Date.now();
-    box.classList.toggle("port", deg < -0.5);
-    box.classList.toggle("stbd", deg > 0.5);
     // The tag stays inside the panel at big heels; fill and peak tick
     // keep the exact position.
     const left = Number(Math.max(5, Math.min(95, 50 + pct * 50)).toFixed(1)) + "%";
     if (tag.style.left !== left) tag.style.left = left;
-    _setText(tag, String(Math.round(Math.abs(deg))) + "°");
-    if (fill) {
-      const fl = Number((50 + Math.min(0, pct) * 50).toFixed(1)) + "%";
-      const fw = Number((Math.abs(pct) * 50).toFixed(1)) + "%";
-      if (fill.style.left !== fl) fill.style.left = fl;
-      if (fill.style.width !== fw) fill.style.width = fw;
-    }
+    _setText(tag, String(Math.round(Math.abs(deg))));
     if (!_helmHeelPeak || Math.abs(pct) >= Math.abs(_helmHeelPeak.pct) || now - _helmHeelPeak.ts > HELM_HEEL_PEAK_MS) {
       _helmHeelPeak = { pct, ts: now };
     }
@@ -11990,7 +11978,6 @@
       peak.hidden = !show;
       if (show) {
         peak.style.left = Number((50 + _helmHeelPeak.pct * 50).toFixed(1)) + "%";
-        peak.classList.toggle("port", _helmHeelPeak.pct < 0);
       }
     }
   }

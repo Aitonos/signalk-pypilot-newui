@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased — Rev713-719
+## Unreleased — Rev713-720
 
 ### Added
-- With the chart in the multifunction panel, a heel bar runs across the
-  chart just above the time labels, live with every heel reading: +-30 deg,
-  the moving tag shows the heel in large digits, red to port and green to
-  starboard, and a tick holds the largest heel of the last 5 seconds.
+- With the chart in the multifunction panel, a small copy of the heel bar
+  runs edge to edge along the bottom of the chart, live with every heel
+  reading: the same red (port) / green (starboard) band as the big bar,
+  the heel in large glowing digits sliding on it (+-30 deg), and a tick
+  that holds the largest heel of the last 5 seconds.
 
 ### Changed
 - The automatic full screen on the first tap is now for phones and tablets

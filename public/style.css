@@ -2310,6 +2310,18 @@ main { touch-action: pan-y; overflow-x: hidden; }
    "neutral". The three foreground layers (arrows, nav-toggle triangle,
    marker) sit above it via z-index. The nav-toggle's own yellow
    triangle visually stands in for the 0 deg reference. */
+.swipe-hint .rudder-track,
+.swipe-hint.view-chart .helm-chart-heel {
+  /* Rev720: the chart's small heel bar shares this band. */
+  background: linear-gradient(
+    90deg,
+    rgba(231, 76, 60, 0.65) 0%,
+    rgba(231, 76, 60, 0.20) 40%,
+    rgba(46, 46, 46, 0.30) 50%,
+    rgba(46, 204, 113, 0.20) 60%,
+    rgba(46, 204, 113, 0.65) 100%
+  );
+}
 .swipe-hint .rudder-track {
   /* Rev186/187/188 (Carlos): 12 px inset per side. Enough to keep the
      end label ("30" / "70") from being clipped, but tight enough to
@@ -2318,14 +2330,8 @@ main { touch-action: pan-y; overflow-x: hidden; }
   position: absolute;
   inset: 4px 12px;
   border-radius: 8px;
-  background: linear-gradient(
-    90deg,
-    rgba(231, 76, 60, 0.65) 0%,           /* PORT: red */
-    rgba(231, 76, 60, 0.20) 40%,
-    rgba(46, 46, 46, 0.30) 50%,           /* dim mid = amidships */
-    rgba(46, 204, 113, 0.20) 60%,
-    rgba(46, 204, 113, 0.65) 100%         /* STBD: green */
-  );
+  /* background: the red (port) -> dim (amidships) -> green (stbd) band
+     in the shared rule above. */
   z-index: 0;
   pointer-events: none;
 }
@@ -2660,66 +2666,44 @@ main { touch-action: pan-y; overflow-x: hidden; }
    between the "-10m" time label and the centre tab toggle. Font size
    matches the chart labels (fontPx 13), so it scales with them. Purple =
    the heel colour of the chart. Touches go through to the chart. */
-/* Rev719 (Carlos): across the whole chart width, just above the time
-   labels (the tag may cover a bit of the 0 line, only where it is). The
-   moving tag is the value, red to port / green to starboard. */
+/* Rev720 (Carlos): a small copy of the big bar, edge to edge at the very
+   bottom of the chart: the same red/green band (shared with .rudder-track
+   below) and the glowing yellow number of .rmk-num, without its box,
+   sliding on it. The time labels show through the band. */
 .swipe-hint.view-chart .helm-chart-heel {
   display: block;
   position: absolute;
   z-index: 2;
-  left: 14px;
-  right: calc(10px + 3em);
-  bottom: calc(4px + 1.9em);
-  height: 6px;
-  border-radius: 3px;
-  background: #3a4656;
-  font: bold 13px ui-monospace, monospace;
-  --hch-col: #8e9bab;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  height: 26px;
+  border-radius: 8px;
   pointer-events: none;
-}
-.helm-chart-heel.port { --hch-col: #e74c3c; }
-.helm-chart-heel.stbd { --hch-col: #2ecc71; }
-.helm-chart-heel .hch-fill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  border-radius: 3px;
-  background: var(--hch-col);
-}
-.helm-chart-heel .hch-mid {
-  position: absolute;
-  left: 50%;
-  top: -6px;
-  height: 18px;
-  width: 2px;
-  margin-left: -1px;
-  background: #8e9bab;
 }
 .helm-chart-heel .hch-peak {
   position: absolute;
-  top: -9px;
-  height: 24px;
-  width: 4px;
-  margin-left: -2px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  margin-left: -1.5px;
   border-radius: 2px;
-  background: #2ecc71;
+  background: rgba(255, 207, 71, 0.75);
 }
-.helm-chart-heel .hch-peak.port { background: #e74c3c; }
 .helm-chart-heel .hch-peak[hidden] { display: none; }
 .helm-chart-heel .hch-tag {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  padding: 0.05em 0.35em;
-  border-radius: 0.4em;
-  background: var(--hch-col);
-  color: #0b0f14;
-  font-size: 1.9em;
-  line-height: 1.1;
+  color: #ffcf47;
+  font-family: ui-monospace, monospace;
+  font-weight: 900;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.5px;
   white-space: nowrap;
-  box-shadow: 0 0 0 2px #0b0f14;
+  text-shadow: 0 0 8px rgba(255, 207, 71, 0.9);
+  filter: drop-shadow(0 0 6px rgba(255, 207, 71, 0.7));
 }
 /* Rev591 (Carlos): third view, Freeboard at chart size. The warm,
    preloaded Freeboard frame is laid over the strip (position fixed at
