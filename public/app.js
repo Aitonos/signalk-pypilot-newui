@@ -11945,19 +11945,23 @@
   }
   // Rev717-719 (Carlos): with the chart in the multifunction panel the heel
   // bar is gone, so a heel bar runs across the chart just above the time
-  // labels, as its own element so it moves with every heel delta. Rev720:
-  // a small copy of the big bar - same red/green band, the glowing yellow
-  // number sliding on it, edge to edge at the bottom; a tick holds the
-  // largest heel of the last HELM_HEEL_PEAK_MS.
+  // labels, as its own element so it moves with every heel delta. Rev722:
+  // a bar grows from the centre, red to port / green to starboard, from
+  // where "-10m" starts to where "NOW" starts, under the 0 line; the big
+  // number is the bar's moving tip; a tick holds the largest heel of the
+  // last HELM_HEEL_PEAK_MS.
   const HELM_HEEL_PEAK_MS = 5000;
   let _helmHeelPeak = null;   // { pct, ts }
   function _renderHelmChartHeel() {
     const tag = document.getElementById("helm-chart-heel-tag");
     if (!tag) return;
     const peak = document.getElementById("helm-chart-heel-peak");
+    const fill = document.getElementById("helm-chart-heel-fill");
     if (state.heelRad == null) {
       if (tag.style.left !== "50%") tag.style.left = "50%";
+      tag.style.transform = "translateX(-50%)";
       _setText(tag, "--");
+      if (fill) fill.style.width = "0%";
       if (peak) peak.hidden = true;
       _helmHeelPeak = null;
       return;
@@ -11965,11 +11969,20 @@
     const deg = state.heelRad * RAD2DEG;
     const pct = Math.max(-1, Math.min(1, deg / 30));
     const now = Date.now();
-    // The tag stays inside the panel at big heels; fill and peak tick
-    // keep the exact position.
-    const left = Number(Math.max(5, Math.min(95, 50 + pct * 50)).toFixed(1)) + "%";
+    // The number is the bar's tip: its outer side sits on the end that
+    // grows (never past the bar's ends, so it always stays inside).
+    const left = Number((50 + pct * 50).toFixed(1)) + "%";
     if (tag.style.left !== left) tag.style.left = left;
+    const tr = deg > 0.5 ? "translateX(-100%)" : deg < -0.5 ? "translateX(0)" : "translateX(-50%)";
+    if (tag.style.transform !== tr) tag.style.transform = tr;
     _setText(tag, String(Math.round(Math.abs(deg))));
+    if (fill) {
+      const fl = Number((50 + Math.min(0, pct) * 50).toFixed(1)) + "%";
+      const fw = Number((Math.abs(pct) * 50).toFixed(1)) + "%";
+      if (fill.style.left !== fl) fill.style.left = fl;
+      if (fill.style.width !== fw) fill.style.width = fw;
+      fill.classList.toggle("port", deg < 0);
+    }
     if (!_helmHeelPeak || Math.abs(pct) >= Math.abs(_helmHeelPeak.pct) || now - _helmHeelPeak.ts > HELM_HEEL_PEAK_MS) {
       _helmHeelPeak = { pct, ts: now };
     }

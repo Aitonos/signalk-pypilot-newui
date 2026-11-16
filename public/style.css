@@ -2310,9 +2310,7 @@ main { touch-action: pan-y; overflow-x: hidden; }
    "neutral". The three foreground layers (arrows, nav-toggle triangle,
    marker) sit above it via z-index. The nav-toggle's own yellow
    triangle visually stands in for the 0 deg reference. */
-.swipe-hint .rudder-track,
-.swipe-hint.view-chart .helm-chart-heel {
-  /* Rev720: the chart's small heel bar shares this band. */
+.swipe-hint .rudder-track {
   background: linear-gradient(
     90deg,
     rgba(231, 76, 60, 0.65) 0%,
@@ -2662,29 +2660,34 @@ main { touch-action: pan-y; overflow-x: hidden; }
 .swipe-hint .helm-chart-empty,
 .swipe-hint .helm-chart-heel { display: none; }
 .swipe-hint.view-chart > :not(.helm-chart):not(.helm-chart-empty):not(.helm-chart-heel):not(.nav-toggle) { display: none; }
-/* Rev717/718 (Carlos): small heel bar over the chart's bottom-left gap,
-   between the "-10m" time label and the centre tab toggle. Font size
-   matches the chart labels (fontPx 13), so it scales with them. Purple =
-   the heel colour of the chart. Touches go through to the chart. */
-/* Rev720 (Carlos): a small copy of the big bar, edge to edge at the very
-   bottom of the chart: the same red/green band (shared with .rudder-track
-   below) and the glowing yellow number of .rmk-num, without its box,
-   sliding on it. The time labels show through the band. */
+/* Rev722 (Carlos): over the chart, from where "-10m" starts to where "NOW"
+   starts, below the 0 line (only the number may cover it), above the menu
+   toggle (z 3; touches still reach it). A bar grows from the centre, red to
+   port / green to starboard (the rose's colours); the number is its tip. */
 .swipe-hint.view-chart .helm-chart-heel {
   display: block;
   position: absolute;
-  z-index: 2;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 34px;               /* Rev721: from the panel's bottom edge up to the 0 line */
-  border-radius: 0 0 9px 9px;
+  z-index: 5;
+  left: 12px;
+  right: 56px;
+  bottom: 4px;
+  height: 18px;
   pointer-events: none;
 }
+.helm-chart-heel .hch-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  border-radius: 3px;
+  background: #2ecc71;
+}
+.helm-chart-heel .hch-fill.port { background: #e74c3c; }
 .helm-chart-heel .hch-peak {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
+  top: 0;
+  bottom: 0;
   width: 3px;
   margin-left: -1.5px;
   border-radius: 2px;
@@ -2696,7 +2699,6 @@ main { touch-action: pan-y; overflow-x: hidden; }
 .helm-chart-heel .hch-tag {
   position: absolute;
   bottom: 0;
-  transform: translateX(-50%);
   color: #ffcf47;
   font-family: ui-monospace, monospace;
   font-weight: 900;
