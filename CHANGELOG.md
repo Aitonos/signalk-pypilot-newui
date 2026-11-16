@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased — Rev713-714
+## Unreleased — Rev713-715
 
 ### Changed
+- The automatic full screen on the first tap is now for phones and tablets
+  only. On a computer with mouse and keyboard the visor goes full screen
+  only with the ⛶ button (or F11). Leaving full screen in any way (Esc, F11,
+  the button) turns the automatic full screen off in that browser until the
+  button is used again; going to the background (home screen, other tab)
+  does not.
 - All KIP switches under `electrical.switches.pypilot.*` (AP, course changes,
   tacks, modes, profiles) are numeric `1` / `0` again, as they were for KIP
   originally. In KIP's Switch Panel a numeric control sends each tap once; a

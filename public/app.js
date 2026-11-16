@@ -5931,6 +5931,13 @@
   const _fsAutoEnabled = () => {
     try { return localStorage.getItem(FS_PREF_KEY) !== "false"; } catch { return true; }
   };
+  // Rev715 (Carlos 2026-11-16: "se pone en pantalla completa por si solo" on
+  // the laptop): the automatic full screen on the first tap is for phones and
+  // tablets on board. A mouse/keyboard computer only goes full screen with
+  // the button (or F11).
+  const _fsTouchDevice = () => {
+    try { return window.matchMedia("(pointer: coarse)").matches; } catch { return false; }
+  };
   const _fsSetAuto = (on) => {
     try { localStorage.setItem(FS_PREF_KEY, on ? "true" : "false"); } catch {}
   };
@@ -5967,6 +5974,20 @@
       updateIcon();
     });
     document.addEventListener("fullscreenchange", updateIcon);
+    // Rev715: leaving full screen in any way (Esc, F11, the system back
+    // gesture) means "I don't want it": no automatic full screen again in
+    // this browser until the button is used. Leaving because the app went to
+    // the background (phone home screen, tab switch) is not a choice.
+    let _fsWasOn = !!document.fullscreenElement;
+    document.addEventListener("fullscreenchange", () => {
+      const isOn = !!document.fullscreenElement;
+      if (_fsWasOn && !isOn) {
+        setTimeout(() => {
+          if (document.visibilityState === "visible" && !document.fullscreenElement) _fsSetAuto(false);
+        }, 400);
+      }
+      _fsWasOn = isOn;
+    });
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && _wakeLock === null && _fsAutoEnabled()) {
         _acquireWakeLock().catch(() => {});
@@ -5979,7 +6000,7 @@
     // Auto-arm on the FIRST user interaction. Fullscreen + Wake Lock
     // need a user gesture, so we piggy-back on whatever the sailor taps
     // first (usually a tab or the rose).
-    if (_fsAutoEnabled()) {
+    if (_fsAutoEnabled() && _fsTouchDevice()) {
       const armOnce = async () => {
         document.removeEventListener("pointerdown", armOnce, true);
         document.removeEventListener("keydown",     armOnce, true);
