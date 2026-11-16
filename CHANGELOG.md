@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Rev713-715
+## Unreleased — Rev713-716
 
 ### Changed
 - The automatic full screen on the first tap is now for phones and tablets
@@ -16,6 +16,9 @@
   path type. PUT still takes `1` / `0` and `true` / `false`.
 
 ### Fixed
+- The knots band of the chart no longer drops to -10 when the VMG
+  jitters a few hundredths below zero at rest; it starts at 0 unless the VMG
+  is really negative (more than half a knot).
 - A tack sent twice no longer turns the boat twice. KIP's Switch Panel sent
   each tap twice, 120-130 ms apart, and in compass mode each one tacked
   (100° + 100°). A second tack within 3 s of the previous one is refused,

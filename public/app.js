@@ -24087,7 +24087,11 @@
       }
       g.ticks = [];
       if (vmin === Infinity) continue;
-      if (g.unit === "speed") vmin = Math.min(0, vmin);
+      // Rev716 (Carlos: the knots band "se queda pillado en -10"): VMG at
+      // rest jitters at -0.0x kn, and the floor to the scale step (10 with
+      // 20-30 kn of wind) dropped the band to -10. Under half a knot below
+      // zero is noise; a real negative VMG still extends the scale.
+      if (g.unit === "speed") vmin = vmin > -0.5 ? 0 : Math.min(0, vmin);
       if (vmax - vmin < 1e-6) {
         if (g.unit === "speed") vmax = vmin + 1;   // all zero: 0..1, not -1..1
         else { vmin -= 1; vmax += 1; }
