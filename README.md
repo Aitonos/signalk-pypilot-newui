@@ -359,6 +359,12 @@ To try it on a Signal K server, link the folder into `~/.signalk/node_modules/si
 - **@dirkwa** — for [`@signalk/collision-alerts`](https://www.npmjs.com/package/@signalk/collision-alerts), the CPA/TCPA engine behind the AIS overlay.
 - The [Signal K](https://signalk.org/) community and OpenPlotter for the open ecosystem this plugin runs on.
 
+### Hall of fame
+
+Sailors whose testing changed the plugin:
+
+- **Michael (Moeritsen)**, [OpenMarine forum](https://forum.openmarine.net/showthread.php?tid=7074): tested on several Raspberry Pi systems with three TinyPilots, with and without IMU and wind sensor. He found that the autopilot could not be disengaged from the viewer while the link to pypilot was down, which led to 3.15.8 (disengage always possible, autopilot state kept when the link drops). He also reported warnings left in Spanish, constant connection warnings with the pilot switched off and how KIP has to be set up, and earlier asked for the course-change click counter and a more readable Tune screen (3.15.0).
+
 ## License
 
 AGPL-3.0-or-later, Aitonos. See `LICENSE` and `NOTICE` for third-party attributions.
