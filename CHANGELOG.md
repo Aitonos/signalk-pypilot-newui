@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — Rev713-726
+## 3.16.0 — 2026-11-16 — Heel bar on the chart, numeric KIP switches, no double tacks
+
+Rev713-726 on top of 3.15.8.
 
 ### Added
 - With the chart in the multifunction panel, a heel bar runs along the
