@@ -263,13 +263,17 @@ Route following publishes `steering.autopilot.route` (active, waypoint name, ind
 
 ### KIP-ready switches
 
-Under `electrical.switches.pypilot.*`:
+Under `electrical.switches.pypilot.*`, all boolean (`true` / `false`), with `supportsPut`:
 
-- `ap.state` — momentary boolean, engage / disengage.
-- `nudge.{bigPort,smallPort,smallStar,bigStar}` — momentary, auto-reset.
+- `ap.state` — engage / disengage (on/off toggle).
+- `nudge.{plus10,plus1,minus1,minus10}` — momentary: course +10° / +1° / −1° / −10°, resets to `false` by itself.
 - `tack.{port,starboard,cancel}` — momentary.
 - `mode.{compass,gps,wind,trueWind}` — radio (mutually exclusive).
 - `profile.<name>` — radio, dynamic per pilot profile.
+
+In KIP, add a **Switch Panel** and pick these paths with the **boolean** path type (a push button suits the momentary ones). KIP must be logged in with a read/write user, and **Allow writes** must be on in the plugin settings. KIP's Autopilot widget does not support this plugin. A PUT also accepts `1` / `0`.
+
+`steering.autopilot.pypilot.actions.tackInt` is numeric (`1` port, `2` starboard, `0` cancel), for buttons that send a value, not for an on/off toggle.
 
 ### HTTP endpoints
 

@@ -36,6 +36,8 @@ export interface EvalContext {
   servoHealth: ServoHealthSnapshot | null;
   connected: boolean;                 // pypilot_web socket state
   disconnectedSinceMs: number | null; // wall-clock ms of last disconnect
+  // Rev710: last time pypilot answered with the AP engaged (null = never).
+  lastEngagedMs?: number | null;
   nowMs: number;
   // Rev290 (E2/E3): per-install thresholds. When present, rules use
   // these instead of the module-level RULE_* defaults. Undefined
@@ -155,6 +157,7 @@ export const RULE_RUDDER_TRIM_RAD   = 40 * Math.PI / 180; // 40 deg absolute
 // shows but does not force sound. Sailors who want stricter behaviour
 // can drop sustainSec via /supervisor/config.
 export const RULE_PYPILOT_DISC_SEC = 15;
+export const PYPILOT_DISC_ENGAGED_WINDOW_MS = 5 * 60_000;
 
 export const DEFAULT_RULES: RuleDef[] = [
   {
@@ -438,7 +441,7 @@ export const DEFAULT_RULES: RuleDef[] = [
   },
   {
     id: "pypilot-disconnected",
-    label: "Pypilot desconectado",
+    label: "pypilot disconnected",
     // Rev292 (Carlos, navigating): dropped from "alarm" to "warn". A
     // pypilot socket that stops sending pings does NOT put the boat in
     // immediate danger — the sailor can still steer manually while the
@@ -454,27 +457,22 @@ export const DEFAULT_RULES: RuleDef[] = [
     // override handled by evalWithSustainOverride below.
     sustainSec: RULE_PYPILOT_DISC_SEC,
     description: `pypilot_web socket has been down for the configured window (default ${RULE_PYPILOT_DISC_SEC} s).`,
-    evaluate: (c) => !c.connected,
+    // Rev710 (forum, Moeritsen 2026-11-16): only when the pilot was engaged
+    // at the loss or in the PYPILOT_DISC_ENGAGED_WINDOW_MS before it. With
+    // the TinyPilot switched off or idle the warning was constant noise; the
+    // connection state is still shown in the visor.
+    evaluate: (c) => {
+      if (c.connected) return false;
+      if (c.lastEngagedMs == null) return false;
+      const lostAt = c.disconnectedSinceMs ?? c.nowMs;
+      return lostAt - c.lastEngagedMs <= PYPILOT_DISC_ENGAGED_WINDOW_MS;
+    },
+    // Rev710: English like the other rules (it reaches Signal K / KIP as is);
+    // the visor turns "N s" into words in its own language for the voice.
     message: (c) => {
-      if (c.disconnectedSinceMs == null) return "Pypilot desconectado";
-      // Rev265/266 (Carlos): palabras completas ("segundos", "minutos",
-      // "horas") - las abreviaturas "s" / "min" el TTS las lee mal ("dos
-      // ese" en vez de "dos segundos"). Uso plural/singular correcto.
+      if (c.disconnectedSinceMs == null) return "pypilot disconnected";
       const totalSec = Math.max(0, Math.floor((c.nowMs - c.disconnectedSinceMs) / 1000));   // Rev536: clock step back
-      const h = Math.floor(totalSec / 3600);
-      const m = Math.floor((totalSec % 3600) / 60);
-      const s = totalSec % 60;
-      const w = (n: number, sing: string, plur: string) =>
-        `${n} ${n === 1 ? sing : plur}`;
-      let tail;
-      if (h > 0) {
-        tail = `${w(h, "hora", "horas")}, ${w(m, "minuto", "minutos")} y ${w(s, "segundo", "segundos")}`;
-      } else if (m > 0) {
-        tail = `${w(m, "minuto", "minutos")} y ${w(s, "segundo", "segundos")}`;
-      } else {
-        tail = w(s, "segundo", "segundos");
-      }
-      return `Pypilot desconectado desde hace ${tail}`;
+      return `pypilot disconnected for ${totalSec} s`;
     },
   },
   // Rev640 (Carlos 2026-11-06): pypilot drops its Signal K token when a
@@ -483,14 +481,14 @@ export const DEFAULT_RULES: RuleDef[] = [
   // nothing from Signal K. Nobody noticed for 40 min on 2026-11-06.
   {
     id: "pypilot-sk-access",
-    label: "pypilot pide acceso a Signal K",
+    label: "pypilot asks for Signal K access",
     severity: "warn",
     defaultEnabled: true,
     addedRev: 640,
     sustainSec: 30,
     description: "pypilot (the TinyPilot) has a Signal K access request waiting for approval.",
     evaluate: (c) => c.pypilotAccessPending === true,
-    message: () => "pypilot pide acceso a Signal K: apruébalo en Seguridad, Solicitudes de acceso",
+    message: () => "pypilot is asking for access to Signal K: approve it in Security, Access Requests",
   },
   // Rev299 (I1): attitude safety envelope. These rules watch what the
   // sailor cares about — is the boat pinned on its side, is the bow
@@ -501,11 +499,11 @@ export const DEFAULT_RULES: RuleDef[] = [
   // AlarmThresholds so the sailor can tune per-boat.
   {
     id: "attitude-heel-extreme",
-    label: "Escora extrema",
+    label: "Extreme heel",
     severity: "warn",
     defaultEnabled: false,
     sustainSec: 5,
-    description: "Heel angle sostenido por encima del umbral configurado (por defecto 45°). Sirve como envoltura de seguridad: no reemplaza el criterio del navegante ni desengancha el piloto.",
+    description: "Heel angle sustained above the configured threshold (default 45°). A safety envelope: it does not replace the sailor's judgement and does not disengage the pilot.",
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.heel !== "number") return false;
       const thrDeg = c.thresholds?.attitudeHeelDeg ?? RULE_ATTITUDE_HEEL_DEG;
@@ -514,16 +512,16 @@ export const DEFAULT_RULES: RuleDef[] = [
     message: (c) => {
       const heelDeg = Math.abs((c.sample?.heel ?? 0) * 180 / Math.PI);
       const thrDeg = c.thresholds?.attitudeHeelDeg ?? RULE_ATTITUDE_HEEL_DEG;
-      return `Escora ${heelDeg.toFixed(0)}° (umbral ${thrDeg}°)`;
+      return `Heel ${heelDeg.toFixed(0)}° (threshold ${thrDeg}°)`;
     },
   },
   {
     id: "attitude-pitch-extreme",
-    label: "Cabeceo extremo",
+    label: "Extreme pitch",
     severity: "warn",
     defaultEnabled: false,
     sustainSec: 3,
-    description: "Pitch (cabeceo) sostenido por encima del umbral configurado. Suele indicar embarque de proa o clavado en ola.",
+    description: "Pitch sustained above the configured threshold. Usually means burying the bow or stuffing into a wave.",
     evaluate: (c) => {
       if (!c.sample || typeof c.sample.pitch !== "number") return false;
       const thrDeg = c.thresholds?.attitudePitchDeg ?? RULE_ATTITUDE_PITCH_DEG;
@@ -532,7 +530,7 @@ export const DEFAULT_RULES: RuleDef[] = [
     message: (c) => {
       const pitchDeg = Math.abs((c.sample?.pitch ?? 0) * 180 / Math.PI);
       const thrDeg = c.thresholds?.attitudePitchDeg ?? RULE_ATTITUDE_PITCH_DEG;
-      return `Cabeceo ${pitchDeg.toFixed(0)}° (umbral ${thrDeg}°)`;
+      return `Pitch ${pitchDeg.toFixed(0)}° (threshold ${thrDeg}°)`;
     },
   },
 ];

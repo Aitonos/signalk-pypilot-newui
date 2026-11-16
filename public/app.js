@@ -436,6 +436,20 @@
       "alarm.rule.pypilot-disconnected.label": "Pypilot disconnected",
       "alarm.rule.pypilot-sk-access.label": "pypilot asks for Signal K access",
       "alarm.rule.pypilot-sk-access.msg": "pypilot is asking for access to Signal K: approve it in Security, Access Requests",
+      "alarm.rule.pypilot-disconnected.msg": "pypilot disconnected for {dur}",
+      "alarm.rule.attitude-heel-extreme.label": "Extreme heel",
+      "alarm.rule.attitude-heel-extreme.msg": "Heel {deg}° (threshold {thr}°)",
+      "alarm.rule.attitude-pitch-extreme.label": "Extreme pitch",
+      "alarm.rule.attitude-pitch-extreme.msg": "Pitch {deg}° (threshold {thr}°)",
+      "dur.h": "{n} hour",
+      "dur.hh": "{n} hours",
+      "dur.m": "{n} minute",
+      "dur.mm": "{n} minutes",
+      "dur.s": "{n} second",
+      "dur.ss": "{n} seconds",
+      "dur.and": "and",
+      "ap.disengageFailed": "Could not disengage: pypilot is not answering. Use the pilot's own button or remote, or cut its power.",
+      "ap.pypilotNoAnswer": "pypilot is not answering: command not sent.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
       // Setup tab
@@ -1814,6 +1828,20 @@
       "alarm.rule.pypilot-disconnected.label": "Pypilot desconectado",
       "alarm.rule.pypilot-sk-access.label": "pypilot pide acceso a Signal K",
       "alarm.rule.pypilot-sk-access.msg": "pypilot pide acceso a Signal K: apruébalo en Seguridad, Solicitudes de acceso",
+      "alarm.rule.pypilot-disconnected.msg": "Pypilot desconectado desde hace {dur}",
+      "alarm.rule.attitude-heel-extreme.label": "Escora extrema",
+      "alarm.rule.attitude-heel-extreme.msg": "Escora {deg}° (umbral {thr}°)",
+      "alarm.rule.attitude-pitch-extreme.label": "Cabeceo extremo",
+      "alarm.rule.attitude-pitch-extreme.msg": "Cabeceo {deg}° (umbral {thr}°)",
+      "dur.h": "{n} hora",
+      "dur.hh": "{n} horas",
+      "dur.m": "{n} minuto",
+      "dur.mm": "{n} minutos",
+      "dur.s": "{n} segundo",
+      "dur.ss": "{n} segundos",
+      "dur.and": "y",
+      "ap.disengageFailed": "No se pudo desconectar: pypilot no responde. Usa el botón o el mando del piloto, o córtale la corriente.",
+      "ap.pypilotNoAnswer": "pypilot no responde: orden no enviada.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
       // Setup tab
@@ -2991,7 +3019,20 @@
       "alarm.rule.pypilot-disconnected.label": "pypilot getrennt",
       "alarm.rule.pypilot-sk-access.label": "pypilot bittet um Signal-K-Zugang",
       "alarm.rule.pypilot-sk-access.msg": "pypilot bittet um Zugang zu Signal K: in Sicherheit, Zugriffsanfragen freigeben",
-      "alarm.rule.pypilot-disconnected.msg":   "pypilot_web {sec}s getrennt",
+      "alarm.rule.pypilot-disconnected.msg":   "pypilot seit {dur} getrennt",
+      "alarm.rule.attitude-heel-extreme.label": "Extreme Krängung",
+      "alarm.rule.attitude-heel-extreme.msg": "Krängung {deg}° (Grenze {thr}°)",
+      "alarm.rule.attitude-pitch-extreme.label": "Extremes Stampfen",
+      "alarm.rule.attitude-pitch-extreme.msg": "Stampfen {deg}° (Grenze {thr}°)",
+      "dur.h": "{n} Stunde",
+      "dur.hh": "{n} Stunden",
+      "dur.m": "{n} Minute",
+      "dur.mm": "{n} Minuten",
+      "dur.s": "{n} Sekunde",
+      "dur.ss": "{n} Sekunden",
+      "dur.and": "und",
+      "ap.disengageFailed": "Auskuppeln nicht möglich: pypilot antwortet nicht. Taste oder Fernbedienung des Piloten benutzen oder Strom trennen.",
+      "ap.pypilotNoAnswer": "pypilot antwortet nicht: Befehl nicht gesendet.",
       "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
       "doctor.summary.notedOnly":  "{issues} Punkt(e) notiert (keine Gain-Änderung vorgeschlagen).",
       "doctor.summary.detected":   "{issues} Problem(e) erkannt. {suggestions} Gain-Änderung(en) vorgeschlagen.",
@@ -4343,7 +4384,20 @@
       "alarm.rule.pypilot-disconnected.label": "pypilot déconnecté",
       "alarm.rule.pypilot-sk-access.label": "pypilot demande l'accès à Signal K",
       "alarm.rule.pypilot-sk-access.msg": "pypilot demande l'accès à Signal K : approuvez-le dans Sécurité, Demandes d'accès",
-      "alarm.rule.pypilot-disconnected.msg":   "pypilot_web déconnecté depuis {sec}s",
+      "alarm.rule.pypilot-disconnected.msg":   "pypilot déconnecté depuis {dur}",
+      "alarm.rule.attitude-heel-extreme.label": "Gîte extrême",
+      "alarm.rule.attitude-heel-extreme.msg": "Gîte {deg}° (seuil {thr}°)",
+      "alarm.rule.attitude-pitch-extreme.label": "Tangage extrême",
+      "alarm.rule.attitude-pitch-extreme.msg": "Tangage {deg}° (seuil {thr}°)",
+      "dur.h": "{n} heure",
+      "dur.hh": "{n} heures",
+      "dur.m": "{n} minute",
+      "dur.mm": "{n} minutes",
+      "dur.s": "{n} seconde",
+      "dur.ss": "{n} secondes",
+      "dur.and": "et",
+      "ap.disengageFailed": "Impossible de débrayer : pypilot ne répond pas. Utilisez le bouton ou la télécommande du pilote, ou coupez son alimentation.",
+      "ap.pypilotNoAnswer": "pypilot ne répond pas : commande non envoyée.",
       "doctor.summary.clean":      "Aucun problème majeur. Les gains semblent sains.",
       "doctor.summary.notedOnly":  "{issues} point(s) noté(s) (aucun changement de gain suggéré).",
       "doctor.summary.detected":   "{issues} problème(s) détecté(s). {suggestions} changement(s) de gain suggéré(s).",
@@ -9679,6 +9733,25 @@
   }
   // Rev261 (Carlos): green toast on false->true edge of pypilotHealthy.
   // Fades in immediately, autohides in 4 s.
+  // Rev710: called by apTack but never defined (a ReferenceError instead of
+  // a message). Same toast as the reconnect one, warn colour, plus voice.
+  function _apWarnToast(text) {
+    try {
+      let el = document.getElementById("ap-warn-toast");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "ap-warn-toast";
+        el.className = "pypilot-reconnect-toast warn";
+        document.body.appendChild(el);
+      }
+      el.textContent = text;
+      el.classList.add("show");
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(() => { el.classList.remove("show"); }, 8000);
+      try { _alSpeak(text); } catch { /* silent */ }
+    } catch { /* silent */ }
+  }
+  function _pypilotPingFailToast(_reason) { _apWarnToast(t("ap.pypilotNoAnswer")); }
   function _pypilotShowReconnectedToast() {
     try {
       let el = document.getElementById("pypilot-reconnect-toast");
@@ -13826,7 +13899,11 @@
     return handleAuth(await skFetch(`/plugins/${PLUGIN_ID}/ap/engage?current=1`, { method: "POST" }));
   }
   async function apDisengage() {
-    if (_pypilotWriteBlocked("apDisengage")) return { ok: false, blocked: true };
+    // Rev710 (forum, Moeritsen 2026-11-16): disengaging is the safe order, so
+    // it is ALWAYS sent, even when the visor thinks pypilot or the WebSocket
+    // is down (the Rev466 gate blocked it silently and the sailor could not
+    // take the pilot off). If it does not get through, doEngage says so.
+    if (_pypilotWriteBlocked("apDisengage (sent anyway)")) { /* logged only */ }
     if (!await ensureAutopilotId()) return;
     _mtLog("disengage", { via: "apDisengage" });
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/disengage`;
@@ -15526,6 +15603,8 @@
         renderTargetArrow();
         eng.classList.add("failed");
         setTimeout(() => eng.classList.remove("failed"), 1500);
+        // Rev710: a disengage that did not get through must be said aloud.
+        if (wasEngaged) _apWarnToast(t("ap.disengageFailed"));
       }
       eng.classList.remove("pending");
       _apPending = false;
@@ -23041,10 +23120,24 @@
       const r = /lost: (.*)$/.exec(msg);
       if (r) out.list = r[1];
     } else if (id === "pypilot-disconnected") {
-      const r = /(\d+)s/.exec(msg);
-      if (r) out.sec = r[1];
+      // Rev710: backend says "pypilot disconnected for N s"; spoken, so words.
+      const r = /(\d+) ?s\b/.exec(msg);
+      if (r) out.dur = _alDurationWords(Number(r[1]));
+    } else if (id === "attitude-heel-extreme" || id === "attitude-pitch-extreme") {
+      const r = /(\d+)° \(threshold (\d+)°\)/.exec(msg);
+      if (r) { out.deg = r[1]; out.thr = r[2]; }
     }
     return out;
+  }
+  // Rev710: "3 minutes and 5 seconds" in the visor language (spoken by TTS).
+  function _alDurationWords(totalSec) {
+    const h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60), sec = totalSec % 60;
+    const w = (n, one, many) => t(n === 1 ? one : many).replace("{n}", String(n));
+    const parts = [];
+    if (h > 0) parts.push(w(h, "dur.h", "dur.hh"));
+    if (h > 0 || m > 0) parts.push(w(m, "dur.m", "dur.mm"));
+    parts.push(w(sec, "dur.s", "dur.ss"));
+    return parts.length === 1 ? parts[0] : parts.slice(0, -1).join(", ") + " " + t("dur.and") + " " + parts[parts.length - 1];
   }
   function _alTranslate(a) {
     const labelKey = `alarm.rule.${a.ruleId}.label`;

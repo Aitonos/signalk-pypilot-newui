@@ -93,7 +93,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev709";
+const PLUGIN_REVISION = "Rev710";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -486,6 +486,7 @@ module.exports = function (app: any) {
   // pypilot-disconnected rule.
   let alarms: AlarmEngine | null = null;
   let disconnectedSinceMs: number | null = null;
+  let lastEngagedMs: number | null = null;   // Rev710: pypilot-disconnected only if engaged
   // Rev103: Doctor engine (holds one active diagnostic session at a time).
   let doctor: DoctorEngine | null = null;
   // Rev281: correction episode detector. Watches headingCmd for step
@@ -6661,6 +6662,7 @@ module.exports = function (app: any) {
     // pypilot-disconnected sustain does not wait for the socket-io
     // disconnect event.
     const isHealthy = !!(client && client.healthy);
+    if (isHealthy && sample && sample.engaged) lastEngagedMs = Date.now();
     if (!isHealthy && disconnectedSinceMs == null) {
       disconnectedSinceMs = Date.now();
     } else if (isHealthy && disconnectedSinceMs != null) {
@@ -6674,6 +6676,7 @@ module.exports = function (app: any) {
       servoHealth: servoHealth ? servoHealth.snapshot() : null,
       connected: isHealthy,
       disconnectedSinceMs,
+      lastEngagedMs,
       nowMs: Date.now(),
       // Rev290 (E2/E3): pass per-install threshold overrides so the
       // rules read from props instead of the module-level RULE_*
@@ -7667,7 +7670,7 @@ module.exports = function (app: any) {
               app.handleMessage(PLUGIN_ID, {
                 context: "vessels." + app.selfId,
                 updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(),
-                  values: [{ path: SW_ENGAGE, value: apProvider?.data.engaged ? 1 : 0 }] }],
+                  values: [{ path: SW_ENGAGE, value: !!apProvider?.data.engaged }] }],
               });
             } catch { /* silent */ }
           });
@@ -7681,21 +7684,23 @@ module.exports = function (app: any) {
             updates: [{
               $source: SOURCE_LABEL,
               timestamp: new Date().toISOString(),
-              values: [{ path: SW_ENGAGE, value: b ? 1 : 0 }],
+              values: [{ path: SW_ENGAGE, value: b }],
             }],
           });
         } catch { /* silent */ }
         return okLog(SW_ENGAGE, b);
       }, SOURCE_LABEL);
       putHandlersRegistered.add(SW_ENGAGE);
-      // Rev29: emit initial value as INTEGER 1/0, matching OpenPlotter/Sonoff
-      // convention. KIP's Simple Switch widget expects 1/0, not true/false.
+      // Rev29 published 1/0 here, but the periodic update (below) publishes
+      // true/false, so KIP saw the path as numeric or boolean depending on
+      // the moment. Rev710: always boolean, like the meta and the other
+      // switches (KIP Switch Panel, boolean path type; PUT still accepts 1/0).
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
         updates: [{
           $source: SOURCE_LABEL,
           timestamp: new Date().toISOString(),
-          values: [{ path: SW_ENGAGE, value: 0 }],
+          values: [{ path: SW_ENGAGE, value: false }],
           meta: [{ path: SW_ENGAGE, value: {
             supportsPut: true, type: "boolean", units: "bool",
             displayName: "AP engage switch",

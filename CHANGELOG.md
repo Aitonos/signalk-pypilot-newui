@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — Rev710 (feedback from the OpenMarine forum)
+
+### Fixed
+- Disengaging from the visor is always sent. While the visor thought pypilot
+  or the Signal K connection was down, it sent no order at all, disengage
+  included, and only flashed the button red. If the disengage does not get
+  through, the visor now says so aloud and on screen: use the pilot's own
+  button or remote, or cut its power.
+- Tacking from the visor with pypilot not answering showed nothing (the
+  message it called did not exist); it now says the order was not sent.
+- Warnings written in Spanish on the server ("pypilot disconnected",
+  "pypilot asks for Signal K access", extreme heel, extreme pitch) are now in
+  English, as they reach Signal K and KIP as they are, and the visor
+  translates them (EN/ES/DE/FR), with the disconnection time in words.
+- `electrical.switches.pypilot.ap.state` is always `true` / `false`. It was
+  `1` / `0` right after an engage or disengage and boolean otherwise, so KIP
+  listed it as numeric or boolean depending on the moment. A PUT still takes
+  `1` / `0`.
+
+### Changed
+- "pypilot disconnected" only warns if the pilot was engaged when the
+  connection dropped or in the 5 minutes before. With the TinyPilot switched
+  off it was constant noise.
+
+### Docs
+- README: the real names of the KIP switches (`nudge.plus10/plus1/minus1/minus10`),
+  how to use them in KIP's Switch Panel, and `actions.tackInt` (1 port,
+  2 starboard, 0 cancel) is not for an on/off toggle.
+
 ## 3.15.7 — 2026-11-13 — Engage from Freeboard / KIP locks the current heading
 
 Rev709 on top of 3.15.6.
