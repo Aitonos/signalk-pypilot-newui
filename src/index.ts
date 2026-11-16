@@ -93,7 +93,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev713";
+const PLUGIN_REVISION = "Rev714";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -7670,7 +7670,7 @@ module.exports = function (app: any) {
               app.handleMessage(PLUGIN_ID, {
                 context: "vessels." + app.selfId,
                 updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(),
-                  values: [{ path: SW_ENGAGE, value: !!apProvider?.data.engaged }] }],
+                  values: [{ path: SW_ENGAGE, value: apProvider?.data.engaged ? 1 : 0 }] }],
               });
             } catch { /* silent */ }
           });
@@ -7684,27 +7684,28 @@ module.exports = function (app: any) {
             updates: [{
               $source: SOURCE_LABEL,
               timestamp: new Date().toISOString(),
-              values: [{ path: SW_ENGAGE, value: b }],
+              values: [{ path: SW_ENGAGE, value: b ? 1 : 0 }],
             }],
           });
         } catch { /* silent */ }
         return okLog(SW_ENGAGE, b);
       }, SOURCE_LABEL);
       putHandlersRegistered.add(SW_ENGAGE);
-      // Rev29 published 1/0 here, but the periodic update (below) publishes
-      // true/false, so KIP saw the path as numeric or boolean depending on
-      // the moment. Rev710: always boolean, like the meta and the other
-      // switches (KIP Switch Panel, boolean path type; PUT still accepts 1/0).
+      // Rev714 (Carlos, KIP tests 2026-11-16): ALL electrical.switches.pypilot.*
+      // are numeric 1/0, like Rev29 had them. In KIP's Switch Panel a numeric
+      // control sends each tap once (engageInt worked every time); the
+      // boolean one sent each tap twice or not at all. PUT accepts 1/0 and
+      // true/false. (Rev710 had made them boolean.)
       app.handleMessage(PLUGIN_ID, {
         context: "vessels." + app.selfId,
         updates: [{
           $source: SOURCE_LABEL,
           timestamp: new Date().toISOString(),
-          values: [{ path: SW_ENGAGE, value: false }],
+          values: [{ path: SW_ENGAGE, value: 0 }],
           meta: [{ path: SW_ENGAGE, value: {
-            supportsPut: true, type: "boolean", units: "bool",
+            supportsPut: true, type: "number", units: "bool",
             displayName: "AP engage switch",
-            description: "AP engage switch. PUT 1 to engage the autopilot, 0 to disengage. Accepts boolean, 1/0, 'on'/'off' or 'true'/'false'.",
+            description: "AP engage switch. PUT 1 to engage the autopilot, 0 to disengage (true/false, 'on'/'off' also accepted).",
           } }],
         }],
       });
@@ -7751,7 +7752,7 @@ module.exports = function (app: any) {
                   updates: [{
                     $source: SOURCE_LABEL,
                     timestamp: new Date().toISOString(),
-                    values: [{ path: skPath, value: false }],
+                    values: [{ path: skPath, value: 0 }],
                   }],
                 });
               } catch { /* silent */ }
@@ -7767,11 +7768,11 @@ module.exports = function (app: any) {
           updates: [{
             $source: SOURCE_LABEL,
             timestamp: new Date().toISOString(),
-            values: [{ path: skPath, value: false }],
+            values: [{ path: skPath, value: 0 }],
             meta: [{ path: skPath, value: {
-              supportsPut: true, type: "boolean", units: "bool",
+              supportsPut: true, type: "number", units: "bool",
               displayName,
-              description: `Momentary switch. PUT true to trigger; auto-resets to false in 200 ms so the KIP toggle can be pressed again.`,
+              description: `Momentary switch. PUT 1 to trigger; resets to 0 in 200 ms so the KIP control can be pressed again.`,
             } }],
           }],
         });
@@ -7838,7 +7839,7 @@ module.exports = function (app: any) {
       try {
         const values = SW_MODE_MAP.map((m) => ({
           path: swModePathOf(m.key),
-          value: activePy === m.py,
+          value: activePy === m.py ? 1 : 0,
         }));
         app.handleMessage(PLUGIN_ID, {
           context: "vessels." + app.selfId,
@@ -7882,11 +7883,11 @@ module.exports = function (app: any) {
           updates: [{
             $source: SOURCE_LABEL,
             timestamp: new Date().toISOString(),
-            values: [{ path: skPath, value: currentPy === m.py }],
+            values: [{ path: skPath, value: currentPy === m.py ? 1 : 0 }],
             meta: [{ path: skPath, value: {
-              supportsPut: true, type: "boolean", units: "bool",
+              supportsPut: true, type: "number", units: "bool",
               displayName: m.label,
-              description: `PUT true to switch pypilot to ${m.py} mode. Radio-group behavior: only one of the mode.* switches is true at any time. PUT false is ignored.`,
+              description: `PUT 1 to switch pypilot to ${m.py} mode. Radio group: only one mode.* switch is 1 at any time. PUT 0 is ignored.`,
             } }],
           }],
         });
@@ -7911,7 +7912,7 @@ module.exports = function (app: any) {
       try {
         const values = profilesList.map((p) => ({
           path: profileSwitchPath(p),
-          value: activeProfile != null && p === activeProfile,
+          value: activeProfile != null && p === activeProfile ? 1 : 0,
         }));
         app.handleMessage(PLUGIN_ID, {
           context: "vessels." + app.selfId,
@@ -7955,11 +7956,11 @@ module.exports = function (app: any) {
           updates: [{
             $source: SOURCE_LABEL,
             timestamp: new Date().toISOString(),
-            values: [{ path: skPath, value: activeProfile === profileName }],
+            values: [{ path: skPath, value: activeProfile === profileName ? 1 : 0 }],
             meta: [{ path: skPath, value: {
-              supportsPut: true, type: "boolean", units: "bool",
+              supportsPut: true, type: "number", units: "bool",
               displayName: `Profile: ${profileName}`,
-              description: `PUT true to activate pypilot profile "${profileName}". Radio-group behavior: only one profile.* switch is true at a time. PUT false is ignored.`,
+              description: `PUT 1 to activate pypilot profile "${profileName}". Radio group: only one profile.* switch is 1 at a time. PUT 0 is ignored.`,
             } }],
           }],
         });
@@ -8023,16 +8024,16 @@ module.exports = function (app: any) {
           { path: `${ACTIONS_PREFIX}.engage`, value: engaged },
           { path: `${ACTIONS_PREFIX}.nudge`,  value: 0 },
           { path: `${ACTIONS_PREFIX}.tack`,   value: apProvider?.data ? ((apProvider.data.options.actions.find((a) => a.id === "tack")?.available) ? "ready" : "none") : "none" },
-          { path: SW_ENGAGE,                  value: engaged },
+          { path: SW_ENGAGE,                  value: engaged ? 1 : 0 },
         ];
         // Rev33: keep the momentary boolean switches alive at value=false so
         // KIP does not drop them from its picker after a period of idleness.
-        for (const p of momentaryPaths) values.push({ path: p, value: false });
+        for (const p of momentaryPaths) values.push({ path: p, value: 0 });
         // Rev34: keep the mode radio switches alive with the current mode
         // reflected so KIP does not expire them and always shows the truth.
         const currentModePy = apProvider?.data?.mode ?? null;
         for (const m of SW_MODE_MAP) {
-          values.push({ path: swModePathOf(m.key), value: currentModePy === m.py });
+          values.push({ path: swModePathOf(m.key), value: currentModePy === m.py ? 1 : 0 });
         }
         // Rev38: keep the profile radio switches alive too.
         try {

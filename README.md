@@ -263,17 +263,17 @@ Route following publishes `steering.autopilot.route` (active, waypoint name, ind
 
 ### KIP-ready switches
 
-Under `electrical.switches.pypilot.*`, all boolean (`true` / `false`), with `supportsPut`:
+Under `electrical.switches.pypilot.*`, all numeric (`1` / `0`), with `supportsPut`:
 
 - `ap.state` — engage / disengage (on/off toggle).
-- `nudge.{plus10,plus1,minus1,minus10}` — momentary: course +10° / +1° / −1° / −10°, resets to `false` by itself.
+- `nudge.{plus10,plus1,minus1,minus10}` — momentary: course +10° / +1° / −1° / −10°, resets to `0` by itself.
 - `tack.{port,starboard,cancel}` — momentary.
 - `mode.{compass,gps,wind,trueWind}` — radio (mutually exclusive).
 - `profile.<name>` — radio, dynamic per pilot profile.
 
-A PUT also accepts `1` / `0`.
+A PUT also accepts `true` / `false`. A second tack within 3 s of the previous one is refused, and a switch ignores the same tap repeated within 250 ms.
 
-**KIP:** tested on KIP's Switch Panel, engaging works with the **numeric** path `steering.autopilot.pypilot.actions.engageInt` (`1` engage, `0` disengage) as an on/off toggle. With the boolean `electrical.switches.pypilot.ap.state` KIP showed the state but sent no command. KIP must be logged in with a read/write user, and **Allow writes** must be on in the plugin settings. KIP's Autopilot widget does not support this plugin.
+**KIP:** in a Switch Panel, pick these paths with the **numeric** path type (tested: KIP sends each tap once; with boolean controls it sent taps twice or not at all). `steering.autopilot.pypilot.actions.engageInt` (`1` engage, `0` disengage) works too. KIP must be logged in with a read/write user, and **Allow writes** must be on in the plugin settings. KIP's Autopilot widget does not support this plugin.
 
 `steering.autopilot.pypilot.actions.tackInt` is numeric too (`1` port, `2` starboard, `0` cancel); an on/off toggle only sends `1` and `0`, so starboard needs a control that sends `2`.
 

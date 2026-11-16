@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased — Rev713
+## Unreleased — Rev713-714
+
+### Changed
+- All KIP switches under `electrical.switches.pypilot.*` (AP, course changes,
+  tacks, modes, profiles) are numeric `1` / `0` again, as they were for KIP
+  originally. In KIP's Switch Panel a numeric control sends each tap once; a
+  boolean control sent taps twice or not at all. Pick them with the numeric
+  path type. PUT still takes `1` / `0` and `true` / `false`.
 
 ### Fixed
 - A tack sent twice no longer turns the boat twice. KIP's Switch Panel sent
