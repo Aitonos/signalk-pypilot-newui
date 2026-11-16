@@ -23137,13 +23137,18 @@
     return out;
   }
   // Rev710: "3 minutes and 5 seconds" in the visor language (spoken by TTS).
-  function _alDurationWords(totalSec) {
+  // Rev712 (Carlos: "1 minuto y 13 segundos suena raro"): round steps - 5 s
+  // under 30 s, 30 s up to 5 min, whole minutes after that.
+  function _alDurationWords(rawSec) {
+    const totalSec = rawSec < 30 ? Math.floor(rawSec / 5) * 5
+      : rawSec < 300 ? Math.floor(rawSec / 30) * 30
+      : Math.floor(rawSec / 60) * 60;
     const h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60), sec = totalSec % 60;
     const w = (n, one, many) => t(n === 1 ? one : many).replace("{n}", String(n));
     const parts = [];
     if (h > 0) parts.push(w(h, "dur.h", "dur.hh"));
-    if (h > 0 || m > 0) parts.push(w(m, "dur.m", "dur.mm"));
-    parts.push(w(sec, "dur.s", "dur.ss"));
+    if (m > 0 || (h > 0 && sec > 0)) parts.push(w(m, "dur.m", "dur.mm"));
+    if (sec > 0 || parts.length === 0) parts.push(w(sec, "dur.s", "dur.ss"));
     return parts.length === 1 ? parts[0] : parts.slice(0, -1).join(", ") + " " + t("dur.and") + " " + parts[parts.length - 1];
   }
   function _alTranslate(a) {

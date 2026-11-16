@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased — Rev710-711 (feedback from the OpenMarine forum)
+## Unreleased — Rev710-712 (feedback from the OpenMarine forum)
 
 ### Fixed
+- The spoken "pypilot disconnected for …" uses round steps (5 s under half a
+  minute, 30 s up to 5 minutes, whole minutes after), not "1 minute and 13
+  seconds".
 - Losing the link to pypilot no longer shows the autopilot as disengaged.
   The TinyPilot keeps steering on its own, but the visor, KIP and Signal K
   showed "AP off", and the visor greyed the AP button so it could not be
