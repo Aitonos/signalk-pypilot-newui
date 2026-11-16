@@ -1,12 +1,12 @@
 # Changelog
 
-## Unreleased — Rev713-720
+## Unreleased — Rev713-721
 
 ### Added
 - With the chart in the multifunction panel, a small copy of the heel bar
   runs edge to edge along the bottom of the chart, live with every heel
   reading: the same red (port) / green (starboard) band as the big bar,
-  the heel in large glowing digits sliding on it (+-30 deg), and a tick
+  the heel in big heavy digits sliding on it (+-30 deg), and a tick
   that holds the largest heel of the last 5 seconds.
 
 ### Changed

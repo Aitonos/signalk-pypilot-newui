@@ -2674,11 +2674,11 @@ main { touch-action: pan-y; overflow-x: hidden; }
   display: block;
   position: absolute;
   z-index: 2;
-  left: 4px;
-  right: 4px;
-  bottom: 4px;
-  height: 26px;
-  border-radius: 8px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34px;               /* Rev721: from the panel's bottom edge up to the 0 line */
+  border-radius: 0 0 9px 9px;
   pointer-events: none;
 }
 .helm-chart-heel .hch-peak {
@@ -2691,19 +2691,19 @@ main { touch-action: pan-y; overflow-x: hidden; }
   background: rgba(255, 207, 71, 0.75);
 }
 .helm-chart-heel .hch-peak[hidden] { display: none; }
+/* Rev721 (Carlos): big, heavy, no frame, no glow; sits on the bottom edge
+   and grows upwards (it may cover a bit of the 0 line, only where it is). */
 .helm-chart-heel .hch-tag {
   position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  bottom: 0;
+  transform: translateX(-50%);
   color: #ffcf47;
   font-family: ui-monospace, monospace;
   font-weight: 900;
-  font-size: 28px;
-  line-height: 1;
-  letter-spacing: -0.5px;
+  font-size: 48px;
+  line-height: 0.85;
+  letter-spacing: -2px;
   white-space: nowrap;
-  text-shadow: 0 0 8px rgba(255, 207, 71, 0.9);
-  filter: drop-shadow(0 0 6px rgba(255, 207, 71, 0.7));
 }
 /* Rev591 (Carlos): third view, Freeboard at chart size. The warm,
    preloaded Freeboard frame is laid over the strip (position fixed at
