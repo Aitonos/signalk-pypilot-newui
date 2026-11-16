@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev717" />
+  <link rel="stylesheet" href="style.css?v=Rev718" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1229,6 +1229,12 @@
                in the corner-config popup. Drawn by the Chart tab renderer. -->
           <canvas class="helm-chart" id="helm-chart"></canvas>
           <div class="helm-chart-empty" id="helm-chart-empty" hidden></div>
+          <!-- Rev717/718 (Carlos): small heel bar over the chart's free
+               bottom-left gap, chart view only. -->
+          <div class="helm-chart-heel" id="helm-chart-heel" aria-hidden="true">
+            <span class="hch-track"><span class="hch-fill" id="helm-chart-heel-fill"></span><span class="hch-mid"></span><span class="hch-dot" id="helm-chart-heel-dot" style="left:50%"></span></span>
+            <span class="hch-num" id="helm-chart-heel-num">--</span>
+          </div>
           <div class="rudder-marker" id="rudder-marker" style="left:50%">
             <div class="rmk-tri rmk-tri-top">&#9660;</div>
             <div class="rmk-num" id="rudder-marker-num">--</div>
@@ -2948,6 +2954,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev717"></script>
+  <script src="app.js?v=Rev718"></script>
 </body>
 </html>
