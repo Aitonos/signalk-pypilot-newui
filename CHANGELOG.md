@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased (Rev727-730)
+## 3.16.1 — 2026-11-18 — Capture diagnostic, Signal K access explained, NAV in KIP
 
-From the OpenMarine forum (posts #17 and #18).
+Rev727-730 on top of 3.16.0, from the OpenMarine forum (posts #17 and #18).
 
 ### Added
 - **Capture diagnostic**, in Setup > Autopilot check and next to Feedback in
