@@ -36,8 +36,9 @@ export function sanitizeConfig(value: unknown, depth = 0): unknown {
   if (!value || typeof value !== "object") return value;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (SECRET_KEY_RE.test(k)) {
-      out[k] = v === undefined || v === null || v === "" ? v : "XXXX";
+    // A secret is text; a switch named "session…" or "…pin…" is not.
+    if (SECRET_KEY_RE.test(k) && typeof v === "string") {
+      out[k] = v === "" ? v : "XXXX";
     } else if (/^(host|address|ip)$/i.test(k) && typeof v === "string") {
       out[k] = maskHost(v);
     } else if (/^(lat|latitude|lon|lng|longitude)$/i.test(k) && typeof v === "number") {

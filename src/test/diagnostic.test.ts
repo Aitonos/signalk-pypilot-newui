@@ -36,6 +36,8 @@ describe("diagnostic report (Rev727)", () => {
     assert.equal(out.telegram.chatId, 5);
     assert.equal(out.allowWrites, true);
     assert.equal(out.empty.sshPassword, "", "an empty secret says it is not set");
+    const flags = sanitizeConfig({ sessionRecorderEnabled: true, adminPinReset: false }) as any;
+    assert.deepEqual(flags, { sessionRecorderEnabled: true, adminPinReset: false }, "switches are not secrets");
     const geo = sanitizeConfig({ zones: [{ latitude: 42.27555, longitude: -8.73608, geometry: { type: "Polygon" } }] }) as any;
     assert.deepEqual(geo.zones[0], { latitude: 42.3, longitude: -8.7, geometry: "XXXX" });
   });
