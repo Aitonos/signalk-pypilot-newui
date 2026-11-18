@@ -247,6 +247,7 @@
       "diag.close": "Close",
       "diag.copied": "Copied: paste it into the issue or forum post.",
       "diag.failed": "Could not capture the diagnostic.",
+      "diag.copyFailed": "Could not copy in this browser: use Download JSON and attach the file.",
       "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "pypilot connectivity",
       "pc.pypilot-connect.ok": "Connected to pypilot on the TinyPilot.",
@@ -1670,6 +1671,7 @@
       "diag.close": "Cerrar",
       "diag.copied": "Copiado: pégalo en la issue o en el mensaje del foro.",
       "diag.failed": "No se pudo capturar el diagnóstico.",
+      "diag.copyFailed": "Este navegador no deja copiar: usa Descargar JSON y adjunta el archivo.",
       "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "Conexión con pypilot",
       "pc.pypilot-connect.ok": "Conectado a pypilot en la TinyPilot.",
@@ -3253,6 +3255,7 @@
       "diag.close": "Schließen",
       "diag.copied": "Kopiert: in das Issue oder den Forenbeitrag einfügen.",
       "diag.failed": "Die Diagnose konnte nicht erfasst werden.",
+      "diag.copyFailed": "Kopieren ist in diesem Browser nicht möglich: JSON herunterladen und die Datei anhängen.",
       "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "Verbindung zu pypilot",
       "pc.pypilot-connect.ok": "Mit pypilot auf dem TinyPilot verbunden.",
@@ -4644,6 +4647,7 @@
       "diag.close": "Fermer",
       "diag.copied": "Copié : collez-le dans l'issue ou le message du forum.",
       "diag.failed": "Impossible de capturer le diagnostic.",
+      "diag.copyFailed": "Copie impossible dans ce navigateur : utilisez Télécharger le JSON et joignez le fichier.",
       "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "Connexion à pypilot",
       "pc.pypilot-connect.ok": "Connecté à pypilot sur le TinyPilot.",
@@ -23059,8 +23063,27 @@
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
     _sessOpenModal(t("diag.title"), body, [
       { label: t("diag.copy"), className: "primary", onClick: async (close) => {
-        try { await navigator.clipboard.writeText(txt); close(); _pmAlert(t("diag.button"), t("diag.copied")); }
-        catch { _pmAlert(t("diag.button"), t("diag.failed")); }
+        // The Clipboard API exists only on https or localhost; the visor is
+        // mostly opened by address over http, so fall back to a hidden
+        // text area and the copy command (as mareas-ihm does).
+        let ok = false;
+        try {
+          if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(txt); ok = true; }
+        } catch { /* fall back below */ }
+        if (!ok) {
+          try {
+            const ta = document.createElement("textarea");
+            ta.value = txt;
+            ta.setAttribute("readonly", "");
+            ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
+            document.body.appendChild(ta);
+            ta.select();
+            ok = document.execCommand("copy");
+            ta.remove();
+          } catch { ok = false; }
+        }
+        if (ok) { close(); _pmAlert(t("diag.button"), t("diag.copied")); }
+        else _pmAlert(t("diag.button"), t("diag.copyFailed"));
       } },
       { label: t("diag.download"), onClick: () => {
         const a = document.createElement("a");
