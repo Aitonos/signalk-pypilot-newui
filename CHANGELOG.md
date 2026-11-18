@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased (Rev727-728)
+
+From the OpenMarine forum (posts #17 and #18).
+
+### Added
+- **Capture diagnostic**, in Setup > Autopilot check and next to Feedback in
+  Info. It builds one JSON with what is needed to find a problem:
+  - versions;
+  - the autopilot check;
+  - pypilot's access to Signal K (its devices and pending requests, the
+    TinyPilot address and what it resolves to);
+  - which sources send the heading and attitude;
+  - the settings and the last decisions of the access approval and the
+    heading fallback.
+
+  It is shown for review, then copied, downloaded or taken to a new GitHub
+  issue. Removed from it: position, vessel name and MMSI, passwords, PIN and
+  tokens; public addresses are masked. Local network addresses stay, since
+  they show why pypilot's access fails.
+- A NAV switch in the KIP mode group (`electrical.switches.pypilot.mode.nav`).
+  Engaging with a route active already goes to NAV, but no mode lit up in KIP
+  while in NAV. Without an active route the switch is refused with "NAV needs
+  an active route".
+- The pypilot version next to the plugin version in Info.
+
+### Changed
+- When pypilot's heading or attitude does not reach Signal K, the autopilot
+  check now says what is actually wrong, from what the server holds, instead
+  of a generic "pypilot needs read/write access":
+  - pypilot asked from another address than the TinyPilot's (both shown);
+  - its device is read only (being fixed);
+  - it has not asked for access;
+  - automatic approval is off;
+  - the plugin cannot manage Signal K's security;
+  - or it has read/write and still does not send it (capture a diagnostic).
+- pypilot's device is set to read/write within a minute (it was ten).
+  Signal K re-reads a connection's permission every minute, so pypilot then
+  writes without being restarted.
+
+### Fixed
+- A browser whose access was removed in Signal K, or reloaded while its
+  request was pending, no longer stays without access in silence. Signal K
+  refuses a new request while one with the same browser id is pending; the
+  viewer gave up without a word. It now asks again under a new id, which it
+  can follow until approved.
+
 ## 3.16.0 — 2026-11-16 — Heel bar on the chart, numeric KIP switches, no double tacks
 
 Rev713-726 on top of 3.15.8.

@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev726" />
+  <link rel="stylesheet" href="style.css?v=Rev728" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -1554,6 +1554,8 @@
         <div class="pc-header">
           <div class="section-title" data-i18n="setup.precheck.title">Autopilot check</div>
           <button id="pc-refresh-btn" class="ghost" data-i18n="setup.precheck.refresh">Refresh</button>
+          <!-- Rev727: one JSON to send when something is wrong (as in mareas-ihm). -->
+          <button id="pc-diag-btn" class="ghost" data-i18n="diag.button">Capture diagnostic</button>
         </div>
         <div class="hint" data-i18n="setup.precheck.hint">Pre-departure sanity check. Aggregates every sensor / servo / voltage / connectivity signal into a single verdict. Recomputes every 3 s while this tab is open.</div>
         <div id="pc-verdict" class="pc-verdict pc-unknown">
@@ -2198,6 +2200,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">
           <a class="info-btn-link" href="https://github.com/Aitonos/signalk-pypilot-newui" target="_blank" rel="noopener"><button type="button" class="primary" data-i18n="info.star">Give us a star on GitHub</button></a>
           <a class="info-btn-link" href="https://github.com/Aitonos/signalk-pypilot-newui/issues/new" target="_blank" rel="noopener"><button type="button" class="ghost" data-i18n="info.feedback">Feedback</button></a>
+          <button type="button" class="ghost" id="info-diag-btn" data-i18n="diag.button">Capture diagnostic</button>
           <button type="button" class="ghost" id="tour-replay-info" data-i18n="tour.replay">Replay the guided tour</button>
         </div>
 
@@ -2955,6 +2958,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev726"></script>
+  <script src="app.js?v=Rev728"></script>
 </body>
 </html>

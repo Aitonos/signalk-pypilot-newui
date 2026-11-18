@@ -83,6 +83,7 @@ import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand 
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
 import { IMU_FALLBACK_KEYS, IMU_FALLBACK_PATHS, otherSourceFresh, imuFallbackValues, newFallbackPathState, stepFallbackPath } from "./imu-fallback";
 import { withLocalAliases, requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
+import { accessReport, AccessReport, DiagRing, maskHost, sanitizeConfig } from "./diagnostic";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -93,7 +94,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev726";
+const PLUGIN_REVISION = "Rev728";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -617,6 +618,14 @@ module.exports = function (app: any) {
   // so it also covers motor legs and tender rides. Independent of the
   // session recorder.
   let tripRecorder: TripRecorder | null = null;
+  // Rev727: the last decisions of the access approval and the heading
+  // fallback, for the diagnostic report (and the server log as before).
+  const diagRing = new DiagRing(300);
+  const _diagLog = (tag: string, msg: string): void => {
+    diagRing.add(tag, msg);
+    // eslint-disable-next-line no-console
+    console.log(`[${tag}] ${msg}`);
+  };
   // Rev659: pypilot Signal K access - see pypilot-sk-access.ts.
   let pypilotAccessTimer: NodeJS.Timeout | null = null;
   // Rev665: set by registerWithRouter (it owns the SSH helper), called when
@@ -675,14 +684,11 @@ module.exports = function (app: any) {
       if (plan.makeReadWrite) sec.strategy.updateDevice(cfg, plan.keep, { permissions: "readwrite" }, () => { /* in place */ });
       for (const id of plan.remove) sec.strategy.deleteDevice(cfg, id, () => { /* in place */ });
       sec.saveCfg(app, cfg, (e) => {
-        // eslint-disable-next-line no-console
-        if (e) console.log(`[pypilot-access] could not save the device tidy-up: ${e?.message || e}`);
-        // eslint-disable-next-line no-console
-        else console.log(`[pypilot-access] kept ${plan.keep}${plan.makeReadWrite ? " (now read/write)" : ""}, removed ${plan.remove.length} old pypilot device(s)`);
+        if (e) _diagLog("pypilot-access", `could not save the device tidy-up: ${e?.message || e}`);
+        else _diagLog("pypilot-access", `kept ${plan.keep}${plan.makeReadWrite ? " (now read/write)" : ""}, removed ${plan.remove.length} old pypilot device(s)`);
       });
     } catch (e: any) {
-      // eslint-disable-next-line no-console
-      console.log(`[pypilot-access] tidy-up not possible: ${e?.message || e}`);
+      _diagLog("pypilot-access", `tidy-up not possible: ${e?.message || e}`);
     }
   };
   /** Approve pending pypilot requests from the TinyPilot, read/write. */
@@ -698,21 +704,41 @@ module.exports = function (app: any) {
       try {
         sec.strategy.setAccessRequestStatus(sec.getCfg(app), id, "approved", { permissions: "readwrite" }, (err: any, cfg: any) => {
           if (err || !cfg) {
-            // eslint-disable-next-line no-console
-            console.log(`[pypilot-access] could not approve ${id}: ${err?.message || err}`);
+            _diagLog("pypilot-access", `could not approve ${id}: ${err?.message || err}`);
             return;
           }
           sec.saveCfg(app, cfg, (e) => {
-            // eslint-disable-next-line no-console
-            console.log(e ? `[pypilot-access] approved ${id} but could not save: ${e?.message || e}` : `[pypilot-access] approved ${id} (read/write, from ${r.ip})`);
+            _diagLog("pypilot-access", e ? `approved ${id} but could not save: ${e?.message || e}` : `approved ${id} (read/write, from ${r.ip})`);
             if (!e) setTimeout(_tidyPypilotDevices, 2000);
           });
         });
       } catch (e: any) {
-        // eslint-disable-next-line no-console
-        console.log(`[pypilot-access] approve failed: ${e?.message || e}`);
+        _diagLog("pypilot-access", `approve failed: ${e?.message || e}`);
       }
     }
+  };
+  /** Rev727: why pypilot can or cannot write to Signal K (report + check). */
+  const _pypilotAccessReport = (): AccessReport => {
+    const strategy = (app as any).securityStrategy;
+    const securityOn = !!strategy && !(typeof strategy.isDummy === "function" && strategy.isDummy());
+    const sec = _skSecurity();
+    _refreshTinypilotIps();
+    let devices: DeviceEntry[] = [];
+    let pending: PendingRequest[] = [];
+    if (sec) {
+      try { devices = ((sec.getCfg(app) || {}).devices || []) as DeviceEntry[]; } catch { /* none */ }
+      try { pending = (sec.strategy.getAccessRequestsResponse() || []) as PendingRequest[]; } catch { /* none */ }
+    }
+    const uid = client?.getValues()?.["signalk.uid"];
+    return accessReport({
+      securityOn,
+      canControl: !!sec,
+      autoApprove: props.pypilotAutoApprove !== false,
+      pypilotUid: typeof uid === "string" && uid !== "pypilot" ? uid : null,
+      devices,
+      pending,
+      hostIps: _tinypilotIps.ips,
+    });
   };
   // Rev653 (Carlos 2026-11-07): admin PIN of the Technical Setup group.
   let adminPin: AdminPin | null = null;
@@ -806,8 +832,7 @@ module.exports = function (app: any) {
     const h = Math.floor(Date.now() / 3600_000);
     if (h !== imuFallbackLogHour) { imuFallbackLogHour = h; imuFallbackLogCount = 0; }
     imuFallbackLogCount += 1;
-    // eslint-disable-next-line no-console
-    if (imuFallbackLogCount <= 20) console.log(`[imu-fallback] ${msg}`);
+    if (imuFallbackLogCount <= 20) _diagLog("imu-fallback", msg);
     // eslint-disable-next-line no-console
     else if (imuFallbackLogCount === 21) console.log("[imu-fallback] more changes this hour, not logged");
   };
@@ -907,7 +932,9 @@ module.exports = function (app: any) {
       if (pypilotAccessTimer) clearInterval(pypilotAccessTimer);
       if (pypilotTidyTimer) clearInterval(pypilotTidyTimer);
       pypilotAccessTimer = setInterval(_approvePypilotAccess, 5000);
-      pypilotTidyTimer = setInterval(_tidyPypilotDevices, 10 * 60_000);
+      // Rev727: every minute - Signal K re-reads a connection's permission
+      // every 60 s, so pypilot writes within two minutes, no restart.
+      pypilotTidyTimer = setInterval(_tidyPypilotDevices, 60_000);
       setTimeout(_tidyPypilotDevices, 20_000).unref?.();
       if (props.adminPinReset) {
         _adminPinOf().clear();
@@ -1770,6 +1797,7 @@ module.exports = function (app: any) {
         res.json({
           revision: PLUGIN_REVISION,
           version: PLUGIN_PKG_VERSION,
+          pypilotVersion: (() => { const v = client?.getValues()?.["ap.version"]; return v == null ? null : String(v); })(),   // Rev727
           host: props.host,
           port: props.port,
           connected: client?.connected ?? false,
@@ -2325,8 +2353,7 @@ module.exports = function (app: any) {
           return prov && prov !== id ? `${id} (${prov})` : id;
         } catch { return null; }
       };
-      router.get("/prechecks", (_req: any, res: any) => {
-        const snap = runPrechecks({
+      const _precheckInputs = () => ({
           connected: !!(client && client.connected),
           disconnectedSinceMs,
           hasAutopilotProvider: !!apProvider,
@@ -2336,6 +2363,7 @@ module.exports = function (app: any) {
           servoHealth: servoHealth ? servoHealth.snapshot() : null,
           pypilotHeadingFresh: _pypilotHasHeading(),
           fallbackPaths: [...imuFallbackOn],   // Rev698
+          pypilotAccess: (() => { try { return _pypilotAccessReport(); } catch { return null; } })(),   // Rev727
           // Rev707: other boats - no GPS in compass mode, true heading only,
           // a second autopilot provider.
           apMode: (() => { const m = client?.getValues()?.["ap.mode"]; return typeof m === "string" ? m : null; })(),
@@ -2347,8 +2375,87 @@ module.exports = function (app: any) {
             } catch { return null; }
           })(),
           autopilotDevices: _skAutopilotDevices(),
+      });
+      router.get("/prechecks", (_req: any, res: any) => {
+        res.json(runPrechecks(_precheckInputs()));
+      });
+
+      // Rev727 (Carlos 2026-11-18, OpenMarine #18): "Capture diagnostic", as
+      // in mareas-ihm. One JSON a user can attach to an issue or a forum
+      // post: versions, the Autopilot Check, pypilot's Signal K access, who
+      // writes the heading, the settings and the last decisions. Nothing
+      // personal: no position, no vessel identity, no secrets, public
+      // addresses masked (see diagnostic.ts).
+      router.get("/diagnostic", (_req: any, res: any) => {
+        res.set("Cache-Control", "no-store");
+        const now = Date.now();
+        const vals = client?.getValues() || {};
+        let signalkVersion: string | null = null;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const path = require("path");
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          signalkVersion = require(path.join(path.dirname(require.main?.filename || ""), "..", "package.json")).version ?? null;
+        } catch { /* unknown */ }
+        const sources = (p: string) => {
+          try {
+            const node = (app as any).getSelfPath?.(p);
+            if (!node) return null;
+            const list: { source: string; ageMs: number | null }[] = [];
+            const add = (src: string, ts: string | undefined) => {
+              const t = ts ? Date.parse(ts) : NaN;
+              list.push({ source: src, ageMs: isFinite(t) ? Math.max(0, now - t) : null });
+            };
+            if (node.values && typeof node.values === "object") {
+              for (const [src, v] of Object.entries(node.values as Record<string, { timestamp?: string }>)) add(src, v?.timestamp);
+            } else if (node.$source) add(String(node.$source), node.timestamp);
+            return list;
+          } catch { return null; }
+        };
+        let check: unknown = null;
+        try { check = runPrechecks(_precheckInputs()); } catch (e: any) { check = { error: String(e?.message || e) }; }
+        let access: unknown = null;
+        try { access = _pypilotAccessReport(); } catch (e: any) { access = { error: String(e?.message || e) }; }
+        res.json({
+          capturedAt: new Date(now).toISOString(),
+          _note: "Sensitive data removed: no position, no vessel name or MMSI, passwords, PIN and tokens shown as XXXX, public addresses masked. Local network addresses are kept: they are needed to see why pypilot's access fails.",
+          plugin: { version: PLUGIN_PKG_VERSION, revision: PLUGIN_REVISION },
+          server: {
+            signalkVersion,
+            node: process.version,
+            platform: `${process.platform} ${process.arch}`,
+            uptimeS: Math.round(process.uptime()),
+          },
+          pypilot: {
+            host: maskHost(props.host),
+            port: props.port,
+            local: _pypilotIsLocal(),
+            connected: !!client?.connected,
+            healthy: client?.healthy ?? false,
+            lastConnectAt,
+            lastDisconnectReason,
+            version: vals["ap.version"] ?? null,
+            signalkUid: vals["signalk.uid"] ?? null,
+            signalkPeriod: vals["signalk.period"] ?? null,
+            mode: vals["ap.mode"] ?? null,
+            modes: vals["ap.modes"] ?? null,
+            engaged: vals["ap.enabled"] ?? null,
+            catalogSize: Object.keys(lastCatalog).length,
+          },
+          autopilotCheck: check,
+          pypilotAccess: access,
+          heading: {
+            fallbackEnabled: props.headingFallback !== false,
+            fallbackOn: [...imuFallbackOn],
+            pypilotHasHeading: _pypilotHasHeading(),
+            sources: Object.fromEntries(
+              ["navigation.headingMagnetic", "navigation.headingTrue", "navigation.attitude", "navigation.rateOfTurn"]
+                .map((p) => [p, sources(p)])),
+          },
+          signalkAutopilots: _skAutopilotDevices(),
+          settings: sanitizeConfig(props),
+          log: diagRing.list(),
         });
-        res.json(snap);
       });
 
       // Rev95: reset the session counters. Buffer is untouched so the
@@ -7140,6 +7247,10 @@ module.exports = function (app: any) {
     // Rev695: pypilot's own heading, slowly - lets the autopilot check tell
     // "the IMU is silent" from "pypilot cannot write to Signal K" (#6).
     if (name === "ap.heading") return WATCH_LOW;
+    // Rev727: pypilot's version and its Signal K client id, for Info and the
+    // diagnostic report (they change only when pypilot is updated or asks
+    // Signal K for access again).
+    if (name === "ap.version" || name === "signalk.uid") return WATCH_LOW;
     // Rev696: the IMU readings the heading fallback publishes, only while on.
     if (imuFallbackActive && IMU_FALLBACK_KEYS.includes(name)) return WATCH_HIGH;
     // Rev191 (Carlos): tack.* paths MUST be watched core. Without a
@@ -7830,6 +7941,9 @@ module.exports = function (app: any) {
       { key: "gps",      py: "gps",        label: "Mode GPS"        },
       { key: "wind",     py: "wind",       label: "Mode Wind"       },
       { key: "trueWind", py: "true wind",  label: "Mode True Wind"  },
+      // Rev727 (OpenMarine #18): engaging with a route already goes to NAV;
+      // without this switch KIP showed no mode lit while in NAV.
+      { key: "nav",      py: "nav",        label: "Mode NAV"        },
     ];
     const swModePathOf = (key: string) => `${SW_MODE_PREFIX}.${key}`;
     // emitModeSwitches broadcasts the current mode state as a radio group.
@@ -7863,6 +7977,13 @@ module.exports = function (app: any) {
           // PUT false on a radio switch is a no-op: modes cannot be
           // "turned off" individually, only replaced by picking another.
           if (!b) return okLog(skPath, false);
+          // pypilot offers NAV only while a route feeds it (APB).
+          if (m.py === "nav") {
+            const offered = client.getValues()?.["ap.modes"];
+            if (Array.isArray(offered) && !offered.includes("nav")) {
+              return { state: "COMPLETED", statusCode: 409, message: "NAV needs an active route" };
+            }
+          }
           if (apProvider) {
             const iface = apProvider.toProviderInterface() as any;
             iface.setMode(m.py, apProvider.deviceId).catch(() => {});

@@ -111,3 +111,27 @@ describe("prechecks: other boats (Rev707)", () => {
     assert.equal(snap.items.find((x) => x.id === "ap-provider")!.status, "pass");
   });
 });
+
+describe("prechecks: the access hint says what is wrong (Rev727)", () => {
+  const good = (path: string) => ({ path, label: path, level: "good", ageMs: 200, hz: 5, source: "pypilot-newui" });
+  const quality = { computedTs: 0, windowSec: 30, items: [good("navigation.headingMagnetic"), good("navigation.attitude"), good("navigation.position")] } as any;
+  const report = (verdict: string, extra: object = {}) => ({
+    verdict, pypilotUid: "pypilot-1", device: null, pypilotDevices: [], pending: [], hostIps: ["192.168.1.115"], ...extra,
+  }) as any;
+  it("names the address pypilot asked from when it is not the TinyPilot's", () => {
+    const snap = runPrechecks({ ...base, quality, pypilotHeadingFresh: true, fallbackPaths: ["navigation.headingMagnetic"],
+      pypilotAccess: report("pendingOtherIp", { pending: [{ clientId: "pypilot-1", ip: "192.168.1.50", fromTinypilot: false }] }) });
+    const h = snap.items.find((x) => x.id === "navigation.headingMagnetic")!;
+    assert.equal(h.hintCode, "skAccess_pendingOtherIp");
+    assert.deepEqual(h.params, { ip: "192.168.1.50", hostIps: "192.168.1.115", device: "" });
+    assert.match(h.hint!, /192\.168\.1\.50/);
+  });
+  it("says read only, and that it is being fixed", () => {
+    const snap = runPrechecks({ ...base, pypilotHeadingFresh: true,
+      pypilotAccess: report("readOnly", { device: { clientId: "pypilot-1", permissions: "readonly" } }) });
+    const h = snap.items.find((x) => x.id === "navigation.headingMagnetic")!;
+    assert.equal(h.code, "notInSk");
+    assert.equal(h.hintCode, "skAccess_readOnly");
+    assert.equal(h.params!.device, "pypilot-1");
+  });
+});

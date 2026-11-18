@@ -158,8 +158,8 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 36. **Full pypilot catalog as Signal K paths** under `steering.autopilot.pypilot.*`, opt-in per path so you never flood the bus.
 37. **Autopilot API v2 provider** (absorbable) — any Signal K autopilot client talks to this plugin as the canonical autopilot.
 38. **Simple Switch action paths** — engage, nudge, tack, mode selector, profile selector.
-39. **8 momentary switches** — nudge ±10 / ±1, tack port / starboard / cancel, engage — as KIP boolean paths.
-40. **Radio switches** — mode and profile groups as KIP radio switch sets.
+39. **8 momentary switches** — nudge ±10 / ±1, tack port / starboard / cancel, engage — as KIP numeric paths (`1` / `0`).
+40. **Radio switches** — mode (compass, GPS, wind, true wind, NAV) and profile groups as KIP radio switch sets.
 41. **Publish-only-essentials toggle** — keeps the bus light on modest servers.
 42. **Config export / import** — Web Share API or plain `.json`. Never includes the TinyPilot's SSH password.
 43. **Live status endpoint** — connection state, core-alive flag and catalog counters for external monitoring.
@@ -268,7 +268,7 @@ Under `electrical.switches.pypilot.*`, all numeric (`1` / `0`), with `supportsPu
 - `ap.state` — engage / disengage (on/off toggle).
 - `nudge.{plus10,plus1,minus1,minus10}` — momentary: course +10° / +1° / −1° / −10°, resets to `0` by itself.
 - `tack.{port,starboard,cancel}` — momentary.
-- `mode.{compass,gps,wind,trueWind}` — radio (mutually exclusive).
+- `mode.{compass,gps,wind,trueWind,nav}` — radio (mutually exclusive). `nav` is refused without an active route; engaging with one goes to NAV by itself.
 - `profile.<name>` — radio, dynamic per pilot profile.
 
 A PUT also accepts `true` / `false`. A second tack within 3 s of the previous one is refused, and a switch ignores the same tap repeated within 250 ms.
@@ -337,7 +337,7 @@ The plugin exposes more (trips, AIS, watch, supervisor, recorders…) — see `s
 
 Questions, ideas and experiences from other boats: the [PyPilot New-UI thread on the OpenMarine forum](https://forum.openmarine.net/showthread.php?tid=7074).
 
-Found a bug? Use **Feedback** in the visor's Info tab, or open an issue on [GitHub](https://github.com/Aitonos/signalk-pypilot-newui/issues). Please include the Rev (in the app under **Info** → top header, or via `GET /plugins/signalk-pypilot-newui/status`), what you expected, what happened, and a screenshot if possible.
+Found a bug? Press **Capture diagnostic** (Setup → Autopilot check, or Info next to Feedback), review the report, download it and attach it to an issue on [GitHub](https://github.com/Aitonos/signalk-pypilot-newui/issues) or to your forum post, with what you expected and what happened. The report holds versions, the autopilot check, pypilot's Signal K access, who sends the heading, the settings and the last events; position, vessel name and MMSI, passwords, PIN and tokens are removed and public addresses masked (local network addresses stay).
 
 ## Development
 

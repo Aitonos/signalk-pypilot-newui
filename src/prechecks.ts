@@ -8,6 +8,7 @@
 import { QualitySnapshot, PathQuality, QualityLevel } from "./sensor-quality";
 import { ServoHealthSnapshot } from "./servo-health";
 import { Sample } from "./historian";
+import { AccessReport } from "./diagnostic";
 
 export type CheckStatus = "pass" | "warn" | "fail" | "unknown";
 export type OverallVerdict = "ready" | "ready-with-caveats" | "do-not-engage" | "unknown";
@@ -50,6 +51,8 @@ export interface PrecheckInputs {
   pypilotHeadingFresh?: boolean;
   /** Rev698: Signal K paths the plugin is publishing for pypilot (heading fallback). */
   fallbackPaths?: string[];
+  /** Rev727: why pypilot can or cannot write to Signal K. */
+  pypilotAccess?: AccessReport | null;
   /** Rev707: pypilot's ap.mode. GPS is only critical in gps / nav mode. */
   apMode?: string | null;
   /** Rev707: age of navigation.headingTrue in Signal K (boats whose compass
@@ -182,17 +185,43 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
     }
   }
 
+  // Rev727: the hint says what is actually wrong with pypilot's access,
+  // from what the Signal K server holds (see diagnostic.ts accessReport).
+  const acc = inputs.pypilotAccess;
+  const accessHint = (): { hint: string; hintCode: string; params: Record<string, string> } => {
+    const generic = { hint: "pypilot needs read/write access in Signal K: Security > Access Requests / Devices.", hintCode: "skAccess", params: {} };
+    if (!acc) return generic;
+    const params: Record<string, string> = {
+      ip: acc.pending.find((r) => !r.fromTinypilot)?.ip ?? "",
+      hostIps: acc.hostIps.join(", ") || "-",
+      device: acc.device?.clientId ?? "",
+    };
+    const text: Record<string, string> = {
+      ok: "pypilot has read/write access but does not send this to Signal K: press Capture diagnostic at the top of this check and send it to us.",
+      noSecurity: "Signal K security is off, so access is not the cause: press Capture diagnostic at the top of this check and send it to us.",
+      noControl: "The plugin cannot manage Signal K's security on this server: in Signal K, Security > Devices, set pypilot's device to Read/Write.",
+      autoApproveOff: "Automatic approval is off (Setup): in Signal K, Security > Devices, set pypilot's device to Read/Write.",
+      pendingOtherIp: "pypilot asked for access from {ip}, but the TinyPilot is set to {hostIps}: correct the pypilot address in Setup > Connection, or approve it as Read/Write in Signal K, Security > Access Requests.",
+      pending: "pypilot asked for access: the plugin approves it within seconds.",
+      readOnly: "pypilot's device {device} is read only: the plugin makes it read/write within a minute.",
+      noDevice: "pypilot has not asked Signal K for access: check pypilot's Signal K connection (pypilot web page, Configuration).",
+    };
+    const hint = (text[acc.verdict] ?? generic.hint).replace(/\{(\w+)\}/g, (_m, k: string) => params[k] ?? "");
+    return { hint, hintCode: "skAccess_" + acc.verdict, params };
+  };
+
   // Rev695: say what is really wrong when pypilot has the heading but
   // Signal K does not (pypilot without read/write access in Signal K).
   if (inputs.pypilotHeadingFresh && inputs.connected) {
     for (const it of items) {
       if ((it.id === "navigation.headingMagnetic" || it.id === "navigation.attitude") && it.status !== "pass") {
+        const h = accessHint();
         it.status = "fail";
         it.detail = "pypilot has it, but Signal K is not receiving it.";
-        it.hint = "pypilot needs read/write access in Signal K: Security > Access Requests / Devices.";
+        it.hint = h.hint;
         it.code = "notInSk";
-        it.hintCode = "skAccess";
-        it.params = {};
+        it.hintCode = h.hintCode;
+        it.params = h.params;
       }
     }
   }
@@ -204,12 +233,13 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
   const viaFallback = new Set(inputs.fallbackPaths || []);
   for (const it of items) {
     if (viaFallback.has(it.id) && it.status === "pass") {
+      const h = accessHint();
       it.status = "warn";
-      it.detail = "Published by this plugin: pypilot itself cannot write to Signal K.";
-      it.hint = "pypilot needs read/write access in Signal K: Security > Access Requests / Devices.";
+      it.detail = "Published by this plugin: pypilot itself is not writing it to Signal K.";
+      it.hint = h.hint;
       it.code = "viaFallback";
-      it.hintCode = "skAccess";
-      it.params = {};
+      it.hintCode = h.hintCode;
+      it.params = h.params;
     }
   }
 

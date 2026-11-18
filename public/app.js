@@ -222,6 +222,32 @@
       "pc.navigation.headingMagnetic.hint.skAccess": "pypilot needs read/write access in Signal K: approve it in Security > Access Requests, or set its device to Read/Write in Security > Devices.",
       "pc.navigation.attitude.notInSk": "pypilot has it, but Signal K is not receiving it - the IMU is fine.",
       "pc.navigation.attitude.hint.skAccess": "pypilot needs read/write access in Signal K: approve it in Security > Access Requests, or set its device to Read/Write in Security > Devices.",
+      "pc.navigation.headingMagnetic.hint.skAccess_ok": "pypilot has read/write access but does not send this to Signal K: press Capture diagnostic at the top of this check and send it to us.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noSecurity": "Signal K security is off, so access is not the cause: press Capture diagnostic at the top of this check and send it to us.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noControl": "The plugin cannot manage Signal K's security on this server: in Signal K, Security > Devices, set pypilot's device to Read/Write.",
+      "pc.navigation.headingMagnetic.hint.skAccess_autoApproveOff": "Automatic approval is off (Setup): in Signal K, Security > Devices, set pypilot's device to Read/Write.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pendingOtherIp": "pypilot asked for access from {ip}, but the TinyPilot is set to {hostIps}: correct the address in Setup > pypilot connection, or approve the request as Read/Write in Signal K, Security > Access Requests.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot asked for access: the plugin approves it within seconds.",
+      "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "pypilot's device {device} is read only: the plugin makes it read/write within a minute.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot has not asked Signal K for access: check pypilot's Signal K connection (pypilot web page, Configuration).",
+      "pc.navigation.attitude.hint.skAccess_ok": "pypilot has read/write access but does not send this to Signal K: press Capture diagnostic at the top of this check and send it to us.",
+      "pc.navigation.attitude.hint.skAccess_noSecurity": "Signal K security is off, so access is not the cause: press Capture diagnostic at the top of this check and send it to us.",
+      "pc.navigation.attitude.hint.skAccess_noControl": "The plugin cannot manage Signal K's security on this server: in Signal K, Security > Devices, set pypilot's device to Read/Write.",
+      "pc.navigation.attitude.hint.skAccess_autoApproveOff": "Automatic approval is off (Setup): in Signal K, Security > Devices, set pypilot's device to Read/Write.",
+      "pc.navigation.attitude.hint.skAccess_pendingOtherIp": "pypilot asked for access from {ip}, but the TinyPilot is set to {hostIps}: correct the address in Setup > pypilot connection, or approve the request as Read/Write in Signal K, Security > Access Requests.",
+      "pc.navigation.attitude.hint.skAccess_pending": "pypilot asked for access: the plugin approves it within seconds.",
+      "pc.navigation.attitude.hint.skAccess_readOnly": "pypilot's device {device} is read only: the plugin makes it read/write within a minute.",
+      "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot has not asked Signal K for access: check pypilot's Signal K connection (pypilot web page, Configuration).",
+      "diag.button": "Capture diagnostic",
+      "diag.title": "Diagnostic - review before sending",
+      "diag.intro": "Technical data to find what is wrong: versions, the autopilot check, pypilot's access to Signal K, who sends the heading, settings and the last events. Removed: position, vessel name and MMSI, passwords, PIN and tokens; public addresses masked. Your local network addresses are kept, as they show why pypilot's access fails. If you see anything you do not want to share, delete it before sending.",
+      "diag.copy": "Copy JSON",
+      "diag.download": "Download JSON",
+      "diag.issue": "Open an issue",
+      "diag.close": "Close",
+      "diag.copied": "Copied: paste it into the issue or forum post.",
+      "diag.failed": "Could not capture the diagnostic.",
+      "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "pypilot connectivity",
       "pc.pypilot-connect.ok": "Connected to pypilot on the TinyPilot.",
       "pc.pypilot-connect.down": "Disconnected for {sec} s.",
@@ -844,8 +870,8 @@
       "setup.fallback.title": "Heading when pypilot cannot write to Signal K",
       "setup.fallback.hint": "If pypilot has a heading but nobody writes it to Signal K (pypilot without read/write access, its Signal K output off, a different server), the plugin publishes pypilot's heading, attitude and rate of turn itself - each one only while no other source does. Switch it off if you keep pypilot's IMU out of Signal K on purpose.",
       "setup.fallback.toggle": "Publish pypilot's heading when it does not",
-      "pc.navigation.headingMagnetic.viaFallback": "Published by this plugin: pypilot itself cannot write to Signal K, so its other data does not arrive either.",
-      "pc.navigation.attitude.viaFallback": "Published by this plugin: pypilot itself cannot write to Signal K, so its other data does not arrive either.",
+      "pc.navigation.headingMagnetic.viaFallback": "Published by this plugin: pypilot itself is not writing it to Signal K.",
+      "pc.navigation.attitude.viaFallback": "Published by this plugin: pypilot itself is not writing it to Signal K.",
       "lc.every": "every",
       "sess.enable": "Record a session every time the autopilot is engaged",
       "lc.view":     "Show recent",
@@ -1619,6 +1645,32 @@
       "pc.navigation.headingMagnetic.hint.skAccess": "pypilot necesita acceso de lectura y escritura en Signal K: apruébalo en Security > Access Requests, o pon su dispositivo en Read/Write en Security > Devices.",
       "pc.navigation.attitude.notInSk": "pypilot lo tiene, pero no llega a Signal K: la IMU está bien.",
       "pc.navigation.attitude.hint.skAccess": "pypilot necesita acceso de lectura y escritura en Signal K: apruébalo en Security > Access Requests, o pon su dispositivo en Read/Write en Security > Devices.",
+      "pc.navigation.headingMagnetic.hint.skAccess_ok": "pypilot tiene acceso de lectura y escritura pero no envía esto a Signal K: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noSecurity": "La seguridad de Signal K está desactivada, así que el acceso no es la causa: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noControl": "El plugin no puede gestionar la seguridad de Signal K en este servidor: en Signal K, Security > Devices, pon el dispositivo de pypilot en Read/Write.",
+      "pc.navigation.headingMagnetic.hint.skAccess_autoApproveOff": "La aprobación automática está desactivada (Setup): en Signal K, Security > Devices, pon el dispositivo de pypilot en Read/Write.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pendingOtherIp": "pypilot pidió acceso desde {ip}, pero la TinyPilot está configurada como {hostIps}: corrige la dirección en Setup > Conexión pypilot, o aprueba la petición como Read/Write en Signal K, Security > Access Requests.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot ha pedido acceso: el plugin lo aprueba en unos segundos.",
+      "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "El dispositivo de pypilot {device} es de solo lectura: el plugin lo pasa a lectura y escritura en un minuto.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot no ha pedido acceso a Signal K: revisa su conexión con Signal K (página web de pypilot, Configuración).",
+      "pc.navigation.attitude.hint.skAccess_ok": "pypilot tiene acceso de lectura y escritura pero no envía esto a Signal K: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
+      "pc.navigation.attitude.hint.skAccess_noSecurity": "La seguridad de Signal K está desactivada, así que el acceso no es la causa: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
+      "pc.navigation.attitude.hint.skAccess_noControl": "El plugin no puede gestionar la seguridad de Signal K en este servidor: en Signal K, Security > Devices, pon el dispositivo de pypilot en Read/Write.",
+      "pc.navigation.attitude.hint.skAccess_autoApproveOff": "La aprobación automática está desactivada (Setup): en Signal K, Security > Devices, pon el dispositivo de pypilot en Read/Write.",
+      "pc.navigation.attitude.hint.skAccess_pendingOtherIp": "pypilot pidió acceso desde {ip}, pero la TinyPilot está configurada como {hostIps}: corrige la dirección en Setup > Conexión pypilot, o aprueba la petición como Read/Write en Signal K, Security > Access Requests.",
+      "pc.navigation.attitude.hint.skAccess_pending": "pypilot ha pedido acceso: el plugin lo aprueba en unos segundos.",
+      "pc.navigation.attitude.hint.skAccess_readOnly": "El dispositivo de pypilot {device} es de solo lectura: el plugin lo pasa a lectura y escritura en un minuto.",
+      "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot no ha pedido acceso a Signal K: revisa su conexión con Signal K (página web de pypilot, Configuración).",
+      "diag.button": "Capturar diagnóstico",
+      "diag.title": "Diagnóstico: revísalo antes de enviarlo",
+      "diag.intro": "Datos técnicos para encontrar el fallo: versiones, la comprobación del piloto, el acceso de pypilot a Signal K, quién envía el rumbo, ajustes y los últimos eventos. Eliminado: posición, nombre del barco y MMSI, contraseñas, PIN y tokens; direcciones públicas ocultas. Las direcciones de tu red local se quedan, porque muestran por qué falla el acceso de pypilot. Si ves algo que no quieres compartir, bórralo antes de enviarlo.",
+      "diag.copy": "Copiar JSON",
+      "diag.download": "Descargar JSON",
+      "diag.issue": "Abrir una issue",
+      "diag.close": "Cerrar",
+      "diag.copied": "Copiado: pégalo en la issue o en el mensaje del foro.",
+      "diag.failed": "No se pudo capturar el diagnóstico.",
+      "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "Conexión con pypilot",
       "pc.pypilot-connect.ok": "Conectado a pypilot en la TinyPilot.",
       "pc.pypilot-connect.down": "Sin conexión desde hace {sec} s.",
@@ -2240,8 +2292,8 @@
       "setup.fallback.title": "Rumbo cuando pypilot no puede escribir en Signal K",
       "setup.fallback.hint": "Si pypilot tiene rumbo pero nadie lo escribe en Signal K (pypilot sin acceso de lectura y escritura, su salida a Signal K apagada, otro servidor), el plugin publica él mismo el rumbo, la actitud y la velocidad de giro de pypilot, cada uno solo mientras ninguna otra fuente lo haga. Apágalo si dejas fuera de Signal K la IMU de pypilot a propósito.",
       "setup.fallback.toggle": "Publicar el rumbo de pypilot cuando él no lo haga",
-      "pc.navigation.headingMagnetic.viaFallback": "Lo publica este plugin: pypilot no puede escribir en Signal K, así que tampoco llega el resto de sus datos.",
-      "pc.navigation.attitude.viaFallback": "Lo publica este plugin: pypilot no puede escribir en Signal K, así que tampoco llega el resto de sus datos.",
+      "pc.navigation.headingMagnetic.viaFallback": "Lo publica este plugin: pypilot no lo está escribiendo en Signal K.",
+      "pc.navigation.attitude.viaFallback": "Lo publica este plugin: pypilot no lo está escribiendo en Signal K.",
       "lc.every": "cada",
       "sess.enable": "Grabar una sesión cada vez que se conecta el piloto",
       "lc.view":     "Ver reciente",
@@ -2985,8 +3037,8 @@
       "setup.fallback.title": "Kurs, wenn pypilot nicht in Signal K schreiben kann",
       "setup.fallback.hint": "Hat pypilot einen Kurs, den aber niemand in Signal K schreibt (pypilot ohne Lese-/Schreibzugriff, seine Signal-K-Ausgabe aus, ein anderer Server), veröffentlicht das Plugin Kurs, Lage und Drehrate von pypilot selbst - jeweils nur, solange keine andere Quelle das tut. Ausschalten, wenn die IMU von pypilot absichtlich nicht in Signal K soll.",
       "setup.fallback.toggle": "Kurs von pypilot veröffentlichen, wenn pypilot es nicht tut",
-      "pc.navigation.headingMagnetic.viaFallback": "Von diesem Plugin veröffentlicht: pypilot selbst kann nicht in Signal K schreiben, daher kommen auch seine übrigen Daten nicht an.",
-      "pc.navigation.attitude.viaFallback": "Von diesem Plugin veröffentlicht: pypilot selbst kann nicht in Signal K schreiben, daher kommen auch seine übrigen Daten nicht an.",
+      "pc.navigation.headingMagnetic.viaFallback": "Von diesem Plugin veröffentlicht: pypilot selbst schreibt es nicht in Signal K.",
+      "pc.navigation.attitude.viaFallback": "Von diesem Plugin veröffentlicht: pypilot selbst schreibt es nicht in Signal K.",
       "lc.every": "alle",
       "sess.enable": "Bei jedem Einschalten des Autopiloten eine Sitzung aufzeichnen",
       "lc.view":     "Neueste zeigen",
@@ -3176,6 +3228,32 @@
       "pc.navigation.headingMagnetic.hint.skAccess": "pypilot braucht Lese-/Schreibzugriff in Signal K: in Security > Access Requests genehmigen oder sein Gerät in Security > Devices auf Read/Write setzen.",
       "pc.navigation.attitude.notInSk": "pypilot hat ihn, aber Signal K erhält ihn nicht - die IMU ist in Ordnung.",
       "pc.navigation.attitude.hint.skAccess": "pypilot braucht Lese-/Schreibzugriff in Signal K: in Security > Access Requests genehmigen oder sein Gerät in Security > Devices auf Read/Write setzen.",
+      "pc.navigation.headingMagnetic.hint.skAccess_ok": "pypilot hat Lese-/Schreibzugriff, sendet dies aber nicht an Signal K: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noSecurity": "Die Signal-K-Sicherheit ist aus, der Zugriff ist also nicht die Ursache: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noControl": "Das Plugin kann die Signal-K-Sicherheit auf diesem Server nicht verwalten: in Signal K unter Security > Devices das Gerät von pypilot auf Read/Write setzen.",
+      "pc.navigation.headingMagnetic.hint.skAccess_autoApproveOff": "Die automatische Freigabe ist aus (Setup): in Signal K unter Security > Devices das Gerät von pypilot auf Read/Write setzen.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pendingOtherIp": "pypilot hat Zugriff von {ip} angefragt, der TinyPilot ist aber auf {hostIps} eingestellt: die Adresse unter Setup > pypilot-Verbindung korrigieren oder die Anfrage in Signal K unter Security > Access Requests als Read/Write freigeben.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot hat Zugriff angefragt: das Plugin gibt ihn in wenigen Sekunden frei.",
+      "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "Das pypilot-Gerät {device} ist nur lesend: das Plugin stellt es innerhalb einer Minute auf Lesen/Schreiben.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot hat bei Signal K keinen Zugriff angefragt: die Signal-K-Verbindung von pypilot prüfen (pypilot-Webseite, Konfiguration).",
+      "pc.navigation.attitude.hint.skAccess_ok": "pypilot hat Lese-/Schreibzugriff, sendet dies aber nicht an Signal K: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
+      "pc.navigation.attitude.hint.skAccess_noSecurity": "Die Signal-K-Sicherheit ist aus, der Zugriff ist also nicht die Ursache: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
+      "pc.navigation.attitude.hint.skAccess_noControl": "Das Plugin kann die Signal-K-Sicherheit auf diesem Server nicht verwalten: in Signal K unter Security > Devices das Gerät von pypilot auf Read/Write setzen.",
+      "pc.navigation.attitude.hint.skAccess_autoApproveOff": "Die automatische Freigabe ist aus (Setup): in Signal K unter Security > Devices das Gerät von pypilot auf Read/Write setzen.",
+      "pc.navigation.attitude.hint.skAccess_pendingOtherIp": "pypilot hat Zugriff von {ip} angefragt, der TinyPilot ist aber auf {hostIps} eingestellt: die Adresse unter Setup > pypilot-Verbindung korrigieren oder die Anfrage in Signal K unter Security > Access Requests als Read/Write freigeben.",
+      "pc.navigation.attitude.hint.skAccess_pending": "pypilot hat Zugriff angefragt: das Plugin gibt ihn in wenigen Sekunden frei.",
+      "pc.navigation.attitude.hint.skAccess_readOnly": "Das pypilot-Gerät {device} ist nur lesend: das Plugin stellt es innerhalb einer Minute auf Lesen/Schreiben.",
+      "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot hat bei Signal K keinen Zugriff angefragt: die Signal-K-Verbindung von pypilot prüfen (pypilot-Webseite, Konfiguration).",
+      "diag.button": "Diagnose erfassen",
+      "diag.title": "Diagnose - vor dem Senden prüfen",
+      "diag.intro": "Technische Daten zur Fehlersuche: Versionen, die Autopilot-Prüfung, der Zugriff von pypilot auf Signal K, wer den Kurs sendet, Einstellungen und die letzten Ereignisse. Entfernt: Position, Bootsname und MMSI, Passwörter, PIN und Tokens; öffentliche Adressen maskiert. Die Adressen deines lokalen Netzes bleiben, weil sie zeigen, warum der Zugriff von pypilot scheitert. Was du nicht teilen möchtest, vor dem Senden löschen.",
+      "diag.copy": "JSON kopieren",
+      "diag.download": "JSON herunterladen",
+      "diag.issue": "Issue eröffnen",
+      "diag.close": "Schließen",
+      "diag.copied": "Kopiert: in das Issue oder den Forenbeitrag einfügen.",
+      "diag.failed": "Die Diagnose konnte nicht erfasst werden.",
+      "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "Verbindung zu pypilot",
       "pc.pypilot-connect.ok": "Mit pypilot auf dem TinyPilot verbunden.",
       "pc.pypilot-connect.down": "Seit {sec} s getrennt.",
@@ -4350,8 +4428,8 @@
       "setup.fallback.title": "Cap quand pypilot ne peut pas écrire dans Signal K",
       "setup.fallback.hint": "Si pypilot a un cap mais que personne ne l'écrit dans Signal K (pypilot sans accès lecture/écriture, sa sortie Signal K désactivée, un autre serveur), le plugin publie lui-même le cap, l'assiette et la vitesse de giration de pypilot, chacun seulement tant qu'aucune autre source ne le fait. Désactivez-le si vous tenez volontairement l'IMU de pypilot hors de Signal K.",
       "setup.fallback.toggle": "Publier le cap de pypilot quand il ne le fait pas",
-      "pc.navigation.headingMagnetic.viaFallback": "Publié par ce plugin : pypilot ne peut pas écrire dans Signal K, donc ses autres données n'arrivent pas non plus.",
-      "pc.navigation.attitude.viaFallback": "Publié par ce plugin : pypilot ne peut pas écrire dans Signal K, donc ses autres données n'arrivent pas non plus.",
+      "pc.navigation.headingMagnetic.viaFallback": "Publié par ce plugin : pypilot lui-même ne l'écrit pas dans Signal K.",
+      "pc.navigation.attitude.viaFallback": "Publié par ce plugin : pypilot lui-même ne l'écrit pas dans Signal K.",
       "lc.every": "toutes les",
       "sess.enable": "Enregistrer une session à chaque embrayage du pilote",
       "lc.view":     "Voir les récents",
@@ -4541,6 +4619,32 @@
       "pc.navigation.headingMagnetic.hint.skAccess": "pypilot a besoin d'un accès lecture/écriture dans Signal K : approuvez-le dans Security > Access Requests, ou passez son appareil en Read/Write dans Security > Devices.",
       "pc.navigation.attitude.notInSk": "pypilot l'a, mais Signal K ne le reçoit pas : l'IMU va bien.",
       "pc.navigation.attitude.hint.skAccess": "pypilot a besoin d'un accès lecture/écriture dans Signal K : approuvez-le dans Security > Access Requests, ou passez son appareil en Read/Write dans Security > Devices.",
+      "pc.navigation.headingMagnetic.hint.skAccess_ok": "pypilot a l'accès en lecture/écriture mais n'envoie pas ceci à Signal K : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noSecurity": "La sécurité de Signal K est désactivée, l'accès n'est donc pas en cause : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noControl": "Le plugin ne peut pas gérer la sécurité de Signal K sur ce serveur : dans Signal K, Security > Devices, mettez l'appareil de pypilot en Read/Write.",
+      "pc.navigation.headingMagnetic.hint.skAccess_autoApproveOff": "L'approbation automatique est désactivée (Setup) : dans Signal K, Security > Devices, mettez l'appareil de pypilot en Read/Write.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pendingOtherIp": "pypilot a demandé l'accès depuis {ip}, mais le TinyPilot est réglé sur {hostIps} : corrigez l'adresse dans Setup > Connexion pypilot, ou approuvez la demande en Read/Write dans Signal K, Security > Access Requests.",
+      "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot a demandé l'accès : le plugin l'approuve en quelques secondes.",
+      "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "L'appareil de pypilot {device} est en lecture seule : le plugin le passe en lecture/écriture en une minute.",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot n'a pas demandé d'accès à Signal K : vérifiez sa connexion à Signal K (page web de pypilot, Configuration).",
+      "pc.navigation.attitude.hint.skAccess_ok": "pypilot a l'accès en lecture/écriture mais n'envoie pas ceci à Signal K : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
+      "pc.navigation.attitude.hint.skAccess_noSecurity": "La sécurité de Signal K est désactivée, l'accès n'est donc pas en cause : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
+      "pc.navigation.attitude.hint.skAccess_noControl": "Le plugin ne peut pas gérer la sécurité de Signal K sur ce serveur : dans Signal K, Security > Devices, mettez l'appareil de pypilot en Read/Write.",
+      "pc.navigation.attitude.hint.skAccess_autoApproveOff": "L'approbation automatique est désactivée (Setup) : dans Signal K, Security > Devices, mettez l'appareil de pypilot en Read/Write.",
+      "pc.navigation.attitude.hint.skAccess_pendingOtherIp": "pypilot a demandé l'accès depuis {ip}, mais le TinyPilot est réglé sur {hostIps} : corrigez l'adresse dans Setup > Connexion pypilot, ou approuvez la demande en Read/Write dans Signal K, Security > Access Requests.",
+      "pc.navigation.attitude.hint.skAccess_pending": "pypilot a demandé l'accès : le plugin l'approuve en quelques secondes.",
+      "pc.navigation.attitude.hint.skAccess_readOnly": "L'appareil de pypilot {device} est en lecture seule : le plugin le passe en lecture/écriture en une minute.",
+      "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot n'a pas demandé d'accès à Signal K : vérifiez sa connexion à Signal K (page web de pypilot, Configuration).",
+      "diag.button": "Capturer le diagnostic",
+      "diag.title": "Diagnostic - à vérifier avant l'envoi",
+      "diag.intro": "Données techniques pour trouver la panne : versions, la vérification du pilote, l'accès de pypilot à Signal K, qui envoie le cap, réglages et derniers événements. Supprimés : position, nom du bateau et MMSI, mots de passe, PIN et jetons ; adresses publiques masquées. Les adresses de votre réseau local restent, car elles montrent pourquoi l'accès de pypilot échoue. Supprimez avant l'envoi tout ce que vous ne voulez pas partager.",
+      "diag.copy": "Copier le JSON",
+      "diag.download": "Télécharger le JSON",
+      "diag.issue": "Ouvrir une issue",
+      "diag.close": "Fermer",
+      "diag.copied": "Copié : collez-le dans l'issue ou le message du forum.",
+      "diag.failed": "Impossible de capturer le diagnostic.",
+      "diag.issueBody": "What happened:\n\nWhat I expected:\n\n(Attach the diagnostic JSON downloaded from the viewer: Setup > Autopilot check > Capture diagnostic.)",
       "pc.pypilot-connect.label": "Connexion à pypilot",
       "pc.pypilot-connect.ok": "Connecté à pypilot sur le TinyPilot.",
       "pc.pypilot-connect.down": "Déconnecté depuis {sec} s.",
@@ -13541,7 +13645,9 @@
     } catch { /* unknown server: the old, safe-to-work choice */ }
     return "admin";
   }
-  async function requestAccess() {
+  // Rev727: what Signal K answered last time, for the diagnostic report.
+  let _lastAccessResult = null;
+  async function requestAccess(retried) {
     const clientId = getClientId();
     try {
       const permissions = await _accessLevelToRequest();
@@ -13554,8 +13660,19 @@
           permissions,
         }),
       });
-      if (!r.ok && r.status !== 202) return false;
       const j = await r.json().catch(() => ({}));
+      _lastAccessResult = { at: new Date().toISOString(), status: r.status, state: j.state || null, message: j.message || null };
+      // Rev727 (OpenMarine #18): Signal K refuses a request while another
+      // one with this browser's id is still pending - an old one this page
+      // can no longer follow (reloaded, or its device deleted meanwhile).
+      // The visor gave up silently; now it asks again under a new id, so
+      // the new request is one it can follow until it is approved.
+      const refused = (r.status === 400 || j.statusCode === 400) && /already requested/i.test(String(j.message || ""));
+      if (refused && !retried) {
+        try { localStorage.removeItem(CLIENT_ID_KEY); } catch { /* private mode */ }
+        return requestAccess(true);
+      }
+      if (!r.ok && r.status !== 202) return false;
       if (j.state === "COMPLETED" && (j.accessRequest?.token || j.token)) {
         setToken(j.accessRequest?.token || j.token);
         hideAccessRequestModal();
@@ -17182,7 +17299,9 @@
       if (iv) {
         const ver = j.version ? `v${j.version}` : "";
         const rev = j.revision || "";
-        iv.textContent = [ver, rev].filter(Boolean).join(" · ");
+        // Rev727 (Sean, OpenMarine #17): which pypilot this viewer talks to.
+        const pyv = !j.pypilotVersion ? "" : /^pypilot/i.test(j.pypilotVersion) ? j.pypilotVersion : `pypilot ${j.pypilotVersion}`;
+        iv.textContent = [ver, rev, pyv].filter(Boolean).join(" · ");
       }
       const io = document.getElementById("info-oldui-link");
       if (io && j.host) {
@@ -22901,6 +23020,61 @@
   function wirePrecheck() {
     const btn = document.getElementById("pc-refresh-btn");
     if (btn) btn.addEventListener("click", _pcFetchAndRender);
+    for (const id of ["pc-diag-btn", "info-diag-btn"]) {
+      const b = document.getElementById(id);
+      if (b) b.addEventListener("click", _captureDiagnostic);
+    }
+  }
+
+  // Rev727 (Carlos 2026-11-18, OpenMarine #18): "Capture diagnostic", as in
+  // mareas-ihm - the plugin's report plus this browser's side, shown for
+  // review, then copied, downloaded or taken to a new GitHub issue.
+  async function _captureDiagnostic() {
+    let j;
+    try {
+      const r = await fetch(`/plugins/${PLUGIN_ID}/diagnostic`, { headers: authHeaders(), credentials: "include", cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      j = await r.json();
+    } catch {
+      _pmAlert(t("diag.button"), t("diag.failed"));
+      return;
+    }
+    let cid = "";
+    try { cid = localStorage.getItem(CLIENT_ID_KEY) || ""; } catch { /* private mode */ }
+    j.viewer = {
+      userAgent: navigator.userAgent,
+      language: currentLang(),
+      localTime: new Date().toString(),
+      screen: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio },
+      signalkAccess: {
+        hasToken: !!getToken(),
+        clientId: cid ? cid.slice(0, 8) + "…" : null,
+        lastRequest: _lastAccessResult,
+      },
+    };
+    const txt = JSON.stringify(j, null, 2);
+    const esc = (x) => String(x).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    const body = `<p style="margin:0 0 10px;line-height:1.45">${esc(t("diag.intro"))}</p>`
+      + `<pre style="margin:0;max-height:50vh;overflow:auto;font-size:12px;line-height:1.35;white-space:pre;background:rgba(0,0,0,.35);padding:10px;border-radius:6px">${esc(txt)}</pre>`;
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+    _sessOpenModal(t("diag.title"), body, [
+      { label: t("diag.copy"), className: "primary", onClick: async (close) => {
+        try { await navigator.clipboard.writeText(txt); close(); _pmAlert(t("diag.button"), t("diag.copied")); }
+        catch { _pmAlert(t("diag.button"), t("diag.failed")); }
+      } },
+      { label: t("diag.download"), onClick: () => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
+        a.download = `pypilot-newui-diagnostic_${stamp}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      } },
+      { label: t("diag.issue"), onClick: () => {
+        const title = `Problem report (${(j.plugin && j.plugin.revision) || ""})`;
+        window.open(`https://github.com/Aitonos/signalk-pypilot-newui/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(t("diag.issueBody"))}`, "_blank", "noopener");
+      } },
+      { label: t("diag.close"), onClick: (close) => close() },
+    ]);
   }
 
   // ============================================================
