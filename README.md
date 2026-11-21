@@ -1,6 +1,6 @@
 # PyPilot New-UI
 
-<p align="center"><img src="https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/logo-512.png" width="160" alt="PyPilot New-UI logo" /></p>
+![PyPilot New-UI logo](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/logo-160.png)
 
 **A modern, touch-first autopilot screen for [pypilot](https://github.com/pypilot/pypilot) and TinyPilot — that also tunes your pilot for you.**
 
@@ -35,7 +35,7 @@ Questions, ideas and sailing reports: **[PyPilot New-UI thread on the OpenMarine
 |---|---|
 | ![Control tab with the bottom bar as a chart: SOG, polar max speed, AWS and TWS on one knots scale](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/09-control-strip-chart.jpg) | ![Control tab with Freeboard-SK in the bottom bar under the controls](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/10-control-strip-freeboard.jpg) |
 
-<p align="center"><img src="https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/11-control-phone-freeboard.jpg" width="300" alt="Phone in portrait: compass rose, controls and Freeboard-SK in the bottom bar" /></p>
+![Phone in portrait: compass rose, controls and Freeboard-SK in the bottom bar](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/11-control-phone-freeboard-300.jpg)
 
 | Chartplotter embedded | AnchorWatch Pro inside the rose |
 |---|---|
@@ -81,22 +81,19 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 | [pypilot](https://github.com/pypilot/pypilot) / TinyPilot (`pypilot_web`) | **Required** | The autopilot itself. |
 | [`signalk-mareas-ihm`](https://www.npmjs.com/package/signalk-mareas-ihm) — **AnchorWatch Pro: Smart Anchoring, AIS & Tides** | **Recommended** | **Tide button on the rose** (tide curve, current height, rising / falling, next HW / LW, coefficient) and the **anchor-watch visor inside the rose**. Also fills AIS vessel names into Signal K from its persistent AIS database, so targets show names instead of raw MMSIs right after a server restart. |
 | [`@signalk/freeboard-sk`](https://www.npmjs.com/package/@signalk/freeboard-sk) | **Recommended** | **Integrated chartplotter**: double-tap the rose and the chart opens inside it with every AIS target, your route and all overlays — the autopilot buttons stay reachable. |
-| A chart provider: [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) or [`@signalk/charts-plugin`](https://www.npmjs.com/package/@signalk/charts-plugin) | **Required for the chartplotter** | Serves the chart tiles Freeboard-SK draws. [See note below](#chart-provider-note). |
+| A chart provider: [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) or [`@signalk/charts-plugin`](https://www.npmjs.com/package/@signalk/charts-plugin) | **Required for the chartplotter** | Serves the chart tiles Freeboard-SK draws. See the note below the table. |
 | [`@signalk/collision-alerts`](https://www.npmjs.com/package/@signalk/collision-alerts) | **Recommended** | **AIS collision targets on the rose** — real bearing, distance label, course line, infobox with vessel name and ACK. |
 | [`signalk-polar-performance-plugin`](https://www.npmjs.com/package/signalk-polar-performance-plugin) + [`signalk-polar-management`](https://www.npmjs.com/package/signalk-polar-management) | Optional | **Polar performance on the corner tiles**: polar speed, % of polar, target speed, beat / gybe angle and VMG from your boat's polar table. |
 | [`pypilot-autopilot-provider`](https://www.npmjs.com/package/pypilot-autopilot-provider) | Optional | Shares the pypilot connection with other Signal K autopilot clients. [How the two coexist](#working-alongside-pypilot-autopilot-provider). |
 
-<details>
-<summary><strong>Details per plugin</strong></summary>
+#### Details per plugin
 
 - **AnchorWatch Pro** (`signalk-mareas-ihm`) — the tide button sits just above the bottom-right corner tile. From the tide popup, one tap opens the anchor-watch visor full-screen inside the rose, like the chart. Without the plugin, the button explains what it does and links straight to its App Store page.
 - **Freeboard-SK** — opens embedded in the rose box; side panels stay visible and usable. Drop from the autopilot view to the full chart in one tap without leaving the session. It's kept loaded in the background so it opens instantly (a per-device switch in the *Chart in the background* card enables lazy loading on weak tablets).
 - **@signalk/collision-alerts** by @dirkwa (formerly `signalk-collision-alerts`, now maintained under the Signal K organisation) — provides the CPA/TCPA engine. PyPilot New-UI subscribes to `notifications.navigation.closestApproach.*` and draws each target oriented by its heading / course, with a projected track when moving. ACK goes through the Signal K v2 Notifications API, so an ACK here is also seen by Freeboard-SK and every other client. [Feature notes](https://github.com/Aitonos/signalk-pypilot-newui/blob/main/docs/_feature_ais_overlay.md).
 - **Polar plugins** — `signalk-polar-management` (Aswin Bouwmeester) stores your polar table (import ORC / CSV / text) and selects the active polar; `signalk-polar-performance-plugin` (hanstool) turns it into live `performance.*` values, each one opt-in on the corner selectors.
 
-</details>
 
-<a id="chart-provider-note"></a>
 > **Chartplotter needs a chart provider.** Freeboard-SK is only a renderer — without a provider the embedded map stays empty.
 > - [`signalk-charts-provider-simple`](https://github.com/dirkwa/signalk-charts-provider-simple) by @dirkwa — serves local chart tilesets. **Recommended** for the embedded plotter.
 > - [`@signalk/charts-plugin`](https://www.npmjs.com/package/@signalk/charts-plugin) — the official provider; local **MBTiles** / **TMS** from `~/.signalk/charts/`, plus online WMS, WMTS and tilejson sources.
@@ -295,8 +292,7 @@ A PUT also accepts `true` / `false`. A second tack within 3 s of the previous on
 
 ### HTTP endpoints
 
-<details>
-<summary><strong>Show the main plugin endpoints</strong></summary>
+Main plugin endpoints:
 
 The plugin exposes more (trips, AIS, watch, supervisor, recorders…) — see `src/index.ts` for the full router.
 
@@ -345,7 +341,6 @@ The plugin exposes more (trips, AIS, watch, supervisor, recorders…) — see `s
 | `POST` | `/plugins/signalk-pypilot-newui/pause`         | Disconnect local socket (for scripts). |
 | `POST` | `/plugins/signalk-pypilot-newui/resume`        | Reconnect local socket (for scripts). |
 
-</details>
 
 ---
 
