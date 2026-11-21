@@ -10,7 +10,7 @@ import {
 } from "./publisher";
 import { scanLanReport } from "./scanner";
 import { AutopilotProvider } from "./autopilot-provider";
-import { isLocalPypilotHost, defaultSshUser, pypilotRestartCommand } from "./pypilot-host";
+import { isLocalPypilotHost, defaultSshUser, pypilotRestartCommand, tinypilot071FixCommand } from "./pypilot-host";
 import { Historian, Sample, SamplePath } from "./historian";
 import { KPIComputer, KPISnapshot } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
@@ -94,7 +94,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev731";
+const PLUGIN_REVISION = "Rev732";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3013,6 +3013,9 @@ module.exports = function (app: any) {
         // + reboot Pi).
         "restart.web":       pypilotRestartCommand("web"),   // Rev707: runit or systemd
         "reboot.pi":         "sudo reboot",
+        // Rev732: load the Python packages the TinyPilot 0.71 image has on
+        // the SD card but never loads (pypilot cannot reach Signal K).
+        "fix.tinypilot071":  tinypilot071FixCommand(),
         // Rev113 / Rev114 (Carlos feedback on piCore + BusyBox): all
         // extras now have BusyBox-safe fallbacks. TinyCore ships busybox
         // free/ifconfig/iw and lacks ip/iwconfig/vcgencmd/journalctl.
@@ -5046,6 +5049,7 @@ module.exports = function (app: any) {
           // reboot; the watchdog below picks up anything longer than that.
           if (preset === "restart.web") setTimeout(doReconnect, 4000);
           if (preset === "reboot.pi")   setTimeout(doReconnect, 60000);
+          if (preset === "fix.tinypilot071" && result.ok) setTimeout(doReconnect, 15000);   // Rev732
           // For reboot.pi the ssh session drops as the box goes down, so we
           // report success even on a non-zero exit if we at least connected.
           return res.json({

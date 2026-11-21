@@ -147,3 +147,18 @@ describe("prechecks: the access hint says what is wrong (Rev727)", () => {
     assert.equal(snap.items.find((x) => x.id === "navigation.headingMagnetic")!.hintCode, "skAccess_noDevice");
   });
 });
+
+describe("TinyPilot 0.71 fix command (Rev732)", () => {
+  it("loads the six packages, keeps them for every boot, checks the import and restarts pypilot", async () => {
+    const { tinypilot071FixCommand } = await import("../pypilot-host");
+    const c = tinypilot071FixCommand();
+    assert.match(c, /PKGS="urllib3 idna certifi chardet requests websocket"/);
+    assert.match(c, /tce-load -i \$PY-\$p/);
+    assert.match(c, /onboot\.lst/);
+    assert.match(c, /import requests, websocket/);
+    assert.match(c, /sv restart \/etc\/sv\/pypilot/);
+    // the restart comes after the import check and the onboot.lst write
+    assert.ok(c.indexOf("import requests") < c.indexOf("sv restart"));
+    assert.ok(c.indexOf("onboot.lst") < c.indexOf("sv restart"));
+  });
+});

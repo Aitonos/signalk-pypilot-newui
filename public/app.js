@@ -231,6 +231,11 @@
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "pypilot's device {device} is read only: the plugin makes it read/write within a minute.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot has not asked Signal K for access: check pypilot's Signal K connection (pypilot web page, Configuration).",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "The TinyPilot 0.71 image lacks two Python packages pypilot needs for Signal K (fixed in the next image). Step-by-step fix: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
+      "pc.fix071.button": "Fix it now",
+      "pc.fix071.title": "Load the Signal K packages on the TinyPilot and restart pypilot",
+      "pc.fix071.ok": "Done. pypilot is restarting; within a minute it asks Signal K for access and the plugin approves it.",
+      "pc.fix071.noSsh": "Save the TinyPilot's SSH password first (Setup > Technical > Emergency), or follow the step-by-step guide.",
+      "pc.fix071.fail": "Could not fix it automatically. Follow the step-by-step guide. Reason:",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot has read/write access but does not send this to Signal K: press Capture diagnostic at the top of this check and send it to us.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "Signal K security is off, so access is not the cause: press Capture diagnostic at the top of this check and send it to us.",
       "pc.navigation.attitude.hint.skAccess_noControl": "The plugin cannot manage Signal K's security on this server: in Signal K, Security > Devices, set pypilot's device to Read/Write.",
@@ -1657,6 +1662,11 @@
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "El dispositivo de pypilot {device} es de solo lectura: el plugin lo pasa a lectura y escritura en un minuto.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot no ha pedido acceso a Signal K: revisa su conexión con Signal K (página web de pypilot, Configuración).",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "A la imagen 0.71 de TinyPilot le faltan dos paquetes de Python que pypilot necesita para Signal K (se arregla en la próxima imagen). Arreglo paso a paso: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
+      "pc.fix071.button": "Arreglarlo ahora",
+      "pc.fix071.title": "Cargar los paquetes de Signal K en el TinyPilot y reiniciar pypilot",
+      "pc.fix071.ok": "Hecho. pypilot se está reiniciando; en un minuto pide acceso a Signal K y el plugin lo aprueba.",
+      "pc.fix071.noSsh": "Guarda antes la contraseña SSH del TinyPilot (Setup > Técnico > Emergencia), o sigue el arreglo paso a paso.",
+      "pc.fix071.fail": "No se ha podido arreglar solo. Sigue el arreglo paso a paso. Motivo:",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot tiene acceso de lectura y escritura pero no envía esto a Signal K: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "La seguridad de Signal K está desactivada, así que el acceso no es la causa: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
       "pc.navigation.attitude.hint.skAccess_noControl": "El plugin no puede gestionar la seguridad de Signal K en este servidor: en Signal K, Security > Devices, pon el dispositivo de pypilot en Read/Write.",
@@ -3243,6 +3253,11 @@
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "Das pypilot-Gerät {device} ist nur lesend: das Plugin stellt es innerhalb einer Minute auf Lesen/Schreiben.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot hat bei Signal K keinen Zugriff angefragt: die Signal-K-Verbindung von pypilot prüfen (pypilot-Webseite, Konfiguration).",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "Dem TinyPilot-Image 0.71 fehlen zwei Python-Pakete, die pypilot für Signal K braucht (im nächsten Image behoben). Schritt-für-Schritt-Lösung: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
+      "pc.fix071.button": "Jetzt beheben",
+      "pc.fix071.title": "Signal-K-Pakete auf dem TinyPilot laden und pypilot neu starten",
+      "pc.fix071.ok": "Erledigt. pypilot startet neu; innerhalb einer Minute fragt es bei Signal K Zugriff an und das Plugin genehmigt ihn.",
+      "pc.fix071.noSsh": "Zuerst das SSH-Passwort des TinyPilot speichern (Setup > Technik > Notfall) oder der Schritt-für-Schritt-Lösung folgen.",
+      "pc.fix071.fail": "Automatisch nicht behebbar. Bitte der Schritt-für-Schritt-Lösung folgen. Grund:",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot hat Lese-/Schreibzugriff, sendet dies aber nicht an Signal K: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "Die Signal-K-Sicherheit ist aus, der Zugriff ist also nicht die Ursache: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
       "pc.navigation.attitude.hint.skAccess_noControl": "Das Plugin kann die Signal-K-Sicherheit auf diesem Server nicht verwalten: in Signal K unter Security > Devices das Gerät von pypilot auf Read/Write setzen.",
@@ -4637,6 +4652,11 @@
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "L'appareil de pypilot {device} est en lecture seule : le plugin le passe en lecture/écriture en une minute.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot n'a pas demandé d'accès à Signal K : vérifiez sa connexion à Signal K (page web de pypilot, Configuration).",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "Il manque à l'image TinyPilot 0.71 deux paquets Python dont pypilot a besoin pour Signal K (corrigé dans la prochaine image). Correction pas à pas : https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
+      "pc.fix071.button": "Corriger maintenant",
+      "pc.fix071.title": "Charger les paquets Signal K sur le TinyPilot et redémarrer pypilot",
+      "pc.fix071.ok": "C'est fait. pypilot redémarre ; dans une minute il demande l'accès à Signal K et le plugin l'approuve.",
+      "pc.fix071.noSsh": "Enregistrez d'abord le mot de passe SSH du TinyPilot (Config > Technique > Urgence), ou suivez la correction pas à pas.",
+      "pc.fix071.fail": "Correction automatique impossible. Suivez la correction pas à pas. Raison :",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot a l'accès en lecture/écriture mais n'envoie pas ceci à Signal K : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "La sécurité de Signal K est désactivée, l'accès n'est donc pas en cause : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
       "pc.navigation.attitude.hint.skAccess_noControl": "Le plugin ne peut pas gérer la sécurité de Signal K sur ce serveur : dans Signal K, Security > Devices, mettez l'appareil de pypilot en Read/Write.",
@@ -23022,6 +23042,43 @@
           }
         });
         body.appendChild(hint);
+      }
+      // Rev732: TinyPilot 0.71 image without the Signal K packages - one
+      // button loads them over the saved SSH session (no internet), keeps
+      // them for every boot and restarts pypilot.
+      if (it.hintCode === "skAccess_noDevice071") {
+        const fx = document.createElement("button");
+        fx.className = "ghost";
+        fx.textContent = t("pc.fix071.button");
+        const fxOut = document.createElement("div");
+        fxOut.className = "pc-item-hint";
+        fx.addEventListener("click", async () => {
+          const ok = await askHelmConfirm({ titleKey: "pc.fix071.title", outageKey: "setup.restart.outage.pypilot", duration: "~15 s" });
+          if (!ok) return;
+          fx.disabled = true;
+          fxOut.textContent = t("setup.restart.wait");
+          try {
+            const res = await skFetch(`/plugins/${PLUGIN_ID}/debug-cmd`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ preset: "fix.tinypilot071" }),
+            });
+            const j = await res.json().catch(() => ({}));
+            if (res.ok && j.ok) {
+              fxOut.textContent = t("pc.fix071.ok");
+            } else if (res.status === 202) {
+              fxOut.textContent = t("pc.fix071.noSsh");
+            } else {
+              const why = String(j.stdout || j.error || res.status).trim().split("\n").filter(Boolean).pop() || "";
+              fxOut.textContent = `${t("pc.fix071.fail")} ${why}`;
+            }
+          } catch (e) {
+            fxOut.textContent = `${t("pc.fix071.fail")} ${e}`;
+          } finally {
+            setTimeout(() => { fx.disabled = false; }, 3000);
+          }
+        });
+        body.appendChild(fx);
+        body.appendChild(fxOut);
       }
       const st = document.createElement("div");
       st.className = "pc-item-status";
