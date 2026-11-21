@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev731-732)
+## Unreleased (Rev731-733)
 
 ### Added
 - **TinyPilot 0.71 hint.** The July 2026 TinyPilot image (pypilot 0.71)
@@ -12,7 +12,8 @@
   loads the packages the image already has on the SD card but never loads,
   adds them to `onboot.lst` so they load at every boot, checks that Python
   imports them and restarts pypilot. No internet needed. It asks first,
-  like the restart buttons, since pypilot restarts.
+  like the restart buttons, since pypilot restarts. Without the SSH password
+  saved yet, it takes you to the SSH fields (Rev733).
 - Links in the Autopilot check hints can be clicked.
 
 ## 3.16.1 — 2026-11-18 — Capture diagnostic, Signal K access explained, NAV in KIP

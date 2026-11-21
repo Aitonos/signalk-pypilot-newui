@@ -234,7 +234,7 @@
       "pc.fix071.button": "Fix it now",
       "pc.fix071.title": "Load the Signal K packages on the TinyPilot and restart pypilot",
       "pc.fix071.ok": "Done. pypilot is restarting; within a minute it asks Signal K for access and the plugin approves it.",
-      "pc.fix071.noSsh": "Save the TinyPilot's SSH password first (Setup > Technical > Emergency), or follow the step-by-step guide.",
+      "pc.fix071.noSsh": "Save the TinyPilot's SSH user and password here (TinyPilot default: tc / tc), then press Fix it now again.",
       "pc.fix071.fail": "Could not fix it automatically. Follow the step-by-step guide. Reason:",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot has read/write access but does not send this to Signal K: press Capture diagnostic at the top of this check and send it to us.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "Signal K security is off, so access is not the cause: press Capture diagnostic at the top of this check and send it to us.",
@@ -1665,7 +1665,7 @@
       "pc.fix071.button": "Arreglarlo ahora",
       "pc.fix071.title": "Cargar los paquetes de Signal K en el TinyPilot y reiniciar pypilot",
       "pc.fix071.ok": "Hecho. pypilot se está reiniciando; en un minuto pide acceso a Signal K y el plugin lo aprueba.",
-      "pc.fix071.noSsh": "Guarda antes la contraseña SSH del TinyPilot (Setup > Técnico > Emergencia), o sigue el arreglo paso a paso.",
+      "pc.fix071.noSsh": "Guarda aquí el usuario y la contraseña SSH del TinyPilot (por defecto: tc / tc) y vuelve a pulsar Arreglarlo ahora.",
       "pc.fix071.fail": "No se ha podido arreglar solo. Sigue el arreglo paso a paso. Motivo:",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot tiene acceso de lectura y escritura pero no envía esto a Signal K: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "La seguridad de Signal K está desactivada, así que el acceso no es la causa: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
@@ -3256,7 +3256,7 @@
       "pc.fix071.button": "Jetzt beheben",
       "pc.fix071.title": "Signal-K-Pakete auf dem TinyPilot laden und pypilot neu starten",
       "pc.fix071.ok": "Erledigt. pypilot startet neu; innerhalb einer Minute fragt es bei Signal K Zugriff an und das Plugin genehmigt ihn.",
-      "pc.fix071.noSsh": "Zuerst das SSH-Passwort des TinyPilot speichern (Setup > Technik > Notfall) oder der Schritt-für-Schritt-Lösung folgen.",
+      "pc.fix071.noSsh": "Hier SSH-Benutzer und -Passwort des TinyPilot speichern (Standard: tc / tc), dann erneut auf Jetzt beheben tippen.",
       "pc.fix071.fail": "Automatisch nicht behebbar. Bitte der Schritt-für-Schritt-Lösung folgen. Grund:",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot hat Lese-/Schreibzugriff, sendet dies aber nicht an Signal K: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "Die Signal-K-Sicherheit ist aus, der Zugriff ist also nicht die Ursache: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
@@ -4655,7 +4655,7 @@
       "pc.fix071.button": "Corriger maintenant",
       "pc.fix071.title": "Charger les paquets Signal K sur le TinyPilot et redémarrer pypilot",
       "pc.fix071.ok": "C'est fait. pypilot redémarre ; dans une minute il demande l'accès à Signal K et le plugin l'approuve.",
-      "pc.fix071.noSsh": "Enregistrez d'abord le mot de passe SSH du TinyPilot (Config > Technique > Urgence), ou suivez la correction pas à pas.",
+      "pc.fix071.noSsh": "Enregistrez ici l'utilisateur et le mot de passe SSH du TinyPilot (par défaut : tc / tc), puis appuyez de nouveau sur Corriger maintenant.",
       "pc.fix071.fail": "Correction automatique impossible. Suivez la correction pas à pas. Raison :",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot a l'accès en lecture/écriture mais n'envoie pas ceci à Signal K : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "La sécurité de Signal K est désactivée, l'accès n'est donc pas en cause : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
@@ -23066,7 +23066,12 @@
             if (res.ok && j.ok) {
               fxOut.textContent = t("pc.fix071.ok");
             } else if (res.status === 202) {
+              // No SSH password yet: take the user to the SSH fields.
               fxOut.textContent = t("pc.fix071.noSsh");
+              try {
+                if (typeof _bootGoBlock === "function") await _bootGoBlock("emergency");
+                setTimeout(() => { const pw = document.getElementById("cfg-ssh-password"); if (pw) { pw.scrollIntoView({ block: "center" }); pw.focus(); } }, 300);
+              } catch { /* silent */ }
             } else {
               const why = String(j.stdout || j.error || res.status).trim().split("\n").filter(Boolean).pop() || "";
               fxOut.textContent = `${t("pc.fix071.fail")} ${why}`;
