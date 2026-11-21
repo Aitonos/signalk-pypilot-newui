@@ -53,6 +53,8 @@ export interface PrecheckInputs {
   fallbackPaths?: string[];
   /** Rev727: why pypilot can or cannot write to Signal K. */
   pypilotAccess?: AccessReport | null;
+  /** Rev731: pypilot's ap.version, for the TinyPilot 0.71 image hint. */
+  pypilotVersion?: string | null;
   /** Rev707: pypilot's ap.mode. GPS is only critical in gps / nav mode. */
   apMode?: string | null;
   /** Rev707: age of navigation.headingTrue in Signal K (boats whose compass
@@ -206,6 +208,17 @@ export function runPrechecks(inputs: PrecheckInputs): PrecheckSnapshot {
       readOnly: "pypilot's device {device} is read only: the plugin makes it read/write within a minute.",
       noDevice: "pypilot has not asked Signal K for access: check pypilot's Signal K connection (pypilot web page, Configuration).",
     };
+    // Rev731: the TinyPilot 0.71 image lacks two Python packages pypilot
+    // needs for Signal K, so it never asks for access. Sean fixes it in the
+    // next image; until then, point to the step-by-step fix in the README
+    // (Michael's fix from the OpenMarine forum).
+    // Remove when that image is out.
+    if (acc.verdict === "noDevice" && /\b0\.71\b/.test(String(inputs.pypilotVersion ?? ""))) {
+      return {
+        hint: "The TinyPilot 0.71 image lacks two Python packages pypilot needs for Signal K (fixed in the next image). Step-by-step fix: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
+        hintCode: "skAccess_noDevice071", params,
+      };
+    }
     const hint = (text[acc.verdict] ?? generic.hint).replace(/\{(\w+)\}/g, (_m, k: string) => params[k] ?? "");
     return { hint, hintCode: "skAccess_" + acc.verdict, params };
   };

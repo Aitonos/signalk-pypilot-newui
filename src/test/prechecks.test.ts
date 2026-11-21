@@ -134,4 +134,16 @@ describe("prechecks: the access hint says what is wrong (Rev727)", () => {
     assert.equal(h.hintCode, "skAccess_readOnly");
     assert.equal(h.params!.device, "pypilot-1");
   });
+  it("pypilot 0.71 that never asked: points to the TinyPilot image fix (Rev731)", () => {
+    const snap = runPrechecks({ ...base, quality, pypilotHeadingFresh: true, fallbackPaths: ["navigation.headingMagnetic"],
+      pypilotAccess: report("noDevice"), pypilotVersion: "pypilot 0.71" });
+    const h = snap.items.find((x) => x.id === "navigation.headingMagnetic")!;
+    assert.equal(h.hintCode, "skAccess_noDevice071");
+    assert.match(h.hint!, /#tinypilot-071-pypilot-does-not-connect-to-signal-k$/);
+  });
+  it("other versions that never asked keep the general hint", () => {
+    const snap = runPrechecks({ ...base, quality, pypilotHeadingFresh: true, fallbackPaths: ["navigation.headingMagnetic"],
+      pypilotAccess: report("noDevice"), pypilotVersion: "0.56" });
+    assert.equal(snap.items.find((x) => x.id === "navigation.headingMagnetic")!.hintCode, "skAccess_noDevice");
+  });
 });

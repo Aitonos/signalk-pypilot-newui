@@ -230,6 +230,7 @@
       "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot asked for access: the plugin approves it within seconds.",
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "pypilot's device {device} is read only: the plugin makes it read/write within a minute.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot has not asked Signal K for access: check pypilot's Signal K connection (pypilot web page, Configuration).",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "The TinyPilot 0.71 image lacks two Python packages pypilot needs for Signal K (fixed in the next image). Step-by-step fix: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot has read/write access but does not send this to Signal K: press Capture diagnostic at the top of this check and send it to us.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "Signal K security is off, so access is not the cause: press Capture diagnostic at the top of this check and send it to us.",
       "pc.navigation.attitude.hint.skAccess_noControl": "The plugin cannot manage Signal K's security on this server: in Signal K, Security > Devices, set pypilot's device to Read/Write.",
@@ -238,6 +239,7 @@
       "pc.navigation.attitude.hint.skAccess_pending": "pypilot asked for access: the plugin approves it within seconds.",
       "pc.navigation.attitude.hint.skAccess_readOnly": "pypilot's device {device} is read only: the plugin makes it read/write within a minute.",
       "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot has not asked Signal K for access: check pypilot's Signal K connection (pypilot web page, Configuration).",
+      "pc.navigation.attitude.hint.skAccess_noDevice071": "The TinyPilot 0.71 image lacks two Python packages pypilot needs for Signal K (fixed in the next image). Step-by-step fix: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "diag.button": "Capture diagnostic",
       "diag.title": "Diagnostic - review before sending",
       "diag.intro": "Technical data to find what is wrong: versions, the autopilot check, pypilot's access to Signal K, who sends the heading, settings and the last events. Removed: position, vessel name and MMSI, passwords, PIN and tokens; public addresses masked. Your local network addresses are kept, as they show why pypilot's access fails. If you see anything you do not want to share, delete it before sending.",
@@ -1654,6 +1656,7 @@
       "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot ha pedido acceso: el plugin lo aprueba en unos segundos.",
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "El dispositivo de pypilot {device} es de solo lectura: el plugin lo pasa a lectura y escritura en un minuto.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot no ha pedido acceso a Signal K: revisa su conexión con Signal K (página web de pypilot, Configuración).",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "A la imagen 0.71 de TinyPilot le faltan dos paquetes de Python que pypilot necesita para Signal K (se arregla en la próxima imagen). Arreglo paso a paso: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot tiene acceso de lectura y escritura pero no envía esto a Signal K: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "La seguridad de Signal K está desactivada, así que el acceso no es la causa: pulsa Capturar diagnóstico arriba en esta comprobación y envíanoslo.",
       "pc.navigation.attitude.hint.skAccess_noControl": "El plugin no puede gestionar la seguridad de Signal K en este servidor: en Signal K, Security > Devices, pon el dispositivo de pypilot en Read/Write.",
@@ -1662,6 +1665,7 @@
       "pc.navigation.attitude.hint.skAccess_pending": "pypilot ha pedido acceso: el plugin lo aprueba en unos segundos.",
       "pc.navigation.attitude.hint.skAccess_readOnly": "El dispositivo de pypilot {device} es de solo lectura: el plugin lo pasa a lectura y escritura en un minuto.",
       "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot no ha pedido acceso a Signal K: revisa su conexión con Signal K (página web de pypilot, Configuración).",
+      "pc.navigation.attitude.hint.skAccess_noDevice071": "A la imagen 0.71 de TinyPilot le faltan dos paquetes de Python que pypilot necesita para Signal K (se arregla en la próxima imagen). Arreglo paso a paso: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "diag.button": "Capturar diagnóstico",
       "diag.title": "Diagnóstico: revísalo antes de enviarlo",
       "diag.intro": "Datos técnicos para encontrar el fallo: versiones, la comprobación del piloto, el acceso de pypilot a Signal K, quién envía el rumbo, ajustes y los últimos eventos. Eliminado: posición, nombre del barco y MMSI, contraseñas, PIN y tokens; direcciones públicas ocultas. Las direcciones de tu red local se quedan, porque muestran por qué falla el acceso de pypilot. Si ves algo que no quieres compartir, bórralo antes de enviarlo.",
@@ -3238,6 +3242,7 @@
       "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot hat Zugriff angefragt: das Plugin gibt ihn in wenigen Sekunden frei.",
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "Das pypilot-Gerät {device} ist nur lesend: das Plugin stellt es innerhalb einer Minute auf Lesen/Schreiben.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot hat bei Signal K keinen Zugriff angefragt: die Signal-K-Verbindung von pypilot prüfen (pypilot-Webseite, Konfiguration).",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "Dem TinyPilot-Image 0.71 fehlen zwei Python-Pakete, die pypilot für Signal K braucht (im nächsten Image behoben). Schritt-für-Schritt-Lösung: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot hat Lese-/Schreibzugriff, sendet dies aber nicht an Signal K: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "Die Signal-K-Sicherheit ist aus, der Zugriff ist also nicht die Ursache: oben in dieser Prüfung auf Diagnose erfassen tippen und sie uns schicken.",
       "pc.navigation.attitude.hint.skAccess_noControl": "Das Plugin kann die Signal-K-Sicherheit auf diesem Server nicht verwalten: in Signal K unter Security > Devices das Gerät von pypilot auf Read/Write setzen.",
@@ -3246,6 +3251,7 @@
       "pc.navigation.attitude.hint.skAccess_pending": "pypilot hat Zugriff angefragt: das Plugin gibt ihn in wenigen Sekunden frei.",
       "pc.navigation.attitude.hint.skAccess_readOnly": "Das pypilot-Gerät {device} ist nur lesend: das Plugin stellt es innerhalb einer Minute auf Lesen/Schreiben.",
       "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot hat bei Signal K keinen Zugriff angefragt: die Signal-K-Verbindung von pypilot prüfen (pypilot-Webseite, Konfiguration).",
+      "pc.navigation.attitude.hint.skAccess_noDevice071": "Dem TinyPilot-Image 0.71 fehlen zwei Python-Pakete, die pypilot für Signal K braucht (im nächsten Image behoben). Schritt-für-Schritt-Lösung: https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "diag.button": "Diagnose erfassen",
       "diag.title": "Diagnose - vor dem Senden prüfen",
       "diag.intro": "Technische Daten zur Fehlersuche: Versionen, die Autopilot-Prüfung, der Zugriff von pypilot auf Signal K, wer den Kurs sendet, Einstellungen und die letzten Ereignisse. Entfernt: Position, Bootsname und MMSI, Passwörter, PIN und Tokens; öffentliche Adressen maskiert. Die Adressen deines lokalen Netzes bleiben, weil sie zeigen, warum der Zugriff von pypilot scheitert. Was du nicht teilen möchtest, vor dem Senden löschen.",
@@ -4630,6 +4636,7 @@
       "pc.navigation.headingMagnetic.hint.skAccess_pending": "pypilot a demandé l'accès : le plugin l'approuve en quelques secondes.",
       "pc.navigation.headingMagnetic.hint.skAccess_readOnly": "L'appareil de pypilot {device} est en lecture seule : le plugin le passe en lecture/écriture en une minute.",
       "pc.navigation.headingMagnetic.hint.skAccess_noDevice": "pypilot n'a pas demandé d'accès à Signal K : vérifiez sa connexion à Signal K (page web de pypilot, Configuration).",
+      "pc.navigation.headingMagnetic.hint.skAccess_noDevice071": "Il manque à l'image TinyPilot 0.71 deux paquets Python dont pypilot a besoin pour Signal K (corrigé dans la prochaine image). Correction pas à pas : https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "pc.navigation.attitude.hint.skAccess_ok": "pypilot a l'accès en lecture/écriture mais n'envoie pas ceci à Signal K : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
       "pc.navigation.attitude.hint.skAccess_noSecurity": "La sécurité de Signal K est désactivée, l'accès n'est donc pas en cause : touchez Capturer le diagnostic en haut de cette vérification et envoyez-le-nous.",
       "pc.navigation.attitude.hint.skAccess_noControl": "Le plugin ne peut pas gérer la sécurité de Signal K sur ce serveur : dans Signal K, Security > Devices, mettez l'appareil de pypilot en Read/Write.",
@@ -4638,6 +4645,7 @@
       "pc.navigation.attitude.hint.skAccess_pending": "pypilot a demandé l'accès : le plugin l'approuve en quelques secondes.",
       "pc.navigation.attitude.hint.skAccess_readOnly": "L'appareil de pypilot {device} est en lecture seule : le plugin le passe en lecture/écriture en une minute.",
       "pc.navigation.attitude.hint.skAccess_noDevice": "pypilot n'a pas demandé d'accès à Signal K : vérifiez sa connexion à Signal K (page web de pypilot, Configuration).",
+      "pc.navigation.attitude.hint.skAccess_noDevice071": "Il manque à l'image TinyPilot 0.71 deux paquets Python dont pypilot a besoin pour Signal K (corrigé dans la prochaine image). Correction pas à pas : https://github.com/Aitonos/signalk-pypilot-newui#tinypilot-071-pypilot-does-not-connect-to-signal-k",
       "diag.button": "Capturer le diagnostic",
       "diag.title": "Diagnostic - à vérifier avant l'envoi",
       "diag.intro": "Données techniques pour trouver la panne : versions, la vérification du pilote, l'accès de pypilot à Signal K, qui envoie le cap, réglages et derniers événements. Supprimés : position, nom du bateau et MMSI, mots de passe, PIN et jetons ; adresses publiques masquées. Les adresses de votre réseau local restent, car elles montrent pourquoi l'accès de pypilot échoue. Supprimez avant l'envoi tout ce que vous ne voulez pas partager.",
@@ -23001,7 +23009,18 @@
       if (tx.hint) {
         const hint = document.createElement("div");
         hint.className = "pc-item-hint";
-        hint.textContent = tx.hint;
+        // Rev731: https links in a hint become clickable (built as nodes,
+        // never as HTML).
+        String(tx.hint).split(/(https:\/\/[^\s]+)/).forEach((part) => {
+          if (/^https:\/\//.test(part)) {
+            const a = document.createElement("a");
+            a.href = part; a.target = "_blank"; a.rel = "noopener noreferrer";
+            a.textContent = part;
+            hint.appendChild(a);
+          } else if (part) {
+            hint.appendChild(document.createTextNode(part));
+          }
+        });
         body.appendChild(hint);
       }
       const st = document.createElement("div");

@@ -94,7 +94,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev730";
+const PLUGIN_REVISION = "Rev731";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -2364,6 +2364,7 @@ module.exports = function (app: any) {
           pypilotHeadingFresh: _pypilotHasHeading(),
           fallbackPaths: [...imuFallbackOn],   // Rev698
           pypilotAccess: (() => { try { return _pypilotAccessReport(); } catch { return null; } })(),   // Rev727
+          pypilotVersion: (() => { const v = client?.getValues()?.["ap.version"]; return v == null ? null : String(v); })(),   // Rev731
           // Rev707: other boats - no GPS in compass mode, true heading only,
           // a second autopilot provider.
           apMode: (() => { const m = client?.getValues()?.["ap.mode"]; return typeof m === "string" ? m : null; })(),
@@ -2444,6 +2445,7 @@ module.exports = function (app: any) {
           },
           autopilotCheck: check,
           pypilotAccess: access,
+          pypilotVersion: (() => { const v = client?.getValues()?.["ap.version"]; return v == null ? null : String(v); })(),   // Rev731
           heading: {
             fallbackEnabled: props.headingFallback !== false,
             fallbackOn: [...imuFallbackOn],

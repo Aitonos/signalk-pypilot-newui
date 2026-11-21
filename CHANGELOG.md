@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased (Rev731)
+
+### Added
+- **TinyPilot 0.71 hint.** The July 2026 TinyPilot image (pypilot 0.71)
+  lacks two Python packages pypilot needs for Signal K, so pypilot never asks
+  for access. When the Autopilot check sees pypilot 0.71 and no access
+  request, it says so and links a step-by-step fix in the README (Michael's
+  fix from the OpenMarine forum). It goes away with the next image.
+- Links in the Autopilot check hints can be clicked.
+
 ## 3.16.1 — 2026-11-18 — Capture diagnostic, Signal K access explained, NAV in KIP
 
 Rev727-730 on top of 3.16.0, from the OpenMarine forum (posts #17 and #18).

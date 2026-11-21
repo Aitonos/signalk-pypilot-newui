@@ -243,6 +243,20 @@ Firefox's GPU renderer (WebRender on the Pi's V3D chip) costs far more there tha
 
 Chromium doesn't need this. The visor detects Firefox on the Pi's own screen and shows these steps in its **Info** tab with an **Apply now** button that writes the setting into that Firefox's profiles (`user.js`) for you — then close and reopen Firefox.
 
+### TinyPilot 0.71: pypilot does not connect to Signal K
+
+The TinyPilot image of July 2026 (pypilot 0.71) lacks two Python packages pypilot needs to talk to Signal K, so pypilot never asks Signal K for access. The plugin's **Autopilot check** says so. pypilot's author will fix it in the next image; until then, this is the fix Michael posted on the [OpenMarine forum](https://forum.openmarine.net/showthread.php?tid=7074). It takes about ten minutes. You need a computer on the same network and a wifi with internet on the boat.
+
+1. **Give the TinyPilot internet.** Open its web page at `http://<tinypilot address>/wifi` (`http://192.168.14.1/wifi` when you are on its `pypilot` wifi). Choose **Master+Managed**, type your boat's wifi name and password, and save. The TinyPilot keeps its own `pypilot` wifi and also joins yours.
+2. **Log in to the TinyPilot** from the computer: `ssh tc@<tinypilot address>`. The default password is `pypilot`.
+3. **Install the two packages:** `pip3 install --user requests websocket-client`. If it answers `pip3: not found`, run `tce-load -i python3.11-pip` first and try again.
+4. **Save the change:** `filetool.sh -b`. The TinyPilot forgets everything at power-off unless it is saved.
+5. **Restart it:** `sudo reboot`.
+6. Within a minute pypilot asks Signal K for access, the plugin approves it, and the Autopilot check turns green.
+7. If you don't want the TinyPilot on your wifi, set `/wifi` back to **Master**.
+
+When the new image is out, you don't need any of this.
+
 ---
 
 ## Reference for integrators
