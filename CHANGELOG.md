@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased (Rev731-733)
+## 3.16.2 — 2026-11-21 — TinyPilot 0.71: Fix it now
+
+Rev731-733 on top of 3.16.1, from the OpenMarine forum (Michael's find).
 
 ### Added
 - **TinyPilot 0.71 hint.** The July 2026 TinyPilot image (pypilot 0.71)
