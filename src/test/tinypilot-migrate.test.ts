@@ -163,3 +163,11 @@ describe("tinypilot-migrate - other files (Rev735)", () => {
     assert.equal(mergeShadow("root:*:1:::\n", "tc:$6$a$b:1::::::").action, "skip");
   });
 });
+
+describe("tinypilot-image - damaged file system detection (Rev736)", () => {
+  it("recognises debugfs failing to open an inconsistent image", () => {
+    const { fsNotOpen } = require("../tinypilot-image");
+    assert.ok(fsNotOpen("x.img?offset=1: Block bitmap checksum does not match bitmap while reading allocation bitmaps\nls: Filesystem not open"));
+    assert.ok(!fsNotOpen("debugfs 1.47.0 (5-Feb-2023)\n"));
+  });
+});

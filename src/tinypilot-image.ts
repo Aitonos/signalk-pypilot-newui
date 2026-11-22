@@ -117,8 +117,22 @@ export function toolsMissing(): string[] {
   return miss;
 }
 
+/** debugfs could not open the file system (damaged or inconsistent, e.g.
+ *  an image read from a card while it was being written). */
+export function fsNotOpen(stderr: string): boolean {
+  return /Filesystem not open|checksum does not match|Bad magic number|Superblock|corrupt/i.test(stderr);
+}
+
 export class ImageFs {
   constructor(public img: string, public offsetBytes: number) {}
+  /** Opens once and throws a clear error when the file system is damaged. */
+  async check(): Promise<void> {
+    const r = await this.cmd("stats -h");
+    if (r.code !== 0 || fsNotOpen(r.stderr)) {
+      const why = r.stderr.split(/\r?\n/).find((l) => l.includes(":") && !l.startsWith("debugfs")) || "debugfs could not open it";
+      throw new Error(`the file system inside this image is damaged or inconsistent (${why.trim().slice(0, 160)})`);
+    }
+  }
   private dev(): string { return `${this.img}?offset=${this.offsetBytes}`; }
   async cmd(c: string): Promise<RunResult> { return run(findTool(DEBUGFS)!, ["-R", c, this.dev()], { timeoutMs: 120_000 }); }
   async ls(dir: string): Promise<DirEntry[] | null> {
@@ -247,6 +261,7 @@ export async function analyzeImage(src: string, workDir: string, progress: Progr
   const p2 = parts ? linuxPartition(parts) : null;
   if (!p2) throw new Error("this file has no Linux partition: it is not a TinyPilot image");
   const ifs = new ImageFs(w.raw, p2.start * 512);
+  await ifs.check();
   progress("read", ".pypilot");
   const dir = await ifs.ls("/.pypilot");
   if (!dir) throw new Error("no .pypilot folder in the image: it is not a TinyPilot image");
@@ -272,7 +287,8 @@ export async function analyzeImage(src: string, workDir: string, progress: Progr
   }
   // pypilot's version, from its source in the image (best effort)
   let pypilotVersion: string | null = null;
-  const v = await ifs.cat("/tinypilot/pypilot/pypilot/version.py");
+  let v: string | null = null;
+  for (const vp of ["/tinypilot/pypilot/pypilot/version.py", "/tinypilot/pypilot/version.py", "/pypilot/pypilot/version.py"]) { v = await ifs.cat(vp); if (v) break; }
   const m = v ? (/strversion\s*=\s*['"]([^'"]+)['"]/.exec(v) || /version\s*=\s*['"]([^'"]+)['"]/.exec(v)) : null;
   if (m) pypilotVersion = m[1];
   return { src, raw: w.raw, offsetBytes: p2.start * 512, pypilotDir: dir, files, onboot, optional, mydata, pypilotVersion };

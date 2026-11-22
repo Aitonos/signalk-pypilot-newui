@@ -97,7 +97,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev735";
+const PLUGIN_REVISION = "Rev736";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3693,8 +3693,12 @@ module.exports = function (app: any) {
       let _imgListing: { ts: number; images: { name: string; url: string; date: string }[]; error: string | null } | null = null;
       const _imgBase = () => require("path").join(backupDir(), "tinypilot-images");
       const _imgWork = () => require("path").join(_imgBase(), "work");
+      // Rev736: only official or own images as the NEW image - never the
+      // plugin's own copies of the current card (tinypilot-sd-*) nor the
+      // images this assistant made.
+      const IMG_OUT = /^tinypilot-v[\w.]+-[a-z0-9-]+-\d{4}-\d{2}-\d{2}-\d{4}-backup\.img\.gz$/;
       const IMG_SRC = /^tinypilot[\w.-]*\.img(\.xz|\.gz)?$/i;
-      const IMG_OUT = /^tinypilot-boat-\d{4}-\d{2}-\d{2}-\d{4}\.img\.gz$/;
+      const _imgIsSource = (n: string) => IMG_SRC.test(n) && !/^tinypilot-sd-/i.test(n) && !IMG_OUT.test(n) && !/^tinypilot-boat-/i.test(n);
       const _imgNeedBytes = 3 * 1024 * 1024 * 1024;
       const _imgCopy = (): { files: Record<string, string>; name: string | null; createdTs: number | null } => {
         const b = _readBackupFile("latest");
@@ -3709,7 +3713,7 @@ module.exports = function (app: any) {
           let names: string[] = [];
           try { names = fs2.readdirSync(d); } catch { continue; }
           for (const n of names) {
-            if (!IMG_SRC.test(n) || n === "new.img") continue;
+            if (!_imgIsSource(n) || n === "new.img") continue;
             const p = path2.join(d, n);
             if (seen.has(p)) continue;
             seen.add(p);
@@ -3853,8 +3857,14 @@ module.exports = function (app: any) {
         if (!copy.files["pypilot.conf"]) { res.status(409).json({ error: "the latest copy has no TinyPilot files: make a copy with SSH configured" }); return; }
         const info = _imgInfo;
         const plan = planBuild(info, copy.files, _imgGroups(req.body?.groups));
+        // Rev736 (Carlos): the name says what it is - pypilot version, boat,
+        // date and "backup" - so it never mixes with the official images.
         const d = new Date(), p2 = (n: number) => String(n).padStart(2, "0");
-        const name = `tinypilot-boat-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}.img.gz`;
+        const ver = String(info.pypilotVersion || "unknown").replace(/[^\w.]/g, "");
+        let boat = "";
+        try { const nv: any = app.getSelfPath("name"); boat = String(nv?.value ?? nv ?? ""); } catch { /* none */ }
+        boat = boat.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "boat";
+        const name = `tinypilot-v${ver}-${boat}-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}-backup.img.gz`;
         const job: ImgJob = { kind: "build", running: true, step: "write", detail: name, bytes: 0, totalBytes: 0, startedTs: Date.now(), finishedTs: null, error: null };
         _imgJob = job;
         res.status(202).json({ ok: true, name });
