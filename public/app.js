@@ -705,8 +705,24 @@
       "bk.failed": "Backup failed",
       "sd.title": "TinyPilot SD card",
       "sd.hint": "A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.",
+      "bk.note": "Note",
+      "bk.noteTitle": "Note for this backup",
+      "bk.noteHint": "What was this backup? For example: after calibrating the compass.",
+      "bk.stFull": "complete ✔",
+      "bk.stNoWifi": "incomplete (no wifi)",
+      "bk.stNoSsh": "visor settings only",
+      "bk.noCardYet": "You have no copy of the card yet. We recommend making one now and keeping it also off this Raspberry Pi (a USB stick or your computer): if the Raspberry Pi fails, the copy goes with it.",
+      "bk.noCardBtn": "Make a copy now",
+      "wz.noteOpt": "Add a note (optional):",
+      "wz.notePh": "For example: after calibrating the compass",
+      "wz.upd.resume": "You already have this image with the new version prepared:\n{name} ({when})",
+      "wz.upd.goOn": "Use this image",
+      "wz.upd.fresh": "Prepare a new one",
+      "wz.upd.freshDesc": "With your settings as they are today.",
+      "wz.res.confirm": "You are going to restore:\n{name}",
+      "wz.res.confirmJson": "The profiles and gains of that copy come back. Nothing else is touched. Switch the autopilot off first.",
+      "wz.res.confirmCard": "The whole card goes back to that day: it is written to a card and changed, like an update. Your current card is not touched.",
       "wz.back": "Back",
-      "wz.upd.resume": "You already have a backup with the new version prepared ({when}).\nDo you want to go on from there?",
       "wz.upd.w5old": "The TinyPilot is still on the old card ({ver}).\nHave you changed the card?",
       "wz.upd.oldYes": "Yes, I changed it",
       "wz.upd.oldYesDesc": "It still came back with the old version.",
@@ -745,8 +761,6 @@
       "wz.upd.intro": "We will move your TinyPilot to the newest version, with all your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nDo it in port: at the end the card is changed and the autopilot stops for a while. Your current card is not touched.",
       "wz.upd.preparing": "Preparing your new card. It takes about 10 minutes.\nThe autopilot keeps working meanwhile.",
       "wz.upd.downloading": "It is downloading to your computer.\nIf the browser opened another window for it, come back here when it finishes and press Next.",
-      "wz.upd.fresh": "Start again",
-      "wz.upd.goOn": "Go on",
       "wz.upd.bg": "It keeps preparing on its own.\nPress Backup again later to go on.",
       "wz.res.title": "Restore a backup",
       "wz.res.where": "Where is the backup?",
@@ -756,7 +770,6 @@
       "wz.res.damaged": "damaged",
       "wz.res.pick": "Which backup do you want to restore?",
       "wz.res.go": "Restore",
-      "wz.res.jsonAsk": "The profiles and gains of that day will come back. Switch the autopilot off first.",
       "wz.res.working": "Restoring…",
       "wz.res.fail": "It could not be restored.\n{why}",
       "wz.res.jsonOk": "Restored ✔",
@@ -1053,6 +1066,8 @@
       "dash.overlay.ais.title":  "AIS collision alarm",
       "pypilot.offline.title":   "AUTOPILOT NOT REACHABLE",
       "pypilot.offline.hint":    "Controls disabled. The autopilot keeps its last course. Check the connection to the pypilot Pi.",
+      "pypilot.maint.title": "BACKUP IN PROGRESS",
+      "pypilot.maint.hint": "The autopilot is not available right now. It comes back by itself as soon as the backup ends.",
       "dash.overlay.ais.needs":  "Warns when another AIS vessel may collide with us. It is drawn on the rose with its course and distance. Requires the @signalk/collision-alerts plugin. Double-tap the rose to open the chart (Freeboard).",
       "dash.overlay.ais.mode.off":      "Harbour: no alerts",
       "dash.overlay.ais.mode.anchor":   "At anchor: boats that move or come inside my swing circle",
@@ -2262,8 +2277,24 @@
       "bk.failed": "La copia falló",
       "sd.title": "Tarjeta SD de la TinyPilot",
       "sd.hint": "Una imagen completa de la tarjeta de la TinyPilot (unos 1 GB): sistema, pypilot, todos los perfiles y la calibración de la IMU. Si la tarjeta falla, se graba en una tarjeta nueva de 2 GB o más con Raspberry Pi Imager. Solo con el piloto desconectado. Durante esos minutos pypilot, su mando y su pantalla se paran y la tarjeta queda en solo lectura, para que la imagen salga limpia. Se guardan las 3 últimas.",
+      "bk.note": "Nota",
+      "bk.noteTitle": "Nota de este backup",
+      "bk.noteHint": "¿De qué era este backup? Por ejemplo: tras calibrar el compás.",
+      "bk.stFull": "completa ✔",
+      "bk.stNoWifi": "incompleta (sin wifi)",
+      "bk.stNoSsh": "solo ajustes del visor",
+      "bk.noCardYet": "Todavía no tienes ninguna copia de la tarjeta. Te recomendamos hacer una ahora y guardarla también fuera de esta Raspberry Pi (un pendrive o tu ordenador): si la Raspberry falla, la copia se pierde con ella.",
+      "bk.noCardBtn": "Hacer una copia ahora",
+      "wz.noteOpt": "Añadir una nota (opcional):",
+      "wz.notePh": "Por ejemplo: tras calibrar el compás",
+      "wz.upd.resume": "Ya tienes preparada esta imagen con la versión nueva:\n{name} ({when})",
+      "wz.upd.goOn": "Usar esta imagen",
+      "wz.upd.fresh": "Preparar una nueva",
+      "wz.upd.freshDesc": "Con tus ajustes tal como están hoy.",
+      "wz.res.confirm": "Vas a restaurar:\n{name}",
+      "wz.res.confirmJson": "Vuelven los perfiles y ganancias de esa copia. Lo demás no se toca. Antes, desconecta el piloto.",
+      "wz.res.confirmCard": "La tarjeta entera vuelve a ese día: se graba en una tarjeta y se cambia, como en una actualización. Tu tarjeta de ahora no se toca.",
       "wz.back": "Atrás",
-      "wz.upd.resume": "Ya tienes un backup con la versión nueva preparado ({when}).\n¿Quieres seguir desde ahí?",
       "wz.upd.w5old": "El TinyPilot sigue con la tarjeta vieja ({ver}).\n¿Has cambiado ya la tarjeta?",
       "wz.upd.oldYes": "Sí, ya la cambié",
       "wz.upd.oldYesDesc": "Aun así ha vuelto con la versión vieja.",
@@ -2302,8 +2333,6 @@
       "wz.upd.intro": "Vamos a pasar tu TinyPilot a la versión más nueva, con todos tus ajustes.\n\nNecesitas:\n• una tarjeta microSD nueva (Clase 10, 8 GB o más)\n• un lector de tarjetas en tu ordenador\n• el programa Raspberry Pi Imager\n\nHazlo en puerto: al final se cambia la tarjeta y el piloto estará parado un rato. Tu tarjeta de ahora no se toca.",
       "wz.upd.preparing": "Preparando tu tarjeta nueva. Tarda unos 10 minutos.\nMientras tanto el piloto sigue funcionando.",
       "wz.upd.downloading": "Se está descargando en tu ordenador.\nSi el navegador abrió otra ventana para la descarga, vuelve aquí cuando termine y pulsa Siguiente.",
-      "wz.upd.fresh": "Empezar de nuevo",
-      "wz.upd.goOn": "Seguir",
       "wz.upd.bg": "Sigue preparándose sola.\nVuelve a pulsar Backup más tarde para seguir.",
       "wz.res.title": "Restaurar un backup",
       "wz.res.where": "¿Dónde está el backup?",
@@ -2313,7 +2342,6 @@
       "wz.res.damaged": "dañado",
       "wz.res.pick": "¿Qué backup quieres restaurar?",
       "wz.res.go": "Restaurar",
-      "wz.res.jsonAsk": "Volverán los perfiles y ganancias de ese día. Antes, desconecta el piloto.",
       "wz.res.working": "Restaurando…",
       "wz.res.fail": "No se ha podido restaurar.\n{why}",
       "wz.res.jsonOk": "Restaurado ✔",
@@ -2616,6 +2644,8 @@
       "dash.overlay.ais.title":  "Alarma de colisión AIS",
       "pypilot.offline.title":   "SIN CONEXIÓN AL AUTOPILOTO",
       "pypilot.offline.hint":    "Los comandos están deshabilitados. El autopilot sigue en su último rumbo. Comprueba la conexión al Pi del pypilot.",
+      "pypilot.maint.title": "BACKUP EN CURSO",
+      "pypilot.maint.hint": "En estos momentos el piloto no está disponible. Volverá solo en cuanto termine el backup.",
       "dash.overlay.ais.needs":  "Avisa cuando otro barco con AIS puede chocar con nosotros. Se pinta en la rosa con su rumbo y su distancia. Necesita el plugin @signalk/collision-alerts. Doble toque en la rosa abre la carta (Freeboard).",
       "dash.overlay.ais.mode.off":      "Puerto: sin avisos",
       "dash.overlay.ais.mode.anchor":   "Fondeo: barcos que se mueven o entran en mi círculo de borneo",
@@ -3911,8 +3941,24 @@
       "bk.failed": "Sicherung fehlgeschlagen",
       "sd.title": "SD-Karte des TinyPilot",
       "sd.hint": "Ein vollständiges Abbild der Karte des TinyPilot (etwa 1 GB): System, pypilot, alle Profile und die IMU-Kalibrierung. Fällt die Karte aus, mit Raspberry Pi Imager auf eine neue Karte ab 2 GB schreiben. Nur mit ausgeschaltetem Autopilot. pypilot, Fernbedienung und Display halten für diese Minuten an und die Karte ist schreibgeschützt, damit das Abbild sauber ist. Die letzten 3 bleiben erhalten.",
+      "bk.note": "Notiz",
+      "bk.noteTitle": "Notiz zu dieser Sicherung",
+      "bk.noteHint": "Wofür war diese Sicherung? Zum Beispiel: nach dem Kalibrieren des Kompasses.",
+      "bk.stFull": "vollständig ✔",
+      "bk.stNoWifi": "unvollständig (ohne WLAN)",
+      "bk.stNoSsh": "nur Visor-Einstellungen",
+      "bk.noCardYet": "Du hast noch keine Kopie der Karte. Wir empfehlen, jetzt eine zu machen und sie auch außerhalb dieses Raspberry Pi aufzubewahren (USB-Stick oder Computer): fällt der Raspberry Pi aus, ist die Kopie mit weg.",
+      "bk.noCardBtn": "Jetzt eine Kopie machen",
+      "wz.noteOpt": "Notiz hinzufügen (optional):",
+      "wz.notePh": "Zum Beispiel: nach dem Kalibrieren des Kompasses",
+      "wz.upd.resume": "Du hast dieses Image mit der neuen Version schon vorbereitet:\n{name} ({when})",
+      "wz.upd.goOn": "Dieses Image verwenden",
+      "wz.upd.fresh": "Ein neues vorbereiten",
+      "wz.upd.freshDesc": "Mit deinen Einstellungen von heute.",
+      "wz.res.confirm": "Du spielst zurück:\n{name}",
+      "wz.res.confirmJson": "Die Profile und Verstärkungen dieser Kopie kommen zurück. Sonst wird nichts verändert. Schalte vorher den Autopiloten aus.",
+      "wz.res.confirmCard": "Die ganze Karte geht auf jenen Tag zurück: Sie wird auf eine Karte geschrieben und getauscht, wie bei einer Aktualisierung. Deine jetzige Karte wird nicht verändert.",
       "wz.back": "Zurück",
-      "wz.upd.resume": "Du hast schon eine Sicherung mit der neuen Version vorbereitet ({when}).\nMöchtest du dort weitermachen?",
       "wz.upd.w5old": "Der TinyPilot läuft noch mit der alten Karte ({ver}).\nHast du die Karte schon getauscht?",
       "wz.upd.oldYes": "Ja, getauscht",
       "wz.upd.oldYesDesc": "Trotzdem kam er mit der alten Version zurück.",
@@ -3951,8 +3997,6 @@
       "wz.upd.intro": "Wir bringen deinen TinyPilot auf die neueste Version, mit all deinen Einstellungen.\n\nDu brauchst:\n• eine neue microSD-Karte (Class 10, 8 GB oder mehr)\n• einen Kartenleser am Computer\n• das Programm Raspberry Pi Imager\n\nMach es im Hafen: am Ende wird die Karte getauscht und der Autopilot steht eine Weile still. Deine jetzige Karte wird nicht verändert.",
       "wz.upd.preparing": "Bereitet deine neue Karte vor. Das dauert etwa 10 Minuten.\nDer Autopilot arbeitet währenddessen normal weiter.",
       "wz.upd.downloading": "Sie wird auf deinen Computer geladen.\nWenn der Browser dafür ein anderes Fenster geöffnet hat, komm hierher zurück, sobald es fertig ist, und drück Weiter.",
-      "wz.upd.fresh": "Neu anfangen",
-      "wz.upd.goOn": "Weitermachen",
       "wz.upd.bg": "Es bereitet allein weiter vor.\nDrück später noch einmal Sicherung, um weiterzumachen.",
       "wz.res.title": "Sicherung zurückspielen",
       "wz.res.where": "Wo liegt die Sicherung?",
@@ -3962,7 +4006,6 @@
       "wz.res.damaged": "beschädigt",
       "wz.res.pick": "Welche Sicherung möchtest du zurückspielen?",
       "wz.res.go": "Zurückspielen",
-      "wz.res.jsonAsk": "Die Profile und Verstärkungen dieses Tages kommen zurück. Schalte vorher den Autopiloten aus.",
       "wz.res.working": "Spielt zurück…",
       "wz.res.fail": "Das Zurückspielen hat nicht geklappt.\n{why}",
       "wz.res.jsonOk": "Zurückgespielt ✔",
@@ -4174,6 +4217,8 @@
       "dash.overlay.ais.title": "AIS-Kollisionsalarm",
       "pypilot.offline.title": "AUTOPILOT NICHT ERREICHBAR",
       "pypilot.offline.hint": "Bedienung gesperrt. Der Autopilot hält seinen letzten Kurs. Verbindung zum pypilot-Pi prüfen.",
+      "pypilot.maint.title": "SICHERUNG LÄUFT",
+      "pypilot.maint.hint": "Der Autopilot ist gerade nicht verfügbar. Er kommt von selbst zurück, sobald die Sicherung fertig ist.",
       "dash.overlay.ais.needs": "Warnt, wenn ein anderes AIS-Schiff mit uns kollidieren könnte. Es wird mit Kurs und Abstand auf der Rose gezeichnet. Braucht das Plugin @signalk/collision-alerts. Doppeltipp auf die Rose öffnet die Karte (Freeboard).",
       "dash.overlay.ais.mode.off": "Hafen: keine Warnungen",
       "dash.overlay.ais.mode.anchor": "Vor Anker: Boote, die sich bewegen oder in meinen Schwojkreis kommen",
@@ -5442,8 +5487,24 @@
       "bk.failed": "Échec de la sauvegarde",
       "sd.title": "Carte SD du TinyPilot",
       "sd.hint": "Une image complète de la carte du TinyPilot (environ 1 Go) : système, pypilot, tous les profils et la calibration de l'IMU. Si la carte lâche, écrivez-la sur une carte neuve de 2 Go ou plus avec Raspberry Pi Imager. Uniquement pilote débrayé. Pendant ces minutes, pypilot, sa télécommande et son écran s'arrêtent et la carte passe en lecture seule, pour une image propre. Les 3 dernières sont gardées.",
+      "bk.note": "Note",
+      "bk.noteTitle": "Note de cette sauvegarde",
+      "bk.noteHint": "À quoi servait cette sauvegarde ? Par exemple : après la calibration du compas.",
+      "bk.stFull": "complète ✔",
+      "bk.stNoWifi": "incomplète (sans wifi)",
+      "bk.stNoSsh": "réglages du visor seulement",
+      "bk.noCardYet": "Tu n'as encore aucune copie de la carte. Nous te conseillons d'en faire une maintenant et de la garder aussi hors de ce Raspberry Pi (clé USB ou ordinateur) : si le Raspberry Pi tombe en panne, la copie part avec lui.",
+      "bk.noCardBtn": "Faire une copie maintenant",
+      "wz.noteOpt": "Ajouter une note (facultatif) :",
+      "wz.notePh": "Par exemple : après la calibration du compas",
+      "wz.upd.resume": "Tu as déjà préparé cette image avec la nouvelle version :\n{name} ({when})",
+      "wz.upd.goOn": "Utiliser cette image",
+      "wz.upd.fresh": "En préparer une nouvelle",
+      "wz.upd.freshDesc": "Avec tes réglages tels qu'ils sont aujourd'hui.",
+      "wz.res.confirm": "Tu vas restaurer :\n{name}",
+      "wz.res.confirmJson": "Les profils et gains de cette copie reviennent. Le reste n'est pas touché. Débraye d'abord le pilote.",
+      "wz.res.confirmCard": "Toute la carte revient à ce jour-là : on l'écrit sur une carte et on la change, comme pour une mise à jour. Ta carte actuelle n'est pas touchée.",
       "wz.back": "Retour",
-      "wz.upd.resume": "Tu as déjà une sauvegarde avec la nouvelle version préparée ({when}).\nVeux-tu continuer à partir de là ?",
       "wz.upd.w5old": "Le TinyPilot tourne encore sur l'ancienne carte ({ver}).\nAs-tu déjà changé la carte ?",
       "wz.upd.oldYes": "Oui, je l'ai changée",
       "wz.upd.oldYesDesc": "Il est quand même revenu avec l'ancienne version.",
@@ -5482,8 +5543,6 @@
       "wz.upd.intro": "Nous allons passer ton TinyPilot à la version la plus récente, avec tous tes réglages.\n\nIl te faut :\n• une carte microSD neuve (Classe 10, 8 Go ou plus)\n• un lecteur de cartes sur ton ordinateur\n• le programme Raspberry Pi Imager\n\nFais-le au port : à la fin on change la carte et le pilote s'arrête un moment. Ta carte actuelle n'est pas touchée.",
       "wz.upd.preparing": "Préparation de ta nouvelle carte. Cela prend environ 10 minutes.\nPendant ce temps, le pilote continue de fonctionner.",
       "wz.upd.downloading": "Elle se télécharge sur ton ordinateur.\nSi le navigateur a ouvert une autre fenêtre pour cela, reviens ici quand c'est fini et appuie sur Suivant.",
-      "wz.upd.fresh": "Recommencer",
-      "wz.upd.goOn": "Continuer",
       "wz.upd.bg": "La préparation continue toute seule.\nAppuie de nouveau sur Sauvegarde plus tard pour continuer.",
       "wz.res.title": "Restaurer une sauvegarde",
       "wz.res.where": "Où est la sauvegarde ?",
@@ -5493,7 +5552,6 @@
       "wz.res.damaged": "endommagée",
       "wz.res.pick": "Quelle sauvegarde veux-tu restaurer ?",
       "wz.res.go": "Restaurer",
-      "wz.res.jsonAsk": "Les profils et gains de ce jour-là reviendront. Débraye d'abord le pilote.",
       "wz.res.working": "Restauration…",
       "wz.res.fail": "La restauration n'a pas pu être faite.\n{why}",
       "wz.res.jsonOk": "Restauré ✔",
@@ -5705,6 +5763,8 @@
       "dash.overlay.ais.title": "Alarme de collision AIS",
       "pypilot.offline.title": "PILOTE INJOIGNABLE",
       "pypilot.offline.hint": "Commandes désactivées. Le pilote garde son dernier cap. Vérifiez la connexion au Pi de pypilot.",
+      "pypilot.maint.title": "SAUVEGARDE EN COURS",
+      "pypilot.maint.hint": "Le pilote n'est pas disponible pour l'instant. Il revient tout seul dès la fin de la sauvegarde.",
       "dash.overlay.ais.needs": "Avertit quand un autre navire AIS risque de nous percuter. Il est dessiné sur la rose avec son cap et sa distance. Nécessite le plugin @signalk/collision-alerts. Double tap sur la rose pour ouvrir la carte (Freeboard).",
       "dash.overlay.ais.mode.off": "Port : pas d'alertes",
       "dash.overlay.ais.mode.anchor": "Au mouillage : bateaux qui bougent ou entrent dans mon cercle d'évitage",
@@ -8698,6 +8758,27 @@
   // Rev652 (Carlos QA Rev651: "no hace nada el botón" - it did, silently,
   // replacing today's file with one of the same name and size): say so.
   let _bkpDoneMsg = "";
+  // Rev742 (Carlos): every backup line says its state, and carries a note
+  // the sailor can write (saved next to the file, travels with it).
+  function _bkNoteBtn(kind, name, dest, current, after) {
+    const nb = document.createElement("button");
+    nb.type = "button"; nb.className = "doctor-sug-discard"; nb.textContent = t("bk.note");
+    nb.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const txt = await _pmPrompt(t("bk.noteTitle"), current || "", t("bk.noteHint"));
+      if (txt == null) return;
+      try { await skFetch(`/plugins/${PLUGIN_ID}/backup/note`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, name, dest, text: txt }) }); } catch { /* refresh shows it */ }
+      after();
+    });
+    return nb;
+  }
+  function _bkNoteLine(note) {
+    const d = document.createElement("div");
+    d.className = "hint";
+    d.style.cssText = "margin:-2px 0 6px 12px;font-style:italic";
+    d.textContent = note;
+    return d;
+  }
   async function _bkpRefresh() {
     let st = null;
     try { const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/status`); if (r.ok) st = await r.json(); } catch { /* silent */ }
@@ -8722,7 +8803,8 @@
         const a = document.createElement("a");
         a.href = _adminUrl(`/plugins/${PLUGIN_ID}/backup/download/${encodeURIComponent(c.name)}`);
         a.download = c.name;
-        a.textContent = `↓ ${c.name}  ·  ${fmt(c.ts)}  ·  ${Math.max(1, Math.round(c.size / 1024))} KB`;
+        const cst = c.complete === "full" ? t("bk.stFull") : c.complete === "nowifi" ? t("bk.stNoWifi") : t("bk.stNoSsh");
+        a.textContent = `↓ ${c.name}  ·  ${fmt(c.ts)}  ·  ${Math.max(1, Math.round(c.size / 1024))} KB  ·  ${cst}`;
         const rb = document.createElement("button");   // Rev668
         rb.type = "button";
         rb.className = "doctor-sug-discard";
@@ -8738,8 +8820,9 @@
           try { await skFetch(`/plugins/${PLUGIN_ID}/backup/file/${encodeURIComponent(c.name)}`, { method: "DELETE" }); } catch { /* list refresh shows it */ }
           _bkpRefresh();
         });
-        row.append(a, rb, db);
+        row.append(a, rb, _bkNoteBtn("settings", c.name, null, c.note, _bkpRefresh), db);
         list.appendChild(row);
+        if (c.note) list.appendChild(_bkNoteLine(c.note));
       }
     }
   }
@@ -8869,7 +8952,7 @@
         const a = document.createElement("a");
         a.href = _adminUrl(`/plugins/${PLUGIN_ID}/tinypilot/image/file/${encodeURIComponent(u.name)}`);
         a.download = u.name;
-        a.textContent = `↓ ${u.name}  ·  ${Math.round(u.size / 1048576)} MB`;
+        a.textContent = `↓ ${u.name}  ·  ${Math.round(u.size / 1048576)} MB  ·  ${u.check && u.check.ok ? t("sd.badgeOk") : u.check ? t("sd.badgeBad") : t("sd.badgeNone")}`;
         const db = document.createElement("button");
         db.type = "button"; db.className = "doctor-sug-discard"; db.textContent = t("bk.delete");
         db.addEventListener("click", async (ev) => {
@@ -8878,8 +8961,9 @@
           try { await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/image/file/${encodeURIComponent(u.name)}`, { method: "DELETE" }); } catch { /* refresh shows it */ }
           _sdRefresh();
         });
-        row.append(a, db);
+        row.append(a, _bkNoteBtn("update", u.name, null, u.note, _sdRefresh), db);
         ul.appendChild(row);
+        if (u.note) ul.appendChild(_bkNoteLine(u.note));
       }
       if (!ul.childElementCount) ul.innerHTML = `<div class="hint">${t("bk.noneYet")}</div>`;
     }
@@ -8893,7 +8977,7 @@
         const a = document.createElement("a");
         a.href = _adminUrl(`/plugins/${PLUGIN_ID}/tinypilot/sd-download/${encodeURIComponent(im.name)}?dest=${encodeURIComponent(im.dest || "default")}`);
         a.download = im.name;
-        const chk = im.checking ? t("bk.checking") : im.check ? (im.check.ok ? t("sd.badgeOk") : t("sd.badgeBad")) : "";   // Rev737/741
+        const chk = im.checking ? t("bk.checking") : im.check ? (im.check.ok ? t("sd.badgeOk") : t("sd.badgeBad")) : t("sd.badgeNone");   // Rev737/741/742
         a.textContent = `↓ ${im.name}  ·  ${Math.round(im.size / 1048576)} MB${chk ? "  ·  " + chk : ""}`;
         if (im.check && !im.check.ok) { a.style.color = "var(--err)"; a.title = im.check.detail || ""; }
         row.appendChild(a);
@@ -8916,10 +9000,19 @@
           try { await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/sd-file/${encodeURIComponent(im.name)}?dest=${encodeURIComponent(im.dest || "default")}`, { method: "DELETE" }); } catch { /* refresh shows it */ }
           _sdRefresh();
         });
+        row.insertBefore(_bkNoteBtn("card", im.name, im.dest, im.note, _sdRefresh), db);
         row.appendChild(db);
         list.appendChild(row);
+        if (im.note) list.appendChild(_bkNoteLine(im.note));
       }
-      if (!list.childElementCount) list.innerHTML = `<div class="hint">${t("bk.noneYet")}</div>`;
+      // Rev742 (Carlos): no card image yet -> recommend one, with the button.
+      if (!list.childElementCount) {
+        list.innerHTML = `<div class="hint" style="margin:4px 0 8px">${t("bk.noCardYet")}</div>`;
+        const mk = document.createElement("button");
+        mk.type = "button"; mk.className = "primary"; mk.textContent = t("bk.noCardBtn");
+        mk.addEventListener("click", (ev) => { ev.stopPropagation(); if (!_wzOpen) _wzBackupNow().then(() => _wzClose()).catch(() => _wzClose()); });
+        list.appendChild(mk);
+      }
       if (checking && !_sdPoll) _sdPoll = setTimeout(() => { _sdPoll = null; _sdRefresh(); }, 3000);
     }
     if (job && job.running) { if (!_sdPoll) _sdPoll = setTimeout(() => { _sdPoll = null; _sdRefresh(); }, 2000); }
@@ -9086,6 +9179,9 @@
     cw.hidden = !(cards && cards.length);
     const act = document.getElementById("wiz-actions");
     act.innerHTML = "";
+    // Rev742 (Carlos): Back always bottom-left, the action always bottom-right.
+    act.style.justifyContent = "space-between";
+    if (!(extra && extra.id)) act.insertAdjacentHTML("beforeend", "<span></span>");
     if (extra && extra.id) act.insertAdjacentHTML("beforeend", `<button type="button" class="ghost" data-wz="${_wzEsc(extra.id)}">${_wzEsc(extra.label)}</button>`);
     if (button) act.insertAdjacentHTML("beforeend", `<button type="button" class="primary" data-wz="${_wzEsc(button.id)}" style="min-width:200px;min-height:48px;font-size:16px">${_wzEsc(button.label)}</button>`);
     d.classList.add("open");
@@ -9189,7 +9285,7 @@
         s = "work"; continue;
       }
       // s === "work": no Back while it works
-      let err = null, check = null;
+      let err = null, check = null, file = null, doneDest = "default";
       try {
         _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
         await _wzPost("backup/now");
@@ -9201,12 +9297,19 @@
           if (!_wzOpen) return "x";   // closed: the copy goes on by itself
           const pct = j.totalBytes ? Math.round(j.bytes * 95 / j.totalBytes) : 5;
           _wz({ title: T, text: t("wz.now.working"), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") } });
-          if (!j.running) { err = j.error; check = j.check; break; }
+          if (!j.running) { err = j.error; check = j.check; file = j.file; doneDest = j.dest || "default"; break; }
         }
       } catch (e) { err = String(e.message || e); }
       try { _sdRefresh(); _bkpRefresh(); } catch { /* silent */ }
       if (!err && check && check.ok) {
-        await _wz({ title: T, text: t("wz.now.ok"), list: [{ ok: true, label: t("wz.now.l1") }, { ok: true, label: t("wz.now.l2") }, { ok: true, label: t("wz.now.l3") }], button: { id: "ok", label: t("wz.done") } });
+        // Rev742: an optional note, saved next to the copy
+        const noteField = `<div class="hint" style="margin-top:10px">${_wzEsc(t("wz.noteOpt"))}</div><input id="wz-note" type="text" class="pm-dialog-input" style="width:100%" maxlength="300" placeholder="${_wzEsc(t("wz.notePh"))}">`;
+        await _wz({ title: T, text: t("wz.now.ok"), list: [{ ok: true, label: t("wz.now.l1") }, { ok: true, label: t("wz.now.l2") }, { ok: true, label: t("wz.now.l3") }], html: noteField, button: { id: "ok", label: t("wz.done") } });
+        const note = (document.getElementById("wz-note")?.value || "").trim();
+        if (note && file) {
+          try { await _wzPost("backup/note", { kind: "card", name: file, dest: doneDest, text: note }); } catch { /* optional */ }
+          try { _sdRefresh(); } catch { /* silent */ }
+        }
         return "x";
       }
       const again = await _wz({ title: T, text: err ? t("wz.now.fail").replace("{why}", _wzHuman(err)) : t("wz.now.bad"), extra: _wzBack(), button: { id: "again", label: t("wz.again") } });
@@ -9276,9 +9379,10 @@
     for (;;) {
       if (s === "resume") {
         const o = st.outputs[0];
-        const r = await _wz({ title: T, text: t("wz.upd.resume").replace("{when}", new Date(o.ts).toLocaleString()), extra: _wzBack(), cards: [
-          { id: "go", icon: "yes", title: t("wz.upd.goOn") },
-          { id: "new", icon: "update", title: t("wz.upd.fresh") },
+        const oName = o.name.replace(/\.img\.gz$/, "");
+        const r = await _wz({ title: T, text: t("wz.upd.resume").replace("{name}", oName).replace("{when}", new Date(o.ts).toLocaleString()) + (o.note ? `\n“${o.note}”` : ""), extra: _wzBack(), cards: [
+          { id: "go", icon: "yes", title: t("wz.upd.goOn"), desc: oName },
+          { id: "new", icon: "update", title: t("wz.upd.fresh"), desc: t("wz.upd.freshDesc") },
         ] });
         if (r === "back") return "back";
         if (r === "go") { result = { name: o.name, pypilotVersion: (/tinypilot-v([\d.]+)-/.exec(o.name) || [])[1] || "" }; s = "ready"; continue; }
@@ -9405,30 +9509,47 @@
         try { sd = await _wzJson("tinypilot/sd-backup/status"); } catch { /* none */ }
         try { bk = await _wzJson("backup/status"); } catch { /* none */ }
         const destId = where.dest || null;
-        const cards = ((sd && sd.images) || []).filter((im) => !destId || im.dest === destId).slice(0, 5);
-        const copies = destId === "default" || !destId ? ((bk && bk.copies) || []).slice(0, 5) : [];
-        if (!cards.length && !copies.length) {
+        const isDefault = !destId || destId === "default";
+        const cards = ((sd && sd.images) || []).filter((im) => !destId || im.dest === destId);
+        const updates = isDefault ? ((sd && sd.updates) || []) : [];
+        const copies = isDefault ? ((bk && bk.copies) || []) : [];
+        if (!cards.length && !updates.length && !copies.length) {
           const r = await _wz({ title: T, text: t("wz.res.none"), extra: _wzBack(), button: { id: "ok", label: t("wz.close") } });
           if (r === "back") { s = "where"; continue; }
           return "x";
         }
-        const opt = (v, label, first) => `<label style="display:block;margin:8px 0"><input type="radio" name="wz-pick" value="${_wzEsc(v)}" ${first ? "checked" : ""}/> ${_wzEsc(label)}</label>`;
+        // Rev742: the same groups and words as "Available backups": name,
+        // date, state and note; a damaged one is shown but cannot be picked.
+        let first = true;
+        const opt = (v, name, when, state, note, bad) => {
+          const sel = !bad && first; if (sel) first = false;
+          return `<label style="display:block;margin:8px 0;${bad ? "opacity:0.5" : ""}"><input type="radio" name="wz-pick" value="${_wzEsc(v)}" ${sel ? "checked" : ""} ${bad ? "disabled" : ""}/> <b>${_wzEsc(name)}</b><br><span class="hint">${_wzEsc(when)} · ${_wzEsc(state)}</span>${note ? `<br><span class="hint" style="font-style:italic">“${_wzEsc(note)}”</span>` : ""}</label>`;
+        };
+        const stOf = (c) => c.checking ? t("bk.checking") : c.check ? (c.check.ok ? t("sd.badgeOk") : t("sd.badgeBad")) : t("sd.badgeNone");
         let html = "";
-        if (cards.length) html += `<div class="hint"><b>${_wzEsc(t("wz.res.cards"))}</b></div>` + cards.map((c, i) => opt(`card:${c.dest}:${c.name}`, `${new Date(c.ts).toLocaleString()}${c.check ? (c.check.ok ? " ✔" : " ✖ " + t("wz.res.damaged")) : ""}`, i === 0)).join("");
-        if (copies.length) html += `<div class="hint" style="margin-top:8px"><b>${_wzEsc(t("wz.res.copies"))}</b></div>` + copies.map((c, i) => opt(`json:${c.name}`, new Date(c.ts).toLocaleString(), !cards.length && i === 0)).join("");
-        const r = await _wz({ title: T, text: t("wz.res.pick"), html, extra: _wzBack(), button: { id: "ok", label: t("wz.res.go") } });
+        if (cards.length) html += `<div class="hint"><b>${_wzEsc(t("bk.savedCards"))}</b></div>` + cards.map((c) => opt(`card|${c.dest}|${c.name}`, c.name.replace(/\.img\.gz$/, ""), new Date(c.ts).toLocaleString(), stOf(c), c.note, c.check && !c.check.ok)).join("");
+        if (updates.length) html += `<div class="hint" style="margin-top:8px"><b>${_wzEsc(t("bk.updates"))}</b></div>` + updates.map((u) => opt(`upd||${u.name}`, u.name.replace(/\.img\.gz$/, ""), new Date(u.ts).toLocaleString(), stOf(u), u.note, u.check && !u.check.ok)).join("");
+        if (copies.length) html += `<div class="hint" style="margin-top:8px"><b>${_wzEsc(t("bk.savedSettings"))}</b></div>` + copies.map((c) => opt(`json|${c.name}`, c.name.replace(/\.json$/, ""), new Date(c.ts).toLocaleString(), c.complete === "full" ? t("bk.stFull") : c.complete === "nowifi" ? t("bk.stNoWifi") : t("bk.stNoSsh"), c.note, false)).join("");
+        const r = await _wz({ title: T, text: t("wz.res.pick"), html: `<div style="max-height:46dvh;overflow-y:auto">${html}</div>`, extra: _wzBack(), button: { id: "ok", label: t("wz.next") } });
         if (r === "back") { s = "where"; continue; }
         if (r !== "ok") return "x";
         pick = document.querySelector('input[name="wz-pick"]:checked')?.value || "";
-        s = pick.startsWith("json:") ? "json" : "cardIntro"; continue;
+        if (!pick) continue;
+        s = "confirm"; continue;
       }
-      if (s === "json") {
-        const r = await _wz({ title: T, text: t("wz.res.jsonAsk"), extra: _wzBack(), button: { id: "go", label: t("wz.res.go") } });
+      if (s === "confirm") {
+        const [kind, , nm] = pick.split("|");
+        const label = (kind === "json" ? pick.split("|")[1] : nm).replace(/\.(img\.gz|json)$/, "");
+        const what = kind === "json" ? t("wz.res.confirmJson") : t("wz.res.confirmCard");
+        const r = await _wz({ title: T, text: t("wz.res.confirm").replace("{name}", label) + "\n\n" + what, extra: _wzBack(), button: { id: "go", label: t("wz.res.go") } });
         if (r === "back") { s = "pick"; continue; }
         if (r !== "go") return "x";
+        s = kind === "json" ? "json" : "cardIntro"; continue;
+      }
+      if (s === "json") {
         let err = null;
         try {
-          await _wzPost("backup/restore", { name: pick.slice(5) });
+          await _wzPost("backup/restore", { name: pick.split("|")[1] });
           for (;;) {
             await _wzSleep(1500);
             const j = await _wzJson("backup/restore/status");
@@ -9440,12 +9561,13 @@
         await _wz({ title: T, text: err ? t("wz.res.fail").replace("{why}", _wzHuman(err)) : t("wz.res.jsonOk"), button: { id: "ok", label: t("wz.done") } });
         return "x";
       }
-      const [, dest, name] = pick.split(":");
+      const [, dest, name] = pick.split("|");
       if (s === "cardIntro") {
         const r = await _wz({ title: T, text: t("wz.res.cardIntro"), extra: _wzBack(), button: { id: "dl", label: t("wz.upd.download") } });
-        if (r === "back") { s = "pick"; continue; }
+        if (r === "back") { s = "confirm"; continue; }
         if (r !== "dl") return "x";
-        const a = document.createElement("a"); a.href = _adminUrl(_wzUrl(`tinypilot/sd-download/${encodeURIComponent(name)}?dest=${encodeURIComponent(dest)}`)); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        const href = pick.startsWith("upd|") ? _wzUrl(`tinypilot/image/file/${encodeURIComponent(name)}`) : _wzUrl(`tinypilot/sd-download/${encodeURIComponent(name)}?dest=${encodeURIComponent(dest)}`);
+        const a = document.createElement("a"); a.href = _adminUrl(href); a.download = name; document.body.appendChild(a); a.click(); a.remove();
         s = "downloading"; continue;
       }
       if (s === "downloading") {
@@ -10943,6 +11065,14 @@
     // controls stay disabled while offline); it is shown again next time.
     if (state.pypilotHealthy !== false) document.body.classList.remove("pypilot-offline-dismissed");
     const offBox = document.getElementById("pypilot-offline-banner");
+    // Rev742: a planned stop (backup in progress) is information, not an error.
+    const maint = state.pypilotHealthy === false && !!state.maintenance;
+    document.body.classList.toggle("pypilot-maintenance", maint);
+    if (offBox) {
+      const sp = offBox.querySelectorAll("span");
+      if (sp[0]) sp[0].textContent = t(maint ? "pypilot.maint.title" : "pypilot.offline.title");
+      if (sp[1]) sp[1].textContent = t(maint ? "pypilot.maint.hint" : "pypilot.offline.hint");
+    }
     if (offBox && !offBox.__tapWired) {
       offBox.__tapWired = true;
       offBox.addEventListener("click", () => document.body.classList.add("pypilot-offline-dismissed"));
@@ -18342,6 +18472,8 @@
         state.pypilotHealthy = j.healthy;
         if (prev !== j.healthy) renderEngage();
       }
+      // Rev742: pypilot stopped on purpose (card copy) - say so, not "unreachable".
+      { const m = !!j.maintenance; if (m !== !!state.maintenance) { state.maintenance = j.maintenance || null; renderEngage(); } }
       if (typeof j.nudgeSmall === "number") state.nudgeSmall = j.nudgeSmall;
       if (typeof j.nudgeBig === "number")   state.nudgeBig   = j.nudgeBig;
       renderNudgeLabels();
@@ -26843,6 +26975,7 @@
         if (typeof j.healthy !== "boolean") return;
         const prev = state.pypilotHealthy;
         state.pypilotHealthy = j.healthy;
+        { const m = !!j.maintenance; if (m !== !!state.maintenance) { state.maintenance = j.maintenance || null; renderEngage(); } }   // Rev742
         if (prev !== j.healthy) {
           renderEngage();
           // Rev267 (Carlos): TGT y diamond dependen del flag healthy;

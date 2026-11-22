@@ -97,7 +97,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev741";
+const PLUGIN_REVISION = "Rev743";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -489,6 +489,38 @@ module.exports = function (app: any) {
   // Rev100: Alarm engine + pypilot disconnect timestamp used by the
   // pypilot-disconnected rule.
   let alarms: AlarmEngine | null = null;
+  // Rev742 (Carlos 2026-11-22): a planned stop of pypilot (the card copy
+  // stops it on purpose) is not a failure. While it lasts: ONE visual
+  // notification for the whole boat ("backup in progress, back soon"), the
+  // visor shows it instead of the red "not reachable" box, and the alarm
+  // engine holds still. It expires by itself (untilMs), so a copy that
+  // hangs never hides a real problem for long. signalk-mareas-ihm reads the
+  // same path and holds its IMU-stale warning.
+  let _maintenance: { reason: string; sinceMs: number; untilMs: number } | null = null;
+  const MAINT_PATH = "notifications.autopilot.maintenance";
+  const _maintActive = (): boolean => !!(_maintenance && Date.now() < _maintenance.untilMs);
+  const _publishMaint = (on: boolean): void => {
+    try {
+      app.handleMessage(PLUGIN_ID, {
+        context: "vessels." + app.selfId,
+        updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [{
+          path: MAINT_PATH,
+          value: on
+            ? { state: "alert", method: ["visual"], message: "Backup in progress: the autopilot is not available right now. It comes back as soon as the backup ends." }
+            : { state: "normal", method: [], message: "Autopilot back" },
+        }] }],
+      });
+    } catch { /* silent */ }
+  };
+  const _setMaintenance = (reason: string, maxMs: number): void => {
+    _maintenance = { reason, sinceMs: Date.now(), untilMs: Date.now() + maxMs };
+    _publishMaint(true);
+  };
+  const _clearMaintenance = (): void => {
+    if (!_maintenance) return;
+    _maintenance = null;
+    _publishMaint(false);
+  };
   let disconnectedSinceMs: number | null = null;
   let lastEngagedMs: number | null = null;   // Rev710: pypilot-disconnected only if engaged
   // Rev103: Doctor engine (holds one active diagnostic session at a time).
@@ -1814,6 +1846,7 @@ module.exports = function (app: any) {
           // uses this to grey out engage/nudge/tack BEFORE the sailor
           // can fire a write that would end up rejected with a 500.
           healthy: client?.healthy ?? false,
+          maintenance: _maintActive() ? { reason: _maintenance!.reason, sinceMs: _maintenance!.sinceMs } : null,   // Rev742
           lastConnectAt,
           lastDisconnectReason,
           catalogSize: Object.keys(lastCatalog).length,
@@ -3332,11 +3365,22 @@ module.exports = function (app: any) {
         const now = new Date();
         const last = list[0] || null;
         const lastDl = typeof st.lastDownloadTs === "number" ? new Date(st.lastDownloadTs) : null;
+        // Rev742: each copy says whether it is complete (TinyPilot files and
+        // the wifi) and carries its note.
+        const copies = list.map((c: any) => {
+          const f = require("path").join(backupDir(), c.name);
+          let complete: "full" | "nowifi" | "nossh" = "nossh";
+          try {
+            const files = JSON.parse(require("fs").readFileSync(f, "utf8"))?.tinypilot?.files || {};
+            complete = files["pypilot.conf"] ? (files["networking.txt"] ? "full" : "nowifi") : "nossh";
+          } catch { /* unreadable: nossh */ }
+          return { ...c, complete, note: _noteOf(f) };
+        });
         res.json({
           dir: backupDir(),
           keep: BACKUP_KEEP,
           count: list.length,
-          copies: list,
+          copies,
           last,
           ageHours: last ? (Date.now() - last.ts) / 3600_000 : null,
           stale: !last || Date.now() - last.ts > 2 * 86400_000,
@@ -3506,6 +3550,9 @@ module.exports = function (app: any) {
           return { ...d, freeBytes, totalBytes };
         });
       };
+      // Rev742 (Carlos): a note next to each backup (<file>.note.txt), so it
+      // travels with the file when it is copied to a USB stick.
+      const _noteOf = (file: string): string | null => { try { const t = require("fs").readFileSync(file + ".note.txt", "utf8").trim(); return t || null; } catch { return null; } };
       // Rev737: boat name and pypilot version for the backup file names.
       const _boatName = (): string => { try { const nv: any = app.getSelfPath("name"); return String(nv?.value ?? nv ?? ""); } catch { return ""; } };
       const _pypilotVer = (): string | null => { const v = client?.getValues()?.["ap.version"]; return v == null ? null : String(v); };
@@ -3520,7 +3567,7 @@ module.exports = function (app: any) {
         return names.filter(isSdImageName).sort().reverse().map((n: string) => {
           let size = 0, ts = 0;
           try { const st = fs2.statSync(require("path").join(dir, n)); size = st.size; ts = st.mtimeMs; } catch { /* gone */ }
-          return { name: n, size, ts, check: _sdCheckOf(require("path").join(dir, n)) };
+          return { name: n, size, ts, check: _sdCheckOf(require("path").join(dir, n)), note: _noteOf(require("path").join(dir, n)) };
         }).sort((a: any, b: any) => b.ts - a.ts);
       };
       const _sshStreamToGzip = (cmd: string, file: string, onBytes: (n: number) => void, stillWanted: () => boolean): Promise<{ ok: boolean; bytes: number; error?: string; stderr?: string }> => {
@@ -3608,8 +3655,12 @@ module.exports = function (app: any) {
         const job: SdJob = { running: true, file: require("path").basename(file), dest: dest.id, bytes: 0, totalBytes: mib * 1024 * 1024, startedTs: Date.now(), finishedTs: null, error: null };
         _sdJob = job;
         res.status(202).json({ ok: true, totalBytes: job.totalBytes });
+        _setMaintenance("backup", 40 * 60_000);   // Rev742: pypilot stops for the copy
         const r = await _sshStreamToGzip(sdReadConsistentCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
         job.consistent = /PNU_RO=1/.test(r.stderr || "");
+        // Rev742: pypilot is started again at the end of the stream; give it
+        // a moment to come back before alarms count again.
+        setTimeout(_clearMaintenance, 20_000);
         if (!r.ok) job.error = r.error || "failed";
         else if (r.bytes < job.totalBytes) job.error = `short read: ${r.bytes} of ${job.totalBytes} bytes`;
         if (!job.error) {
@@ -3689,6 +3740,7 @@ module.exports = function (app: any) {
         const name = String(req.params?.name || "");
         if (!isBackupName(name)) { res.status(404).json({ error: "not found" }); return; }
         try { require("fs").unlinkSync(require("path").join(backupDir(), name)); } catch { res.status(404).json({ error: "not found" }); return; }
+        try { require("fs").unlinkSync(require("path").join(backupDir(), name + ".note.txt")); } catch { /* none */ }
         res.json({ ok: true });
       });
       router.delete("/tinypilot/sd-file/:name", (req: any, res: any) => {
@@ -3697,7 +3749,7 @@ module.exports = function (app: any) {
         const dest = _sdDests().find((d: any) => d.id === String(req.query?.dest || "default"));
         if (!isSdImageName(name) || !dest) { res.status(404).json({ error: "not found" }); return; }
         if (_sdJob?.running && _sdJob.file === name) { res.status(409).json({ error: "that copy is being made" }); return; }
-        for (const f of [name, name + ".check.json"]) { try { require("fs").unlinkSync(require("path").join(dest.dir, f)); } catch { /* gone */ } }
+        for (const f of [name, name + ".check.json", name + ".note.txt"]) { try { require("fs").unlinkSync(require("path").join(dest.dir, f)); } catch { /* gone */ } }
         res.json({ ok: true });
       });
       router.post("/tinypilot/sd-check", async (req: any, res: any) => {
@@ -3718,6 +3770,25 @@ module.exports = function (app: any) {
         } catch (e: any) {
           try { require("fs").writeFileSync(file + ".check.json", JSON.stringify({ ok: false, detail: String(e?.message || e), ts: Date.now() })); } catch { /* silent */ }
         } finally { _sdChecking.delete(file); }
+      });
+      // Rev742: POST /backup/note {kind: "card"|"update"|"settings", name, dest?, text}
+      router.post("/backup/note", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        const kind = String(req.body?.kind || ""), name = String(req.body?.name || "");
+        const text = String(req.body?.text ?? "").slice(0, 1000);
+        let file: string | null = null;
+        if (kind === "settings" && isBackupName(name)) file = require("path").join(backupDir(), name);
+        else if (kind === "update" && IMG_OUT.test(name)) file = require("path").join(_imgBase(), name);
+        else if (kind === "card" && isSdImageName(name)) {
+          const dest = _sdDests().find((d: any) => d.id === String(req.body?.dest || "default"));
+          if (dest) file = require("path").join(dest.dir, name);
+        }
+        if (!file || !require("fs").existsSync(file)) { res.status(404).json({ error: "not found" }); return; }
+        try {
+          if (text.trim()) require("fs").writeFileSync(file + ".note.txt", `${text.trim()}\n`);
+          else { try { require("fs").unlinkSync(file + ".note.txt"); } catch { /* none */ } }
+        } catch (e: any) { res.status(500).json({ error: String(e?.message || e) }); return; }
+        res.json({ ok: true });
       });
       router.post("/tinypilot/backup-folder", (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;
@@ -3810,7 +3881,9 @@ module.exports = function (app: any) {
           let size = 0, ts = 0, sha: string | null = null;
           try { const st = fs2.statSync(p); size = st.size; ts = st.mtimeMs; } catch { /* gone */ }
           try { sha = fs2.readFileSync(p + ".sha256", "utf8").split(/\s+/)[0] || null; } catch { /* none */ }
-          return { name: n, size, ts, sha256: sha };
+          let check: any = null;
+          try { check = JSON.parse(fs2.readFileSync(p + ".check.json", "utf8")); } catch { /* older ones: checked when built if the .sha256 is there */ if (sha) check = { ok: true, detail: "checked when prepared" }; }
+          return { name: n, size, ts, sha256: sha, check, note: _noteOf(p) };
         }).sort((a, b) => b.ts - a.ts);
       };
       const _imgListPypilotOrg = async () => {
@@ -4028,6 +4101,7 @@ module.exports = function (app: any) {
           const again = await imgSha256(out);
           if (again !== r.sha256) throw new Error("the prepared image's SHA-256 changed when read again: the disk of this Raspberry Pi may be failing");
           (job as any).result = { name, sha256: r.sha256, bytes: r.bytes, pypilotVersion: info.pypilotVersion };
+          try { require("fs").writeFileSync(out + ".check.json", JSON.stringify({ ok: true, detail: "e2fsck + gzip -t + SHA-256 read back", ts: Date.now() })); } catch { /* silent */ }
         } catch (e: any) { job.error = String(e?.message || e); }
         _imgInfo = null;
         job.running = false; job.finishedTs = Date.now();
@@ -4049,7 +4123,7 @@ module.exports = function (app: any) {
         if (!requireAdmin(req, res)) return;
         const name = String(req.params?.name || "");
         if (!IMG_OUT.test(name)) { res.status(404).json({ error: "not found" }); return; }
-        for (const f of [name, name + ".sha256"]) { try { require("fs").unlinkSync(require("path").join(_imgBase(), f)); } catch { /* gone */ } }
+        for (const f of [name, name + ".sha256", name + ".check.json", name + ".note.txt"]) { try { require("fs").unlinkSync(require("path").join(_imgBase(), f)); } catch { /* gone */ } }
         res.json({ ok: true });
       });
       router.post("/tinypilot/hostkey/accept", (req: any, res: any) => {
@@ -7172,6 +7246,8 @@ module.exports = function (app: any) {
 
   function evaluateAndPublishAlarms(sample: Sample): void {
     if (!alarms) return;
+    // Rev742: pypilot is stopped on purpose (card copy): nothing to alarm about.
+    if (_maintActive()) return;
     // Rev258 (Carlos): use `client.healthy` (pong-aware) instead of
     // `client.connected` so alarms see the peer as down as soon as
     // pings stop returning, not 5-10 s later when TCP heartbeat gives

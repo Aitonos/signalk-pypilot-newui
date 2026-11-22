@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev734-741)
+## Unreleased (Rev734-743)
 
 ### Important: TinyPilot SD images made before this version
 
@@ -15,6 +15,33 @@
   (see Fixed below), so make a fresh one too.
 
 ### Added
+- **Backup in progress, said once for the whole boat** (Rev742). While
+  the card copy stops pypilot on purpose:
+  - one visual notification goes out on Signal K, with no sound: "Backup in
+    progress: the autopilot is not available right now. It comes back as
+    soon as the backup ends";
+  - the visor shows it in information colours instead of the red "not
+    reachable" box;
+  - the alarm engine holds still.
+
+  It expires by itself, so a copy that hangs never hides a real problem for
+  long. signalk-mareas-ihm (Rev929) holds its IMU-stale warning while it
+  lasts.
+- **Every backup says its state, and can carry a note** (Rev743):
+  - card images: checked, damaged or not checked, with Check now;
+  - update images: checked when prepared;
+  - settings copies: complete, incomplete (no wifi) or visor settings only.
+
+  "Note" saves a text next to the backup file, so it travels with it. A
+  backup of the installation offers a note when it ends.
+- **No card copy yet?** The list recommends making one now and keeping it
+  off the Raspberry Pi as well, with the button to do it.
+- **Restore** shows the same groups and words as the list: name, date,
+  state and note. A damaged backup cannot be picked. A clear confirmation
+  says what will come back.
+- **Picking up a prepared image** names it in full and asks "Use this
+  image" or "Prepare a new one".
+- **Back is always bottom-left** and the action always bottom-right.
 - **Managing backups** (Rev741):
   - **Back** in every window, except while it works.
   - **Still on the old card?** When the TinyPilot comes back on the old
