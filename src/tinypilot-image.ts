@@ -428,3 +428,38 @@ export async function buildImage(info: ImageInfo, plan: BuildPlan, outFile: stri
   try { fs.unlinkSync(info.raw); } catch { /* best effort */ }
   return { file: outFile, sha256: sha, bytes: fs.statSync(outFile).size };
 }
+
+// ---------- Rev737: verification of whole image files ----------
+
+/** Integrity of a compressed file: xz -t / gzip -t (their own CRCs). */
+export async function verifyCompressed(file: string): Promise<{ ok: boolean; detail: string }> {
+  const tool = /\.xz$/i.test(file) ? "xz" : /\.gz$/i.test(file) ? "gzip" : null;
+  if (!tool) return { ok: true, detail: "not compressed" };
+  const r = await run(tool, ["-t", file], { timeoutMs: 3_600_000 });
+  return r.code === 0 ? { ok: true, detail: `${tool} -t ok` } : { ok: false, detail: `${tool} -t: ${r.stderr.trim().slice(0, 200) || "failed"}` };
+}
+
+/** Rev737 (Carlos 2026-11-22): checks a card image end to end - the
+ *  compressed file, then the file system inside (e2fsck, read only). An
+ *  image read while the card was being written can come out damaged; this
+ *  says so the day it is made, not the day it is needed. */
+export async function validateImageFile(file: string, tmpDir: string): Promise<{ ok: boolean; detail: string }> {
+  if (toolsMissing().length) return { ok: false, detail: `cannot check: missing ${toolsMissing().join(", ")}` };
+  const c = await verifyCompressed(file);
+  if (!c.ok) return c;
+  ensureDir(tmpDir);
+  const raw = path.join(tmpDir, `check-${process.pid}-${Date.now()}.img`);
+  try {
+    const u = await unpackImage(file, raw);
+    if (u.code !== 0) return { ok: false, detail: `cannot unpack: ${u.stderr.slice(0, 160)}` };
+    const fd = fs.openSync(raw, "r"); const b = Buffer.alloc(512); fs.readSync(fd, b, 0, 512, 0); fs.closeSync(fd);
+    const parts = readMbr(b);
+    const p2 = parts ? linuxPartition(parts) : null;
+    if (!p2) return { ok: false, detail: "no Linux partition in the image" };
+    const ifs = new ImageFs(raw, p2.start * 512);
+    try { await ifs.check(); } catch (e: any) { return { ok: false, detail: String(e?.message || e) }; }
+    const f = await ifs.fsck();
+    if (f.code !== 0) return { ok: false, detail: `e2fsck: ${(f.stdout.toString() + f.stderr).split(/\r?\n/).filter(Boolean).slice(-2).join(" ").slice(0, 200)}` };
+    return { ok: true, detail: "file system clean (e2fsck)" };
+  } finally { try { fs.unlinkSync(raw); } catch { /* gone */ } }
+}

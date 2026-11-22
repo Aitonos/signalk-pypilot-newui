@@ -77,7 +77,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
-import { SD_PROBE_COMMAND, sdImageMiB, sdReadConsistentCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations, isAllowedFolder, folderRoots } from "./tinypilot-sd";
+import { backupImageName, SD_PROBE_COMMAND, sdImageMiB, sdReadConsistentCommand, isSdImageName, sdImagesToDrop, sdDestinations, isAllowedFolder, folderRoots } from "./tinypilot-sd";
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
@@ -85,7 +85,7 @@ import { IMU_FALLBACK_KEYS, IMU_FALLBACK_PATHS, otherSourceFresh, imuFallbackVal
 import { withLocalAliases, requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { accessReport, AccessReport, DiagRing, maskHost, sanitizeConfig } from "./diagnostic";
 import { HostKeyMemory } from "./tinypilot-hostkey";
-import { analyzeImage, planBuild, buildImage, ImageInfo, BuildPlan, toolsMissing as imgToolsMissing, freeBytes as imgFreeBytes, run as imgRun } from "./tinypilot-image";
+import { analyzeImage, planBuild, buildImage, ImageInfo, BuildPlan, toolsMissing as imgToolsMissing, freeBytes as imgFreeBytes, run as imgRun, verifyCompressed, validateImageFile, sha256File as imgSha256 } from "./tinypilot-image";
 import { DEFAULT_GROUPS, Groups } from "./tinypilot-migrate";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
@@ -97,7 +97,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev736";
+const PLUGIN_REVISION = "Rev737";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3467,7 +3467,7 @@ module.exports = function (app: any) {
       // into ~/Backups-pypilot-newui; the newest SD_KEEP are kept. It loads
       // the Pi Zero for a few minutes: refused with the autopilot engaged,
       // stopped if it gets engaged meanwhile.
-      type SdJob = { running: boolean; file: string | null; dest: string; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null; consistent?: boolean };
+      type SdJob = { running: boolean; file: string | null; dest: string; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null; consistent?: boolean; checking?: boolean; check?: { ok: boolean; detail: string } };
       let _sdJob: SdJob | null = null;
       // Rev672 (Carlos 2026-11-09): the image can go to a USB stick, disk or
       // network share mounted under /media or /mnt, chosen from this list
@@ -3506,6 +3506,13 @@ module.exports = function (app: any) {
           return { ...d, freeBytes, totalBytes };
         });
       };
+      // Rev737: boat name and pypilot version for the backup file names.
+      const _boatName = (): string => { try { const nv: any = app.getSelfPath("name"); return String(nv?.value ?? nv ?? ""); } catch { return ""; } };
+      const _pypilotVer = (): string | null => { const v = client?.getValues()?.["ap.version"]; return v == null ? null : String(v); };
+      // Rev737: each card image may carry its check result next to it.
+      const _sdCheckOf = (file: string): { ok: boolean; detail: string; ts: number } | null => {
+        try { return JSON.parse(require("fs").readFileSync(file + ".check.json", "utf8")); } catch { return null; }
+      };
       const _sdImagesIn = (dir: string) => {
         const fs2 = require("fs");
         let names: string[] = [];
@@ -3513,8 +3520,8 @@ module.exports = function (app: any) {
         return names.filter(isSdImageName).sort().reverse().map((n: string) => {
           let size = 0, ts = 0;
           try { const st = fs2.statSync(require("path").join(dir, n)); size = st.size; ts = st.mtimeMs; } catch { /* gone */ }
-          return { name: n, size, ts };
-        });
+          return { name: n, size, ts, check: _sdCheckOf(require("path").join(dir, n)) };
+        }).sort((a: any, b: any) => b.ts - a.ts);
       };
       const _sshStreamToGzip = (cmd: string, file: string, onBytes: (n: number) => void, stillWanted: () => boolean): Promise<{ ok: boolean; bytes: number; error?: string; stderr?: string }> => {
         return new Promise((resolve) => {
@@ -3597,23 +3604,32 @@ module.exports = function (app: any) {
           return;
         }
         try { require("fs").mkdirSync(dest.dir, { recursive: true }); } catch (e: any) { res.status(500).json({ error: `cannot write in ${dest.dir}: ${e?.message || e}` }); return; }
-        const file = require("path").join(dest.dir, sdImageName(new Date()));
+        const file = require("path").join(dest.dir, backupImageName(new Date(), _pypilotVer(), _boatName()));
         const job: SdJob = { running: true, file: require("path").basename(file), dest: dest.id, bytes: 0, totalBytes: mib * 1024 * 1024, startedTs: Date.now(), finishedTs: null, error: null };
         _sdJob = job;
         res.status(202).json({ ok: true, totalBytes: job.totalBytes });
         const r = await _sshStreamToGzip(sdReadConsistentCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
         job.consistent = /PNU_RO=1/.test(r.stderr || "");
-        job.running = false;
-        job.finishedTs = Date.now();
         if (!r.ok) job.error = r.error || "failed";
         else if (r.bytes < job.totalBytes) job.error = `short read: ${r.bytes} of ${job.totalBytes} bytes`;
         if (!job.error) {
           for (const old of sdImagesToDrop(_sdImagesIn(dest.dir).map((x: { name: string }) => x.name))) {
-            try { require("fs").unlinkSync(require("path").join(dest.dir, old)); } catch { /* gone */ }
+            for (const f of [old, old + ".check.json"]) { try { require("fs").unlinkSync(require("path").join(dest.dir, f)); } catch { /* gone */ } }
           }
+          // Rev737 (Carlos 2026-11-22): check the copy itself (compressed file
+          // and the file system inside), so a damaged one is known today.
+          job.checking = true;
+          try {
+            const v = await validateImageFile(file, require("path").join(backupDir(), "tinypilot-images", "work"));   // on disk, never /tmp (may be RAM)
+            job.check = v;
+            require("fs").writeFileSync(file + ".check.json", JSON.stringify({ ...v, ts: Date.now() }));
+          } catch (e: any) { job.check = { ok: false, detail: String(e?.message || e) }; }
+          job.checking = false;
         }
+        job.running = false;
+        job.finishedTs = Date.now();
         // eslint-disable-next-line no-console
-        console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : "ok"}${job.consistent ? " (pypilot stopped, card read-only)" : " (pypilot stopped, card stayed read-write)"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
+        console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : (job.check ? (job.check.ok ? "ok, checked" : "DAMAGED " + job.check.detail) : "ok")}${job.consistent ? " (pypilot stopped, card read-only)" : " (pypilot stopped, card stayed read-write)"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
       });
       // Rev673: folder browser for the SD image destination.
       //   GET /tinypilot/folders           - the roots (home, /media, /mnt)
@@ -3687,16 +3703,17 @@ module.exports = function (app: any) {
       //   DELETE /tinypilot/image/file/:name    - delete it (it holds the wifi key)
       //   POST /tinypilot/hostkey/accept        - accept the TinyPilot's new SSH key
       // ============================================================
-      type ImgJob = { kind: "fetch" | "analyze" | "build"; running: boolean; step: string; detail: string | null; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null };
+      type ImgJob = { kind: "fetch" | "analyze" | "build" | "prepare"; running: boolean; step: string; detail: string | null; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null };
       let _imgJob: ImgJob | null = null;
       let _imgInfo: ImageInfo | null = null;
+      let _imgLastPlan: ReturnType<typeof _imgPlanSummaryT> | null = null;
       let _imgListing: { ts: number; images: { name: string; url: string; date: string }[]; error: string | null } | null = null;
       const _imgBase = () => require("path").join(backupDir(), "tinypilot-images");
       const _imgWork = () => require("path").join(_imgBase(), "work");
       // Rev736: only official or own images as the NEW image - never the
       // plugin's own copies of the current card (tinypilot-sd-*) nor the
       // images this assistant made.
-      const IMG_OUT = /^tinypilot-v[\w.]+-[a-z0-9-]+-\d{4}-\d{2}-\d{2}-\d{4}-backup\.img\.gz$/;
+      const IMG_OUT = /^tinypilot-v[\w.]+-[a-z0-9-]+-\d{4}-\d{2}-\d{2}-\d{4}-backup\.img\.gz$/;   // same as the card copies (tinypilot-sd.ts)
       const IMG_SRC = /^tinypilot[\w.-]*\.img(\.xz|\.gz)?$/i;
       const _imgIsSource = (n: string) => IMG_SRC.test(n) && !/^tinypilot-sd-/i.test(n) && !IMG_OUT.test(n) && !/^tinypilot-boat-/i.test(n);
       const _imgNeedBytes = 3 * 1024 * 1024 * 1024;
@@ -3762,6 +3779,7 @@ module.exports = function (app: any) {
         if (g && typeof g === "object") for (const k of Object.keys(out) as (keyof Groups)[]) if (typeof g[k] === "boolean") out[k] = g[k];
         return out;
       };
+      function _imgPlanSummaryT(plan: BuildPlan) { return _imgPlanSummary(plan); }
       const _imgPlanSummary = (plan: BuildPlan) => ({
         rows: plan.rows,
         conf: plan.conf,
@@ -3786,6 +3804,9 @@ module.exports = function (app: any) {
           sources: _imgSources().map((s) => ({ name: s.name, size: s.size, ts: s.ts, path: s.path })),
           pypilotOrg: listing,
           outputs: _imgOutputs(),
+          lastPlan: _imgLastPlan,
+          pypilotVersionNow: _pypilotVer(),
+          connected: !!client?.connected,
           hostKey: _hostKeys.get(),
           groups: DEFAULT_GROUPS,
         });
@@ -3857,14 +3878,7 @@ module.exports = function (app: any) {
         if (!copy.files["pypilot.conf"]) { res.status(409).json({ error: "the latest copy has no TinyPilot files: make a copy with SSH configured" }); return; }
         const info = _imgInfo;
         const plan = planBuild(info, copy.files, _imgGroups(req.body?.groups));
-        // Rev736 (Carlos): the name says what it is - pypilot version, boat,
-        // date and "backup" - so it never mixes with the official images.
-        const d = new Date(), p2 = (n: number) => String(n).padStart(2, "0");
-        const ver = String(info.pypilotVersion || "unknown").replace(/[^\w.]/g, "");
-        let boat = "";
-        try { const nv: any = app.getSelfPath("name"); boat = String(nv?.value ?? nv ?? ""); } catch { /* none */ }
-        boat = boat.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "boat";
-        const name = `tinypilot-v${ver}-${boat}-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}-backup.img.gz`;
+        const name = backupImageName(new Date(), info.pypilotVersion, _boatName());   // Rev736/737
         const job: ImgJob = { kind: "build", running: true, step: "write", detail: name, bytes: 0, totalBytes: 0, startedTs: Date.now(), finishedTs: null, error: null };
         _imgJob = job;
         res.status(202).json({ ok: true, name });
@@ -3875,6 +3889,82 @@ module.exports = function (app: any) {
         job.running = false; job.finishedTs = Date.now();
         // eslint-disable-next-line no-console
         console.log(`[image] build ${name}: ${job.error || "ok"}`);
+      });
+      // Rev737 (Carlos 2026-11-22): ONE button does it all, checking every
+      // step: newest image from pypilot.org (or the one chosen in Details),
+      // download, verify (xz -t: pypilot.org publishes no checksum, the
+      // file's own CRC catches a broken download), read, merge, build
+      // (e2fsck inside), then revalidate the result (gzip -t, SHA-256
+      // computed again from the saved file and compared).
+      const _imgDownload = async (url: string, file: string, job: ImgJob): Promise<void> => {
+        job.step = "download"; job.bytes = 0; job.totalBytes = 0;
+        const r = await fetch(url, { signal: AbortSignal.timeout(3_600_000) });
+        if (!r.ok || !r.body) throw new Error(`download: HTTP ${r.status}`);
+        job.totalBytes = Number(r.headers.get("content-length") || 0);
+        const out = require("fs").createWriteStream(file + ".part");
+        const reader = (r.body as any).getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          job.bytes += value.length;
+          if (!out.write(Buffer.from(value))) await new Promise((ok) => out.once("drain", ok));
+        }
+        await new Promise((ok) => out.end(ok));
+        if (job.totalBytes && job.bytes !== job.totalBytes) { try { require("fs").unlinkSync(file + ".part"); } catch { /* none */ } throw new Error(`download incomplete: ${job.bytes} of ${job.totalBytes} bytes`); }
+        require("fs").renameSync(file + ".part", file);
+      };
+      router.post("/tinypilot/image/prepare", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        if (_imgBusy(res) || !_imgFree(res)) return;
+        const copy = _imgCopy();
+        if (!copy.files["pypilot.conf"]) { res.status(409).json({ error: "make the settings copy first (step 1)" }); return; }
+        const groups = _imgGroups(req.body?.groups);
+        if (typeof req.body?.imu === "boolean") groups.imu = req.body.imu;
+        // the image: one chosen in Details, else the newest from pypilot.org
+        let srcPath: string | null = null, url: string | null = null, srcName = "";
+        if (typeof req.body?.src === "string" && req.body.src) {
+          const s = _imgSources().find((x) => x.path === req.body.src);
+          if (!s) { res.status(404).json({ error: "that image file is not in the list" }); return; }
+          srcPath = s.path; srcName = s.name;
+        } else {
+          const l = await _imgListPypilotOrg();
+          const newest = l.images[0];
+          if (!newest) { res.status(502).json({ error: "pypilot.org cannot be reached: choose an image on a USB stick in Details" }); return; }
+          srcName = newest.name;
+          const local = _imgSources().find((x) => x.name === newest.name);
+          if (local) srcPath = local.path; else url = newest.url;
+        }
+        const job: ImgJob = { kind: "prepare", running: true, step: url ? "download" : "verify", detail: srcName, bytes: 0, totalBytes: 0, startedTs: Date.now(), finishedTs: null, error: null };
+        (job as any).result = null;
+        _imgJob = job;
+        _imgLastPlan = null;
+        res.status(202).json({ ok: true, image: srcName });
+        try {
+          if (url) {
+            const dl: string = require("path").join(_imgWork(), srcName);
+            srcPath = dl;
+            await _imgDownload(url, dl, job);
+          }
+          job.step = "verify"; job.bytes = 0; job.totalBytes = 0;
+          const v = await verifyCompressed(srcPath!);
+          if (!v.ok) { if (url) { try { require("fs").unlinkSync(srcPath!); } catch { /* none */ } } throw new Error(`the image file is damaged (${v.detail})${url ? ": downloaded again next time" : ""}`); }
+          const info = await analyzeImage(srcPath!, _imgWork(), (step, detail) => { job.step = step; job.detail = detail ?? null; });
+          const plan = planBuild(info, copy.files, groups);
+          _imgLastPlan = _imgPlanSummary(plan);
+          const name = backupImageName(new Date(), info.pypilotVersion, _boatName());
+          const out = require("path").join(_imgBase(), name);
+          const r = await buildImage(info, plan, out, (step) => { job.step = step; });
+          job.step = "revalidate";
+          const c = await verifyCompressed(out);
+          if (!c.ok) throw new Error(`the prepared image did not pass ${c.detail}`);
+          const again = await imgSha256(out);
+          if (again !== r.sha256) throw new Error("the prepared image's SHA-256 changed when read again: the disk of this Raspberry Pi may be failing");
+          (job as any).result = { name, sha256: r.sha256, bytes: r.bytes, pypilotVersion: info.pypilotVersion };
+        } catch (e: any) { job.error = String(e?.message || e); }
+        _imgInfo = null;
+        job.running = false; job.finishedTs = Date.now();
+        // eslint-disable-next-line no-console
+        console.log(`[image] prepare ${srcName}: ${job.error || "ok, " + ((job as any).result?.name || "")}`);
       });
       router.get("/tinypilot/image/file/:name", (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;

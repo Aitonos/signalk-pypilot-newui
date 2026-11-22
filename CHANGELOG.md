@@ -1,8 +1,30 @@
 # Changelog
 
-## Unreleased (Rev734-735)
+## Unreleased (Rev734-737)
+
+### Important: TinyPilot SD images made before this version
+
+- **Do not rely on a TinyPilot SD card image made with an earlier
+  version.** The card was read while pypilot kept writing to it every few
+  minutes, so the image can come out damaged inside. One made on 2026-11-09
+  did: its file system does not open cleanly.
+- **What to do:** make a new one with this version, which stops pypilot
+  during the copy. Keep the old one only until the new one is made.
+- **Settings copies are fine.** The daily `.json` files read the files one
+  by one, so their profiles and calibration are valid. Some missed a file
+  (see Fixed below), so make a fresh one too.
 
 ### Added
+- **Two clear choices in Setup > Settings backup** (Rev737):
+  - **Back up my installation as it is now** saves the settings and an
+    image of the TinyPilot's card.
+  - **Back up and update the TinyPilot system** opens the image assistant
+    below.
+- **Card images are checked when they are made** (compressed file and the
+  file system inside). The list marks each one checked or DAMAGED.
+- **Clearer names.** Card images and prepared images are now called
+  `tinypilot-v<pypilot version>-<boat>-<date>-<time>-backup.img.gz`, so
+  they never mix with the official images.
 - **New TinyPilot image, already set up** (Setup > Settings backup). An
   assistant that moves the TinyPilot to a newer image without losing
   anything, and without touching its card:
@@ -13,6 +35,18 @@
   5. you write it to a SECOND card with Raspberry Pi Imager;
   6. change the card;
   7. checks in port.
+
+  Rev737 made it five steps with one button each:
+  1. the copy;
+  2. **Prepare my image**, a single button that downloads the image,
+     checks it, reads it, puts the settings in and checks the result again
+     (e2fsck inside, gzip -t, SHA-256 read back and compared);
+  3. download;
+  4. write and change the card;
+  5. checks in port.
+
+  The only question asked is about the IMU. The file-by-file details are
+  folded away.
 
   It brings over your wifi, profiles, remote and screen, motor and rudder,
   NMEA and wind, and optionally the IMU calibration. It also keeps the

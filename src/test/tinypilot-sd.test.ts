@@ -56,10 +56,14 @@ describe("TinyPilot SD image (Rev671)", () => {
     }
   });
   it("names and keeps the newest three", () => {
-    assert.equal(sdImageName(new Date(2026, 10, 9)), "tinypilot-sd-2026-11-09.img.gz");
+    // Rev737: version, boat, date and time, "backup"
+    assert.equal(sdImageName(new Date(2026, 10, 22, 21, 5), "pypilot 0.56", "TUNATUNES"), "tinypilot-v0.56-tunatunes-2026-11-22-2105-backup.img.gz");
+    assert.equal(sdImageName(new Date(2026, 10, 22, 9, 0), null, "Ceñida Ñ"), "tinypilot-vunknown-cenida-n-2026-11-22-0900-backup.img.gz");
+    assert.ok(isSdImageName("tinypilot-sd-2026-11-09.img.gz"), "old names still listed");
     assert.ok(!isSdImageName("../etc/passwd"));
-    const names = ["tinypilot-sd-2026-08-01.img.gz", "tinypilot-sd-2026-11-09.img.gz", "tinypilot-sd-2026-10-01.img.gz",
-      "tinypilot-sd-2026-09-01.img.gz", "pypilot-newui-2026-11-09.json"];
+    assert.ok(!isSdImageName("tinypilot_2026_07_05.img.xz"), "official images are not copies");
+    const names = ["tinypilot-sd-2026-08-01.img.gz", "tinypilot-v0.56-boat-2026-11-22-2105-backup.img.gz", "tinypilot-sd-2026-10-01.img.gz",
+      "tinypilot-v0.71-boat-2026-09-01-0800-backup.img.gz", "pypilot-newui-2026-11-09.json"];
     assert.deepEqual(sdImagesToDrop(names), ["tinypilot-sd-2026-08-01.img.gz"]);
   });
 });

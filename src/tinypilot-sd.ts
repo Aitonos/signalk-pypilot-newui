@@ -9,7 +9,12 @@
 /** Lists "start size" (512-byte sectors) of every partition of the card. */
 export const SD_PROBE_COMMAND = "for p in /sys/block/mmcblk0/mmcblk0p*; do echo $(cat $p/start) $(cat $p/size); done";
 export const SD_KEEP = 3;
-const NAME = /^tinypilot-sd-(\d{4}-\d{2}-\d{2})\.img\.gz$/;
+// Rev737 (Carlos 2026-11-22): the name says what it is - pypilot version,
+// boat, date and time, "backup" - so it never mixes with official images:
+// tinypilot-v0.56-tunatunes-2026-11-22-2130-backup.img.gz. Copies made with
+// the old name (tinypilot-sd-YYYY-MM-DD.img.gz) are still listed.
+const NAME_OLD = /^tinypilot-sd-(\d{4}-\d{2}-\d{2})\.img\.gz$/;
+const NAME_NEW = /^tinypilot-v[\w.]+-[a-z0-9-]+-(\d{4}-\d{2}-\d{2}-\d{4})-backup\.img\.gz$/;
 
 /** MiB to read from the start of the card to include every partition. */
 export function sdImageMiB(probeStdout: string): number | null {
@@ -55,11 +60,27 @@ export function sdReadConsistentCommand(mib: number, netS = 1800): string {
   ].join("; ");
 }
 
-export function sdImageName(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `tinypilot-sd-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.img.gz`;
+/** Name part from free text: ascii, lower case, dashes (accents dropped). */
+export function slug(s: string, fallback: string): string {
+  return String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || fallback;
 }
-export function isSdImageName(n: string): boolean { return NAME.test(String(n)); }
+/** "pypilot 0.56" / "0.71" -> "0.56" / "0.71"; unknown -> "unknown". */
+export function versionTag(v: string | null | undefined): string {
+  const m = /(\d+(?:\.\d+)+)/.exec(String(v ?? ""));
+  return m ? m[1] : "unknown";
+}
+export function backupImageName(d: Date, version: string | null | undefined, boat: string | null | undefined): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `tinypilot-v${versionTag(version)}-${slug(boat ?? "", "boat")}-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}-backup.img.gz`;
+}
+export function sdImageName(d: Date, version?: string | null, boat?: string | null): string { return backupImageName(d, version, boat); }
+export function isSdImageName(n: string): boolean { return NAME_OLD.test(String(n)) || NAME_NEW.test(String(n)); }
+/** Sort key by date (old names have no time: 0000). */
+export function sdImageDateKey(n: string): string {
+  const a = NAME_NEW.exec(n); if (a) return a[1];
+  const b = NAME_OLD.exec(n); return b ? `${b[1]}-0000` : "";
+}
 
 /** Rev672 (Carlos 2026-11-09): where the image may go - the default folder,
  *  or any writable USB stick / disk / network share mounted under /media or
@@ -97,5 +118,5 @@ export function isAllowedFolder(realPath: string, home: string): boolean {
 
 /** Names to delete so the newest SD_KEEP stay. */
 export function sdImagesToDrop(names: string[], keep = SD_KEEP): string[] {
-  return names.filter(isSdImageName).sort().reverse().slice(keep);
+  return names.filter(isSdImageName).sort((a, b) => sdImageDateKey(b).localeCompare(sdImageDateKey(a))).slice(keep);
 }

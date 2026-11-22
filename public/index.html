@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev736" />
+  <link rel="stylesheet" href="style.css?v=Rev737" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2138,23 +2138,22 @@
         </div>
         <div id="adv-groups"></div>
       </div>
-      <!-- Rev651 (Carlos 2026-11-07): daily settings backup in a visible folder. -->
+      <!-- Rev651 (Carlos 2026-11-07): daily settings backup in a visible folder.
+           Rev737 (Carlos 2026-11-22): two clearly separate choices - a backup
+           of the installation as it is now, or a backup that also moves the
+           TinyPilot to a newer system image (prepared here, written to a
+           second card; the card in use is never touched). -->
       <div class="setup-block" data-setup-order="166" data-block-key="backup">
         <div class="section-title" data-i18n="bk.title">Settings backup</div>
-        <div class="hint" data-i18n="bk.hint">Every day a copy of all the settings is saved on the Signal K Raspberry Pi, in the folder below.</div>
-        <div id="bk-dir" class="bk-dir"></div>
-        <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-          <button type="button" class="primary" id="bk-now" data-i18n="bk.now">Make a copy now</button>
-          <button type="button" id="bk-dl" data-i18n="bk.download">Download the latest</button>
+        <div class="row" style="gap:10px;margin-top:8px;flex-wrap:wrap">
+          <button type="button" class="primary" id="bk-pick-now" style="flex:1 1 220px;min-height:64px;white-space:normal" data-i18n="bk.pickNow">Back up my installation as it is now</button>
+          <button type="button" class="primary" id="bk-pick-upd" style="flex:1 1 220px;min-height:64px;white-space:normal" data-i18n="bk.pickUpd">Back up and update the TinyPilot system</button>
         </div>
-        <div id="bk-note" class="hint"></div>
-        <div id="bk-list" class="bk-list"></div>
-        <!-- Rev671 (Carlos 2026-11-09): image of the TinyPilot's SD card. -->
-        <div class="conn-sub" id="sd-section">
-          <div class="conn-sub-title" data-i18n="sd.title">TinyPilot SD card</div>
-          <div class="hint" data-i18n="sd.hint">A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.</div>
-          <!-- Rev672: destination with its free space, and the copy's progress
-               (same bars as the Doctor). -->
+
+        <!-- Choice 1: the installation as it is now -->
+        <div class="conn-sub" id="sd-section" hidden>
+          <div class="conn-sub-title" data-i18n="bk.nowTitle">Back up my installation as it is now</div>
+          <div class="hint" data-i18n="bk.nowHint">Saves all the settings and a full image of the TinyPilot's card. Autopilot off: pypilot, its remote and its screen stop for a few minutes. The copy is checked when it is made.</div>
           <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
             <label data-i18n="sd.dest">Save to</label>
             <select id="sd-dest"></select>
@@ -2166,7 +2165,7 @@
             <div class="doctor-progress-time" id="sd-space-text"></div>
           </div>
           <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-            <button type="button" class="primary" id="sd-now" data-i18n="sd.now">Copy the card now</button>
+            <button type="button" class="primary" id="sd-now" data-i18n="bk.nowBtn">Make the backup now</button>
           </div>
           <div class="doctor-progress-wrap" id="sd-prog-wrap" hidden>
             <div class="doctor-progress-label" data-i18n="sd.copying">Copying</div>
@@ -2174,74 +2173,80 @@
             <div class="doctor-progress-time" id="sd-prog-text"></div>
           </div>
           <div id="sd-note" class="hint"></div>
+          <div class="hint" style="margin-top:8px"><b data-i18n="bk.savedCards">Card images</b></div>
           <div id="sd-list" class="bk-list"></div>
-        </div>
-        <!-- Rev735 (Carlos 2026-11-22): assistant that prepares a new TinyPilot
-             image with the boat's settings inside, for a SECOND card. Step by
-             step: what, how, why and what you need. The TinyPilot's own card
-             is never touched. -->
-        <div class="conn-sub" id="img-section">
-          <div class="conn-sub-title" data-i18n="img.title">New TinyPilot image, already set up</div>
-          <div class="hint" data-i18n="img.hint">Moves the TinyPilot to a newer image without losing anything: this Raspberry Pi prepares the new image with your wifi, calibration, profiles, remote and password already inside, and you write it to a second card. Your current card is never touched: it stays as your way back.</div>
-          <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-            <button type="button" class="primary" id="img-open" data-i18n="img.open">Open the assistant</button>
+          <div class="hint" style="margin-top:8px"><b data-i18n="bk.savedSettings">Settings copies (one a day, automatic)</b></div>
+          <div id="bk-dir" class="bk-dir"></div>
+          <div class="row" style="align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">
+            <button type="button" id="bk-dl" data-i18n="bk.download">Download the latest</button>
+            <button type="button" class="ghost" id="bk-now" data-i18n="bk.now">Make a copy now</button>
           </div>
-          <div id="img-wiz" hidden>
-            <div class="doctor-progress-wrap">
-              <div class="doctor-progress-label" id="img-stepno"></div>
-              <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="img-stepfill"></div></div>
-              <div class="doctor-progress-time" id="img-steptitle"></div>
+          <div id="bk-note" class="hint"></div>
+          <div id="bk-list" class="bk-list"></div>
+        </div>
+
+        <!-- Choice 2: back up and update the system (5 steps) -->
+        <div class="conn-sub" id="img-section" hidden>
+          <div class="conn-sub-title" data-i18n="bk.pickUpd">Back up and update the TinyPilot system</div>
+          <div class="hint" data-i18n="upd.need">You need: a new microSD card of 8 GB or more, Class 10 (a 10 inside a C on its label); a card reader on your computer; Raspberry Pi Imager on that computer. Your current card is not touched: it stays as your way back.</div>
+          <div class="doctor-progress-wrap">
+            <div class="doctor-progress-label" id="img-stepno"></div>
+            <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="img-stepfill"></div></div>
+            <div class="doctor-progress-time" id="img-steptitle"></div>
+          </div>
+
+          <div class="img-step" data-step="0">
+            <div class="hint" data-i18n="upd.s1.do">First a copy of everything your TinyPilot keeps: calibration, profiles, motor, remote, wifi and password.</div>
+            <div id="img-copy" class="bk-list"></div>
+            <div class="row" style="margin-top:8px"><button type="button" class="primary" id="img-copy-now" data-i18n="upd.s1.btn">Make the copy</button></div>
+          </div>
+
+          <div class="img-step" data-step="1" hidden>
+            <div class="hint" id="img-s2-text"></div>
+            <div class="hint" style="margin-top:8px" data-i18n="upd.imuQ">Will the new card go into this same TinyPilot, with the IMU not moved?</div>
+            <div class="chart-window-row">
+              <label class="chart-window-btn seg-btn"><input type="radio" name="img-imu" value="yes" /><span data-i18n="upd.yes">Yes: keep the calibration</span></label>
+              <label class="chart-window-btn seg-btn"><input type="radio" name="img-imu" value="no" /><span data-i18n="upd.no">No: I will calibrate again</span></label>
             </div>
-            <div class="img-step" data-step="0">
-              <div class="hint" data-i18n-html="img.s0.body"></div>
-            </div>
-            <div class="img-step" data-step="1" hidden>
-              <div class="hint" data-i18n-html="img.s1.body"></div>
-              <div id="img-copy" class="bk-list"></div>
-              <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-                <button type="button" class="primary" id="img-copy-now" data-i18n="img.copyNow">Make a fresh copy now</button>
+            <div class="row" style="margin-top:8px"><button type="button" class="primary" id="img-prepare" data-i18n="upd.s2.btn">Prepare my image</button></div>
+            <details class="cfg-section" style="margin-top:10px">
+              <summary data-i18n="upd.details">Details</summary>
+              <div class="cfg-body">
+                <div class="hint" data-i18n="upd.otherImage">Image to use (the newest from pypilot.org unless you pick another):</div>
+                <div id="img-sources" class="bk-list"></div>
+                <div class="hint" style="margin-top:8px" data-i18n="upd.whatGoes">What is brought over:</div>
+                <div id="img-groups" class="bk-list"></div>
+                <div id="img-planout" class="bk-list"></div>
               </div>
-            </div>
-            <div class="img-step" data-step="2" hidden>
-              <div class="hint" data-i18n-html="img.s2.body"></div>
-              <div id="img-sources" class="bk-list"></div>
-            </div>
-            <div class="img-step" data-step="3" hidden>
-              <div class="hint" data-i18n-html="img.s3.body"></div>
-              <div id="img-groups" class="bk-list"></div>
-              <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-                <button type="button" id="img-plan" data-i18n="img.planBtn">Show what will change</button>
-              </div>
-              <div id="img-planout" class="bk-list"></div>
-            </div>
-            <div class="img-step" data-step="4" hidden>
-              <div class="hint" data-i18n-html="img.s4.body"></div>
-              <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-                <button type="button" class="primary" id="img-build" data-i18n="img.buildBtn">Prepare the image</button>
-              </div>
-              <div id="img-outputs" class="bk-list"></div>
-            </div>
-            <div class="img-step" data-step="5" hidden>
-              <div class="hint" data-i18n-html="img.s5.body"></div>
-            </div>
-            <div class="img-step" data-step="6" hidden>
-              <div class="hint" data-i18n-html="img.s6.body"></div>
-              <div id="img-hostkey" class="bk-list"></div>
-            </div>
-            <div class="img-step" data-step="7" hidden>
-              <div class="hint" data-i18n-html="img.s7.body"></div>
-            </div>
-            <div class="doctor-progress-wrap" id="img-prog-wrap" hidden>
-              <div class="doctor-progress-label" id="img-prog-label"></div>
-              <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="img-prog-fill"></div></div>
-              <div class="doctor-progress-time" id="img-prog-text"></div>
-            </div>
-            <div id="img-note" class="hint"></div>
-            <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-              <button type="button" class="ghost" id="img-back" data-i18n="img.back">Back</button>
-              <button type="button" class="primary" id="img-next" data-i18n="img.next">Next</button>
-              <button type="button" class="ghost" id="img-close" data-i18n="img.close">Close</button>
-            </div>
+            </details>
+          </div>
+
+          <div class="img-step" data-step="2" hidden>
+            <div class="hint" data-i18n="upd.s3.do">Download your image to the computer that has the card reader.</div>
+            <div id="img-outputs" class="bk-list"></div>
+          </div>
+
+          <div class="img-step" data-step="3" hidden>
+            <div class="hint" data-i18n="upd.s4.do">Write it to the new card and put it in the TinyPilot. Tick each line as you do it.</div>
+            <div id="img-check4" class="bk-list"></div>
+            <div id="img-conn" class="hint" style="margin-top:8px"></div>
+          </div>
+
+          <div class="img-step" data-step="4" hidden>
+            <div class="hint" data-i18n="upd.s5.do">Check it in port, with someone at the helm. Tick each line.</div>
+            <div id="img-check5" class="bk-list"></div>
+            <div class="hint" style="margin-top:8px;color:var(--warn)" data-i18n="upd.s5.fail">If anything is wrong: autopilot off, put the old card back.</div>
+          </div>
+
+          <div class="doctor-progress-wrap" id="img-prog-wrap" hidden>
+            <div class="doctor-progress-label" id="img-prog-label"></div>
+            <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="img-prog-fill"></div></div>
+            <div class="doctor-progress-time" id="img-prog-text"></div>
+          </div>
+          <div id="img-note" class="hint"></div>
+          <div class="row" style="align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+            <button type="button" class="primary" id="img-next" data-i18n="upd.next">Next</button>
+            <button type="button" class="ghost" id="img-back" data-i18n="upd.back">Back</button>
           </div>
         </div>
       </div>
@@ -3026,6 +3031,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev736"></script>
+  <script src="app.js?v=Rev737"></script>
 </body>
 </html>

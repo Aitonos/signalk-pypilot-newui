@@ -706,109 +706,107 @@
       "bk.failed": "Backup failed",
       "sd.title": "TinyPilot SD card",
       "sd.hint": "A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.",
-      "img.title": "New TinyPilot image, already set up",
-      "img.hint": "Moves the TinyPilot to a newer image without losing anything: this Raspberry Pi prepares the new image with your wifi, calibration, profiles, remote and password already inside, and you write it to a second card. Your current card is never touched: it stays as your way back.",
-      "img.open": "Open the assistant",
-      "img.back": "Back",
-      "img.next": "Next",
-      "img.close": "Close",
-      "img.stepOf": "Step {n} of {total}",
-      "img.s0.title": "Before you start",
-      "img.s0.body": "<b>What:</b> this assistant prepares a new TinyPilot image with everything from your boat already inside, so the new card works the moment you put it in.<br><b>Why this way:</b> your current card is never written. If anything goes wrong, you put it back and you are where you were.<br><b>You will need:</b><ol><li>A second microSD card, 8 GB or more, of a good brand (A1 / U1).</li><li>A card reader for your computer (built in or USB).</li><li>Raspberry Pi Imager on that computer (free, raspberrypi.com/software).</li><li>About 500 MB of internet for the image, or the image already on a USB stick in this Raspberry Pi.</li><li>3 GB free on this Raspberry Pi (checked for you).</li><li>The boat in port, the autopilot off, and access to the TinyPilot to change the card.</li><li>A pen and a label for the old card.</li></ol>",
-      "img.s1.title": "A fresh copy of your settings",
-      "img.s1.body": "<b>What:</b> a copy of everything the TinyPilot keeps: calibration, profiles, motor and rudder, remote, wifi, password and SSH keys.<br><b>How:</b> over SSH, read only; the TinyPilot keeps working.<br><b>Why now:</b> the new image is built from this copy, so it must be from today and complete (every line ticked). Optional: also make an image of the current card in the section above.",
-      "img.s2.title": "The new image",
-      "img.s2.body": "<b>What:</b> the new TinyPilot image from pypilot.org, or one you already have on a USB stick.<br><b>How:</b> Download (about 470 MB, checked when it arrives), then Read: this Raspberry Pi unpacks it and looks at which files it has.<br><b>Why:</b> each pypilot version keeps its files a little differently; nothing is copied blindly.",
-      "img.s3.title": "What goes into the new card",
-      "img.s3.body": "<b>What:</b> choose what to bring over from your boat, then Show what will change: the list says, file by file, what is merged, copied, skipped (and why) or removed.<br><b>Why:</b> an image from pypilot.org can carry the test settings of the boat it was made on. Whatever you do not bring over goes back to pypilot's defaults, never left with someone else's.",
-      "img.s4.title": "Prepare the image",
-      "img.s4.body": "<b>What:</b> this Raspberry Pi writes your settings into the new image, checks its file system and compresses it (a few minutes; Signal K keeps working).<br><b>Then:</b> download it to the computer that has the card reader. The .sha256 file lets you check it arrived whole.<br><b>Careful:</b> the image holds your wifi key and the TinyPilot's password hash. Delete it here once the card is written.",
-      "img.s5.title": "Write the new card",
-      "img.s5.body": "<b>On your computer:</b><ol><li>Put the NEW card in the reader.</li><li>Open Raspberry Pi Imager. Operating system: Use custom, and pick the downloaded tinypilot-boat-….img.gz.</li><li>Storage: the NEW card. Check its size: never your computer's disk.</li><li>OS customisation: No. Everything is already inside.</li><li>Write, and let it verify.</li></ol><b>Why:</b> the verify step reads the card back; a cheap or tired card shows up here, not at sea.",
-      "img.s6.title": "Change the card and start",
-      "img.s6.body": "<ol><li>Autopilot off, boat in port.</li><li>Switch the TinyPilot off, take the old card out, label it OLD - KEEP and store it.</li><li>Put the new card in and switch on. The first start can take a few minutes and the screen may show only N/A or wifi: wait. If it stays like that for 5 minutes, switch off and on once.</li><li>The TinyPilot joins the boat wifi by itself and this plugin connects to it again.</li></ol>Below: whether the TinyPilot answers with the SSH key this plugin knows (it should: the keys travel in the image).",
-      "img.s7.title": "Check it in port",
-      "img.s7.body": "Before trusting it at sea, with someone at the helm:<ol><li>Heading: matches the boat's compass.</li><li>Manual to port: the rudder goes to port and the rudder angle moves the right way. Same to starboard.</li><li>Standby: the clutch releases and the helm is free.</li><li>End stops: the motor stops at both ends.</li><li>Remote: every key does what it should.</li><li>Signal K: heading, rudder and mode arrive in the visor.</li></ol><b>If anything is wrong:</b> autopilot off, put the old card back and tell us what you saw. Then a first short trial in calm water.",
-      "img.copyNow": "Make a fresh copy now",
-      "img.copyWhen": "Latest copy: {when}",
-      "img.has.conf": "Calibration, motor and profiles (pypilot.conf)",
-      "img.has.wifi": "Boat wifi",
-      "img.has.remote": "Remote and screen",
-      "img.has.password": "TinyPilot password (hash)",
-      "img.has.keys": "SSH keys",
-      "img.copyOld": "This copy has no wifi or password (made by an older version of the plugin, or without SSH). Make a fresh copy.",
-      "img.needCopy": "Make a copy first: it must include the TinyPilot files.",
-      "img.needRead": "Read a new image first.",
-      "img.needBuild": "Prepare the image first.",
-      "img.fromOrg": "From pypilot.org",
-      "img.orgError": "pypilot.org cannot be reached now: use an image on a USB stick.",
-      "img.newest": "newest",
-      "img.downloaded": "downloaded",
-      "img.download": "Download",
-      "img.onPi": "On this Raspberry Pi (home folder and USB sticks)",
-      "img.noLocal": "None yet.",
-      "img.read": "Read",
-      "img.readOk": "{name} read: pypilot {ver}.",
-      "img.inImage": "In the new image",
-      "img.notInImage": "Not in the new image",
-      "img.g.wifi": "Boat wifi",
-      "img.g.wifi.why": "Without it the TinyPilot only offers its own wifi and this Raspberry Pi cannot reach it.",
-      "img.g.remotes": "Remote and screen",
-      "img.g.remotes.why": "Remote control codes and display preferences.",
-      "img.g.profiles": "Profiles and gains",
-      "img.g.profiles.why": "Every profile you use, with its gains. Deleted ones are left out.",
-      "img.g.imu": "IMU and compass calibration",
-      "img.g.imu.why": "Only if the new card goes into the SAME TinyPilot, with the IMU mounted the same way. Otherwise calibrate again.",
-      "img.g.motor": "Motor and rudder",
-      "img.g.motor.why": "Current limit, speeds, clutch, rudder range and calibration. Shown value by value before preparing.",
-      "img.g.sensors": "NMEA, GPS and wind",
-      "img.g.sensors.why": "Sensor offsets and options.",
-      "img.g.login": "Password and SSH keys",
-      "img.g.login.why": "The TinyPilot keeps its password and this plugin still recognises it.",
-      "img.g.skFix": "Signal K packages",
-      "img.g.skFix.why": "Adds the Python packages some images miss, so pypilot can talk to Signal K.",
-      "img.imuAsk": "Is the new card going into this same TinyPilot, with the IMU mounted exactly as now? The calibration belongs to that sensor in that position.",
-      "img.planBtn": "Show what will change",
-      "img.col.file": "File",
-      "img.col.action": "What",
-      "img.col.why": "Why",
-      "img.col.key": "Value",
-      "img.col.image": "Image",
-      "img.col.boat": "Your boat",
-      "img.act.merge": "merged",
-      "img.act.copy": "copied",
-      "img.act.skip": "skipped",
-      "img.act.remove": "removed",
-      "img.motorTable": "IMU, motor and rudder: image → your boat",
-      "img.reset": "pypilot default",
-      "img.profilesN": "Profiles ({n})",
-      "img.loginCarried": "Also carried",
-      "img.buildBtn": "Prepare the image",
-      "img.buildAsk": "Prepare the image with these choices? Nothing is written to the TinyPilot.",
-      "img.dl": "Download",
-      "img.delete": "Delete",
-      "img.deleteAsk": "Delete this image from the Raspberry Pi? Do it once the card is written: it holds your wifi key.",
-      "img.secretNote": "It holds your wifi key and the TinyPilot password hash: delete it once the card is written.",
-      "img.noOutput": "No image prepared yet.",
-      "img.keyChanged": "The TinyPilot answers with a NEW SSH key ({fp}). Normal after a new card if the keys were not carried; otherwise check it is your TinyPilot.",
-      "img.keyAccept": "It is my TinyPilot: accept the new key",
-      "img.keySame": "SSH key known: {fp}",
-      "img.keyNone": "No SSH key seen yet.",
-      "img.failed": "Failed",
-      "img.jobDone": "{what}: done",
-      "img.kind.fetch": "Download",
-      "img.kind.analyze": "Read the image",
-      "img.kind.build": "Prepare the image",
-      "img.job.download": "Downloading",
-      "img.job.verify": "Checking the download",
-      "img.job.unpack": "Unpacking",
-      "img.job.read": "Reading its files",
-      "img.job.mydata": "Password and keys",
-      "img.job.write": "Writing your settings",
-      "img.job.check": "Checking the file system",
-      "img.job.compress": "Compressing",
-      "img.job.checksum": "Checksum",
-      "img.toolsMissing": "Missing on this Raspberry Pi: {tools}. Install them (sudo apt install e2fsprogs xz-utils) and come back.",
+      "bk.pickNow": "Back up my installation as it is now",
+      "bk.pickUpd": "Back up and update the TinyPilot system",
+      "bk.nowTitle": "Back up my installation as it is now",
+      "bk.nowHint": "Saves all the settings and a full image of the TinyPilot's card. Autopilot off: pypilot, its remote and its screen stop for a few minutes. The copy is checked when it is made.",
+      "bk.nowBtn": "Make the backup now",
+      "bk.savedCards": "Card images",
+      "bk.savedSettings": "Settings copies (one a day, automatic)",
+      "sd.checking": "Checking the copy…",
+      "sd.checkOk": "Checked: the copy is sound.",
+      "sd.checkBad": "WARNING: the copy is damaged ({detail}). Make it again.",
+      "sd.badgeOk": "checked ✔",
+      "sd.badgeBad": "DAMAGED ✖",
+      "sd.badgeNone": "not checked",
+      "upd.need": "You need: a new microSD card of 8 GB or more, Class 10 (a 10 inside a C on its label); a card reader on your computer; Raspberry Pi Imager on that computer. Your current card is not touched: it stays as your way back.",
+      "upd.stepOf": "Step {n} of {total}",
+      "upd.t1": "Copy of your settings",
+      "upd.t2": "Your new image",
+      "upd.t3": "Download it",
+      "upd.t4": "Write it and change the card",
+      "upd.t5": "Check it in port",
+      "upd.s1.do": "First a copy of everything your TinyPilot keeps: calibration, profiles, motor, remote, wifi and password.",
+      "upd.s1.btn": "Make the copy",
+      "upd.copyWhen": "Latest copy: {when}",
+      "upd.has.conf": "Calibration, motor and profiles",
+      "upd.has.wifi": "Boat wifi",
+      "upd.has.remote": "Remote and screen",
+      "upd.has.password": "TinyPilot password",
+      "upd.has.keys": "SSH keys",
+      "upd.copyOld": "This copy is missing the wifi or the password. Press Make the copy.",
+      "upd.s2.text": "We will use the newest image from pypilot.org: {image}. One button downloads it, checks it and puts your settings in. About 10-15 minutes; Signal K keeps working.",
+      "upd.s2.textLocal": "We will use {image}. One button checks it and puts your settings in. About 10 minutes; Signal K keeps working.",
+      "upd.s2.wait": "Looking for the newest image…",
+      "upd.orgError": "pypilot.org cannot be reached now. Open Details and pick an image on a USB stick.",
+      "upd.imuQ": "Will the new card go into this same TinyPilot, with the IMU not moved?",
+      "upd.yes": "Yes: keep the calibration",
+      "upd.no": "No: I will calibrate again",
+      "upd.imuMissing": "Answer the question about the IMU first.",
+      "upd.s2.btn": "Prepare my image",
+      "upd.details": "Details",
+      "upd.otherImage": "Image to use (the newest from pypilot.org unless you pick another):",
+      "upd.whatGoes": "What is brought over:",
+      "upd.newest": "newest",
+      "upd.g.wifi": "Boat wifi",
+      "upd.g.remotes": "Remote and screen",
+      "upd.g.profiles": "Profiles and gains",
+      "upd.g.motor": "Motor and rudder",
+      "upd.g.sensors": "NMEA, GPS and wind",
+      "upd.g.login": "Password and SSH keys",
+      "upd.g.skFix": "Signal K packages some images miss",
+      "upd.preparing": "Preparing your image",
+      "upd.failed": "Failed",
+      "upd.job.download": "Downloading",
+      "upd.job.verify": "Checking the download",
+      "upd.job.unpack": "Unpacking",
+      "upd.job.read": "Reading the image",
+      "upd.job.mydata": "Password and keys",
+      "upd.job.write": "Putting your settings in",
+      "upd.job.check": "Checking the image inside",
+      "upd.job.compress": "Compressing",
+      "upd.job.checksum": "Checksum",
+      "upd.job.revalidate": "Checking the result again",
+      "upd.col.file": "File",
+      "upd.col.action": "What",
+      "upd.col.why": "Why",
+      "upd.col.key": "Value",
+      "upd.col.image": "Image",
+      "upd.col.boat": "Your boat",
+      "upd.act.merge": "merged",
+      "upd.act.copy": "copied",
+      "upd.act.skip": "skipped",
+      "upd.act.remove": "removed",
+      "upd.motorTable": "IMU, motor and rudder: image → your boat",
+      "upd.reset": "pypilot default",
+      "upd.profilesN": "Profiles ({n})",
+      "upd.s3.do": "Download your image to the computer that has the card reader.",
+      "upd.dl": "Download my image",
+      "upd.sha": "Checked. SHA-256: {sha}",
+      "upd.secret": "It holds your wifi key and the TinyPilot password: delete it here once the card is written.",
+      "upd.delete": "Delete it from this Raspberry Pi",
+      "upd.deleteAsk": "Delete this image from the Raspberry Pi? Do it once the card is written.",
+      "upd.noOutput": "No image prepared yet: go back one step.",
+      "upd.s4.do": "Write it to the new card and put it in the TinyPilot. Tick each line as you do it.",
+      "upd.c4.1": "New card in the computer's reader.",
+      "upd.c4.2": "Raspberry Pi Imager: Operating system > Use custom > the file you downloaded; Storage > the NEW card (check the size, never your disk); customisation: No.",
+      "upd.c4.3": "Write, and wait until it has verified.",
+      "upd.c4.4": "Autopilot off. TinyPilot off, old card out with a label OLD - KEEP, new card in.",
+      "upd.c4.5": "TinyPilot on. Wait up to 5 minutes (the screen may show only N/A at first; if it stays like that, switch off and on once).",
+      "upd.connOk": "TinyPilot connected: {ver}",
+      "upd.connWait": "Waiting for the TinyPilot to connect…",
+      "upd.s5.do": "Check it in port, with someone at the helm. Tick each line.",
+      "upd.c5.1": "The heading matches the boat's compass.",
+      "upd.c5.2": "Manual to port: the rudder goes to port. Same to starboard.",
+      "upd.c5.3": "Standby: the helm is free.",
+      "upd.c5.4": "The motor stops at both ends.",
+      "upd.c5.5": "Every key of the remote works.",
+      "upd.s5.fail": "If anything is wrong: autopilot off, put the old card back.",
+      "upd.next": "Next",
+      "upd.back": "Back",
+      "upd.finish": "Finish",
+      "upd.done": "Done. Keep the old card for a while: it is your way back.",
+      "upd.toolsMissing": "Missing on this Raspberry Pi: {tools}. Install them (sudo apt install e2fsprogs xz-utils) and come back.",
       "sd.now": "Copy the card now",
       "sd.confirmTitle": "Copy the TinyPilot's card?",
       "sd.confirmBody": "Keep the autopilot off until it finishes (a few minutes). The TinyPilot will be busy meanwhile; if the autopilot is engaged the copy stops.",
@@ -2234,109 +2232,107 @@
       "bk.failed": "La copia falló",
       "sd.title": "Tarjeta SD de la TinyPilot",
       "sd.hint": "Una imagen completa de la tarjeta de la TinyPilot (unos 1 GB): sistema, pypilot, todos los perfiles y la calibración de la IMU. Si la tarjeta falla, se graba en una tarjeta nueva de 2 GB o más con Raspberry Pi Imager. Solo con el piloto desconectado. Durante esos minutos pypilot, su mando y su pantalla se paran y la tarjeta queda en solo lectura, para que la imagen salga limpia. Se guardan las 3 últimas.",
-      "img.title": "Imagen nueva del TinyPilot, ya configurada",
-      "img.hint": "Pasa el TinyPilot a una imagen más nueva sin perder nada: esta Raspberry Pi prepara la imagen nueva con tu wifi, calibración, perfiles, mando y contraseña ya dentro, y tú la grabas en una segunda tarjeta. Tu tarjeta actual no se toca nunca: queda como vuelta atrás.",
-      "img.open": "Abrir el asistente",
-      "img.back": "Atrás",
-      "img.next": "Siguiente",
-      "img.close": "Cerrar",
-      "img.stepOf": "Paso {n} de {total}",
-      "img.s0.title": "Antes de empezar",
-      "img.s0.body": "<b>Qué:</b> este asistente prepara una imagen nueva del TinyPilot con todo lo de tu barco ya dentro, para que la tarjeta nueva funcione nada más ponerla.<br><b>Por qué así:</b> tu tarjeta actual no se escribe nunca. Si algo sale mal, la vuelves a poner y estás como antes.<br><b>Vas a necesitar:</b><ol><li>Una segunda tarjeta microSD de 8 GB o más, de buena marca (A1 / U1).</li><li>Un lector de tarjetas para tu ordenador (integrado o USB).</li><li>Raspberry Pi Imager en ese ordenador (gratis, raspberrypi.com/software).</li><li>Unos 500 MB de internet para la imagen, o la imagen ya en un pendrive puesto en esta Raspberry Pi.</li><li>3 GB libres en esta Raspberry Pi (lo comprueba el asistente).</li><li>El barco en puerto, el piloto desconectado y acceso al TinyPilot para cambiar la tarjeta.</li><li>Un bolígrafo y una etiqueta para la tarjeta vieja.</li></ol>",
-      "img.s1.title": "Una copia reciente de tus ajustes",
-      "img.s1.body": "<b>Qué:</b> una copia de todo lo que guarda el TinyPilot: calibración, perfiles, motor y timón, mando, wifi, contraseña y claves SSH.<br><b>Cómo:</b> por SSH y solo leyendo; el TinyPilot sigue funcionando.<br><b>Por qué ahora:</b> la imagen nueva se hace a partir de esta copia, así que tiene que ser de hoy y estar completa (todas las líneas marcadas). Opcional: haz también una imagen de la tarjeta actual en la sección de arriba.",
-      "img.s2.title": "La imagen nueva",
-      "img.s2.body": "<b>Qué:</b> la imagen nueva del TinyPilot de pypilot.org, o una que ya tengas en un pendrive.<br><b>Cómo:</b> Descargar (unos 470 MB, se comprueba al llegar) y luego Leer: esta Raspberry Pi la descomprime y mira qué ficheros trae.<br><b>Por qué:</b> cada versión de pypilot guarda sus ficheros un poco distinto; no se copia nada a ciegas.",
-      "img.s3.title": "Qué va en la tarjeta nueva",
-      "img.s3.body": "<b>Qué:</b> elige qué traer de tu barco y pulsa Ver qué va a cambiar: la lista dice, fichero a fichero, qué se fusiona, se copia, se salta (y por qué) o se borra.<br><b>Por qué:</b> una imagen de pypilot.org puede traer los ajustes de prueba del barco donde se hizo. Lo que no traigas vuelve a los valores de fábrica de pypilot; nunca se queda con los de otro.",
-      "img.s4.title": "Preparar la imagen",
-      "img.s4.body": "<b>Qué:</b> esta Raspberry Pi escribe tus ajustes en la imagen nueva, comprueba su sistema de ficheros y la comprime (unos minutos; Signal K sigue funcionando).<br><b>Después:</b> descárgala en el ordenador que tiene el lector de tarjetas. El fichero .sha256 sirve para comprobar que llegó entera.<br><b>Ojo:</b> la imagen lleva la clave de tu wifi y el hash de la contraseña del TinyPilot. Bórrala de aquí cuando hayas grabado la tarjeta.",
-      "img.s5.title": "Grabar la tarjeta nueva",
-      "img.s5.body": "<b>En tu ordenador:</b><ol><li>Mete la tarjeta NUEVA en el lector.</li><li>Abre Raspberry Pi Imager. Sistema operativo: Usar personalizado, y elige el tinypilot-boat-….img.gz descargado.</li><li>Almacenamiento: la tarjeta NUEVA. Mira el tamaño: nunca el disco de tu ordenador.</li><li>Personalización del sistema: No. Ya va todo dentro.</li><li>Grabar, y deja que verifique.</li></ol><b>Por qué:</b> la verificación vuelve a leer la tarjeta; una tarjeta mala o gastada se descubre aquí, no en el mar.",
-      "img.s6.title": "Cambiar la tarjeta y arrancar",
-      "img.s6.body": "<ol><li>Piloto desconectado, barco en puerto.</li><li>Apaga el TinyPilot, saca la tarjeta vieja, ponle la etiqueta VIEJA - GUARDAR y guárdala.</li><li>Mete la tarjeta nueva y enciende. El primer arranque puede tardar unos minutos y la pantalla puede enseñar solo N/A o wifi: espera. Si sigue así 5 minutos, apaga y enciende una vez.</li><li>El TinyPilot entra solo en la wifi del barco y este plugin vuelve a conectarse.</li></ol>Abajo: si el TinyPilot responde con la clave SSH que este plugin conoce (debería: las claves viajan en la imagen).",
-      "img.s7.title": "Comprobarlo en puerto",
-      "img.s7.body": "Antes de fiarte en el mar, con alguien al timón:<ol><li>Rumbo: coincide con el compás del barco.</li><li>Manual a babor: el timón va a babor y el ángulo de timón se mueve en el sentido correcto. Igual a estribor.</li><li>Standby: el embrague suelta y la caña o rueda queda libre.</li><li>Fin de recorrido: el motor para en los dos extremos.</li><li>Mando: cada tecla hace lo que debe.</li><li>Signal K: rumbo, timón y modo llegan al visor.</li></ol><b>Si algo falla:</b> piloto desconectado, vuelve a poner la tarjeta vieja y cuéntanos qué viste. Después, una primera prueba corta con mar en calma.",
-      "img.copyNow": "Hacer una copia ahora",
-      "img.copyWhen": "Última copia: {when}",
-      "img.has.conf": "Calibración, motor y perfiles (pypilot.conf)",
-      "img.has.wifi": "Wifi del barco",
-      "img.has.remote": "Mando y pantalla",
-      "img.has.password": "Contraseña del TinyPilot (hash)",
-      "img.has.keys": "Claves SSH",
-      "img.copyOld": "Esta copia no tiene wifi ni contraseña (hecha con una versión anterior del plugin, o sin SSH). Haz una copia nueva.",
-      "img.needCopy": "Haz antes una copia: tiene que llevar los ficheros del TinyPilot.",
-      "img.needRead": "Lee antes una imagen nueva.",
-      "img.needBuild": "Prepara antes la imagen.",
-      "img.fromOrg": "De pypilot.org",
-      "img.orgError": "Ahora no se llega a pypilot.org: usa una imagen en un pendrive.",
-      "img.newest": "la más nueva",
-      "img.downloaded": "descargada",
-      "img.download": "Descargar",
-      "img.onPi": "En esta Raspberry Pi (carpeta personal y pendrives)",
-      "img.noLocal": "Ninguna todavía.",
-      "img.read": "Leer",
-      "img.readOk": "{name} leída: pypilot {ver}.",
-      "img.inImage": "En la imagen nueva",
-      "img.notInImage": "No están en la imagen nueva",
-      "img.g.wifi": "Wifi del barco",
-      "img.g.wifi.why": "Sin ella el TinyPilot solo ofrece su propia wifi y esta Raspberry Pi no llega a él.",
-      "img.g.remotes": "Mando y pantalla",
-      "img.g.remotes.why": "Códigos del mando a distancia y preferencias de la pantalla.",
-      "img.g.profiles": "Perfiles y ganancias",
-      "img.g.profiles.why": "Todos los perfiles que usas, con sus ganancias. Los borrados se quedan fuera.",
-      "img.g.imu": "Calibración de la IMU y del compás",
-      "img.g.imu.why": "Solo si la tarjeta nueva va en el MISMO TinyPilot, con la IMU montada igual. Si no, hay que calibrar de nuevo.",
-      "img.g.motor": "Motor y timón",
-      "img.g.motor.why": "Límite de corriente, velocidades, embrague, recorrido y calibración del timón. Se enseñan valor a valor antes de preparar.",
-      "img.g.sensors": "NMEA, GPS y viento",
-      "img.g.sensors.why": "Correcciones y opciones de los sensores.",
-      "img.g.login": "Contraseña y claves SSH",
-      "img.g.login.why": "El TinyPilot mantiene su contraseña y este plugin lo sigue reconociendo.",
-      "img.g.skFix": "Paquetes de Signal K",
-      "img.g.skFix.why": "Añade los paquetes de Python que faltan en algunas imágenes, para que pypilot hable con Signal K.",
-      "img.imuAsk": "¿La tarjeta nueva va en este mismo TinyPilot, con la IMU montada exactamente como ahora? La calibración es de ese sensor en esa posición.",
-      "img.planBtn": "Ver qué va a cambiar",
-      "img.col.file": "Fichero",
-      "img.col.action": "Qué",
-      "img.col.why": "Por qué",
-      "img.col.key": "Valor",
-      "img.col.image": "Imagen",
-      "img.col.boat": "Tu barco",
-      "img.act.merge": "fusionado",
-      "img.act.copy": "copiado",
-      "img.act.skip": "saltado",
-      "img.act.remove": "borrado",
-      "img.motorTable": "IMU, motor y timón: imagen → tu barco",
-      "img.reset": "valor de fábrica de pypilot",
-      "img.profilesN": "Perfiles ({n})",
-      "img.loginCarried": "También va",
-      "img.buildBtn": "Preparar la imagen",
-      "img.buildAsk": "¿Preparar la imagen con estas opciones? No se escribe nada en el TinyPilot.",
-      "img.dl": "Descargar",
-      "img.delete": "Borrar",
-      "img.deleteAsk": "¿Borrar esta imagen de la Raspberry Pi? Hazlo cuando hayas grabado la tarjeta: lleva la clave de tu wifi.",
-      "img.secretNote": "Lleva la clave de tu wifi y el hash de la contraseña del TinyPilot: bórrala cuando hayas grabado la tarjeta.",
-      "img.noOutput": "Todavía no hay ninguna imagen preparada.",
-      "img.keyChanged": "El TinyPilot responde con una clave SSH NUEVA ({fp}). Es normal tras una tarjeta nueva si no se pasaron las claves; si no, comprueba que es tu TinyPilot.",
-      "img.keyAccept": "Es mi TinyPilot: aceptar la clave nueva",
-      "img.keySame": "Clave SSH conocida: {fp}",
-      "img.keyNone": "Todavía no se ha visto ninguna clave SSH.",
-      "img.failed": "Ha fallado",
-      "img.jobDone": "{what}: hecho",
-      "img.kind.fetch": "Descarga",
-      "img.kind.analyze": "Leer la imagen",
-      "img.kind.build": "Preparar la imagen",
-      "img.job.download": "Descargando",
-      "img.job.verify": "Comprobando la descarga",
-      "img.job.unpack": "Descomprimiendo",
-      "img.job.read": "Leyendo sus ficheros",
-      "img.job.mydata": "Contraseña y claves",
-      "img.job.write": "Escribiendo tus ajustes",
-      "img.job.check": "Comprobando el sistema de ficheros",
-      "img.job.compress": "Comprimiendo",
-      "img.job.checksum": "Suma de control",
-      "img.toolsMissing": "Faltan en esta Raspberry Pi: {tools}. Instálalos (sudo apt install e2fsprogs xz-utils) y vuelve.",
+      "bk.pickNow": "Copia de seguridad de mi instalación actual",
+      "bk.pickUpd": "Copia de seguridad con actualización del sistema",
+      "bk.nowTitle": "Copia de seguridad de mi instalación actual",
+      "bk.nowHint": "Guarda todos los ajustes y una imagen completa de la tarjeta del TinyPilot. Con el piloto desconectado: pypilot, su mando y su pantalla se paran unos minutos. La copia se comprueba al terminar.",
+      "bk.nowBtn": "Hacer la copia ahora",
+      "bk.savedCards": "Imágenes de la tarjeta",
+      "bk.savedSettings": "Copias de ajustes (una al día, automáticas)",
+      "sd.checking": "Comprobando la copia…",
+      "sd.checkOk": "Comprobada: la copia está bien.",
+      "sd.checkBad": "ATENCIÓN: la copia está dañada ({detail}). Hazla otra vez.",
+      "sd.badgeOk": "comprobada ✔",
+      "sd.badgeBad": "DAÑADA ✖",
+      "sd.badgeNone": "sin comprobar",
+      "upd.need": "Necesitas: una tarjeta microSD nueva de 8 GB o más, Clase 10 (un 10 dentro de una C en la etiqueta); un lector de tarjetas en tu ordenador; Raspberry Pi Imager en ese ordenador. Tu tarjeta actual no se toca: queda como vuelta atrás.",
+      "upd.stepOf": "Paso {n} de {total}",
+      "upd.t1": "Copia de tus ajustes",
+      "upd.t2": "Tu imagen nueva",
+      "upd.t3": "Descárgala",
+      "upd.t4": "Grábala y cambia la tarjeta",
+      "upd.t5": "Compruébalo en puerto",
+      "upd.s1.do": "Primero, una copia de todo lo que guarda tu TinyPilot: calibración, perfiles, motor, mando, wifi y contraseña.",
+      "upd.s1.btn": "Hacer la copia",
+      "upd.copyWhen": "Última copia: {when}",
+      "upd.has.conf": "Calibración, motor y perfiles",
+      "upd.has.wifi": "Wifi del barco",
+      "upd.has.remote": "Mando y pantalla",
+      "upd.has.password": "Contraseña del TinyPilot",
+      "upd.has.keys": "Claves SSH",
+      "upd.copyOld": "A esta copia le falta la wifi o la contraseña. Pulsa Hacer la copia.",
+      "upd.s2.text": "Usaremos la imagen más reciente de pypilot.org: {image}. Un solo botón la descarga, la comprueba y le mete tus ajustes. Unos 10-15 minutos; Signal K sigue funcionando.",
+      "upd.s2.textLocal": "Usaremos {image}. Un solo botón la comprueba y le mete tus ajustes. Unos 10 minutos; Signal K sigue funcionando.",
+      "upd.s2.wait": "Buscando la imagen más reciente…",
+      "upd.orgError": "Ahora no se llega a pypilot.org. Abre Detalles y elige una imagen en un pendrive.",
+      "upd.imuQ": "¿La tarjeta nueva va en este mismo TinyPilot, sin mover la IMU?",
+      "upd.yes": "Sí: mantener la calibración",
+      "upd.no": "No: calibraré de nuevo",
+      "upd.imuMissing": "Contesta antes la pregunta de la IMU.",
+      "upd.s2.btn": "Preparar mi imagen",
+      "upd.details": "Detalles",
+      "upd.otherImage": "Imagen que se usa (la más reciente de pypilot.org salvo que elijas otra):",
+      "upd.whatGoes": "Qué se pasa:",
+      "upd.newest": "la más reciente",
+      "upd.g.wifi": "Wifi del barco",
+      "upd.g.remotes": "Mando y pantalla",
+      "upd.g.profiles": "Perfiles y ganancias",
+      "upd.g.motor": "Motor y timón",
+      "upd.g.sensors": "NMEA, GPS y viento",
+      "upd.g.login": "Contraseña y claves SSH",
+      "upd.g.skFix": "Paquetes de Signal K que faltan en algunas imágenes",
+      "upd.preparing": "Preparando tu imagen",
+      "upd.failed": "Ha fallado",
+      "upd.job.download": "Descargando",
+      "upd.job.verify": "Comprobando la descarga",
+      "upd.job.unpack": "Descomprimiendo",
+      "upd.job.read": "Leyendo la imagen",
+      "upd.job.mydata": "Contraseña y claves",
+      "upd.job.write": "Metiendo tus ajustes",
+      "upd.job.check": "Comprobando la imagen por dentro",
+      "upd.job.compress": "Comprimiendo",
+      "upd.job.checksum": "Suma de control",
+      "upd.job.revalidate": "Volviendo a comprobar el resultado",
+      "upd.col.file": "Fichero",
+      "upd.col.action": "Qué",
+      "upd.col.why": "Por qué",
+      "upd.col.key": "Valor",
+      "upd.col.image": "Imagen",
+      "upd.col.boat": "Tu barco",
+      "upd.act.merge": "fusionado",
+      "upd.act.copy": "copiado",
+      "upd.act.skip": "saltado",
+      "upd.act.remove": "borrado",
+      "upd.motorTable": "IMU, motor y timón: imagen → tu barco",
+      "upd.reset": "valor de fábrica de pypilot",
+      "upd.profilesN": "Perfiles ({n})",
+      "upd.s3.do": "Descarga tu imagen en el ordenador que tiene el lector de tarjetas.",
+      "upd.dl": "Descargar mi imagen",
+      "upd.sha": "Comprobada. SHA-256: {sha}",
+      "upd.secret": "Lleva la clave de tu wifi y la contraseña del TinyPilot: bórrala de aquí cuando hayas grabado la tarjeta.",
+      "upd.delete": "Borrarla de esta Raspberry Pi",
+      "upd.deleteAsk": "¿Borrar esta imagen de la Raspberry Pi? Hazlo cuando hayas grabado la tarjeta.",
+      "upd.noOutput": "Todavía no hay imagen preparada: vuelve un paso atrás.",
+      "upd.s4.do": "Grábala en la tarjeta nueva y ponla en el TinyPilot. Marca cada línea según lo haces.",
+      "upd.c4.1": "Tarjeta nueva en el lector del ordenador.",
+      "upd.c4.2": "Raspberry Pi Imager: Sistema operativo > Usar personalizado > el fichero descargado; Almacenamiento > la tarjeta NUEVA (mira el tamaño, nunca tu disco); personalización: No.",
+      "upd.c4.3": "Grabar, y esperar a que termine de verificar.",
+      "upd.c4.4": "Piloto desconectado. TinyPilot apagado, tarjeta vieja fuera con una etiqueta VIEJA - GUARDAR, tarjeta nueva dentro.",
+      "upd.c4.5": "TinyPilot encendido. Espera hasta 5 minutos (al principio la pantalla puede enseñar solo N/A; si sigue así, apaga y enciende una vez).",
+      "upd.connOk": "TinyPilot conectado: {ver}",
+      "upd.connWait": "Esperando a que el TinyPilot se conecte…",
+      "upd.s5.do": "Compruébalo en puerto, con alguien al timón. Marca cada línea.",
+      "upd.c5.1": "El rumbo coincide con el compás del barco.",
+      "upd.c5.2": "Manual a babor: el timón va a babor. Igual a estribor.",
+      "upd.c5.3": "Standby: el timón queda libre.",
+      "upd.c5.4": "El motor para en los dos extremos.",
+      "upd.c5.5": "Todas las teclas del mando funcionan.",
+      "upd.s5.fail": "Si algo falla: piloto desconectado y vuelve a poner la tarjeta vieja.",
+      "upd.next": "Siguiente",
+      "upd.back": "Atrás",
+      "upd.finish": "Terminar",
+      "upd.done": "Hecho. Guarda la tarjeta vieja un tiempo: es tu vuelta atrás.",
+      "upd.toolsMissing": "Faltan en esta Raspberry Pi: {tools}. Instálalos (sudo apt install e2fsprogs xz-utils) y vuelve.",
       "sd.now": "Copiar la tarjeta ahora",
       "sd.confirmTitle": "¿Copiar la tarjeta de la TinyPilot?",
       "sd.confirmBody": "Deja el piloto desconectado hasta que termine (unos minutos). Mientras tanto la TinyPilot estará ocupada; si se conecta el piloto, la copia se para.",
@@ -3854,109 +3850,107 @@
       "bk.failed": "Sicherung fehlgeschlagen",
       "sd.title": "SD-Karte des TinyPilot",
       "sd.hint": "Ein vollständiges Abbild der Karte des TinyPilot (etwa 1 GB): System, pypilot, alle Profile und die IMU-Kalibrierung. Fällt die Karte aus, mit Raspberry Pi Imager auf eine neue Karte ab 2 GB schreiben. Nur mit ausgeschaltetem Autopilot. pypilot, Fernbedienung und Display halten für diese Minuten an und die Karte ist schreibgeschützt, damit das Abbild sauber ist. Die letzten 3 bleiben erhalten.",
-      "img.title": "Neues TinyPilot-Image, fertig eingerichtet",
-      "img.hint": "Bringt den TinyPilot auf ein neueres Image, ohne etwas zu verlieren: Dieser Raspberry Pi bereitet das neue Image mit deinem WLAN, deiner Kalibrierung, deinen Profilen, deiner Fernbedienung und deinem Passwort vor, und du schreibst es auf eine zweite Karte. Deine jetzige Karte wird nie verändert: Sie bleibt dein Weg zurück.",
-      "img.open": "Assistent öffnen",
-      "img.back": "Zurück",
-      "img.next": "Weiter",
-      "img.close": "Schließen",
-      "img.stepOf": "Schritt {n} von {total}",
-      "img.s0.title": "Bevor du anfängst",
-      "img.s0.body": "<b>Was:</b> Dieser Assistent bereitet ein neues TinyPilot-Image vor, in dem alles von deinem Boot schon steckt, damit die neue Karte sofort funktioniert.<br><b>Warum so:</b> Deine jetzige Karte wird nie beschrieben. Geht etwas schief, steckst du sie wieder ein und alles ist wie vorher.<br><b>Du brauchst:</b><ol><li>Eine zweite microSD-Karte, 8 GB oder mehr, gute Marke (A1 / U1).</li><li>Einen Kartenleser für deinen Computer (eingebaut oder USB).</li><li>Raspberry Pi Imager auf diesem Computer (kostenlos, raspberrypi.com/software).</li><li>Etwa 500 MB Internet für das Image, oder das Image schon auf einem USB-Stick in diesem Raspberry Pi.</li><li>3 GB frei auf diesem Raspberry Pi (wird geprüft).</li><li>Das Boot im Hafen, den Autopiloten aus und Zugang zum TinyPilot zum Kartentausch.</li><li>Einen Stift und ein Etikett für die alte Karte.</li></ol>",
-      "img.s1.title": "Eine frische Kopie deiner Einstellungen",
-      "img.s1.body": "<b>Was:</b> Eine Kopie von allem, was der TinyPilot speichert: Kalibrierung, Profile, Motor und Ruder, Fernbedienung, WLAN, Passwort und SSH-Schlüssel.<br><b>Wie:</b> Über SSH, nur lesend; der TinyPilot arbeitet weiter.<br><b>Warum jetzt:</b> Das neue Image entsteht aus dieser Kopie, also muss sie von heute und vollständig sein (alle Zeilen abgehakt). Optional: Mach im Abschnitt oben auch ein Abbild der jetzigen Karte.",
-      "img.s2.title": "Das neue Image",
-      "img.s2.body": "<b>Was:</b> Das neue TinyPilot-Image von pypilot.org, oder eines, das du schon auf einem USB-Stick hast.<br><b>Wie:</b> Herunterladen (etwa 470 MB, wird bei Ankunft geprüft), dann Lesen: Dieser Raspberry Pi entpackt es und schaut, welche Dateien es hat.<br><b>Warum:</b> Jede pypilot-Version legt ihre Dateien etwas anders ab; nichts wird blind kopiert.",
-      "img.s3.title": "Was auf die neue Karte kommt",
-      "img.s3.body": "<b>Was:</b> Wähle, was von deinem Boot übernommen wird, dann Zeigen, was sich ändert: Die Liste sagt Datei für Datei, was zusammengeführt, kopiert, übersprungen (und warum) oder gelöscht wird.<br><b>Warum:</b> Ein Image von pypilot.org kann die Testeinstellungen des Boots enthalten, auf dem es entstand. Was du nicht übernimmst, geht auf die Standardwerte von pypilot zurück, nie bleiben die eines anderen.",
-      "img.s4.title": "Image vorbereiten",
-      "img.s4.body": "<b>Was:</b> Dieser Raspberry Pi schreibt deine Einstellungen in das neue Image, prüft sein Dateisystem und komprimiert es (einige Minuten; Signal K läuft weiter).<br><b>Danach:</b> Lade es auf den Computer mit dem Kartenleser. Mit der .sha256-Datei prüfst du, ob es vollständig ankam.<br><b>Vorsicht:</b> Das Image enthält deinen WLAN-Schlüssel und den Passwort-Hash des TinyPilot. Lösche es hier, sobald die Karte geschrieben ist.",
-      "img.s5.title": "Die neue Karte schreiben",
-      "img.s5.body": "<b>An deinem Computer:</b><ol><li>Steck die NEUE Karte in den Leser.</li><li>Öffne Raspberry Pi Imager. Betriebssystem: Eigenes Image, und wähle das heruntergeladene tinypilot-boat-….img.gz.</li><li>Speicher: die NEUE Karte. Prüf die Größe: nie die Festplatte deines Computers.</li><li>OS-Anpassung: Nein. Es ist schon alles drin.</li><li>Schreiben, und überprüfen lassen.</li></ol><b>Warum:</b> Die Überprüfung liest die Karte zurück; eine billige oder müde Karte fällt hier auf, nicht auf See.",
-      "img.s6.title": "Karte tauschen und starten",
-      "img.s6.body": "<ol><li>Autopilot aus, Boot im Hafen.</li><li>TinyPilot ausschalten, alte Karte herausnehmen, mit ALT - AUFBEWAHREN beschriften und aufheben.</li><li>Neue Karte einstecken und einschalten. Der erste Start kann einige Minuten dauern und das Display zeigt vielleicht nur N/A oder WLAN: warten. Bleibt es 5 Minuten so, einmal aus- und einschalten.</li><li>Der TinyPilot verbindet sich selbst mit dem Boots-WLAN und dieses Plugin verbindet sich wieder.</li></ol>Unten: ob der TinyPilot mit dem SSH-Schlüssel antwortet, den dieses Plugin kennt (sollte er: die Schlüssel reisen im Image mit).",
-      "img.s7.title": "Im Hafen prüfen",
-      "img.s7.body": "Bevor du ihm auf See vertraust, mit jemandem am Ruder:<ol><li>Kurs: stimmt mit dem Bootskompass überein.</li><li>Manuell nach Backbord: Das Ruder geht nach Backbord und der Ruderwinkel bewegt sich richtig herum. Ebenso nach Steuerbord.</li><li>Standby: Die Kupplung löst und das Ruder ist frei.</li><li>Endanschläge: Der Motor stoppt an beiden Enden.</li><li>Fernbedienung: Jede Taste tut, was sie soll.</li><li>Signal K: Kurs, Ruder und Modus kommen im Visor an.</li></ol><b>Wenn etwas nicht stimmt:</b> Autopilot aus, alte Karte wieder einstecken und uns sagen, was du gesehen hast. Dann eine erste kurze Probe bei ruhiger See.",
-      "img.copyNow": "Jetzt eine frische Kopie machen",
-      "img.copyWhen": "Letzte Kopie: {when}",
-      "img.has.conf": "Kalibrierung, Motor und Profile (pypilot.conf)",
-      "img.has.wifi": "Boots-WLAN",
-      "img.has.remote": "Fernbedienung und Display",
-      "img.has.password": "TinyPilot-Passwort (Hash)",
-      "img.has.keys": "SSH-Schlüssel",
-      "img.copyOld": "Diese Kopie hat kein WLAN und kein Passwort (von einer älteren Plugin-Version oder ohne SSH). Mach eine frische Kopie.",
-      "img.needCopy": "Mach zuerst eine Kopie: Sie muss die TinyPilot-Dateien enthalten.",
-      "img.needRead": "Lies zuerst ein neues Image.",
-      "img.needBuild": "Bereite zuerst das Image vor.",
-      "img.fromOrg": "Von pypilot.org",
-      "img.orgError": "pypilot.org ist gerade nicht erreichbar: Nimm ein Image von einem USB-Stick.",
-      "img.newest": "neuestes",
-      "img.downloaded": "heruntergeladen",
-      "img.download": "Herunterladen",
-      "img.onPi": "Auf diesem Raspberry Pi (Home-Ordner und USB-Sticks)",
-      "img.noLocal": "Noch keines.",
-      "img.read": "Lesen",
-      "img.readOk": "{name} gelesen: pypilot {ver}.",
-      "img.inImage": "Im neuen Image",
-      "img.notInImage": "Nicht im neuen Image",
-      "img.g.wifi": "Boots-WLAN",
-      "img.g.wifi.why": "Ohne es bietet der TinyPilot nur sein eigenes WLAN an und dieser Raspberry Pi erreicht ihn nicht.",
-      "img.g.remotes": "Fernbedienung und Display",
-      "img.g.remotes.why": "Codes der Fernbedienung und Display-Einstellungen.",
-      "img.g.profiles": "Profile und Verstärkungen",
-      "img.g.profiles.why": "Jedes Profil, das du nutzt, mit seinen Verstärkungen. Gelöschte bleiben draußen.",
-      "img.g.imu": "IMU- und Kompasskalibrierung",
-      "img.g.imu.why": "Nur wenn die neue Karte in DENSELBEN TinyPilot kommt und die IMU genauso montiert ist. Sonst neu kalibrieren.",
-      "img.g.motor": "Motor und Ruder",
-      "img.g.motor.why": "Stromgrenze, Geschwindigkeiten, Kupplung, Ruderweg und Kalibrierung. Wird vor dem Vorbereiten Wert für Wert gezeigt.",
-      "img.g.sensors": "NMEA, GPS und Wind",
-      "img.g.sensors.why": "Sensor-Korrekturen und Optionen.",
-      "img.g.login": "Passwort und SSH-Schlüssel",
-      "img.g.login.why": "Der TinyPilot behält sein Passwort und dieses Plugin erkennt ihn weiter.",
-      "img.g.skFix": "Signal-K-Pakete",
-      "img.g.skFix.why": "Fügt die Python-Pakete hinzu, die manchen Images fehlen, damit pypilot mit Signal K spricht.",
-      "img.imuAsk": "Kommt die neue Karte in genau diesen TinyPilot, mit der IMU genau so montiert wie jetzt? Die Kalibrierung gehört zu diesem Sensor in dieser Lage.",
-      "img.planBtn": "Zeigen, was sich ändert",
-      "img.col.file": "Datei",
-      "img.col.action": "Was",
-      "img.col.why": "Warum",
-      "img.col.key": "Wert",
-      "img.col.image": "Image",
-      "img.col.boat": "Dein Boot",
-      "img.act.merge": "zusammengeführt",
-      "img.act.copy": "kopiert",
-      "img.act.skip": "übersprungen",
-      "img.act.remove": "gelöscht",
-      "img.motorTable": "IMU, Motor und Ruder: Image → dein Boot",
-      "img.reset": "pypilot-Standard",
-      "img.profilesN": "Profile ({n})",
-      "img.loginCarried": "Ebenfalls übernommen",
-      "img.buildBtn": "Image vorbereiten",
-      "img.buildAsk": "Image mit dieser Auswahl vorbereiten? Auf den TinyPilot wird nichts geschrieben.",
-      "img.dl": "Herunterladen",
-      "img.delete": "Löschen",
-      "img.deleteAsk": "Dieses Image vom Raspberry Pi löschen? Tu es, sobald die Karte geschrieben ist: Es enthält deinen WLAN-Schlüssel.",
-      "img.secretNote": "Enthält deinen WLAN-Schlüssel und den Passwort-Hash des TinyPilot: Lösche es, sobald die Karte geschrieben ist.",
-      "img.noOutput": "Noch kein Image vorbereitet.",
-      "img.keyChanged": "Der TinyPilot antwortet mit einem NEUEN SSH-Schlüssel ({fp}). Normal nach einer neuen Karte, wenn die Schlüssel nicht übernommen wurden; sonst prüfe, ob es dein TinyPilot ist.",
-      "img.keyAccept": "Es ist mein TinyPilot: neuen Schlüssel annehmen",
-      "img.keySame": "SSH-Schlüssel bekannt: {fp}",
-      "img.keyNone": "Noch kein SSH-Schlüssel gesehen.",
-      "img.failed": "Fehlgeschlagen",
-      "img.jobDone": "{what}: fertig",
-      "img.kind.fetch": "Download",
-      "img.kind.analyze": "Image lesen",
-      "img.kind.build": "Image vorbereiten",
-      "img.job.download": "Lädt herunter",
-      "img.job.verify": "Prüft den Download",
-      "img.job.unpack": "Entpackt",
-      "img.job.read": "Liest seine Dateien",
-      "img.job.mydata": "Passwort und Schlüssel",
-      "img.job.write": "Schreibt deine Einstellungen",
-      "img.job.check": "Prüft das Dateisystem",
-      "img.job.compress": "Komprimiert",
-      "img.job.checksum": "Prüfsumme",
-      "img.toolsMissing": "Fehlt auf diesem Raspberry Pi: {tools}. Installiere es (sudo apt install e2fsprogs xz-utils) und komm zurück.",
+      "bk.pickNow": "Sicherung meiner jetzigen Installation",
+      "bk.pickUpd": "Sicherung mit Aktualisierung des Systems",
+      "bk.nowTitle": "Sicherung meiner jetzigen Installation",
+      "bk.nowHint": "Speichert alle Einstellungen und ein vollständiges Abbild der Karte des TinyPilot. Autopilot aus: pypilot, Fernbedienung und Display halten einige Minuten an. Die Kopie wird am Ende geprüft.",
+      "bk.nowBtn": "Sicherung jetzt machen",
+      "bk.savedCards": "Kartenabbilder",
+      "bk.savedSettings": "Einstellungskopien (eine pro Tag, automatisch)",
+      "sd.checking": "Prüft die Kopie…",
+      "sd.checkOk": "Geprüft: Die Kopie ist in Ordnung.",
+      "sd.checkBad": "ACHTUNG: Die Kopie ist beschädigt ({detail}). Mach sie noch einmal.",
+      "sd.badgeOk": "geprüft ✔",
+      "sd.badgeBad": "BESCHÄDIGT ✖",
+      "sd.badgeNone": "nicht geprüft",
+      "upd.need": "Du brauchst: eine neue microSD-Karte mit 8 GB oder mehr, Class 10 (eine 10 in einem C auf dem Etikett); einen Kartenleser am Computer; Raspberry Pi Imager auf diesem Computer. Deine jetzige Karte wird nicht verändert: Sie bleibt dein Weg zurück.",
+      "upd.stepOf": "Schritt {n} von {total}",
+      "upd.t1": "Kopie deiner Einstellungen",
+      "upd.t2": "Dein neues Image",
+      "upd.t3": "Herunterladen",
+      "upd.t4": "Schreiben und Karte tauschen",
+      "upd.t5": "Im Hafen prüfen",
+      "upd.s1.do": "Zuerst eine Kopie von allem, was dein TinyPilot speichert: Kalibrierung, Profile, Motor, Fernbedienung, WLAN und Passwort.",
+      "upd.s1.btn": "Kopie machen",
+      "upd.copyWhen": "Letzte Kopie: {when}",
+      "upd.has.conf": "Kalibrierung, Motor und Profile",
+      "upd.has.wifi": "Boots-WLAN",
+      "upd.has.remote": "Fernbedienung und Display",
+      "upd.has.password": "TinyPilot-Passwort",
+      "upd.has.keys": "SSH-Schlüssel",
+      "upd.copyOld": "Dieser Kopie fehlt das WLAN oder das Passwort. Drück Kopie machen.",
+      "upd.s2.text": "Wir nehmen das neueste Image von pypilot.org: {image}. Ein Knopf lädt es herunter, prüft es und fügt deine Einstellungen ein. Etwa 10-15 Minuten; Signal K läuft weiter.",
+      "upd.s2.textLocal": "Wir nehmen {image}. Ein Knopf prüft es und fügt deine Einstellungen ein. Etwa 10 Minuten; Signal K läuft weiter.",
+      "upd.s2.wait": "Sucht das neueste Image…",
+      "upd.orgError": "pypilot.org ist gerade nicht erreichbar. Öffne Details und wähle ein Image auf einem USB-Stick.",
+      "upd.imuQ": "Kommt die neue Karte in genau diesen TinyPilot, ohne die IMU zu bewegen?",
+      "upd.yes": "Ja: Kalibrierung behalten",
+      "upd.no": "Nein: Ich kalibriere neu",
+      "upd.imuMissing": "Beantworte zuerst die Frage zur IMU.",
+      "upd.s2.btn": "Mein Image vorbereiten",
+      "upd.details": "Details",
+      "upd.otherImage": "Verwendetes Image (das neueste von pypilot.org, außer du wählst ein anderes):",
+      "upd.whatGoes": "Was übernommen wird:",
+      "upd.newest": "neuestes",
+      "upd.g.wifi": "Boots-WLAN",
+      "upd.g.remotes": "Fernbedienung und Display",
+      "upd.g.profiles": "Profile und Verstärkungen",
+      "upd.g.motor": "Motor und Ruder",
+      "upd.g.sensors": "NMEA, GPS und Wind",
+      "upd.g.login": "Passwort und SSH-Schlüssel",
+      "upd.g.skFix": "Signal-K-Pakete, die manchen Images fehlen",
+      "upd.preparing": "Bereitet dein Image vor",
+      "upd.failed": "Fehlgeschlagen",
+      "upd.job.download": "Lädt herunter",
+      "upd.job.verify": "Prüft den Download",
+      "upd.job.unpack": "Entpackt",
+      "upd.job.read": "Liest das Image",
+      "upd.job.mydata": "Passwort und Schlüssel",
+      "upd.job.write": "Fügt deine Einstellungen ein",
+      "upd.job.check": "Prüft das Image innen",
+      "upd.job.compress": "Komprimiert",
+      "upd.job.checksum": "Prüfsumme",
+      "upd.job.revalidate": "Prüft das Ergebnis noch einmal",
+      "upd.col.file": "Datei",
+      "upd.col.action": "Was",
+      "upd.col.why": "Warum",
+      "upd.col.key": "Wert",
+      "upd.col.image": "Image",
+      "upd.col.boat": "Dein Boot",
+      "upd.act.merge": "zusammengeführt",
+      "upd.act.copy": "kopiert",
+      "upd.act.skip": "übersprungen",
+      "upd.act.remove": "gelöscht",
+      "upd.motorTable": "IMU, Motor und Ruder: Image → dein Boot",
+      "upd.reset": "pypilot-Standard",
+      "upd.profilesN": "Profile ({n})",
+      "upd.s3.do": "Lade dein Image auf den Computer mit dem Kartenleser.",
+      "upd.dl": "Mein Image herunterladen",
+      "upd.sha": "Geprüft. SHA-256: {sha}",
+      "upd.secret": "Es enthält deinen WLAN-Schlüssel und das TinyPilot-Passwort: Lösche es hier, sobald die Karte geschrieben ist.",
+      "upd.delete": "Von diesem Raspberry Pi löschen",
+      "upd.deleteAsk": "Dieses Image vom Raspberry Pi löschen? Tu es, sobald die Karte geschrieben ist.",
+      "upd.noOutput": "Noch kein Image vorbereitet: geh einen Schritt zurück.",
+      "upd.s4.do": "Schreib es auf die neue Karte und steck sie in den TinyPilot. Hak jede Zeile ab, wenn sie erledigt ist.",
+      "upd.c4.1": "Neue Karte im Kartenleser des Computers.",
+      "upd.c4.2": "Raspberry Pi Imager: Betriebssystem > Eigenes Image > die heruntergeladene Datei; Speicher > die NEUE Karte (Größe prüfen, nie deine Festplatte); Anpassung: Nein.",
+      "upd.c4.3": "Schreiben und warten, bis die Überprüfung fertig ist.",
+      "upd.c4.4": "Autopilot aus. TinyPilot aus, alte Karte heraus mit Etikett ALT - AUFBEWAHREN, neue Karte hinein.",
+      "upd.c4.5": "TinyPilot ein. Bis zu 5 Minuten warten (anfangs zeigt das Display vielleicht nur N/A; bleibt es so, einmal aus- und einschalten).",
+      "upd.connOk": "TinyPilot verbunden: {ver}",
+      "upd.connWait": "Wartet, bis sich der TinyPilot verbindet…",
+      "upd.s5.do": "Im Hafen prüfen, mit jemandem am Ruder. Hak jede Zeile ab.",
+      "upd.c5.1": "Der Kurs stimmt mit dem Bootskompass überein.",
+      "upd.c5.2": "Manuell nach Backbord: Das Ruder geht nach Backbord. Ebenso nach Steuerbord.",
+      "upd.c5.3": "Standby: Das Ruder ist frei.",
+      "upd.c5.4": "Der Motor stoppt an beiden Enden.",
+      "upd.c5.5": "Jede Taste der Fernbedienung funktioniert.",
+      "upd.s5.fail": "Wenn etwas nicht stimmt: Autopilot aus, alte Karte wieder einstecken.",
+      "upd.next": "Weiter",
+      "upd.back": "Zurück",
+      "upd.finish": "Fertig",
+      "upd.done": "Fertig. Heb die alte Karte eine Weile auf: Sie ist dein Weg zurück.",
+      "upd.toolsMissing": "Fehlt auf diesem Raspberry Pi: {tools}. Installiere es (sudo apt install e2fsprogs xz-utils) und komm zurück.",
       "sd.now": "Karte jetzt kopieren",
       "sd.confirmTitle": "Karte des TinyPilot kopieren?",
       "sd.confirmBody": "Autopilot bis zum Ende ausgeschaltet lassen (einige Minuten). Der TinyPilot ist währenddessen beschäftigt; wird der Autopilot eingeschaltet, stoppt die Kopie.",
@@ -5356,109 +5350,107 @@
       "bk.failed": "Échec de la sauvegarde",
       "sd.title": "Carte SD du TinyPilot",
       "sd.hint": "Une image complète de la carte du TinyPilot (environ 1 Go) : système, pypilot, tous les profils et la calibration de l'IMU. Si la carte lâche, écrivez-la sur une carte neuve de 2 Go ou plus avec Raspberry Pi Imager. Uniquement pilote débrayé. Pendant ces minutes, pypilot, sa télécommande et son écran s'arrêtent et la carte passe en lecture seule, pour une image propre. Les 3 dernières sont gardées.",
-      "img.title": "Nouvelle image du TinyPilot, déjà configurée",
-      "img.hint": "Passe le TinyPilot à une image plus récente sans rien perdre : ce Raspberry Pi prépare la nouvelle image avec ton wifi, ta calibration, tes profils, ta télécommande et ton mot de passe déjà dedans, et tu l'écris sur une deuxième carte. Ta carte actuelle n'est jamais touchée : elle reste ton retour en arrière.",
-      "img.open": "Ouvrir l'assistant",
-      "img.back": "Retour",
-      "img.next": "Suivant",
-      "img.close": "Fermer",
-      "img.stepOf": "Étape {n} sur {total}",
-      "img.s0.title": "Avant de commencer",
-      "img.s0.body": "<b>Quoi :</b> cet assistant prépare une nouvelle image du TinyPilot avec tout ce qui vient de ton bateau déjà dedans, pour que la nouvelle carte fonctionne dès qu'on la met.<br><b>Pourquoi ainsi :</b> ta carte actuelle n'est jamais écrite. Si quelque chose tourne mal, tu la remets et tu es comme avant.<br><b>Il te faut :</b><ol><li>Une deuxième carte microSD de 8 Go ou plus, de bonne marque (A1 / U1).</li><li>Un lecteur de cartes pour ton ordinateur (intégré ou USB).</li><li>Raspberry Pi Imager sur cet ordinateur (gratuit, raspberrypi.com/software).</li><li>Environ 500 Mo d'internet pour l'image, ou l'image déjà sur une clé USB branchée sur ce Raspberry Pi.</li><li>3 Go libres sur ce Raspberry Pi (vérifié pour toi).</li><li>Le bateau au port, le pilote débrayé et l'accès au TinyPilot pour changer la carte.</li><li>Un stylo et une étiquette pour l'ancienne carte.</li></ol>",
-      "img.s1.title": "Une copie récente de tes réglages",
-      "img.s1.body": "<b>Quoi :</b> une copie de tout ce que garde le TinyPilot : calibration, profils, moteur et safran, télécommande, wifi, mot de passe et clés SSH.<br><b>Comment :</b> par SSH, en lecture seule ; le TinyPilot continue de fonctionner.<br><b>Pourquoi maintenant :</b> la nouvelle image est faite à partir de cette copie, elle doit donc être du jour et complète (toutes les lignes cochées). En option : fais aussi une image de la carte actuelle dans la section au-dessus.",
-      "img.s2.title": "La nouvelle image",
-      "img.s2.body": "<b>Quoi :</b> la nouvelle image du TinyPilot de pypilot.org, ou une que tu as déjà sur une clé USB.<br><b>Comment :</b> Télécharger (environ 470 Mo, vérifiée à l'arrivée), puis Lire : ce Raspberry Pi la décompresse et regarde quels fichiers elle contient.<br><b>Pourquoi :</b> chaque version de pypilot range ses fichiers un peu différemment ; rien n'est copié à l'aveugle.",
-      "img.s3.title": "Ce qui va sur la nouvelle carte",
-      "img.s3.body": "<b>Quoi :</b> choisis ce que tu reprends de ton bateau, puis Voir ce qui va changer : la liste dit, fichier par fichier, ce qui est fusionné, copié, ignoré (et pourquoi) ou supprimé.<br><b>Pourquoi :</b> une image de pypilot.org peut contenir les réglages d'essai du bateau sur lequel elle a été faite. Ce que tu ne reprends pas revient aux valeurs par défaut de pypilot, jamais à celles de quelqu'un d'autre.",
-      "img.s4.title": "Préparer l'image",
-      "img.s4.body": "<b>Quoi :</b> ce Raspberry Pi écrit tes réglages dans la nouvelle image, vérifie son système de fichiers et la compresse (quelques minutes ; Signal K continue de fonctionner).<br><b>Ensuite :</b> télécharge-la sur l'ordinateur qui a le lecteur de cartes. Le fichier .sha256 permet de vérifier qu'elle est arrivée entière.<br><b>Attention :</b> l'image contient la clé de ton wifi et le hash du mot de passe du TinyPilot. Supprime-la ici une fois la carte écrite.",
-      "img.s5.title": "Écrire la nouvelle carte",
-      "img.s5.body": "<b>Sur ton ordinateur :</b><ol><li>Mets la NOUVELLE carte dans le lecteur.</li><li>Ouvre Raspberry Pi Imager. Système d'exploitation : Utiliser une image personnalisée, et choisis le tinypilot-boat-….img.gz téléchargé.</li><li>Stockage : la NOUVELLE carte. Vérifie la taille : jamais le disque de ton ordinateur.</li><li>Personnalisation de l'OS : Non. Tout est déjà dedans.</li><li>Écrire, et laisse-le vérifier.</li></ol><b>Pourquoi :</b> la vérification relit la carte ; une carte bon marché ou fatiguée se révèle ici, pas en mer.",
-      "img.s6.title": "Changer la carte et démarrer",
-      "img.s6.body": "<ol><li>Pilote débrayé, bateau au port.</li><li>Éteins le TinyPilot, retire l'ancienne carte, étiquette-la ANCIENNE - GARDER et range-la.</li><li>Mets la nouvelle carte et allume. Le premier démarrage peut prendre quelques minutes et l'écran peut n'afficher que N/A ou wifi : attends. Si ça reste ainsi 5 minutes, éteins et rallume une fois.</li><li>Le TinyPilot rejoint seul le wifi du bateau et ce plugin s'y reconnecte.</li></ol>Ci-dessous : si le TinyPilot répond avec la clé SSH que ce plugin connaît (il devrait : les clés voyagent dans l'image).",
-      "img.s7.title": "Vérifier au port",
-      "img.s7.body": "Avant de lui faire confiance en mer, avec quelqu'un à la barre :<ol><li>Cap : il correspond au compas du bateau.</li><li>Manuel vers bâbord : le safran va à bâbord et l'angle de barre bouge dans le bon sens. Pareil vers tribord.</li><li>Standby : l'embrayage se libère et la barre est libre.</li><li>Fins de course : le moteur s'arrête aux deux extrémités.</li><li>Télécommande : chaque touche fait ce qu'elle doit.</li><li>Signal K : cap, barre et mode arrivent dans le visor.</li></ol><b>Si quelque chose ne va pas :</b> pilote débrayé, remets l'ancienne carte et dis-nous ce que tu as vu. Ensuite, un premier court essai par mer calme.",
-      "img.copyNow": "Faire une copie maintenant",
-      "img.copyWhen": "Dernière copie : {when}",
-      "img.has.conf": "Calibration, moteur et profils (pypilot.conf)",
-      "img.has.wifi": "Wifi du bateau",
-      "img.has.remote": "Télécommande et écran",
-      "img.has.password": "Mot de passe du TinyPilot (hash)",
-      "img.has.keys": "Clés SSH",
-      "img.copyOld": "Cette copie n'a ni wifi ni mot de passe (faite par une version plus ancienne du plugin, ou sans SSH). Fais une nouvelle copie.",
-      "img.needCopy": "Fais d'abord une copie : elle doit contenir les fichiers du TinyPilot.",
-      "img.needRead": "Lis d'abord une nouvelle image.",
-      "img.needBuild": "Prépare d'abord l'image.",
-      "img.fromOrg": "De pypilot.org",
-      "img.orgError": "pypilot.org n'est pas joignable pour l'instant : utilise une image sur une clé USB.",
-      "img.newest": "la plus récente",
-      "img.downloaded": "téléchargée",
-      "img.download": "Télécharger",
-      "img.onPi": "Sur ce Raspberry Pi (dossier personnel et clés USB)",
-      "img.noLocal": "Aucune pour l'instant.",
-      "img.read": "Lire",
-      "img.readOk": "{name} lue : pypilot {ver}.",
-      "img.inImage": "Dans la nouvelle image",
-      "img.notInImage": "Absents de la nouvelle image",
-      "img.g.wifi": "Wifi du bateau",
-      "img.g.wifi.why": "Sans lui, le TinyPilot n'offre que son propre wifi et ce Raspberry Pi ne peut pas le joindre.",
-      "img.g.remotes": "Télécommande et écran",
-      "img.g.remotes.why": "Codes de la télécommande et préférences de l'écran.",
-      "img.g.profiles": "Profils et gains",
-      "img.g.profiles.why": "Chaque profil que tu utilises, avec ses gains. Les profils supprimés restent dehors.",
-      "img.g.imu": "Calibration de l'IMU et du compas",
-      "img.g.imu.why": "Seulement si la nouvelle carte va dans le MÊME TinyPilot, avec l'IMU montée de la même façon. Sinon, recalibrer.",
-      "img.g.motor": "Moteur et safran",
-      "img.g.motor.why": "Limite de courant, vitesses, embrayage, course et calibration du safran. Montrés valeur par valeur avant de préparer.",
-      "img.g.sensors": "NMEA, GPS et vent",
-      "img.g.sensors.why": "Corrections et options des capteurs.",
-      "img.g.login": "Mot de passe et clés SSH",
-      "img.g.login.why": "Le TinyPilot garde son mot de passe et ce plugin le reconnaît toujours.",
-      "img.g.skFix": "Paquets Signal K",
-      "img.g.skFix.why": "Ajoute les paquets Python qui manquent à certaines images, pour que pypilot parle à Signal K.",
-      "img.imuAsk": "La nouvelle carte va-t-elle dans ce même TinyPilot, avec l'IMU montée exactement comme maintenant ? La calibration appartient à ce capteur dans cette position.",
-      "img.planBtn": "Voir ce qui va changer",
-      "img.col.file": "Fichier",
-      "img.col.action": "Quoi",
-      "img.col.why": "Pourquoi",
-      "img.col.key": "Valeur",
-      "img.col.image": "Image",
-      "img.col.boat": "Ton bateau",
-      "img.act.merge": "fusionné",
-      "img.act.copy": "copié",
-      "img.act.skip": "ignoré",
-      "img.act.remove": "supprimé",
-      "img.motorTable": "IMU, moteur et safran : image → ton bateau",
-      "img.reset": "valeur par défaut de pypilot",
-      "img.profilesN": "Profils ({n})",
-      "img.loginCarried": "Repris aussi",
-      "img.buildBtn": "Préparer l'image",
-      "img.buildAsk": "Préparer l'image avec ces choix ? Rien n'est écrit sur le TinyPilot.",
-      "img.dl": "Télécharger",
-      "img.delete": "Supprimer",
-      "img.deleteAsk": "Supprimer cette image du Raspberry Pi ? Fais-le une fois la carte écrite : elle contient la clé de ton wifi.",
-      "img.secretNote": "Elle contient la clé de ton wifi et le hash du mot de passe du TinyPilot : supprime-la une fois la carte écrite.",
-      "img.noOutput": "Aucune image préparée pour l'instant.",
-      "img.keyChanged": "Le TinyPilot répond avec une NOUVELLE clé SSH ({fp}). Normal après une nouvelle carte si les clés n'ont pas été reprises ; sinon, vérifie que c'est bien ton TinyPilot.",
-      "img.keyAccept": "C'est mon TinyPilot : accepter la nouvelle clé",
-      "img.keySame": "Clé SSH connue : {fp}",
-      "img.keyNone": "Aucune clé SSH vue pour l'instant.",
-      "img.failed": "Échec",
-      "img.jobDone": "{what} : terminé",
-      "img.kind.fetch": "Téléchargement",
-      "img.kind.analyze": "Lire l'image",
-      "img.kind.build": "Préparer l'image",
-      "img.job.download": "Téléchargement",
-      "img.job.verify": "Vérification du téléchargement",
-      "img.job.unpack": "Décompression",
-      "img.job.read": "Lecture de ses fichiers",
-      "img.job.mydata": "Mot de passe et clés",
-      "img.job.write": "Écriture de tes réglages",
-      "img.job.check": "Vérification du système de fichiers",
-      "img.job.compress": "Compression",
-      "img.job.checksum": "Somme de contrôle",
-      "img.toolsMissing": "Il manque sur ce Raspberry Pi : {tools}. Installe-les (sudo apt install e2fsprogs xz-utils) et reviens.",
+      "bk.pickNow": "Sauvegarde de mon installation actuelle",
+      "bk.pickUpd": "Sauvegarde avec mise à jour du système",
+      "bk.nowTitle": "Sauvegarde de mon installation actuelle",
+      "bk.nowHint": "Enregistre tous les réglages et une image complète de la carte du TinyPilot. Pilote débrayé : pypilot, sa télécommande et son écran s'arrêtent quelques minutes. La copie est vérifiée à la fin.",
+      "bk.nowBtn": "Faire la sauvegarde maintenant",
+      "bk.savedCards": "Images de la carte",
+      "bk.savedSettings": "Copies des réglages (une par jour, automatiques)",
+      "sd.checking": "Vérification de la copie…",
+      "sd.checkOk": "Vérifiée : la copie est saine.",
+      "sd.checkBad": "ATTENTION : la copie est endommagée ({detail}). Refais-la.",
+      "sd.badgeOk": "vérifiée ✔",
+      "sd.badgeBad": "ENDOMMAGÉE ✖",
+      "sd.badgeNone": "non vérifiée",
+      "upd.need": "Il te faut : une carte microSD neuve de 8 Go ou plus, Classe 10 (un 10 dans un C sur l'étiquette) ; un lecteur de cartes sur ton ordinateur ; Raspberry Pi Imager sur cet ordinateur. Ta carte actuelle n'est pas touchée : elle reste ton retour en arrière.",
+      "upd.stepOf": "Étape {n} sur {total}",
+      "upd.t1": "Copie de tes réglages",
+      "upd.t2": "Ta nouvelle image",
+      "upd.t3": "Télécharge-la",
+      "upd.t4": "Écris-la et change la carte",
+      "upd.t5": "Vérifie au port",
+      "upd.s1.do": "D'abord, une copie de tout ce que garde ton TinyPilot : calibration, profils, moteur, télécommande, wifi et mot de passe.",
+      "upd.s1.btn": "Faire la copie",
+      "upd.copyWhen": "Dernière copie : {when}",
+      "upd.has.conf": "Calibration, moteur et profils",
+      "upd.has.wifi": "Wifi du bateau",
+      "upd.has.remote": "Télécommande et écran",
+      "upd.has.password": "Mot de passe du TinyPilot",
+      "upd.has.keys": "Clés SSH",
+      "upd.copyOld": "Il manque le wifi ou le mot de passe à cette copie. Appuie sur Faire la copie.",
+      "upd.s2.text": "Nous utiliserons l'image la plus récente de pypilot.org : {image}. Un seul bouton la télécharge, la vérifie et y met tes réglages. Environ 10-15 minutes ; Signal K continue de fonctionner.",
+      "upd.s2.textLocal": "Nous utiliserons {image}. Un seul bouton la vérifie et y met tes réglages. Environ 10 minutes ; Signal K continue de fonctionner.",
+      "upd.s2.wait": "Recherche de l'image la plus récente…",
+      "upd.orgError": "pypilot.org n'est pas joignable pour l'instant. Ouvre Détails et choisis une image sur une clé USB.",
+      "upd.imuQ": "La nouvelle carte va-t-elle dans ce même TinyPilot, sans bouger l'IMU ?",
+      "upd.yes": "Oui : garder la calibration",
+      "upd.no": "Non : je recalibrerai",
+      "upd.imuMissing": "Réponds d'abord à la question sur l'IMU.",
+      "upd.s2.btn": "Préparer mon image",
+      "upd.details": "Détails",
+      "upd.otherImage": "Image utilisée (la plus récente de pypilot.org sauf si tu en choisis une autre) :",
+      "upd.whatGoes": "Ce qui est repris :",
+      "upd.newest": "la plus récente",
+      "upd.g.wifi": "Wifi du bateau",
+      "upd.g.remotes": "Télécommande et écran",
+      "upd.g.profiles": "Profils et gains",
+      "upd.g.motor": "Moteur et safran",
+      "upd.g.sensors": "NMEA, GPS et vent",
+      "upd.g.login": "Mot de passe et clés SSH",
+      "upd.g.skFix": "Paquets Signal K qui manquent à certaines images",
+      "upd.preparing": "Préparation de ton image",
+      "upd.failed": "Échec",
+      "upd.job.download": "Téléchargement",
+      "upd.job.verify": "Vérification du téléchargement",
+      "upd.job.unpack": "Décompression",
+      "upd.job.read": "Lecture de l'image",
+      "upd.job.mydata": "Mot de passe et clés",
+      "upd.job.write": "Ajout de tes réglages",
+      "upd.job.check": "Vérification de l'image à l'intérieur",
+      "upd.job.compress": "Compression",
+      "upd.job.checksum": "Somme de contrôle",
+      "upd.job.revalidate": "Nouvelle vérification du résultat",
+      "upd.col.file": "Fichier",
+      "upd.col.action": "Quoi",
+      "upd.col.why": "Pourquoi",
+      "upd.col.key": "Valeur",
+      "upd.col.image": "Image",
+      "upd.col.boat": "Ton bateau",
+      "upd.act.merge": "fusionné",
+      "upd.act.copy": "copié",
+      "upd.act.skip": "ignoré",
+      "upd.act.remove": "supprimé",
+      "upd.motorTable": "IMU, moteur et safran : image → ton bateau",
+      "upd.reset": "valeur par défaut de pypilot",
+      "upd.profilesN": "Profils ({n})",
+      "upd.s3.do": "Télécharge ton image sur l'ordinateur qui a le lecteur de cartes.",
+      "upd.dl": "Télécharger mon image",
+      "upd.sha": "Vérifiée. SHA-256 : {sha}",
+      "upd.secret": "Elle contient la clé de ton wifi et le mot de passe du TinyPilot : supprime-la ici une fois la carte écrite.",
+      "upd.delete": "La supprimer de ce Raspberry Pi",
+      "upd.deleteAsk": "Supprimer cette image du Raspberry Pi ? Fais-le une fois la carte écrite.",
+      "upd.noOutput": "Aucune image préparée pour l'instant : reviens d'une étape.",
+      "upd.s4.do": "Écris-la sur la nouvelle carte et mets-la dans le TinyPilot. Coche chaque ligne au fur et à mesure.",
+      "upd.c4.1": "Nouvelle carte dans le lecteur de l'ordinateur.",
+      "upd.c4.2": "Raspberry Pi Imager : Système d'exploitation > Utiliser une image personnalisée > le fichier téléchargé ; Stockage > la NOUVELLE carte (vérifie la taille, jamais ton disque) ; personnalisation : Non.",
+      "upd.c4.3": "Écrire, et attendre la fin de la vérification.",
+      "upd.c4.4": "Pilote débrayé. TinyPilot éteint, ancienne carte retirée avec une étiquette ANCIENNE - GARDER, nouvelle carte en place.",
+      "upd.c4.5": "TinyPilot allumé. Attends jusqu'à 5 minutes (au début l'écran peut n'afficher que N/A ; si ça reste ainsi, éteins et rallume une fois).",
+      "upd.connOk": "TinyPilot connecté : {ver}",
+      "upd.connWait": "En attente de la connexion du TinyPilot…",
+      "upd.s5.do": "Vérifie au port, avec quelqu'un à la barre. Coche chaque ligne.",
+      "upd.c5.1": "Le cap correspond au compas du bateau.",
+      "upd.c5.2": "Manuel vers bâbord : le safran va à bâbord. Pareil vers tribord.",
+      "upd.c5.3": "Standby : la barre est libre.",
+      "upd.c5.4": "Le moteur s'arrête aux deux extrémités.",
+      "upd.c5.5": "Toutes les touches de la télécommande fonctionnent.",
+      "upd.s5.fail": "Si quelque chose ne va pas : pilote débrayé, remets l'ancienne carte.",
+      "upd.next": "Suivant",
+      "upd.back": "Retour",
+      "upd.finish": "Terminer",
+      "upd.done": "Terminé. Garde l'ancienne carte un moment : c'est ton retour en arrière.",
+      "upd.toolsMissing": "Il manque sur ce Raspberry Pi : {tools}. Installe-les (sudo apt install e2fsprogs xz-utils) et reviens.",
       "sd.now": "Copier la carte maintenant",
       "sd.confirmTitle": "Copier la carte du TinyPilot ?",
       "sd.confirmBody": "Gardez le pilote débrayé jusqu'à la fin (quelques minutes). Le TinyPilot sera occupé pendant ce temps ; si le pilote est embrayé, la copie s'arrête.",
@@ -8722,12 +8714,12 @@
       const pf = document.getElementById("sd-prog-fill");
       const pt = document.getElementById("sd-prog-text");
       if (pf) pf.style.width = `${pct}%`;
-      if (pt) pt.textContent = `${pct} %  ·  ${Math.round(job.bytes / 1048576)}/${Math.round(job.totalBytes / 1048576)} MB${left != null ? "  ·  ~" + left + " min" : ""}`;
+      if (pt) pt.textContent = job.checking ? t("sd.checking") : `${pct} %  ·  ${Math.round(job.bytes / 1048576)}/${Math.round(job.totalBytes / 1048576)} MB${left != null ? "  ·  ~" + left + " min" : ""}`;
     }
     if (note) {
       if (running) note.textContent = "";
       else if (job && job.error) note.textContent = `${t("sd.failed")}: ${job.error}`;
-      else if (job && job.finishedTs) note.textContent = t("sd.done").replace("{file}", job.file || "");
+      else if (job && job.finishedTs) note.textContent = t("sd.done").replace("{file}", job.file || "") + (job.check ? "  " + (job.check.ok ? t("sd.checkOk") : t("sd.checkBad").replace("{detail}", job.check.detail || "")) : "");
       else note.textContent = "";
     }
     const list = document.getElementById("sd-list");
@@ -8737,7 +8729,9 @@
         const a = document.createElement("a");
         a.href = _adminUrl(`/plugins/${PLUGIN_ID}/tinypilot/sd-download/${encodeURIComponent(im.name)}?dest=${encodeURIComponent(im.dest || "default")}`);
         a.download = im.name;
-        a.textContent = `↓ ${im.name}  ·  ${Math.round(im.size / 1048576)} MB  ·  ${im.destLabel || ""}`;
+        const chk = im.check ? (im.check.ok ? t("sd.badgeOk") : t("sd.badgeBad")) : t("sd.badgeNone");   // Rev737
+        a.textContent = `↓ ${im.name}  ·  ${Math.round(im.size / 1048576)} MB  ·  ${im.destLabel || ""}  ·  ${chk}`;
+        if (im.check && !im.check.ok) { a.style.color = "var(--err)"; a.title = im.check.detail || ""; }
         list.appendChild(a);
       }
     }
@@ -8815,6 +8809,8 @@
   async function _sdStart() {
     const ok = await _pmConfirm(t("sd.confirmTitle"), t("sd.confirmBody"));
     if (!ok) return;
+    // Rev737: "Back up my installation" = the settings copy first, then the card image.
+    try { await skFetch(`/plugins/${PLUGIN_ID}/backup/now`, { method: "POST" }); _bkpRefresh(); } catch { /* the card image still goes on */ }
     try {
       const dest = document.getElementById("sd-dest")?.value || "default";   // Rev672
       // Rev673: a folder from the browser goes as a path; the backend checks it.
@@ -8846,16 +8842,19 @@
       save(li, { logCaptureIntervalSec: v }, () => { /* next status refresh shows the saved value */ });
     });
   }
-  // Rev735 (Carlos 2026-11-22): "New TinyPilot image" assistant. One step
-  // at a time; each says what, how, why and what is needed. The server does
-  // the work (tinypilot-image.ts); this only shows its state and asks.
-  const IMG_STEPS = 8;
-  const IMG_GROUPS = ["wifi", "remotes", "profiles", "imu", "motor", "sensors", "login", "skFix"];
+  // Rev737 (Carlos 2026-11-22): "Back up and update the TinyPilot system".
+  // Five steps, one thing to do and one big button each; Next stays off
+  // until the step is done and the technical part lives under Details.
+  // The server does the work (tinypilot-image.ts).
+  const IMG_STEPS = 5;
+  const IMG_GROUPS = ["wifi", "remotes", "profiles", "motor", "sensors", "login", "skFix"];
   let _imgStep = 0;
   let _imgSt = null;
   let _imgPoll = null;
   let _imgGroupsSel = null;
-  let _imgImuOk = false;
+  let _imgSrc = "";
+  let _imgImu = null;
+  const _imgChecks = { 3: [false, false, false, false, false], 4: [false, false, false, false, false] };
   const _imgEsc = (v) => String(v == null ? "" : v).replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]);
   const _imgMB = (b) => `${Math.round((b || 0) / 1048576)} MB`;
   const _imgUrl = (p) => `/plugins/${PLUGIN_ID}/tinypilot/${p}`;
@@ -8865,188 +8864,190 @@
     if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
     return j;
   }
+  const _imgJob = () => (_imgSt && _imgSt.job) || null;
+  const _imgBusy = () => !!(_imgJob() && _imgJob().running);
+  function _imgCopyOk() { const h = (_imgSt && _imgSt.copy && _imgSt.copy.has) || {}; return !!(h["pypilot.conf"] && h["networking.txt"]); }
+  function _imgLatestOut() { const o = (_imgSt && _imgSt.outputs) || []; return o[0] || null; }
+  function _imgStepDone(n) {
+    if (n === 0) return _imgCopyOk();
+    if (n === 1) { const j = _imgJob(); return !_imgBusy() && !!_imgLatestOut() && !(j && j.kind === "prepare" && j.error); }
+    if (n === 2) return !!_imgLatestOut();
+    if (n === 3 || n === 4) return _imgChecks[n].every(Boolean);
+    return false;
+  }
   async function _imgRefresh(listing) {
-    try {
-      const r = await skFetch(_imgUrl(`image/status${listing ? "?listing=1" : ""}`));
-      if (r.ok) _imgSt = await r.json();
-    } catch { /* silent */ }
+    try { const r = await skFetch(_imgUrl(`image/status${listing ? "?listing=1" : ""}`)); if (r.ok) _imgSt = await r.json(); } catch { /* silent */ }
+    const wasBusy = !!_imgPoll;
     _imgRender();
-    const running = !!(_imgSt && _imgSt.job && _imgSt.job.running);
-    if (running && !_imgPoll) _imgPoll = setInterval(() => _imgRefresh(false), 2000);
-    if (!running && _imgPoll) { clearInterval(_imgPoll); _imgPoll = null; }
+    if (_imgBusy() && !_imgPoll) _imgPoll = setInterval(() => _imgRefresh(false), 2000);
+    if (!_imgBusy() && _imgPoll) {
+      clearInterval(_imgPoll); _imgPoll = null;
+      // a job just ended well: move on by itself
+      const j = _imgJob();
+      if (wasBusy && j && !j.error && j.kind === "prepare" && _imgStep === 1) { _imgStep = 2; _imgShowStep(); }
+    }
   }
   function _imgShowStep() {
-    document.querySelectorAll("#img-wiz .img-step").forEach((el) => { el.hidden = Number(el.dataset.step) !== _imgStep; });
+    document.querySelectorAll("#img-section .img-step").forEach((el) => { el.hidden = Number(el.dataset.step) !== _imgStep; });
     const no = document.getElementById("img-stepno");
-    if (no) no.textContent = t("img.stepOf").replace("{n}", String(_imgStep + 1)).replace("{total}", String(IMG_STEPS));
+    if (no) no.textContent = t("upd.stepOf").replace("{n}", String(_imgStep + 1)).replace("{total}", String(IMG_STEPS));
     const fill = document.getElementById("img-stepfill");
     if (fill) fill.style.width = `${Math.round((_imgStep + 1) * 100 / IMG_STEPS)}%`;
     const tt = document.getElementById("img-steptitle");
-    if (tt) tt.textContent = t(`img.s${_imgStep}.title`);
-    const back = document.getElementById("img-back"), next = document.getElementById("img-next");
-    if (back) back.hidden = _imgStep === 0;
-    if (next) next.hidden = _imgStep === IMG_STEPS - 1;
+    if (tt) tt.textContent = t(`upd.t${_imgStep + 1}`);
     _imgRender();
   }
-  function _imgJobText(job) {
-    if (!job) return "";
-    const step = t(`img.job.${job.step}`) || job.step;
-    if (job.running) {
-      const pct = job.totalBytes ? ` ${Math.round(job.bytes * 100 / job.totalBytes)} %` : (job.bytes ? ` ${_imgMB(job.bytes)}` : "");
-      return `${step}${pct}…`;
-    }
-    return job.error ? `${t("img.failed")}: ${job.error}` : t("img.jobDone").replace("{what}", t(`img.kind.${job.kind}`));
+  function _imgChecklist(elId, step, prefix) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = _imgChecks[step].map((on, i) => `<label style="display:block;margin:8px 0"><input type="checkbox" data-img-check="${step}:${i}" ${on ? "checked" : ""}/> ${_imgEsc(t(`${prefix}.${i + 1}`))}</label>`).join("");
   }
   function _imgRender() {
     const st = _imgSt;
+    const job = _imgJob();
+    const busy = _imgBusy();
     const note = document.getElementById("img-note");
+    if (note) note.textContent = st && st.toolsMissing && st.toolsMissing.length ? t("upd.toolsMissing").replace("{tools}", st.toolsMissing.join(", ")) : "";
+    // progress of a running job (prepare)
     const wrap = document.getElementById("img-prog-wrap");
-    const job = st && st.job;
     if (wrap) {
-      wrap.hidden = !(job && (job.running || job.finishedTs && Date.now() - job.finishedTs < 600000));
-      const lbl = document.getElementById("img-prog-label"), fill = document.getElementById("img-prog-fill"), txt = document.getElementById("img-prog-text");
-      if (lbl && job) lbl.textContent = t(`img.kind.${job.kind}`);
-      if (fill && job) { fill.style.width = job.totalBytes ? `${Math.round(job.bytes * 100 / job.totalBytes)}%` : (job.running ? "50%" : "100%"); fill.style.background = job.error ? "var(--err)" : ""; }
-      if (txt) txt.textContent = _imgJobText(job);
+      const show = !!(job && (busy || (job.error && job.finishedTs && Date.now() - job.finishedTs < 900000)));
+      wrap.hidden = !show;
+      if (show) {
+        document.getElementById("img-prog-label").textContent = busy ? t("upd.preparing") : t("upd.failed");
+        const f = document.getElementById("img-prog-fill");
+        f.style.width = job.totalBytes ? `${Math.round(job.bytes * 100 / job.totalBytes)}%` : (busy ? "60%" : "100%");
+        f.style.background = job.error ? "var(--err)" : "";
+        const step = t(`upd.job.${job.step}`);
+        document.getElementById("img-prog-text").textContent = job.error ? job.error
+          : `${step}${job.totalBytes ? ` ${Math.round(job.bytes * 100 / job.totalBytes)} %` : ""}…`;
+      }
     }
-    if (note) note.textContent = st && st.toolsMissing && st.toolsMissing.length ? t("img.toolsMissing").replace("{tools}", st.toolsMissing.join(", ")) : "";
+    const next = document.getElementById("img-next"), back = document.getElementById("img-back");
+    if (back) back.hidden = _imgStep === 0;
+    if (next) {
+      next.textContent = _imgStep === IMG_STEPS - 1 ? t("upd.finish") : t("upd.next");
+      next.disabled = busy || !_imgStepDone(_imgStep);
+    }
     if (!st) return;
-    const busy = !!(job && job.running);
     // step 1: the copy
     const cp = document.getElementById("img-copy");
     if (cp) {
       const has = (st.copy && st.copy.has) || {};
       const when = st.copy && st.copy.createdTs ? new Date(st.copy.createdTs).toLocaleString() : "—";
       const line = (k, label) => `<div>${has[k] ? "✔" : "✖"} ${_imgEsc(t(label))}</div>`;
-      cp.innerHTML = `<div class="hint">${_imgEsc(t("img.copyWhen").replace("{when}", when))}</div>`
-        + line("pypilot.conf", "img.has.conf") + line("networking.txt", "img.has.wifi") + line("hat.conf", "img.has.remote")
-        + line("sys/shadow-tc", "img.has.password") + line("sys/ssh_host_ed25519_key", "img.has.keys")
-        + (has["networking.txt"] && has["sys/shadow-tc"] ? "" : `<div class="hint" style="color:var(--warn)">${_imgEsc(t("img.copyOld"))}</div>`);
+      cp.innerHTML = `<div class="hint">${_imgEsc(t("upd.copyWhen").replace("{when}", when))}</div>`
+        + line("pypilot.conf", "upd.has.conf") + line("networking.txt", "upd.has.wifi") + line("hat.conf", "upd.has.remote")
+        + line("sys/shadow-tc", "upd.has.password") + line("sys/ssh_host_ed25519_key", "upd.has.keys")
+        + (_imgCopyOk() ? "" : `<div class="hint" style="color:var(--warn)">${_imgEsc(t("upd.copyOld"))}</div>`);
     }
-    // step 2: the new image
+    // step 2: which image, the IMU question, details
+    const org = (st.pypilotOrg && st.pypilotOrg.images) || [];
+    const local = st.sources || [];
+    const chosen = _imgSrc ? local.find((l) => l.path === _imgSrc) : null;
+    const s2 = document.getElementById("img-s2-text");
+    if (s2) {
+      s2.textContent = chosen ? t("upd.s2.textLocal").replace("{image}", chosen.name)
+        : org[0] ? t("upd.s2.text").replace("{image}", org[0].name)
+        : (st.pypilotOrg && st.pypilotOrg.error ? t("upd.orgError") : t("upd.s2.wait"));
+    }
+    document.querySelectorAll('input[name="img-imu"]').forEach((r) => { r.checked = _imgImu != null && r.value === (_imgImu ? "yes" : "no"); r.disabled = busy; });
+    const prep = document.getElementById("img-prepare");
+    if (prep) prep.disabled = busy;
     const src = document.getElementById("img-sources");
     if (src) {
-      let html = "";
-      const org = (st.pypilotOrg && st.pypilotOrg.images) || [];
-      const local = st.sources || [];
-      html += `<div class="hint"><b>${_imgEsc(t("img.fromOrg"))}</b></div>`;
-      if (st.pypilotOrg && st.pypilotOrg.error) html += `<div class="hint">${_imgEsc(t("img.orgError"))}</div>`;
-      org.slice(0, 3).forEach((im, i) => {
-        const have = local.some((l) => l.name === im.name);
-        html += `<div class="row" style="align-items:center;gap:8px;flex-wrap:wrap"><span>${_imgEsc(im.name)}${i === 0 ? ` · ${_imgEsc(t("img.newest"))}` : ""}</span>`
-          + (have ? `<span class="hint">${_imgEsc(t("img.downloaded"))}</span>` : `<button type="button" class="ghost" data-img-fetch="${_imgEsc(im.url)}" ${busy ? "disabled" : ""}>${_imgEsc(t("img.download"))}</button>`) + `</div>`;
-      });
-      html += `<div class="hint" style="margin-top:8px"><b>${_imgEsc(t("img.onPi"))}</b></div>`;
-      if (!local.length) html += `<div class="hint">${_imgEsc(t("img.noLocal"))}</div>`;
-      for (const l of local) {
-        html += `<div class="row" style="align-items:center;gap:8px;flex-wrap:wrap"><span>${_imgEsc(l.name)} · ${_imgMB(l.size)}</span>`
-          + `<button type="button" data-img-analyze="${_imgEsc(l.path)}" ${busy ? "disabled" : ""}>${_imgEsc(t("img.read"))}</button></div>`;
-      }
-      if (st.analyzed) {
-        const f = st.analyzed.files || {};
-        const yes = Object.keys(f).filter((k) => f[k]), no = Object.keys(f).filter((k) => !f[k]);
-        html += `<div class="hint" style="margin-top:8px;color:var(--ok)">${_imgEsc(t("img.readOk").replace("{name}", st.analyzed.src).replace("{ver}", st.analyzed.pypilotVersion || "?"))}</div>`
-          + `<div class="hint">${_imgEsc(t("img.inImage"))}: ${_imgEsc(yes.join(", ") || "—")}</div>`
-          + (no.length ? `<div class="hint">${_imgEsc(t("img.notInImage"))}: ${_imgEsc(no.join(", "))}</div>` : "");
-      }
-      src.innerHTML = html;
+      const opt = (val, label) => `<label style="display:block;margin:4px 0"><input type="radio" name="img-src" value="${_imgEsc(val)}" ${(_imgSrc || "") === val ? "checked" : ""} ${busy ? "disabled" : ""}/> ${_imgEsc(label)}</label>`;
+      src.innerHTML = opt("", org[0] ? `${org[0].name} · pypilot.org · ${t("upd.newest")}` : t("upd.newest")) + local.map((l) => opt(l.path, `${l.name} · ${_imgMB(l.size)}`)).join("");
     }
-    // step 3: groups
     const gr = document.getElementById("img-groups");
     if (gr) {
       if (!_imgGroupsSel) _imgGroupsSel = Object.assign({}, st.groups || {});
-      gr.innerHTML = IMG_GROUPS.map((g) => `<label style="display:block;margin:6px 0"><input type="checkbox" data-img-group="${g}" ${_imgGroupsSel[g] ? "checked" : ""} ${busy ? "disabled" : ""}/> <b>${_imgEsc(t(`img.g.${g}`))}</b><br><span class="hint">${_imgEsc(t(`img.g.${g}.why`))}</span></label>`).join("");
+      gr.innerHTML = IMG_GROUPS.map((g) => `<label style="display:block;margin:4px 0"><input type="checkbox" data-img-group="${g}" ${_imgGroupsSel[g] ? "checked" : ""} ${busy ? "disabled" : ""}/> ${_imgEsc(t(`upd.g.${g}`))}</label>`).join("");
     }
-    // step 4: outputs
+    const po = document.getElementById("img-planout");
+    if (po) po.innerHTML = st.lastPlan ? _imgPlanHtml(st.lastPlan) : "";
+    // step 3: download
     const out = document.getElementById("img-outputs");
     if (out) {
-      const outs = st.outputs || [];
-      out.innerHTML = outs.length ? outs.map((o) => `<div class="row" style="align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px"><span>${_imgEsc(o.name)} · ${_imgMB(o.size)}</span>`
-        + `<a href="${_imgEsc(_adminUrl(_imgUrl(`image/file/${encodeURIComponent(o.name)}`)))}" download><button type="button" class="primary">${_imgEsc(t("img.dl"))}</button></a>`
-        + `<a href="${_imgEsc(_adminUrl(_imgUrl(`image/file/${encodeURIComponent(o.name)}.sha256`)))}" download class="hint">sha256</a>`
-        + `<button type="button" class="ghost" data-img-delete="${_imgEsc(o.name)}">${_imgEsc(t("img.delete"))}</button></div>`
-        + (o.sha256 ? `<div class="hint" style="word-break:break-all">SHA-256 ${_imgEsc(o.sha256)}</div>` : "")).join("") + `<div class="hint" style="color:var(--warn)">${_imgEsc(t("img.secretNote"))}</div>`
-        : `<div class="hint">${_imgEsc(t("img.noOutput"))}</div>`;
+      const o = _imgLatestOut();
+      out.innerHTML = o ? `<div class="row" style="margin-top:8px"><a href="${_imgEsc(_adminUrl(_imgUrl(`image/file/${encodeURIComponent(o.name)}`)))}" download style="flex:1"><button type="button" class="primary" style="width:100%;min-height:56px;white-space:normal">${_imgEsc(t("upd.dl"))}<br><small>${_imgEsc(o.name)} · ${_imgMB(o.size)}</small></button></a></div>`
+        + (o.sha256 ? `<div class="hint" style="word-break:break-all">${_imgEsc(t("upd.sha").replace("{sha}", o.sha256))} <a href="${_imgEsc(_adminUrl(_imgUrl(`image/file/${encodeURIComponent(o.name)}.sha256`)))}" download>.sha256</a></div>` : "")
+        + `<div class="hint" style="color:var(--warn)">${_imgEsc(t("upd.secret"))}</div><button type="button" class="ghost" data-img-delete="${_imgEsc(o.name)}">${_imgEsc(t("upd.delete"))}</button>`
+        : `<div class="hint">${_imgEsc(t("upd.noOutput"))}</div>`;
     }
-    // step 6: SSH host key
-    const hk = document.getElementById("img-hostkey");
-    if (hk) {
-      const k = st.hostKey || {};
-      hk.innerHTML = k.changed
-        ? `<div class="hint" style="color:var(--warn)">${_imgEsc(t("img.keyChanged").replace("{fp}", k.changed.fingerprint))}</div><button type="button" id="img-key-accept">${_imgEsc(t("img.keyAccept"))}</button>`
-        : `<div class="hint">${_imgEsc(k.fingerprint ? t("img.keySame").replace("{fp}", k.fingerprint) : t("img.keyNone"))}</div>`;
-      const acc = document.getElementById("img-key-accept");
-      if (acc) acc.onclick = async () => { try { await _imgPost("hostkey/accept"); } catch (e) { _pmAlert(t("img.failed"), String(e.message || e)); } _imgRefresh(false); };
-    }
-    ["img-copy-now", "img-plan", "img-build"].forEach((id) => { const b = document.getElementById(id); if (b) b.disabled = busy; });
+    // steps 4 and 5: checklists
+    _imgChecklist("img-check4", 3, "upd.c4");
+    _imgChecklist("img-check5", 4, "upd.c5");
+    const conn = document.getElementById("img-conn");
+    if (conn) conn.textContent = st.connected ? t("upd.connOk").replace("{ver}", st.pypilotVersionNow || "?") : t("upd.connWait");
   }
-  function _imgPlanRender(p) {
-    const el = document.getElementById("img-planout");
-    if (!el) return;
-    const act = (a) => t(`img.act.${a}`);
-    let html = `<table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px"><tr><th style="text-align:left">${_imgEsc(t("img.col.file"))}</th><th style="text-align:left">${_imgEsc(t("img.col.action"))}</th><th style="text-align:left">${_imgEsc(t("img.col.why"))}</th></tr>`;
-    for (const r of p.rows) html += `<tr><td>${_imgEsc(r.file)}</td><td>${_imgEsc(act(r.action))}</td><td class="hint">${_imgEsc(r.reason)}</td></tr>`;
+  function _imgPlanHtml(p) {
+    let html = `<table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px"><tr><th style="text-align:left">${_imgEsc(t("upd.col.file"))}</th><th style="text-align:left">${_imgEsc(t("upd.col.action"))}</th><th style="text-align:left">${_imgEsc(t("upd.col.why"))}</th></tr>`;
+    for (const r of p.rows) html += `<tr><td>${_imgEsc(r.file)}</td><td>${_imgEsc(t(`upd.act.${r.action}`))}</td><td class="hint">${_imgEsc(r.reason)}</td></tr>`;
     html += "</table>";
     const c = p.conf;
     if (c) {
-      const motor = c.changes.filter((x) => x.group === "motor" || x.group === "imu");
-      if (motor.length) {
-        html += `<div class="hint" style="margin-top:8px"><b>${_imgEsc(t("img.motorTable"))}</b></div><table style="width:100%;font-size:12px;border-collapse:collapse"><tr><th style="text-align:left">${_imgEsc(t("img.col.key"))}</th><th style="text-align:left">${_imgEsc(t("img.col.image"))}</th><th style="text-align:left">${_imgEsc(t("img.col.boat"))}</th></tr>`;
-        for (const x of motor) html += `<tr><td>${_imgEsc(x.key)}</td><td class="hint">${_imgEsc(x.from == null ? "—" : x.from)}</td><td>${_imgEsc(x.to == null ? t("img.reset") : x.to)}</td></tr>`;
+      const mt = c.changes.filter((x) => x.group === "motor" || x.group === "imu");
+      if (mt.length) {
+        html += `<div class="hint" style="margin-top:8px"><b>${_imgEsc(t("upd.motorTable"))}</b></div><table style="width:100%;font-size:12px;border-collapse:collapse"><tr><th style="text-align:left">${_imgEsc(t("upd.col.key"))}</th><th style="text-align:left">${_imgEsc(t("upd.col.image"))}</th><th style="text-align:left">${_imgEsc(t("upd.col.boat"))}</th></tr>`;
+        for (const x of mt) html += `<tr><td>${_imgEsc(x.key)}</td><td class="hint">${_imgEsc(x.from == null ? "—" : x.from)}</td><td>${_imgEsc(x.to == null ? t("upd.reset") : x.to)}</td></tr>`;
         html += "</table>";
       }
-      html += `<div class="hint" style="margin-top:6px">${_imgEsc(t("img.profilesN").replace("{n}", String(c.profiles.length)))}: ${_imgEsc(c.profiles.join(", "))}</div>`;
+      html += `<div class="hint" style="margin-top:6px">${_imgEsc(t("upd.profilesN").replace("{n}", String(c.profiles.length)))}: ${_imgEsc(c.profiles.join(", "))}</div>`;
       for (const w of c.warnings) html += `<div class="hint" style="color:var(--warn)">${_imgEsc(w)}</div>`;
     }
-    if (p.login && p.login.length) html += `<div class="hint">${_imgEsc(t("img.loginCarried"))}: ${_imgEsc(p.login.join(", "))}</div>`;
-    el.innerHTML = html;
+    return html;
+  }
+  function _bkShowChoice(which) {
+    const a = document.getElementById("sd-section"), b = document.getElementById("img-section");
+    if (a) a.hidden = which !== "now";
+    if (b) b.hidden = which !== "upd";
+    if (which === "upd") { _imgShowStep(); _imgRefresh(true); }
+    if (which === "now") { try { _sdRefresh(); _bkpRefresh(); } catch { /* silent */ } }
   }
   function _imgWire() {
-    const open = document.getElementById("img-open"), wiz = document.getElementById("img-wiz");
-    if (!open || !wiz) return;
-    open.addEventListener("click", (ev) => { ev.stopPropagation(); wiz.hidden = false; open.hidden = true; _imgStep = 0; _imgShowStep(); _imgRefresh(true); });
-    const close = document.getElementById("img-close");
-    if (close) close.addEventListener("click", (ev) => { ev.stopPropagation(); wiz.hidden = true; open.hidden = false; });
+    const pn = document.getElementById("bk-pick-now"), pu = document.getElementById("bk-pick-upd");
+    if (pn) pn.addEventListener("click", (ev) => { ev.stopPropagation(); _bkShowChoice("now"); });
+    if (pu) pu.addEventListener("click", (ev) => { ev.stopPropagation(); _bkShowChoice("upd"); });
+    const sec = document.getElementById("img-section");
+    if (!sec) return;
     const back = document.getElementById("img-back"), next = document.getElementById("img-next");
     if (back) back.addEventListener("click", (ev) => { ev.stopPropagation(); if (_imgStep > 0) { _imgStep--; _imgShowStep(); } });
     if (next) next.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      const st = _imgSt || {};
-      if (_imgStep === 1 && !(st.copy && st.copy.has && st.copy.has["pypilot.conf"])) { _pmAlert(t("img.title"), t("img.needCopy")); return; }
-      if (_imgStep === 2 && !st.analyzed) { _pmAlert(t("img.title"), t("img.needRead")); return; }
-      if (_imgStep === 4 && !(st.outputs && st.outputs.length)) { _pmAlert(t("img.title"), t("img.needBuild")); return; }
+      if (!_imgStepDone(_imgStep)) return;
       if (_imgStep < IMG_STEPS - 1) { _imgStep++; _imgShowStep(); }
+      else { _pmAlert(t("upd.t5"), t("upd.done")); _bkShowChoice(""); _imgStep = 0; }
     });
-    wiz.addEventListener("click", async (ev) => {
-      const b = ev.target.closest("button,input");
-      if (!b) return;
+    sec.addEventListener("change", (ev) => {
+      const el = ev.target;
+      if (el.name === "img-imu") { _imgImu = el.value === "yes"; return; }
+      if (el.name === "img-src") { _imgSrc = el.value; _imgRender(); return; }
+      if (el.dataset && el.dataset.imgGroup) { _imgGroupsSel[el.dataset.imgGroup] = el.checked; return; }
+      if (el.dataset && el.dataset.imgCheck) { const [s, i] = el.dataset.imgCheck.split(":").map(Number); _imgChecks[s][i] = el.checked; _imgRender(); }
+    });
+    sec.addEventListener("click", async (ev) => {
+      const b = ev.target.closest("button");
+      if (!b || b.id === "img-next" || b.id === "img-back") return;
       ev.stopPropagation();
       try {
-        if (b.dataset.imgFetch) { await _imgPost("image/fetch", { url: b.dataset.imgFetch }); }
-        else if (b.dataset.imgAnalyze) { await _imgPost("image/analyze", { src: b.dataset.imgAnalyze }); }
-        else if (b.dataset.imgDelete) { if (!(await _pmConfirm(t("img.delete"), t("img.deleteAsk")))) return; await skFetch(_imgUrl(`image/file/${encodeURIComponent(b.dataset.imgDelete)}`), { method: "DELETE" }); }
-        else if (b.dataset.imgGroup) {
-          const g = b.dataset.imgGroup;
-          if (g === "imu" && b.checked && !_imgImuOk) {
-            if (!(await _pmConfirm(t("img.g.imu"), t("img.imuAsk")))) { b.checked = false; return; }
-            _imgImuOk = true;
-          }
-          _imgGroupsSel[g] = b.checked;
-          const po = document.getElementById("img-planout"); if (po) po.innerHTML = "";
-          return;
-        } else if (b.id === "img-copy-now") {
+        if (b.id === "img-copy-now") {
           b.disabled = true;
           const r = await skFetch(`/plugins/${PLUGIN_ID}/backup/now`, { method: "POST" });
           const j = await r.json().catch(() => ({}));
           if (!j.ok) throw new Error(j.error || `HTTP ${r.status}`);
-        } else if (b.id === "img-plan") {
-          _imgPlanRender(await _imgPost("image/plan", { groups: _imgGroupsSel }));
+          await _imgRefresh(false);
+          if (_imgCopyOk() && _imgStep === 0) { _imgStep = 1; _imgShowStep(); }
           return;
-        } else if (b.id === "img-build") {
-          if (!(await _pmConfirm(t("img.buildBtn"), t("img.buildAsk")))) return;
-          await _imgPost("image/build", { groups: _imgGroupsSel });
+        }
+        if (b.id === "img-prepare") {
+          if (_imgImu == null) { _pmAlert(t("upd.t2"), t("upd.imuMissing")); return; }
+          await _imgPost("image/prepare", { imu: _imgImu, src: _imgSrc || undefined, groups: _imgGroupsSel });
+        } else if (b.dataset.imgDelete) {
+          if (!(await _pmConfirm(t("upd.delete"), t("upd.deleteAsk")))) return;
+          await skFetch(_imgUrl(`image/file/${encodeURIComponent(b.dataset.imgDelete)}`), { method: "DELETE" });
         } else return;
-      } catch (e) { _pmAlert(t("img.failed"), String(e.message || e)); }
+      } catch (e) { _pmAlert(t("upd.failed"), String(e.message || e)); }
       _imgRefresh(false);
     });
   }
