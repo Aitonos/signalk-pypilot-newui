@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev734-738)
+## Unreleased (Rev734-739)
 
 ### Important: TinyPilot SD images made before this version
 
@@ -15,6 +15,21 @@
   (see Fixed below), so make a fresh one too.
 
 ### Added
+- **One Backup button** (Rev739):
+  - **Make a backup** then offers your whole installation as it is now, or
+    an update to a newer TinyPilot. It asks where to save it: the backup
+    folder, another folder or a USB stick.
+  - **Restore an earlier backup** asks where it is, lists the available
+    ones and restores either:
+    - a settings copy, through pypilot;
+    - a whole card, by writing it to a card, like an update.
+  - Below the button: the backup folder, and the available backups folded.
+  - Every window has a quiet way out.
+  - The update picks up where it was left: a preparation still running, or
+    a card already prepared.
+  - It says when the TinyPilot is still on the old card.
+  - It warns at the start to do it in port, and that the autopilot keeps
+    working while the new card is prepared.
 - **Backups, made simple** (Rev738). Setup > Backups has two big buttons.
   Each one opens windows one after another, like setting up a phone: one
   question or one button each, no buttons while it works, and nothing

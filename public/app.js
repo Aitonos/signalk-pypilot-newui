@@ -705,6 +705,44 @@
       "bk.failed": "Backup failed",
       "sd.title": "TinyPilot SD card",
       "sd.hint": "A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.",
+      "bk.start": "Backup",
+      "bk.folder": "Backup folder:",
+      "bk.available": "Available backups",
+      "wz.title": "Backup",
+      "wz.what": "What do you want to do?",
+      "wz.make": "Make a backup",
+      "wz.restore": "Restore an earlier backup",
+      "wz.which": "What kind of backup?",
+      "wz.whichNow": "My whole installation as it is now",
+      "wz.whichUpd": "Update to a newer TinyPilot",
+      "wz.otherFolder": "Another folder…",
+      "wz.confirm": "Confirm",
+      "wz.later": "I'll do it later",
+      "wz.now.where": "Where do you want to save the backup?",
+      "wz.now.intro": "We will save your TinyPilot as it is now: all its settings and its whole card.\n\nDo it in port: for a few minutes the autopilot will not work.",
+      "wz.upd.intro": "We will move your TinyPilot to the newest version, with all your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nDo it in port: at the end the card is changed and the autopilot stops for a while. Your current card is not touched.",
+      "wz.upd.preparing": "Preparing your new card. It takes about 10 minutes.\nThe autopilot keeps working meanwhile.",
+      "wz.upd.downloading": "It is downloading to your computer.\nIf the browser opened another window for it, come back here when it finishes and press Next.",
+      "wz.upd.resume": "You already have a new card prepared ({when}).\nDo you want to go on from there?",
+      "wz.upd.fresh": "Start again",
+      "wz.upd.goOn": "Go on",
+      "wz.upd.bg": "It keeps preparing on its own.\nPress Backup again later to go on.",
+      "wz.upd.w5old": "The TinyPilot is still on the old card ({ver}). Have you changed the card?",
+      "wz.res.title": "Restore a backup",
+      "wz.res.where": "Where is the backup?",
+      "wz.res.none": "There are no backups in that folder.",
+      "wz.res.cards": "Whole card",
+      "wz.res.copies": "Settings only",
+      "wz.res.damaged": "damaged",
+      "wz.res.pick": "Which backup do you want to restore?",
+      "wz.res.go": "Restore",
+      "wz.res.jsonAsk": "The profiles and gains of that day will come back. Switch the autopilot off first.",
+      "wz.res.working": "Restoring…",
+      "wz.res.fail": "It could not be restored.\n{why}",
+      "wz.res.jsonOk": "Restored ✔",
+      "wz.res.cardIntro": "To restore a whole card it is written to a card, like an update. First download it to your computer.",
+      "wz.res.back": "Your TinyPilot is back ✔",
+      "wz.res.cardOk": "Restored ✔\nYour TinyPilot is as it was on that day.",
       "bk.title": "Backups",
       "bk.saved": "Saved copies",
       "wz.close": "Close",
@@ -717,7 +755,6 @@
       "wz.no": "No",
       "wz.stepOf": "Step {n} of {total}",
       "wz.now.title": "Backup",
-      "wz.now.intro": "We will save your TinyPilot as it is now: all its settings and its whole card.\n\nSwitch the autopilot off before you start. It takes a few minutes.",
       "wz.now.go": "Make the backup",
       "wz.now.working": "Making the backup. Do not switch anything off.",
       "wz.now.settings": "Saving the settings…",
@@ -736,7 +773,6 @@
       "wz.why.damaged": "The file came out damaged. Try again.",
       "wz.why.other": "Try again. If it keeps failing, tell us.",
       "wz.upd.title": "Update the TinyPilot",
-      "wz.upd.intro": "We will move your TinyPilot to the newest version, with all your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nYour current card is not touched.",
       "wz.upd.copying": "Saving your settings…",
       "wz.upd.c1": "Calibration, motor and profiles",
       "wz.upd.c2": "Boat wifi",
@@ -747,7 +783,6 @@
       "wz.upd.same": "Is the new card for this same TinyPilot?",
       "wz.upd.sameYes": "Yes, for this one",
       "wz.upd.sameNo": "No, for another",
-      "wz.upd.preparing": "Preparing your new card. It takes about 10 minutes.\nYou can leave it working.",
       "wz.upd.p.start": "Starting…",
       "wz.upd.p.download": "Downloading the new version…",
       "wz.upd.p.read": "Opening the new version…",
@@ -756,7 +791,6 @@
       "wz.upd.prepFail": "It could not be prepared.\n{why}",
       "wz.upd.ready": "Your new card is ready to download ✔",
       "wz.upd.download": "Download",
-      "wz.upd.downloading": "It is downloading to your computer.\nWhen it finishes, press Next.",
       "wz.upd.w1": "Put the new card in your computer's card reader.",
       "wz.upd.w2": "Open Raspberry Pi Imager. Under Operating system choose “Use custom” and pick the file you just downloaded.",
       "wz.upd.w3": "Under Storage choose the new card and press Write. Wait until it finishes.",
@@ -2208,6 +2242,44 @@
       "bk.failed": "La copia falló",
       "sd.title": "Tarjeta SD de la TinyPilot",
       "sd.hint": "Una imagen completa de la tarjeta de la TinyPilot (unos 1 GB): sistema, pypilot, todos los perfiles y la calibración de la IMU. Si la tarjeta falla, se graba en una tarjeta nueva de 2 GB o más con Raspberry Pi Imager. Solo con el piloto desconectado. Durante esos minutos pypilot, su mando y su pantalla se paran y la tarjeta queda en solo lectura, para que la imagen salga limpia. Se guardan las 3 últimas.",
+      "bk.start": "Backup",
+      "bk.folder": "Carpeta de backups:",
+      "bk.available": "Backups disponibles",
+      "wz.title": "Backup",
+      "wz.what": "¿Qué quieres hacer?",
+      "wz.make": "Hacer un backup",
+      "wz.restore": "Restaurar un backup anterior",
+      "wz.which": "¿Qué backup quieres hacer?",
+      "wz.whichNow": "De toda mi instalación actual",
+      "wz.whichUpd": "Actualizar a una versión más nueva de TinyPilot",
+      "wz.otherFolder": "Otra carpeta…",
+      "wz.confirm": "Confirmar",
+      "wz.later": "Lo haré más tarde",
+      "wz.now.where": "¿Dónde quieres guardar el backup?",
+      "wz.now.intro": "Vamos a guardar tu TinyPilot tal como está ahora: todos sus ajustes y su tarjeta entera.\n\nHazlo en puerto: durante unos minutos el piloto no funcionará.",
+      "wz.upd.intro": "Vamos a pasar tu TinyPilot a la versión más nueva, con todos tus ajustes.\n\nNecesitas:\n• una tarjeta microSD nueva (Clase 10, 8 GB o más)\n• un lector de tarjetas en tu ordenador\n• el programa Raspberry Pi Imager\n\nHazlo en puerto: al final se cambia la tarjeta y el piloto estará parado un rato. Tu tarjeta de ahora no se toca.",
+      "wz.upd.preparing": "Preparando tu tarjeta nueva. Tarda unos 10 minutos.\nMientras tanto el piloto sigue funcionando.",
+      "wz.upd.downloading": "Se está descargando en tu ordenador.\nSi el navegador abrió otra ventana para la descarga, vuelve aquí cuando termine y pulsa Siguiente.",
+      "wz.upd.resume": "Ya tienes una tarjeta nueva preparada ({when}).\n¿Quieres seguir desde ahí?",
+      "wz.upd.fresh": "Empezar de nuevo",
+      "wz.upd.goOn": "Seguir",
+      "wz.upd.bg": "Sigue preparándose sola.\nVuelve a pulsar Backup más tarde para seguir.",
+      "wz.upd.w5old": "El TinyPilot sigue con la tarjeta vieja ({ver}). ¿Ya has cambiado la tarjeta?",
+      "wz.res.title": "Restaurar un backup",
+      "wz.res.where": "¿Dónde está el backup?",
+      "wz.res.none": "No hay backups en esa carpeta.",
+      "wz.res.cards": "Tarjeta completa",
+      "wz.res.copies": "Solo ajustes",
+      "wz.res.damaged": "dañado",
+      "wz.res.pick": "¿Qué backup quieres restaurar?",
+      "wz.res.go": "Restaurar",
+      "wz.res.jsonAsk": "Volverán los perfiles y ganancias de ese día. Antes, desconecta el piloto.",
+      "wz.res.working": "Restaurando…",
+      "wz.res.fail": "No se ha podido restaurar.\n{why}",
+      "wz.res.jsonOk": "Restaurado ✔",
+      "wz.res.cardIntro": "Para restaurar una tarjeta completa hay que grabarla en una tarjeta, como en una actualización. Primero descárgala en tu ordenador.",
+      "wz.res.back": "Tu TinyPilot ha vuelto ✔",
+      "wz.res.cardOk": "Restaurado ✔\nTu TinyPilot está como estaba ese día.",
       "bk.title": "Copias de seguridad",
       "bk.saved": "Copias guardadas",
       "wz.close": "Cerrar",
@@ -2220,7 +2292,6 @@
       "wz.no": "No",
       "wz.stepOf": "Paso {n} de {total}",
       "wz.now.title": "Copia de seguridad",
-      "wz.now.intro": "Vamos a guardar tu TinyPilot tal como está ahora: todos sus ajustes y su tarjeta entera.\n\nDesconecta el piloto antes de empezar. Tarda unos minutos.",
       "wz.now.go": "Hacer la copia",
       "wz.now.working": "Haciendo la copia. No apagues nada.",
       "wz.now.settings": "Guardando los ajustes…",
@@ -2239,7 +2310,6 @@
       "wz.why.damaged": "El fichero ha salido dañado. Vuelve a intentarlo.",
       "wz.why.other": "Vuelve a intentarlo. Si sigue fallando, avísanos.",
       "wz.upd.title": "Actualizar el TinyPilot",
-      "wz.upd.intro": "Vamos a pasar tu TinyPilot a la versión más nueva, con todos tus ajustes.\n\nNecesitas:\n• una tarjeta microSD nueva (Clase 10, 8 GB o más)\n• un lector de tarjetas en tu ordenador\n• el programa Raspberry Pi Imager\n\nTu tarjeta de ahora no se toca.",
       "wz.upd.copying": "Guardando tus ajustes…",
       "wz.upd.c1": "Calibración, motor y perfiles",
       "wz.upd.c2": "Wifi del barco",
@@ -2250,7 +2320,6 @@
       "wz.upd.same": "¿La tarjeta nueva es para este mismo TinyPilot?",
       "wz.upd.sameYes": "Sí, para este",
       "wz.upd.sameNo": "No, para otro",
-      "wz.upd.preparing": "Preparando tu tarjeta nueva. Tarda unos 10 minutos.\nPuedes dejarlo trabajando.",
       "wz.upd.p.start": "Empezando…",
       "wz.upd.p.download": "Descargando la versión nueva…",
       "wz.upd.p.read": "Abriendo la versión nueva…",
@@ -2259,7 +2328,6 @@
       "wz.upd.prepFail": "No se ha podido preparar.\n{why}",
       "wz.upd.ready": "Tu tarjeta nueva está lista para descargar ✔",
       "wz.upd.download": "Descargar",
-      "wz.upd.downloading": "Se está descargando en tu ordenador.\nCuando termine, pulsa Siguiente.",
       "wz.upd.w1": "Mete la tarjeta nueva en el lector de tu ordenador.",
       "wz.upd.w2": "Abre Raspberry Pi Imager. En Sistema operativo elige «Usar personalizado» y escoge el fichero que acabas de descargar.",
       "wz.upd.w3": "En Almacenamiento elige la tarjeta nueva y pulsa Grabar. Espera a que termine.",
@@ -3803,6 +3871,44 @@
       "bk.failed": "Sicherung fehlgeschlagen",
       "sd.title": "SD-Karte des TinyPilot",
       "sd.hint": "Ein vollständiges Abbild der Karte des TinyPilot (etwa 1 GB): System, pypilot, alle Profile und die IMU-Kalibrierung. Fällt die Karte aus, mit Raspberry Pi Imager auf eine neue Karte ab 2 GB schreiben. Nur mit ausgeschaltetem Autopilot. pypilot, Fernbedienung und Display halten für diese Minuten an und die Karte ist schreibgeschützt, damit das Abbild sauber ist. Die letzten 3 bleiben erhalten.",
+      "bk.start": "Sicherung",
+      "bk.folder": "Sicherungsordner:",
+      "bk.available": "Vorhandene Sicherungen",
+      "wz.title": "Sicherung",
+      "wz.what": "Was möchtest du tun?",
+      "wz.make": "Sicherung machen",
+      "wz.restore": "Frühere Sicherung zurückspielen",
+      "wz.which": "Welche Sicherung?",
+      "wz.whichNow": "Meine ganze jetzige Installation",
+      "wz.whichUpd": "Auf einen neueren TinyPilot aktualisieren",
+      "wz.otherFolder": "Anderer Ordner…",
+      "wz.confirm": "Bestätigen",
+      "wz.later": "Später",
+      "wz.now.where": "Wo soll die Sicherung gespeichert werden?",
+      "wz.now.intro": "Wir speichern deinen TinyPilot so, wie er jetzt ist: alle Einstellungen und die ganze Karte.\n\nMach es im Hafen: einige Minuten lang funktioniert der Autopilot nicht.",
+      "wz.upd.intro": "Wir bringen deinen TinyPilot auf die neueste Version, mit all deinen Einstellungen.\n\nDu brauchst:\n• eine neue microSD-Karte (Class 10, 8 GB oder mehr)\n• einen Kartenleser am Computer\n• das Programm Raspberry Pi Imager\n\nMach es im Hafen: am Ende wird die Karte getauscht und der Autopilot steht eine Weile still. Deine jetzige Karte wird nicht verändert.",
+      "wz.upd.preparing": "Bereitet deine neue Karte vor. Das dauert etwa 10 Minuten.\nDer Autopilot arbeitet währenddessen normal weiter.",
+      "wz.upd.downloading": "Sie wird auf deinen Computer geladen.\nWenn der Browser dafür ein anderes Fenster geöffnet hat, komm hierher zurück, sobald es fertig ist, und drück Weiter.",
+      "wz.upd.resume": "Du hast schon eine neue Karte vorbereitet ({when}).\nMöchtest du dort weitermachen?",
+      "wz.upd.fresh": "Neu anfangen",
+      "wz.upd.goOn": "Weitermachen",
+      "wz.upd.bg": "Es bereitet allein weiter vor.\nDrück später noch einmal Sicherung, um weiterzumachen.",
+      "wz.upd.w5old": "Der TinyPilot läuft noch mit der alten Karte ({ver}). Hast du die Karte schon getauscht?",
+      "wz.res.title": "Sicherung zurückspielen",
+      "wz.res.where": "Wo liegt die Sicherung?",
+      "wz.res.none": "In diesem Ordner gibt es keine Sicherungen.",
+      "wz.res.cards": "Ganze Karte",
+      "wz.res.copies": "Nur Einstellungen",
+      "wz.res.damaged": "beschädigt",
+      "wz.res.pick": "Welche Sicherung möchtest du zurückspielen?",
+      "wz.res.go": "Zurückspielen",
+      "wz.res.jsonAsk": "Die Profile und Verstärkungen dieses Tages kommen zurück. Schalte vorher den Autopiloten aus.",
+      "wz.res.working": "Spielt zurück…",
+      "wz.res.fail": "Das Zurückspielen hat nicht geklappt.\n{why}",
+      "wz.res.jsonOk": "Zurückgespielt ✔",
+      "wz.res.cardIntro": "Eine ganze Karte wird zurückgespielt, indem man sie auf eine Karte schreibt, wie bei einer Aktualisierung. Lade sie zuerst auf deinen Computer.",
+      "wz.res.back": "Dein TinyPilot ist wieder da ✔",
+      "wz.res.cardOk": "Zurückgespielt ✔\nDein TinyPilot ist wie an jenem Tag.",
       "bk.title": "Sicherungen",
       "bk.saved": "Gespeicherte Kopien",
       "wz.close": "Schließen",
@@ -3815,7 +3921,6 @@
       "wz.no": "Nein",
       "wz.stepOf": "Schritt {n} von {total}",
       "wz.now.title": "Sicherung",
-      "wz.now.intro": "Wir speichern deinen TinyPilot so, wie er jetzt ist: alle Einstellungen und die ganze Karte.\n\nSchalte vorher den Autopiloten aus. Es dauert ein paar Minuten.",
       "wz.now.go": "Sicherung machen",
       "wz.now.working": "Sicherung läuft. Nichts ausschalten.",
       "wz.now.settings": "Speichert die Einstellungen…",
@@ -3834,7 +3939,6 @@
       "wz.why.damaged": "Die Datei ist beschädigt. Versuch es noch einmal.",
       "wz.why.other": "Versuch es noch einmal. Wenn es weiter nicht klappt, sag uns Bescheid.",
       "wz.upd.title": "TinyPilot aktualisieren",
-      "wz.upd.intro": "Wir bringen deinen TinyPilot auf die neueste Version, mit all deinen Einstellungen.\n\nDu brauchst:\n• eine neue microSD-Karte (Class 10, 8 GB oder mehr)\n• einen Kartenleser am Computer\n• das Programm Raspberry Pi Imager\n\nDeine jetzige Karte wird nicht verändert.",
       "wz.upd.copying": "Speichert deine Einstellungen…",
       "wz.upd.c1": "Kalibrierung, Motor und Profile",
       "wz.upd.c2": "Boots-WLAN",
@@ -3845,7 +3949,6 @@
       "wz.upd.same": "Ist die neue Karte für genau diesen TinyPilot?",
       "wz.upd.sameYes": "Ja, für diesen",
       "wz.upd.sameNo": "Nein, für einen anderen",
-      "wz.upd.preparing": "Bereitet deine neue Karte vor. Das dauert etwa 10 Minuten.\nDu kannst es einfach laufen lassen.",
       "wz.upd.p.start": "Startet…",
       "wz.upd.p.download": "Lädt die neue Version herunter…",
       "wz.upd.p.read": "Öffnet die neue Version…",
@@ -3854,7 +3957,6 @@
       "wz.upd.prepFail": "Das Vorbereiten hat nicht geklappt.\n{why}",
       "wz.upd.ready": "Deine neue Karte ist bereit zum Herunterladen ✔",
       "wz.upd.download": "Herunterladen",
-      "wz.upd.downloading": "Sie wird auf deinen Computer geladen.\nWenn es fertig ist, drück Weiter.",
       "wz.upd.w1": "Steck die neue Karte in den Kartenleser deines Computers.",
       "wz.upd.w2": "Öffne Raspberry Pi Imager. Wähle bei Betriebssystem „Eigenes Image“ und dann die Datei, die du gerade heruntergeladen hast.",
       "wz.upd.w3": "Wähle bei Speicher die neue Karte und drück Schreiben. Warte, bis es fertig ist.",
@@ -5280,6 +5382,44 @@
       "bk.failed": "Échec de la sauvegarde",
       "sd.title": "Carte SD du TinyPilot",
       "sd.hint": "Une image complète de la carte du TinyPilot (environ 1 Go) : système, pypilot, tous les profils et la calibration de l'IMU. Si la carte lâche, écrivez-la sur une carte neuve de 2 Go ou plus avec Raspberry Pi Imager. Uniquement pilote débrayé. Pendant ces minutes, pypilot, sa télécommande et son écran s'arrêtent et la carte passe en lecture seule, pour une image propre. Les 3 dernières sont gardées.",
+      "bk.start": "Sauvegarde",
+      "bk.folder": "Dossier des sauvegardes :",
+      "bk.available": "Sauvegardes disponibles",
+      "wz.title": "Sauvegarde",
+      "wz.what": "Que veux-tu faire ?",
+      "wz.make": "Faire une sauvegarde",
+      "wz.restore": "Restaurer une sauvegarde",
+      "wz.which": "Quelle sauvegarde ?",
+      "wz.whichNow": "Toute mon installation actuelle",
+      "wz.whichUpd": "Mettre à jour vers un TinyPilot plus récent",
+      "wz.otherFolder": "Autre dossier…",
+      "wz.confirm": "Confirmer",
+      "wz.later": "Plus tard",
+      "wz.now.where": "Où veux-tu enregistrer la sauvegarde ?",
+      "wz.now.intro": "Nous allons enregistrer ton TinyPilot tel qu'il est maintenant : tous ses réglages et sa carte entière.\n\nFais-le au port : pendant quelques minutes, le pilote ne fonctionnera pas.",
+      "wz.upd.intro": "Nous allons passer ton TinyPilot à la version la plus récente, avec tous tes réglages.\n\nIl te faut :\n• une carte microSD neuve (Classe 10, 8 Go ou plus)\n• un lecteur de cartes sur ton ordinateur\n• le programme Raspberry Pi Imager\n\nFais-le au port : à la fin on change la carte et le pilote s'arrête un moment. Ta carte actuelle n'est pas touchée.",
+      "wz.upd.preparing": "Préparation de ta nouvelle carte. Cela prend environ 10 minutes.\nPendant ce temps, le pilote continue de fonctionner.",
+      "wz.upd.downloading": "Elle se télécharge sur ton ordinateur.\nSi le navigateur a ouvert une autre fenêtre pour cela, reviens ici quand c'est fini et appuie sur Suivant.",
+      "wz.upd.resume": "Tu as déjà une nouvelle carte préparée ({when}).\nVeux-tu continuer à partir de là ?",
+      "wz.upd.fresh": "Recommencer",
+      "wz.upd.goOn": "Continuer",
+      "wz.upd.bg": "La préparation continue toute seule.\nAppuie de nouveau sur Sauvegarde plus tard pour continuer.",
+      "wz.upd.w5old": "Le TinyPilot tourne encore sur l'ancienne carte ({ver}). As-tu changé la carte ?",
+      "wz.res.title": "Restaurer une sauvegarde",
+      "wz.res.where": "Où est la sauvegarde ?",
+      "wz.res.none": "Il n'y a pas de sauvegarde dans ce dossier.",
+      "wz.res.cards": "Carte entière",
+      "wz.res.copies": "Réglages seulement",
+      "wz.res.damaged": "endommagée",
+      "wz.res.pick": "Quelle sauvegarde veux-tu restaurer ?",
+      "wz.res.go": "Restaurer",
+      "wz.res.jsonAsk": "Les profils et gains de ce jour-là reviendront. Débraye d'abord le pilote.",
+      "wz.res.working": "Restauration…",
+      "wz.res.fail": "La restauration n'a pas pu être faite.\n{why}",
+      "wz.res.jsonOk": "Restauré ✔",
+      "wz.res.cardIntro": "Pour restaurer une carte entière, on l'écrit sur une carte, comme pour une mise à jour. Télécharge-la d'abord sur ton ordinateur.",
+      "wz.res.back": "Ton TinyPilot est revenu ✔",
+      "wz.res.cardOk": "Restauré ✔\nTon TinyPilot est comme ce jour-là.",
       "bk.title": "Sauvegardes",
       "bk.saved": "Copies enregistrées",
       "wz.close": "Fermer",
@@ -5292,7 +5432,6 @@
       "wz.no": "Non",
       "wz.stepOf": "Étape {n} sur {total}",
       "wz.now.title": "Sauvegarde",
-      "wz.now.intro": "Nous allons enregistrer ton TinyPilot tel qu'il est maintenant : tous ses réglages et sa carte entière.\n\nDébraye le pilote avant de commencer. Cela prend quelques minutes.",
       "wz.now.go": "Faire la sauvegarde",
       "wz.now.working": "Sauvegarde en cours. N'éteins rien.",
       "wz.now.settings": "Enregistrement des réglages…",
@@ -5311,7 +5450,6 @@
       "wz.why.damaged": "Le fichier est endommagé. Réessaie.",
       "wz.why.other": "Réessaie. Si ça continue d'échouer, préviens-nous.",
       "wz.upd.title": "Mettre à jour le TinyPilot",
-      "wz.upd.intro": "Nous allons passer ton TinyPilot à la version la plus récente, avec tous tes réglages.\n\nIl te faut :\n• une carte microSD neuve (Classe 10, 8 Go ou plus)\n• un lecteur de cartes sur ton ordinateur\n• le programme Raspberry Pi Imager\n\nTa carte actuelle n'est pas touchée.",
       "wz.upd.copying": "Enregistrement de tes réglages…",
       "wz.upd.c1": "Calibration, moteur et profils",
       "wz.upd.c2": "Wifi du bateau",
@@ -5322,7 +5460,6 @@
       "wz.upd.same": "La nouvelle carte est-elle pour ce même TinyPilot ?",
       "wz.upd.sameYes": "Oui, pour celui-ci",
       "wz.upd.sameNo": "Non, pour un autre",
-      "wz.upd.preparing": "Préparation de ta nouvelle carte. Cela prend environ 10 minutes.\nTu peux la laisser travailler.",
       "wz.upd.p.start": "Démarrage…",
       "wz.upd.p.download": "Téléchargement de la nouvelle version…",
       "wz.upd.p.read": "Ouverture de la nouvelle version…",
@@ -5331,7 +5468,6 @@
       "wz.upd.prepFail": "La préparation n'a pas pu être faite.\n{why}",
       "wz.upd.ready": "Ta nouvelle carte est prête à télécharger ✔",
       "wz.upd.download": "Télécharger",
-      "wz.upd.downloading": "Elle se télécharge sur ton ordinateur.\nQuand c'est fini, appuie sur Suivant.",
       "wz.upd.w1": "Mets la nouvelle carte dans le lecteur de ton ordinateur.",
       "wz.upd.w2": "Ouvre Raspberry Pi Imager. Dans Système d'exploitation, choisis « Utiliser une image personnalisée » et prends le fichier que tu viens de télécharger.",
       "wz.upd.w3": "Dans Stockage, choisis la nouvelle carte et appuie sur Écrire. Attends la fin.",
@@ -8750,13 +8886,16 @@
       save(li, { logCaptureIntervalSec: v }, () => { /* next status refresh shows the saved value */ });
     });
   }
-  // Rev738 (Carlos 2026-11-22, QA of Rev737: "esto no lo entiende nadie";
-  // "como un iPhone, que lo pueda hacer un niño de 10 años"). Windows one
-  // after another, like a phone set-up: one question or one button each, no
-  // button at all while it works, nothing technical on screen (the checks
-  // happen inside and only "✔" is shown). docs/_rediseno_asistente_copias.
+  // Rev738-739 (Carlos 2026-11-22, QA: "como un iPhone, que lo pueda hacer
+  // un niño de 10 años"). One "Backup" button opens windows one after
+  // another: one question or one button each, a quiet way out on every
+  // window, nothing technical on screen (checks run inside and show ✔).
+  //   Backup > Make a backup > This installation | Update to a newer TinyPilot
+  //          > Restore an earlier backup
+  // docs/_rediseno_asistente_copias_2026-11-22.md
   const _wzUrl = (p) => `/plugins/${PLUGIN_ID}/${p}`;
   const _wzSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const _wzEsc = (v) => String(v == null ? "" : v).replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]);
   async function _wzJson(path, opts) {
     const r = await skFetch(_wzUrl(path), opts);
     const j = await r.json().catch(() => ({}));
@@ -8765,15 +8904,16 @@
   }
   const _wzPost = (path, body) => _wzJson(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
   let _wzOpen = false;
-  /** Shows one window. buttons: [{id, label, main}] - resolves with the id.
-   *  No buttons = a waiting window (call it again to change it). */
-  function _wz({ title, step, text, list, progress, buttons }) {
+  /** One window. buttons: [{id, label, main}] -> resolves with the id.
+   *  html: optional extra content (a list to pick from). No buttons = a
+   *  waiting window, redrawn by calling it again. */
+  function _wz({ title, step, text, list, html, progress, buttons }) {
     const d = document.getElementById("wiz");
     if (!d) return Promise.resolve(null);
     document.getElementById("wiz-title").textContent = title || "";
     document.getElementById("wiz-step").textContent = step || "";
     document.getElementById("wiz-text").textContent = text || "";
-    document.getElementById("wiz-list").innerHTML = (list || []).map((l) => `<div>${l.ok === true ? "✔" : l.ok === false ? "✖" : "·"} ${String(l.label).replace(/[<>&]/g, "")}</div>`).join("");
+    document.getElementById("wiz-list").innerHTML = (list || []).map((l) => `<div>${l.ok === true ? "✔" : l.ok === false ? "✖" : "·"} ${_wzEsc(l.label)}</div>`).join("") + (html || "");
     const pw = document.getElementById("wiz-prog");
     pw.hidden = progress == null;
     if (progress != null) {
@@ -8791,44 +8931,18 @@
         el.type = "button";
         el.className = b.main ? "primary" : "ghost";
         el.textContent = b.label;
-        if (b.main) el.style.minWidth = "180px";
+        if (b.main) el.style.minWidth = "160px";
         el.onclick = () => resolve(b.id);
         act.appendChild(el);
       }
     });
   }
   function _wzClose() { const d = document.getElementById("wiz"); if (d) d.hidden = true; _wzOpen = false; }
-
-  // ---- Choice 1: back up the installation as it is now ----
-  async function _wzBackupNow() {
-    const T = t("wz.now.title");
-    for (;;) {
-      const go = await _wz({ title: T, text: t("wz.now.intro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.now.go"), main: true }] });
-      if (go !== "go") return _wzClose();
-      let err = null, check = null, file = null;
-      try {
-        _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
-        await _wzPost("backup/now");
-        const dest = document.getElementById("sd-dest")?.value || "default";
-        await _wzPost("tinypilot/sd-backup", { dest: dest === "__picked__" ? "default" : dest });
-        for (;;) {
-          await _wzSleep(2000);
-          const st = await _wzJson("tinypilot/sd-backup/status");
-          const j = st.job;
-          if (!j) break;
-          const pct = j.totalBytes ? Math.round(j.bytes * 95 / j.totalBytes) : 5;
-          _wz({ title: T, text: t("wz.now.working"), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") } });
-          if (!j.running) { err = j.error; check = j.check; file = j.file; break; }
-        }
-      } catch (e) { err = String(e.message || e); }
-      try { _sdRefresh(); _bkpRefresh(); } catch { /* silent */ }
-      if (!err && check && check.ok) {
-        await _wz({ title: T, text: t("wz.now.ok"), list: [{ ok: true, label: t("wz.now.l1") }, { ok: true, label: t("wz.now.l2") }, { ok: true, label: t("wz.now.l3") }], buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
-        return _wzClose();
-      }
-      const again = await _wz({ title: T, text: err ? t("wz.now.fail").replace("{why}", _wzHuman(err)) : t("wz.now.bad"), buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
-      if (again !== "again") return _wzClose();
-    }
+  const _wzLater = () => ({ id: "x", label: t("wz.later") });
+  /** A waiting window with only the quiet way out; resolves "x" if pressed,
+   *  null after ms. */
+  function _wzWait(win, ms) {
+    return Promise.race([_wz({ ...win, buttons: [_wzLater()] }), _wzSleep(ms).then(() => null)]);
   }
   /** The few failures a sailor can act on, in plain words. */
   function _wzHuman(err) {
@@ -8841,103 +8955,233 @@
     return t("wz.why.other");
   }
 
-  // ---- Choice 2: back up and update the system ----
+  // ---- start: one button, two choices ----
+  async function _wzStart() {
+    const T = t("wz.title");
+    const a = await _wz({ title: T, text: t("wz.what"), buttons: [{ id: "x", label: t("wz.close") }, { id: "restore", label: t("wz.restore") }, { id: "make", label: t("wz.make"), main: true }] });
+    if (a === "restore") return _wzRestore();
+    if (a !== "make") return _wzClose();
+    const b = await _wz({ title: T, text: t("wz.which"), buttons: [{ id: "x", label: t("wz.close") }, { id: "upd", label: t("wz.whichUpd") }, { id: "now", label: t("wz.whichNow"), main: true }] });
+    if (b === "now") return _wzBackupNow();
+    if (b === "upd") return _wzUpdate();
+    _wzClose();
+  }
+  /** "Where?": the backup folder already chosen, or another one (USB stick,
+   *  disk) through the folder browser. Resolves { dest } / { folder } or null. */
+  async function _wzWhere(title, text) {
+    let st = null;
+    try { st = await _wzJson("tinypilot/sd-backup/status"); } catch { /* default only */ }
+    const dests = (st && st.destinations) || [{ id: "default", label: "" }];
+    let picked = null;
+    for (;;) {
+      const opts = dests.map((d, i) => `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="${_wzEsc(d.id)}" ${(!picked && i === 0) ? "checked" : ""}/> ${_wzEsc(d.label)}${d.freeBytes != null ? ` · ${(d.freeBytes / 1073741824).toFixed(1)} GB` : ""}</label>`).join("")
+        + (picked ? `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="__picked__" checked/> ${_wzEsc(picked)}</label>` : "");
+      const r = await _wz({ title, text, html: opts, buttons: [{ id: "x", label: t("wz.close") }, { id: "other", label: t("wz.otherFolder") }, { id: "ok", label: t("wz.confirm"), main: true }] });
+      if (r === "x") return null;
+      if (r === "other") {
+        _wzClose();
+        const f = await _sdBrowse();
+        if (f) picked = f;
+        continue;
+      }
+      const v = document.querySelector('input[name="wz-dest"]:checked')?.value || "default";
+      return v === "__picked__" && picked ? { folder: picked } : { dest: v };
+    }
+  }
+
+  // ---- make a backup of the installation as it is now ----
+  async function _wzBackupNow() {
+    const T = t("wz.now.title");
+    const where = await _wzWhere(T, t("wz.now.where"));
+    if (!where) return _wzClose();
+    for (;;) {
+      if ((await _wz({ title: T, text: t("wz.now.intro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.now.go"), main: true }] })) !== "go") return _wzClose();
+      let err = null, check = null;
+      try {
+        _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
+        await _wzPost("backup/now");
+        await _wzPost("tinypilot/sd-backup", where);
+        for (;;) {
+          await _wzSleep(2000);
+          const j = (await _wzJson("tinypilot/sd-backup/status")).job;
+          if (!j) break;
+          const pct = j.totalBytes ? Math.round(j.bytes * 95 / j.totalBytes) : 5;
+          _wz({ title: T, text: t("wz.now.working"), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") } });
+          if (!j.running) { err = j.error; check = j.check; break; }
+        }
+      } catch (e) { err = String(e.message || e); }
+      try { _sdRefresh(); _bkpRefresh(); } catch { /* silent */ }
+      if (!err && check && check.ok) {
+        await _wz({ title: T, text: t("wz.now.ok"), list: [{ ok: true, label: t("wz.now.l1") }, { ok: true, label: t("wz.now.l2") }, { ok: true, label: t("wz.now.l3") }], buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
+        return _wzClose();
+      }
+      const again = await _wz({ title: T, text: err ? t("wz.now.fail").replace("{why}", _wzHuman(err)) : t("wz.now.bad"), buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
+      if (again !== "again") return _wzClose();
+    }
+  }
+
+  // ---- make a backup and update to a newer TinyPilot ----
+  const _wzCardSteps = async (T, step) => {
+    for (const k of ["w1", "w2", "w3", "w4"]) {
+      if ((await _wz({ title: T, step, text: t(`wz.upd.${k}`), buttons: [_wzLater(), { id: "ok", label: t("wz.doneShort"), main: true }] })) !== "ok") return false;
+    }
+    return true;
+  };
   async function _wzUpdate() {
     const T = t("wz.upd.title");
     const N = 6;
     const S = (n) => t("wz.stepOf").replace("{n}", String(n)).replace("{total}", String(N));
-    // 0. start
-    if ((await _wz({ title: T, text: t("wz.upd.intro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.start"), main: true }] })) !== "go") return _wzClose();
-    // 1. copy of the settings
-    for (;;) {
-      _wz({ title: T, step: S(1), text: t("wz.upd.copying"), progress: { pct: 40, text: "" } });
-      let st = null, err = null;
-      try { await _wzPost("backup/now"); st = await _wzJson("tinypilot/image/status"); } catch (e) { err = String(e.message || e); }
-      const has = (st && st.copy && st.copy.has) || {};
-      const lines = [
-        { ok: !!has["pypilot.conf"], label: t("wz.upd.c1") }, { ok: !!has["networking.txt"], label: t("wz.upd.c2") },
-        { ok: !!has["hat.conf"], label: t("wz.upd.c3") }, { ok: !!has["sys/shadow-tc"], label: t("wz.upd.c4") },
-      ];
-      if (!err && has["pypilot.conf"] && has["networking.txt"]) {
-        if ((await _wz({ title: T, step: S(1), text: t("wz.upd.copied"), list: lines, buttons: [{ id: "go", label: t("wz.next"), main: true }] })) === "go") break;
-      } else {
+    let st = null;
+    try { st = await _wzJson("tinypilot/image/status"); } catch { /* fresh start */ }
+    let result = null;
+    let resumeAt = 0;
+    // pick up where it was left: a preparation still running, or a card
+    // prepared in the last days
+    if (st && st.job && st.job.kind === "prepare" && st.job.running) resumeAt = 3;
+    else if (st && st.outputs && st.outputs.length) {
+      const o = st.outputs[0];
+      const r = await _wz({ title: T, text: t("wz.upd.resume").replace("{when}", new Date(o.ts).toLocaleString()), buttons: [{ id: "x", label: t("wz.close") }, { id: "new", label: t("wz.upd.fresh") }, { id: "go", label: t("wz.upd.goOn"), main: true }] });
+      if (r === "x") return _wzClose();
+      if (r === "go") { result = { name: o.name, pypilotVersion: (/tinypilot-v([\d.]+)-/.exec(o.name) || [])[1] || "" }; resumeAt = 4; }
+    }
+    let sameBoat = true;
+    if (resumeAt === 0) {
+      if ((await _wz({ title: T, text: t("wz.upd.intro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.start"), main: true }] })) !== "go") return _wzClose();
+      // 1. the settings
+      for (;;) {
+        _wz({ title: T, step: S(1), text: t("wz.upd.copying"), progress: { pct: 40, text: "" } });
+        let s2 = null, err = null;
+        try { await _wzPost("backup/now"); s2 = await _wzJson("tinypilot/image/status"); } catch (e) { err = String(e.message || e); }
+        const has = (s2 && s2.copy && s2.copy.has) || {};
+        const lines = [
+          { ok: !!has["pypilot.conf"], label: t("wz.upd.c1") }, { ok: !!has["networking.txt"], label: t("wz.upd.c2") },
+          { ok: !!has["hat.conf"], label: t("wz.upd.c3") }, { ok: !!has["sys/shadow-tc"], label: t("wz.upd.c4") },
+        ];
+        if (!err && has["pypilot.conf"] && has["networking.txt"]) {
+          if ((await _wz({ title: T, step: S(1), text: t("wz.upd.copied"), list: lines, buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.next"), main: true }] })) === "go") break;
+          return _wzClose();
+        }
         const a = await _wz({ title: T, step: S(1), text: t("wz.upd.copyFail").replace("{why}", _wzHuman(err || "ssh")), list: lines, buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
         if (a !== "again") return _wzClose();
       }
+      // 2. the only question
+      const same = await _wz({ title: T, step: S(2), text: t("wz.upd.same"), buttons: [{ id: "no", label: t("wz.upd.sameNo") }, { id: "yes", label: t("wz.upd.sameYes"), main: true }] });
+      sameBoat = same === "yes";
+      resumeAt = 3;
     }
-    // 2. the only question
-    const same = await _wz({ title: T, step: S(2), text: t("wz.upd.same"), buttons: [{ id: "no", label: t("wz.upd.sameNo") }, { id: "yes", label: t("wz.upd.sameYes"), main: true }] });
-    const sameBoat = same === "yes";
-    const groups = sameBoat ? {} : { wifi: false, motor: false, login: false };
-    // 3. prepare (no buttons while it works)
-    let result = null;
-    for (;;) {
-      let err = null;
-      try {
-        _wz({ title: T, step: S(3), text: t("wz.upd.preparing"), progress: { pct: 2, text: t("wz.upd.p.start") } });
-        await _wzPost("tinypilot/image/prepare", { imu: sameBoat, groups });
-        const t0 = Date.now();
-        for (;;) {
-          await _wzSleep(2000);
-          const st = await _wzJson("tinypilot/image/status");
-          const j = st.job;
-          if (!j) continue;
-          const order = ["download", "verify", "unpack", "read", "write", "mydata", "check", "compress", "checksum", "revalidate"];
-          const k = Math.max(0, order.indexOf(j.step));
-          const within = j.step === "download" && j.totalBytes ? j.bytes / j.totalBytes : 0.5;
-          const pct = Math.round(((k + within) / order.length) * 100);
-          const mins = Math.round((Date.now() - t0) / 60000);
-          _wz({ title: T, step: S(3), text: t("wz.upd.preparing"), progress: { pct, text: t(`wz.upd.p.${["download", "verify"].includes(j.step) ? "download" : ["unpack", "read"].includes(j.step) ? "read" : ["write", "mydata"].includes(j.step) ? "write" : "check"}`) + (mins ? ` · ${mins} min` : "") } });
-          if (!j.running) { err = j.error; result = j.result; break; }
-        }
-      } catch (e) { err = String(e.message || e); }
-      if (!err && result) break;
-      const a = await _wz({ title: T, step: S(3), text: t("wz.upd.prepFail").replace("{why}", _wzHuman(err)), buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
-      if (a !== "again") return _wzClose();
+    // 3. prepare: the autopilot keeps working meanwhile
+    if (resumeAt === 3) {
+      for (;;) {
+        let err = null;
+        try {
+          if (!(st && st.job && st.job.kind === "prepare" && st.job.running)) {
+            _wz({ title: T, step: S(3), text: t("wz.upd.preparing"), progress: { pct: 2, text: t("wz.upd.p.start") } });
+            await _wzPost("tinypilot/image/prepare", { imu: sameBoat, groups: sameBoat ? {} : { wifi: false, motor: false, login: false } });
+          }
+          st = null;
+          const t0 = Date.now();
+          for (;;) {
+            const j = (await _wzJson("tinypilot/image/status")).job;
+            if (j && !j.running) { err = j.error; result = j.result; break; }
+            const order = ["download", "verify", "unpack", "read", "write", "mydata", "check", "compress", "checksum", "revalidate"];
+            const k = j ? Math.max(0, order.indexOf(j.step)) : 0;
+            const within = j && j.step === "download" && j.totalBytes ? j.bytes / j.totalBytes : 0.5;
+            const phase = !j ? "start" : ["download", "verify"].includes(j.step) ? "download" : ["unpack", "read"].includes(j.step) ? "read" : ["write", "mydata"].includes(j.step) ? "write" : "check";
+            const mins = Math.round((Date.now() - t0) / 60000);
+            const r = await _wzWait({ title: T, step: S(3), text: t("wz.upd.preparing"), progress: { pct: Math.round(((k + within) / order.length) * 100), text: t(`wz.upd.p.${phase}`) + (mins ? ` · ${mins} min` : "") } }, 2000);
+            if (r === "x") { await _wz({ title: T, text: t("wz.upd.bg"), buttons: [{ id: "ok", label: t("wz.close"), main: true }] }); return _wzClose(); }
+          }
+        } catch (e) { err = String(e.message || e); }
+        if (!err && result) break;
+        const a = await _wz({ title: T, step: S(3), text: t("wz.upd.prepFail").replace("{why}", _wzHuman(err)), buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
+        if (a !== "again") return _wzClose();
+      }
     }
     // 4. download
     const url = _adminUrl(_wzUrl(`tinypilot/image/file/${encodeURIComponent(result.name)}`));
-    await _wz({ title: T, step: S(4), text: t("wz.upd.ready"), buttons: [{ id: "dl", label: t("wz.upd.download"), main: true }] });
+    if ((await _wz({ title: T, step: S(4), text: t("wz.upd.ready"), buttons: [_wzLater(), { id: "dl", label: t("wz.upd.download"), main: true }] })) !== "dl") return _wzClose();
     const a = document.createElement("a"); a.href = url; a.download = result.name; document.body.appendChild(a); a.click(); a.remove();
-    await _wz({ title: T, step: S(4), text: t("wz.upd.downloading"), buttons: [{ id: "go", label: t("wz.next"), main: true }] });
-    // 5. write the card and change it: one short instruction per window
-    for (const k of ["w1", "w2", "w3", "w4"]) {
-      if ((await _wz({ title: T, step: S(5), text: t(`wz.upd.${k}`), buttons: [{ id: "x", label: t("wz.close") }, { id: "ok", label: t("wz.doneShort"), main: true }] })) !== "ok") return _wzClose();
-    }
-    // the TinyPilot comes back with the NEW version: it moves on by itself
+    if ((await _wz({ title: T, step: S(4), text: t("wz.upd.downloading"), buttons: [_wzLater(), { id: "go", label: t("wz.next"), main: true }] })) !== "go") return _wzClose();
+    // 5. write and change the card, then wait for the new version
+    if (!(await _wzCardSteps(T, S(5)))) return _wzClose();
     const want = String(result.pypilotVersion || "").replace(/[^\d.]/g, "");
-    const t0 = Date.now();
-    let back = false;
-    while (!back) {
-      let st = null;
-      try { st = await _wzJson("tinypilot/image/status"); } catch { /* keep waiting */ }
-      const now = String((st && st.pypilotVersionNow) || "").replace(/[^\d.]/g, "");
-      back = !!(st && st.connected && want && now === want);
-      if (back) break;
-      const long = Date.now() - t0 > 5 * 60000;
-      const win = { title: T, step: S(5), text: t("wz.upd.w5"), progress: { pct: 50, text: long ? t("wz.upd.w5long") : t("wz.upd.w5wait") } };
-      if (long) {
-        const res = await Promise.race([_wz({ ...win, buttons: [{ id: "x", label: t("wz.close") }] }), _wzSleep(4000).then(() => null)]);
-        if (res === "x") return _wzClose();
-      } else { _wz(win); await _wzSleep(4000); }
-    }
-    await _wz({ title: T, step: S(5), text: t("wz.upd.back").replace("{ver}", want), buttons: [{ id: "go", label: t("wz.next"), main: true }] });
-    // 6. checks in port: yes / no
+    if (!(await _wzWaitTinypilot(T, S(5), want))) return _wzClose();
+    // 6. checks in port
     for (const k of ["q1", "q2", "q3", "q4"]) {
       const r = await _wz({ title: T, step: S(6), text: t(`wz.upd.${k}`), buttons: [{ id: "no", label: t("wz.no") }, { id: "yes", label: t("wz.yes"), main: true }] });
-      if (r !== "yes") {
-        await _wz({ title: T, text: t("wz.upd.rollback"), buttons: [{ id: "ok", label: t("wz.close"), main: true }] });
-        return _wzClose();
-      }
+      if (r !== "yes") { await _wz({ title: T, text: t("wz.upd.rollback"), buttons: [{ id: "ok", label: t("wz.close"), main: true }] }); return _wzClose(); }
     }
-    try { await skFetch(_wzUrl(`tinypilot/image/file/${encodeURIComponent(result.name)}`), { method: "DELETE" }); } catch { /* the 7-day clean-up will */ }
+    try { await skFetch(_wzUrl(`tinypilot/image/file/${encodeURIComponent(result.name)}`), { method: "DELETE" }); } catch { /* 7-day clean-up */ }
     await _wz({ title: T, text: t("wz.upd.end"), buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
     _wzClose();
   }
+  /** Waits for the TinyPilot to answer (with version `want` when given).
+   *  Says so when it answers with another version (old card still in). */
+  async function _wzWaitTinypilot(T, step, want) {
+    const t0 = Date.now();
+    for (;;) {
+      let st = null;
+      try { st = await _wzJson("tinypilot/image/status"); } catch { /* keep waiting */ }
+      const now = String((st && st.pypilotVersionNow) || "").replace(/[^\d.]/g, "");
+      if (st && st.connected && (!want || now === want)) {
+        await _wz({ title: T, step, text: want ? t("wz.upd.back").replace("{ver}", want) : t("wz.res.back"), buttons: [{ id: "go", label: t("wz.next"), main: true }] });
+        return true;
+      }
+      const old = st && st.connected && want && now && now !== want;
+      const long = Date.now() - t0 > 5 * 60000;
+      const sub = old ? t("wz.upd.w5old").replace("{ver}", now) : long ? t("wz.upd.w5long") : t("wz.upd.w5wait");
+      const r = await _wzWait({ title: T, step, text: t("wz.upd.w5"), progress: { pct: 50, text: sub } }, 4000);
+      if (r === "x") return false;
+    }
+  }
+
+  // ---- restore an earlier backup ----
+  async function _wzRestore() {
+    const T = t("wz.res.title");
+    const where = await _wzWhere(T, t("wz.res.where"));
+    if (!where) return _wzClose();
+    let sd = null, bk = null;
+    try { sd = await _wzJson("tinypilot/sd-backup/status"); } catch { /* none */ }
+    try { bk = await _wzJson("backup/status"); } catch { /* none */ }
+    const destId = where.dest || null;
+    const cards = ((sd && sd.images) || []).filter((im) => !destId || im.dest === destId).slice(0, 5);
+    const copies = destId === "default" || !destId ? ((bk && bk.copies) || []).slice(0, 5) : [];
+    if (!cards.length && !copies.length) { await _wz({ title: T, text: t("wz.res.none"), buttons: [{ id: "ok", label: t("wz.close"), main: true }] }); return _wzClose(); }
+    const opt = (v, label, first) => `<label style="display:block;margin:8px 0"><input type="radio" name="wz-pick" value="${_wzEsc(v)}" ${first ? "checked" : ""}/> ${_wzEsc(label)}</label>`;
+    let html = "";
+    if (cards.length) html += `<div class="hint"><b>${_wzEsc(t("wz.res.cards"))}</b></div>` + cards.map((c, i) => opt(`card:${c.dest}:${c.name}`, `${new Date(c.ts).toLocaleString()} · ${c.check ? (c.check.ok ? "✔" : "✖ " + t("wz.res.damaged")) : ""}`, i === 0)).join("");
+    if (copies.length) html += `<div class="hint" style="margin-top:8px"><b>${_wzEsc(t("wz.res.copies"))}</b></div>` + copies.map((c, i) => opt(`json:${c.name}`, new Date(c.ts).toLocaleString(), !cards.length && i === 0)).join("");
+    if ((await _wz({ title: T, text: t("wz.res.pick"), html, buttons: [{ id: "x", label: t("wz.close") }, { id: "ok", label: t("wz.res.go"), main: true }] })) !== "ok") return _wzClose();
+    const v = document.querySelector('input[name="wz-pick"]:checked')?.value || "";
+    if (v.startsWith("json:")) {
+      const name = v.slice(5);
+      if ((await _wz({ title: T, text: t("wz.res.jsonAsk"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.res.go"), main: true }] })) !== "go") return _wzClose();
+      let err = null;
+      try {
+        await _wzPost("backup/restore", { name });
+        for (;;) {
+          await _wzSleep(1500);
+          const j = await _wzJson("backup/restore/status");
+          _wz({ title: T, text: t("wz.res.working"), progress: { pct: j.total ? Math.round(j.done * 100 / j.total) : 50, text: "" } });
+          if (!j.running) { err = j.aborted || (j.errors && j.errors.length ? j.errors[0] : null); break; }
+        }
+      } catch (e) { err = String(e.message || e); }
+      await _wz({ title: T, text: err ? t("wz.res.fail").replace("{why}", _wzHuman(err)) : t("wz.res.jsonOk"), buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
+      return _wzClose();
+    }
+    // a card image: download it, write it to a card, change the card
+    const [, dest, name] = v.split(":");
+    if ((await _wz({ title: T, text: t("wz.res.cardIntro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "dl", label: t("wz.upd.download"), main: true }] })) !== "dl") return _wzClose();
+    const a = document.createElement("a"); a.href = _adminUrl(_wzUrl(`tinypilot/sd-download/${encodeURIComponent(name)}?dest=${encodeURIComponent(dest)}`)); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    if ((await _wz({ title: T, text: t("wz.upd.downloading"), buttons: [_wzLater(), { id: "go", label: t("wz.next"), main: true }] })) !== "go") return _wzClose();
+    if (!(await _wzCardSteps(T, ""))) return _wzClose();
+    if (!(await _wzWaitTinypilot(T, "", ""))) return _wzClose();
+    await _wz({ title: T, text: t("wz.res.cardOk"), buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
+    _wzClose();
+  }
   function _imgWire() {
-    const pn = document.getElementById("bk-pick-now"), pu = document.getElementById("bk-pick-upd");
-    if (pn) pn.addEventListener("click", (ev) => { ev.stopPropagation(); if (!_wzOpen) _wzBackupNow().catch(() => _wzClose()); });
-    if (pu) pu.addEventListener("click", (ev) => { ev.stopPropagation(); if (!_wzOpen) _wzUpdate().catch(() => _wzClose()); });
+    const b = document.getElementById("bk-start");
+    if (b) b.addEventListener("click", (ev) => { ev.stopPropagation(); if (!_wzOpen) _wzStart().catch(() => _wzClose()); });
   }
   function _bkpWire() {
     const sdBrowse = document.getElementById("sd-browse");   // Rev673

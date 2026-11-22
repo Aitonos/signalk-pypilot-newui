@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev738" />
+  <link rel="stylesheet" href="style.css?v=Rev739" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2139,44 +2139,37 @@
         <div id="adv-groups"></div>
       </div>
       <!-- Rev651 (Carlos 2026-11-07): daily settings backup in a visible folder.
-           Rev738 (Carlos 2026-11-22, QA of Rev737): two big buttons, each one
-           opens windows one after another (one question or one button each,
-           like a phone set-up); everything else folded in "Saved copies". -->
+           Rev738-739 (Carlos 2026-11-22): ONE button opens windows one after
+           another (make a backup: this installation / update to a newer
+           TinyPilot; or restore an earlier one). Below: the backup folder and
+           the available backups, folded. -->
       <div class="setup-block" data-setup-order="166" data-block-key="backup">
         <div class="section-title" data-i18n="bk.title">Backups</div>
-        <div class="row" style="gap:10px;margin-top:8px;flex-wrap:wrap">
-          <button type="button" class="primary" id="bk-pick-now" style="flex:1 1 220px;min-height:64px;white-space:normal" data-i18n="bk.pickNow">Back up my installation as it is now</button>
-          <button type="button" class="primary" id="bk-pick-upd" style="flex:1 1 220px;min-height:64px;white-space:normal" data-i18n="bk.pickUpd">Back up and update the TinyPilot system</button>
+        <div class="row" style="margin-top:8px">
+          <button type="button" class="primary" id="bk-start" style="flex:1 1 auto;min-height:64px" data-i18n="bk.start">Backup</button>
         </div>
-        <details class="cfg-section" style="margin-top:12px">
-          <summary data-i18n="bk.saved">Saved copies</summary>
+        <div class="hint" style="margin-top:10px"><span data-i18n="bk.folder">Backup folder:</span> <span id="bk-dir" class="bk-dir"></span></div>
+        <details class="cfg-section" style="margin-top:10px">
+          <summary data-i18n="bk.available">Available backups</summary>
           <div class="cfg-body" id="sd-section">
-            <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
-              <label data-i18n="sd.dest">Save to</label>
-              <select id="sd-dest"></select>
-              <button type="button" class="ghost" id="sd-browse" data-i18n="sd.browse">Choose folder…</button>
-            </div>
-            <div class="doctor-progress-wrap">
-              <div class="doctor-progress-label" data-i18n="sd.free">Free space</div>
-              <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="sd-space-fill"></div></div>
-              <div class="doctor-progress-time" id="sd-space-text"></div>
-            </div>
-            <div class="hint" style="margin-top:8px"><b data-i18n="bk.savedCards">Card images</b></div>
+            <div class="hint"><b data-i18n="bk.savedCards">Card images</b></div>
             <div id="sd-list" class="bk-list"></div>
             <div class="hint" style="margin-top:8px"><b data-i18n="bk.savedSettings">Settings copies (one a day, automatic)</b></div>
-            <div id="bk-dir" class="bk-dir"></div>
             <div class="row" style="align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">
               <button type="button" class="ghost" id="bk-dl" data-i18n="bk.download">Download the latest</button>
             </div>
             <div id="bk-note" class="hint"></div>
             <div id="bk-list" class="bk-list"></div>
-            <!-- kept for the existing code paths; the windows do the work now -->
-            <button type="button" id="bk-now" hidden></button>
-            <button type="button" id="sd-now" hidden></button>
-            <div id="sd-prog-wrap" hidden><div id="sd-prog-fill"></div><div id="sd-prog-text"></div></div>
-            <div id="sd-note" hidden></div>
           </div>
         </details>
+        <!-- kept for the existing code paths; the windows do the work -->
+        <div hidden>
+          <select id="sd-dest"></select><button type="button" id="sd-browse"></button>
+          <div id="sd-space-fill"></div><div id="sd-space-text"></div>
+          <button type="button" id="bk-now"></button><button type="button" id="sd-now"></button>
+          <div id="sd-prog-wrap"><div id="sd-prog-fill"></div><div id="sd-prog-text"></div></div>
+          <div id="sd-note"></div>
+        </div>
       </div>
       <div class="setup-block" data-setup-order="170" data-block-key="paths">
         <div class="section-title" data-i18n="setup.paths.title">Paths &amp; API</div>
@@ -2981,6 +2974,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev738"></script>
+  <script src="app.js?v=Rev739"></script>
 </body>
 </html>
