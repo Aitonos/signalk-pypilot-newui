@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev734-739)
+## Unreleased (Rev734-740)
 
 ### Important: TinyPilot SD images made before this version
 

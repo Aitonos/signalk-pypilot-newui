@@ -705,7 +705,13 @@
       "bk.failed": "Backup failed",
       "sd.title": "TinyPilot SD card",
       "sd.hint": "A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.",
-      "bk.start": "Backup",
+      "bk.start": "Start",
+      "wz.makeDesc": "Save your TinyPilot, or move it to a newer version.",
+      "wz.restoreDesc": "Bring back a backup you made before.",
+      "wz.whichNowDesc": "Keep a copy of your TinyPilot as it is today.",
+      "wz.whichUpdDesc": "Prepare a new card with the newest version and all your settings.",
+      "wz.upd.sameYesDesc": "Your calibration comes with it.",
+      "wz.upd.sameNoDesc": "Only your profiles and remote go; calibrate the other one.",
       "bk.folder": "Backup folder:",
       "bk.available": "Available backups",
       "wz.title": "Backup",
@@ -717,7 +723,6 @@
       "wz.whichUpd": "Update to a newer TinyPilot",
       "wz.otherFolder": "Another folder…",
       "wz.confirm": "Confirm",
-      "wz.later": "I'll do it later",
       "wz.now.where": "Where do you want to save the backup?",
       "wz.now.intro": "We will save your TinyPilot as it is now: all its settings and its whole card.\n\nDo it in port: for a few minutes the autopilot will not work.",
       "wz.upd.intro": "We will move your TinyPilot to the newest version, with all your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nDo it in port: at the end the card is changed and the autopilot stops for a while. Your current card is not touched.",
@@ -2242,7 +2247,13 @@
       "bk.failed": "La copia falló",
       "sd.title": "Tarjeta SD de la TinyPilot",
       "sd.hint": "Una imagen completa de la tarjeta de la TinyPilot (unos 1 GB): sistema, pypilot, todos los perfiles y la calibración de la IMU. Si la tarjeta falla, se graba en una tarjeta nueva de 2 GB o más con Raspberry Pi Imager. Solo con el piloto desconectado. Durante esos minutos pypilot, su mando y su pantalla se paran y la tarjeta queda en solo lectura, para que la imagen salga limpia. Se guardan las 3 últimas.",
-      "bk.start": "Backup",
+      "bk.start": "Empezar",
+      "wz.makeDesc": "Guarda tu TinyPilot, o pásalo a una versión más nueva.",
+      "wz.restoreDesc": "Recupera un backup que hiciste antes.",
+      "wz.whichNowDesc": "Guarda una copia de tu TinyPilot tal como está hoy.",
+      "wz.whichUpdDesc": "Prepara una tarjeta nueva con la versión más nueva y todos tus ajustes.",
+      "wz.upd.sameYesDesc": "Tu calibración va con ella.",
+      "wz.upd.sameNoDesc": "Solo van tus perfiles y el mando; el otro hay que calibrarlo.",
       "bk.folder": "Carpeta de backups:",
       "bk.available": "Backups disponibles",
       "wz.title": "Backup",
@@ -2254,7 +2265,6 @@
       "wz.whichUpd": "Actualizar a una versión más nueva de TinyPilot",
       "wz.otherFolder": "Otra carpeta…",
       "wz.confirm": "Confirmar",
-      "wz.later": "Lo haré más tarde",
       "wz.now.where": "¿Dónde quieres guardar el backup?",
       "wz.now.intro": "Vamos a guardar tu TinyPilot tal como está ahora: todos sus ajustes y su tarjeta entera.\n\nHazlo en puerto: durante unos minutos el piloto no funcionará.",
       "wz.upd.intro": "Vamos a pasar tu TinyPilot a la versión más nueva, con todos tus ajustes.\n\nNecesitas:\n• una tarjeta microSD nueva (Clase 10, 8 GB o más)\n• un lector de tarjetas en tu ordenador\n• el programa Raspberry Pi Imager\n\nHazlo en puerto: al final se cambia la tarjeta y el piloto estará parado un rato. Tu tarjeta de ahora no se toca.",
@@ -3871,7 +3881,13 @@
       "bk.failed": "Sicherung fehlgeschlagen",
       "sd.title": "SD-Karte des TinyPilot",
       "sd.hint": "Ein vollständiges Abbild der Karte des TinyPilot (etwa 1 GB): System, pypilot, alle Profile und die IMU-Kalibrierung. Fällt die Karte aus, mit Raspberry Pi Imager auf eine neue Karte ab 2 GB schreiben. Nur mit ausgeschaltetem Autopilot. pypilot, Fernbedienung und Display halten für diese Minuten an und die Karte ist schreibgeschützt, damit das Abbild sauber ist. Die letzten 3 bleiben erhalten.",
-      "bk.start": "Sicherung",
+      "bk.start": "Start",
+      "wz.makeDesc": "Speichere deinen TinyPilot oder bring ihn auf eine neuere Version.",
+      "wz.restoreDesc": "Hol eine frühere Sicherung zurück.",
+      "wz.whichNowDesc": "Behalte eine Kopie deines TinyPilot, so wie er heute ist.",
+      "wz.whichUpdDesc": "Bereite eine neue Karte mit der neuesten Version und all deinen Einstellungen vor.",
+      "wz.upd.sameYesDesc": "Deine Kalibrierung kommt mit.",
+      "wz.upd.sameNoDesc": "Nur Profile und Fernbedienung kommen mit; den anderen neu kalibrieren.",
       "bk.folder": "Sicherungsordner:",
       "bk.available": "Vorhandene Sicherungen",
       "wz.title": "Sicherung",
@@ -3883,7 +3899,6 @@
       "wz.whichUpd": "Auf einen neueren TinyPilot aktualisieren",
       "wz.otherFolder": "Anderer Ordner…",
       "wz.confirm": "Bestätigen",
-      "wz.later": "Später",
       "wz.now.where": "Wo soll die Sicherung gespeichert werden?",
       "wz.now.intro": "Wir speichern deinen TinyPilot so, wie er jetzt ist: alle Einstellungen und die ganze Karte.\n\nMach es im Hafen: einige Minuten lang funktioniert der Autopilot nicht.",
       "wz.upd.intro": "Wir bringen deinen TinyPilot auf die neueste Version, mit all deinen Einstellungen.\n\nDu brauchst:\n• eine neue microSD-Karte (Class 10, 8 GB oder mehr)\n• einen Kartenleser am Computer\n• das Programm Raspberry Pi Imager\n\nMach es im Hafen: am Ende wird die Karte getauscht und der Autopilot steht eine Weile still. Deine jetzige Karte wird nicht verändert.",
@@ -5382,7 +5397,13 @@
       "bk.failed": "Échec de la sauvegarde",
       "sd.title": "Carte SD du TinyPilot",
       "sd.hint": "Une image complète de la carte du TinyPilot (environ 1 Go) : système, pypilot, tous les profils et la calibration de l'IMU. Si la carte lâche, écrivez-la sur une carte neuve de 2 Go ou plus avec Raspberry Pi Imager. Uniquement pilote débrayé. Pendant ces minutes, pypilot, sa télécommande et son écran s'arrêtent et la carte passe en lecture seule, pour une image propre. Les 3 dernières sont gardées.",
-      "bk.start": "Sauvegarde",
+      "bk.start": "Commencer",
+      "wz.makeDesc": "Enregistre ton TinyPilot, ou passe-le à une version plus récente.",
+      "wz.restoreDesc": "Récupère une sauvegarde faite avant.",
+      "wz.whichNowDesc": "Garde une copie de ton TinyPilot tel qu'il est aujourd'hui.",
+      "wz.whichUpdDesc": "Prépare une nouvelle carte avec la version la plus récente et tous tes réglages.",
+      "wz.upd.sameYesDesc": "Ta calibration vient avec.",
+      "wz.upd.sameNoDesc": "Seuls tes profils et la télécommande viennent ; l'autre est à calibrer.",
       "bk.folder": "Dossier des sauvegardes :",
       "bk.available": "Sauvegardes disponibles",
       "wz.title": "Sauvegarde",
@@ -5394,7 +5415,6 @@
       "wz.whichUpd": "Mettre à jour vers un TinyPilot plus récent",
       "wz.otherFolder": "Autre dossier…",
       "wz.confirm": "Confirmer",
-      "wz.later": "Plus tard",
       "wz.now.where": "Où veux-tu enregistrer la sauvegarde ?",
       "wz.now.intro": "Nous allons enregistrer ton TinyPilot tel qu'il est maintenant : tous ses réglages et sa carte entière.\n\nFais-le au port : pendant quelques minutes, le pilote ne fonctionnera pas.",
       "wz.upd.intro": "Nous allons passer ton TinyPilot à la version la plus récente, avec tous tes réglages.\n\nIl te faut :\n• une carte microSD neuve (Classe 10, 8 Go ou plus)\n• un lecteur de cartes sur ton ordinateur\n• le programme Raspberry Pi Imager\n\nFais-le au port : à la fin on change la carte et le pilote s'arrête un moment. Ta carte actuelle n'est pas touchée.",
@@ -8886,12 +8906,15 @@
       save(li, { logCaptureIntervalSec: v }, () => { /* next status refresh shows the saved value */ });
     });
   }
-  // Rev738-739 (Carlos 2026-11-22, QA: "como un iPhone, que lo pueda hacer
-  // un niño de 10 años"). One "Backup" button opens windows one after
-  // another: one question or one button each, a quiet way out on every
-  // window, nothing technical on screen (checks run inside and show ✔).
-  //   Backup > Make a backup > This installation | Update to a newer TinyPilot
-  //          > Restore an earlier backup
+  // Rev738-740 (Carlos 2026-11-22, QA: "como un iPhone, que lo pueda hacer
+  // un niño de 10 años"; Rev740: only the plugin's own pieces). One Start
+  // button opens windows one after another in the CANONICAL visor popup:
+  //   - the red X on the left closes it (the "later" of every window);
+  //   - two choices of the same weight = .overlay-card tiles side by side;
+  //   - one action = a single button.primary, centred;
+  //   - while it works: the progress bar only.
+  // Start > Make a backup > This installation | Update to a newer TinyPilot
+  //       > Restore an earlier backup
   // docs/_rediseno_asistente_copias_2026-11-22.md
   const _wzUrl = (p) => `/plugins/${PLUGIN_ID}/${p}`;
   const _wzSleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -8903,13 +8926,25 @@
     return j;
   }
   const _wzPost = (path, body) => _wzJson(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  // Line icons for the tiles (same size as the rose overlay previews).
+  const _WZ_ICON = {
+    save: '<path d="M14 10h26l8 8v32H14z M20 10v12h18V10 M20 36h22" />',
+    update: '<path d="M46 26a16 16 0 1 0-4 14 M46 14v12H34" />',
+    restore: '<path d="M16 26a16 16 0 1 1 4 14 M16 14v12h12" />',
+    yes: '<path d="M14 32l11 11 23-24" />',
+    no: '<path d="M18 18l26 26 M44 18L18 44" />',
+    boat: '<path d="M12 40h38l-6 8H18z M30 12v26 M30 14l14 22H30" />',
+    other: '<path d="M12 40h38l-6 8H18z M30 12v26 M30 14l14 22H30 M44 10l8 8 M52 10l-8 8" />',
+  };
   let _wzOpen = false;
-  /** One window. buttons: [{id, label, main}] -> resolves with the id.
-   *  html: optional extra content (a list to pick from). No buttons = a
-   *  waiting window, redrawn by calling it again. */
-  function _wz({ title, step, text, list, html, progress, buttons }) {
+  let _wzResolve = null;
+  /** One window. cards: [{id, title, desc, icon}] (same weight, side by
+   *  side); button: {id, label} (the one action); html: extra content.
+   *  Resolves with the id chosen, or "x" when the red X is pressed. No cards
+   *  and no button = a waiting window, redrawn by calling it again. */
+  function _wz({ title, step, text, list, html, progress, cards, button, extra }) {
     const d = document.getElementById("wiz");
-    if (!d) return Promise.resolve(null);
+    if (!d) return Promise.resolve("x");
     document.getElementById("wiz-title").textContent = title || "";
     document.getElementById("wiz-step").textContent = step || "";
     document.getElementById("wiz-text").textContent = text || "";
@@ -8920,30 +8955,34 @@
       document.getElementById("wiz-prog-fill").style.width = `${Math.max(3, Math.min(100, progress.pct || 0))}%`;
       document.getElementById("wiz-prog-text").textContent = progress.text || "";
     }
+    const cw = document.getElementById("wiz-cards");
+    cw.innerHTML = (cards || []).map((c) => `<button type="button" class="overlay-card" data-wz="${_wzEsc(c.id)}" style="min-height:150px;justify-content:center">`
+      + `<svg class="overlay-preview" viewBox="0 0 62 62" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">${_WZ_ICON[c.icon] || ""}</svg>`
+      + `<span class="overlay-title" style="font-size:16px">${_wzEsc(c.title)}</span>`
+      + (c.desc ? `<span class="overlay-needs" style="font-size:13px">${_wzEsc(c.desc)}</span>` : "") + `</button>`).join("");
+    cw.hidden = !(cards && cards.length);
     const act = document.getElementById("wiz-actions");
     act.innerHTML = "";
-    d.hidden = false;
+    if (extra) act.insertAdjacentHTML("beforeend", `<button type="button" class="ghost" data-wz="${_wzEsc(extra.id)}">${_wzEsc(extra.label)}</button>`);
+    if (button) act.insertAdjacentHTML("beforeend", `<button type="button" class="primary" data-wz="${_wzEsc(button.id)}" style="min-width:200px;min-height:48px;font-size:16px">${_wzEsc(button.label)}</button>`);
+    d.classList.add("open");
     _wzOpen = true;
-    if (!buttons || !buttons.length) return Promise.resolve(null);
     return new Promise((resolve) => {
-      for (const b of buttons) {
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = b.main ? "primary" : "ghost";
-        el.textContent = b.label;
-        if (b.main) el.style.minWidth = "160px";
-        el.onclick = () => resolve(b.id);
-        act.appendChild(el);
-      }
+      if (_wzResolve) { const prev = _wzResolve; _wzResolve = null; prev(null); }   // a redraw ends the previous wait
+      _wzResolve = resolve;
+      d.querySelectorAll("[data-wz]").forEach((el) => { el.onclick = () => { if (_wzResolve === resolve) { _wzResolve = null; resolve(el.dataset.wz); } }; });
+      // the X always closes (a copy in progress goes on by itself on the Pi)
+      document.getElementById("wiz-x").onclick = () => { d.classList.remove("open"); _wzOpen = false; if (_wzResolve === resolve) { _wzResolve = null; resolve("x"); } };
     });
   }
-  function _wzClose() { const d = document.getElementById("wiz"); if (d) d.hidden = true; _wzOpen = false; }
-  const _wzLater = () => ({ id: "x", label: t("wz.later") });
-  /** A waiting window with only the quiet way out; resolves "x" if pressed,
-   *  null after ms. */
-  function _wzWait(win, ms) {
-    return Promise.race([_wz({ ...win, buttons: [_wzLater()] }), _wzSleep(ms).then(() => null)]);
+  function _wzClose() {
+    const d = document.getElementById("wiz");
+    if (d) d.classList.remove("open");
+    _wzOpen = false;
+    if (_wzResolve) { const r = _wzResolve; _wzResolve = null; r("x"); }
   }
+  /** Waiting window: resolves "x" if the X is pressed, null after ms. */
+  function _wzWait(win, ms) { return Promise.race([_wz(win), _wzSleep(ms).then(() => null)]); }
   /** The few failures a sailor can act on, in plain words. */
   function _wzHuman(err) {
     const e = String(err || "");
@@ -8955,19 +8994,25 @@
     return t("wz.why.other");
   }
 
-  // ---- start: one button, two choices ----
+  // ---- Start: two choices ----
   async function _wzStart() {
     const T = t("wz.title");
-    const a = await _wz({ title: T, text: t("wz.what"), buttons: [{ id: "x", label: t("wz.close") }, { id: "restore", label: t("wz.restore") }, { id: "make", label: t("wz.make"), main: true }] });
+    const a = await _wz({ title: T, text: t("wz.what"), cards: [
+      { id: "make", icon: "save", title: t("wz.make"), desc: t("wz.makeDesc") },
+      { id: "restore", icon: "restore", title: t("wz.restore"), desc: t("wz.restoreDesc") },
+    ] });
     if (a === "restore") return _wzRestore();
     if (a !== "make") return _wzClose();
-    const b = await _wz({ title: T, text: t("wz.which"), buttons: [{ id: "x", label: t("wz.close") }, { id: "upd", label: t("wz.whichUpd") }, { id: "now", label: t("wz.whichNow"), main: true }] });
+    const b = await _wz({ title: T, text: t("wz.which"), cards: [
+      { id: "now", icon: "save", title: t("wz.whichNow"), desc: t("wz.whichNowDesc") },
+      { id: "upd", icon: "update", title: t("wz.whichUpd"), desc: t("wz.whichUpdDesc") },
+    ] });
     if (b === "now") return _wzBackupNow();
     if (b === "upd") return _wzUpdate();
     _wzClose();
   }
-  /** "Where?": the backup folder already chosen, or another one (USB stick,
-   *  disk) through the folder browser. Resolves { dest } / { folder } or null. */
+  /** "Where?": the backup folder already chosen, or another one through
+   *  the folder browser. Resolves { dest } / { folder } or null. */
   async function _wzWhere(title, text) {
     let st = null;
     try { st = await _wzJson("tinypilot/sd-backup/status"); } catch { /* default only */ }
@@ -8976,10 +9021,10 @@
     for (;;) {
       const opts = dests.map((d, i) => `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="${_wzEsc(d.id)}" ${(!picked && i === 0) ? "checked" : ""}/> ${_wzEsc(d.label)}${d.freeBytes != null ? ` · ${(d.freeBytes / 1073741824).toFixed(1)} GB` : ""}</label>`).join("")
         + (picked ? `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="__picked__" checked/> ${_wzEsc(picked)}</label>` : "");
-      const r = await _wz({ title, text, html: opts, buttons: [{ id: "x", label: t("wz.close") }, { id: "other", label: t("wz.otherFolder") }, { id: "ok", label: t("wz.confirm"), main: true }] });
+      const r = await _wz({ title, text, html: opts, extra: { id: "other", label: t("wz.otherFolder") }, button: { id: "ok", label: t("wz.confirm") } });
       if (r === "x") return null;
       if (r === "other") {
-        _wzClose();
+        document.getElementById("wiz").classList.remove("open");
         const f = await _sdBrowse();
         if (f) picked = f;
         continue;
@@ -8995,7 +9040,7 @@
     const where = await _wzWhere(T, t("wz.now.where"));
     if (!where) return _wzClose();
     for (;;) {
-      if ((await _wz({ title: T, text: t("wz.now.intro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.now.go"), main: true }] })) !== "go") return _wzClose();
+      if ((await _wz({ title: T, text: t("wz.now.intro"), button: { id: "go", label: t("wz.now.go") } })) !== "go") return _wzClose();
       let err = null, check = null;
       try {
         _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
@@ -9006,24 +9051,24 @@
           const j = (await _wzJson("tinypilot/sd-backup/status")).job;
           if (!j) break;
           const pct = j.totalBytes ? Math.round(j.bytes * 95 / j.totalBytes) : 5;
+          if (!_wzOpen) return;   // closed: the copy goes on by itself
           _wz({ title: T, text: t("wz.now.working"), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") } });
           if (!j.running) { err = j.error; check = j.check; break; }
         }
       } catch (e) { err = String(e.message || e); }
       try { _sdRefresh(); _bkpRefresh(); } catch { /* silent */ }
       if (!err && check && check.ok) {
-        await _wz({ title: T, text: t("wz.now.ok"), list: [{ ok: true, label: t("wz.now.l1") }, { ok: true, label: t("wz.now.l2") }, { ok: true, label: t("wz.now.l3") }], buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
+        await _wz({ title: T, text: t("wz.now.ok"), list: [{ ok: true, label: t("wz.now.l1") }, { ok: true, label: t("wz.now.l2") }, { ok: true, label: t("wz.now.l3") }], button: { id: "ok", label: t("wz.done") } });
         return _wzClose();
       }
-      const again = await _wz({ title: T, text: err ? t("wz.now.fail").replace("{why}", _wzHuman(err)) : t("wz.now.bad"), buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
-      if (again !== "again") return _wzClose();
+      if ((await _wz({ title: T, text: err ? t("wz.now.fail").replace("{why}", _wzHuman(err)) : t("wz.now.bad"), button: { id: "again", label: t("wz.again") } })) !== "again") return _wzClose();
     }
   }
 
   // ---- make a backup and update to a newer TinyPilot ----
   const _wzCardSteps = async (T, step) => {
     for (const k of ["w1", "w2", "w3", "w4"]) {
-      if ((await _wz({ title: T, step, text: t(`wz.upd.${k}`), buttons: [_wzLater(), { id: "ok", label: t("wz.doneShort"), main: true }] })) !== "ok") return false;
+      if ((await _wz({ title: T, step, text: t(`wz.upd.${k}`), button: { id: "ok", label: t("wz.doneShort") } })) !== "ok") return false;
     }
     return true;
   };
@@ -9035,18 +9080,19 @@
     try { st = await _wzJson("tinypilot/image/status"); } catch { /* fresh start */ }
     let result = null;
     let resumeAt = 0;
-    // pick up where it was left: a preparation still running, or a card
-    // prepared in the last days
     if (st && st.job && st.job.kind === "prepare" && st.job.running) resumeAt = 3;
     else if (st && st.outputs && st.outputs.length) {
       const o = st.outputs[0];
-      const r = await _wz({ title: T, text: t("wz.upd.resume").replace("{when}", new Date(o.ts).toLocaleString()), buttons: [{ id: "x", label: t("wz.close") }, { id: "new", label: t("wz.upd.fresh") }, { id: "go", label: t("wz.upd.goOn"), main: true }] });
-      if (r === "x") return _wzClose();
+      const r = await _wz({ title: T, text: t("wz.upd.resume").replace("{when}", new Date(o.ts).toLocaleString()), cards: [
+        { id: "go", icon: "yes", title: t("wz.upd.goOn") },
+        { id: "new", icon: "update", title: t("wz.upd.fresh") },
+      ] });
+      if (r === "x" || r == null) return _wzClose();
       if (r === "go") { result = { name: o.name, pypilotVersion: (/tinypilot-v([\d.]+)-/.exec(o.name) || [])[1] || "" }; resumeAt = 4; }
     }
     let sameBoat = true;
     if (resumeAt === 0) {
-      if ((await _wz({ title: T, text: t("wz.upd.intro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.start"), main: true }] })) !== "go") return _wzClose();
+      if ((await _wz({ title: T, text: t("wz.upd.intro"), button: { id: "go", label: t("wz.start") } })) !== "go") return _wzClose();
       // 1. the settings
       for (;;) {
         _wz({ title: T, step: S(1), text: t("wz.upd.copying"), progress: { pct: 40, text: "" } });
@@ -9058,14 +9104,17 @@
           { ok: !!has["hat.conf"], label: t("wz.upd.c3") }, { ok: !!has["sys/shadow-tc"], label: t("wz.upd.c4") },
         ];
         if (!err && has["pypilot.conf"] && has["networking.txt"]) {
-          if ((await _wz({ title: T, step: S(1), text: t("wz.upd.copied"), list: lines, buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.next"), main: true }] })) === "go") break;
+          if ((await _wz({ title: T, step: S(1), text: t("wz.upd.copied"), list: lines, button: { id: "go", label: t("wz.next") } })) === "go") break;
           return _wzClose();
         }
-        const a = await _wz({ title: T, step: S(1), text: t("wz.upd.copyFail").replace("{why}", _wzHuman(err || "ssh")), list: lines, buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
-        if (a !== "again") return _wzClose();
+        if ((await _wz({ title: T, step: S(1), text: t("wz.upd.copyFail").replace("{why}", _wzHuman(err || "ssh")), list: lines, button: { id: "again", label: t("wz.again") } })) !== "again") return _wzClose();
       }
       // 2. the only question
-      const same = await _wz({ title: T, step: S(2), text: t("wz.upd.same"), buttons: [{ id: "no", label: t("wz.upd.sameNo") }, { id: "yes", label: t("wz.upd.sameYes"), main: true }] });
+      const same = await _wz({ title: T, step: S(2), text: t("wz.upd.same"), cards: [
+        { id: "yes", icon: "boat", title: t("wz.upd.sameYes"), desc: t("wz.upd.sameYesDesc") },
+        { id: "no", icon: "other", title: t("wz.upd.sameNo"), desc: t("wz.upd.sameNoDesc") },
+      ] });
+      if (same !== "yes" && same !== "no") return _wzClose();
       sameBoat = same === "yes";
       resumeAt = 3;
     }
@@ -9089,34 +9138,34 @@
             const phase = !j ? "start" : ["download", "verify"].includes(j.step) ? "download" : ["unpack", "read"].includes(j.step) ? "read" : ["write", "mydata"].includes(j.step) ? "write" : "check";
             const mins = Math.round((Date.now() - t0) / 60000);
             const r = await _wzWait({ title: T, step: S(3), text: t("wz.upd.preparing"), progress: { pct: Math.round(((k + within) / order.length) * 100), text: t(`wz.upd.p.${phase}`) + (mins ? ` · ${mins} min` : "") } }, 2000);
-            if (r === "x") { await _wz({ title: T, text: t("wz.upd.bg"), buttons: [{ id: "ok", label: t("wz.close"), main: true }] }); return _wzClose(); }
+            if (r === "x") { await _wz({ title: T, text: t("wz.upd.bg"), button: { id: "ok", label: t("wz.close") } }); return _wzClose(); }
           }
         } catch (e) { err = String(e.message || e); }
         if (!err && result) break;
-        const a = await _wz({ title: T, step: S(3), text: t("wz.upd.prepFail").replace("{why}", _wzHuman(err)), buttons: [{ id: "x", label: t("wz.close") }, { id: "again", label: t("wz.again"), main: true }] });
-        if (a !== "again") return _wzClose();
+        if ((await _wz({ title: T, step: S(3), text: t("wz.upd.prepFail").replace("{why}", _wzHuman(err)), button: { id: "again", label: t("wz.again") } })) !== "again") return _wzClose();
       }
     }
     // 4. download
     const url = _adminUrl(_wzUrl(`tinypilot/image/file/${encodeURIComponent(result.name)}`));
-    if ((await _wz({ title: T, step: S(4), text: t("wz.upd.ready"), buttons: [_wzLater(), { id: "dl", label: t("wz.upd.download"), main: true }] })) !== "dl") return _wzClose();
+    if ((await _wz({ title: T, step: S(4), text: t("wz.upd.ready"), button: { id: "dl", label: t("wz.upd.download") } })) !== "dl") return _wzClose();
     const a = document.createElement("a"); a.href = url; a.download = result.name; document.body.appendChild(a); a.click(); a.remove();
-    if ((await _wz({ title: T, step: S(4), text: t("wz.upd.downloading"), buttons: [_wzLater(), { id: "go", label: t("wz.next"), main: true }] })) !== "go") return _wzClose();
+    if ((await _wz({ title: T, step: S(4), text: t("wz.upd.downloading"), button: { id: "go", label: t("wz.next") } })) !== "go") return _wzClose();
     // 5. write and change the card, then wait for the new version
     if (!(await _wzCardSteps(T, S(5)))) return _wzClose();
     const want = String(result.pypilotVersion || "").replace(/[^\d.]/g, "");
     if (!(await _wzWaitTinypilot(T, S(5), want))) return _wzClose();
-    // 6. checks in port
+    // 6. checks in port: yes / no tiles
     for (const k of ["q1", "q2", "q3", "q4"]) {
-      const r = await _wz({ title: T, step: S(6), text: t(`wz.upd.${k}`), buttons: [{ id: "no", label: t("wz.no") }, { id: "yes", label: t("wz.yes"), main: true }] });
-      if (r !== "yes") { await _wz({ title: T, text: t("wz.upd.rollback"), buttons: [{ id: "ok", label: t("wz.close"), main: true }] }); return _wzClose(); }
+      const r = await _wz({ title: T, step: S(6), text: t(`wz.upd.${k}`), cards: [{ id: "yes", icon: "yes", title: t("wz.yes") }, { id: "no", icon: "no", title: t("wz.no") }] });
+      if (r === "x") return _wzClose();
+      if (r !== "yes") { await _wz({ title: T, text: t("wz.upd.rollback"), button: { id: "ok", label: t("wz.close") } }); return _wzClose(); }
     }
     try { await skFetch(_wzUrl(`tinypilot/image/file/${encodeURIComponent(result.name)}`), { method: "DELETE" }); } catch { /* 7-day clean-up */ }
-    await _wz({ title: T, text: t("wz.upd.end"), buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
+    await _wz({ title: T, text: t("wz.upd.end"), button: { id: "ok", label: t("wz.done") } });
     _wzClose();
   }
-  /** Waits for the TinyPilot to answer (with version `want` when given).
-   *  Says so when it answers with another version (old card still in). */
+  /** Waits for the TinyPilot to answer (with version `want` when given);
+   *  says so when it answers with another version (old card still in). */
   async function _wzWaitTinypilot(T, step, want) {
     const t0 = Date.now();
     for (;;) {
@@ -9124,14 +9173,12 @@
       try { st = await _wzJson("tinypilot/image/status"); } catch { /* keep waiting */ }
       const now = String((st && st.pypilotVersionNow) || "").replace(/[^\d.]/g, "");
       if (st && st.connected && (!want || now === want)) {
-        await _wz({ title: T, step, text: want ? t("wz.upd.back").replace("{ver}", want) : t("wz.res.back"), buttons: [{ id: "go", label: t("wz.next"), main: true }] });
-        return true;
+        return (await _wz({ title: T, step, text: want ? t("wz.upd.back").replace("{ver}", want) : t("wz.res.back"), button: { id: "go", label: t("wz.next") } })) === "go";
       }
       const old = st && st.connected && want && now && now !== want;
       const long = Date.now() - t0 > 5 * 60000;
       const sub = old ? t("wz.upd.w5old").replace("{ver}", now) : long ? t("wz.upd.w5long") : t("wz.upd.w5wait");
-      const r = await _wzWait({ title: T, step, text: t("wz.upd.w5"), progress: { pct: 50, text: sub } }, 4000);
-      if (r === "x") return false;
+      if ((await _wzWait({ title: T, step, text: t("wz.upd.w5"), progress: { pct: 50, text: sub } }, 4000)) === "x") return false;
     }
   }
 
@@ -9146,37 +9193,37 @@
     const destId = where.dest || null;
     const cards = ((sd && sd.images) || []).filter((im) => !destId || im.dest === destId).slice(0, 5);
     const copies = destId === "default" || !destId ? ((bk && bk.copies) || []).slice(0, 5) : [];
-    if (!cards.length && !copies.length) { await _wz({ title: T, text: t("wz.res.none"), buttons: [{ id: "ok", label: t("wz.close"), main: true }] }); return _wzClose(); }
+    if (!cards.length && !copies.length) { await _wz({ title: T, text: t("wz.res.none"), button: { id: "ok", label: t("wz.close") } }); return _wzClose(); }
     const opt = (v, label, first) => `<label style="display:block;margin:8px 0"><input type="radio" name="wz-pick" value="${_wzEsc(v)}" ${first ? "checked" : ""}/> ${_wzEsc(label)}</label>`;
     let html = "";
-    if (cards.length) html += `<div class="hint"><b>${_wzEsc(t("wz.res.cards"))}</b></div>` + cards.map((c, i) => opt(`card:${c.dest}:${c.name}`, `${new Date(c.ts).toLocaleString()} · ${c.check ? (c.check.ok ? "✔" : "✖ " + t("wz.res.damaged")) : ""}`, i === 0)).join("");
+    if (cards.length) html += `<div class="hint"><b>${_wzEsc(t("wz.res.cards"))}</b></div>` + cards.map((c, i) => opt(`card:${c.dest}:${c.name}`, `${new Date(c.ts).toLocaleString()}${c.check ? (c.check.ok ? " ✔" : " ✖ " + t("wz.res.damaged")) : ""}`, i === 0)).join("");
     if (copies.length) html += `<div class="hint" style="margin-top:8px"><b>${_wzEsc(t("wz.res.copies"))}</b></div>` + copies.map((c, i) => opt(`json:${c.name}`, new Date(c.ts).toLocaleString(), !cards.length && i === 0)).join("");
-    if ((await _wz({ title: T, text: t("wz.res.pick"), html, buttons: [{ id: "x", label: t("wz.close") }, { id: "ok", label: t("wz.res.go"), main: true }] })) !== "ok") return _wzClose();
+    if ((await _wz({ title: T, text: t("wz.res.pick"), html, button: { id: "ok", label: t("wz.res.go") } })) !== "ok") return _wzClose();
     const v = document.querySelector('input[name="wz-pick"]:checked')?.value || "";
     if (v.startsWith("json:")) {
       const name = v.slice(5);
-      if ((await _wz({ title: T, text: t("wz.res.jsonAsk"), buttons: [{ id: "x", label: t("wz.close") }, { id: "go", label: t("wz.res.go"), main: true }] })) !== "go") return _wzClose();
+      if ((await _wz({ title: T, text: t("wz.res.jsonAsk"), button: { id: "go", label: t("wz.res.go") } })) !== "go") return _wzClose();
       let err = null;
       try {
         await _wzPost("backup/restore", { name });
         for (;;) {
           await _wzSleep(1500);
           const j = await _wzJson("backup/restore/status");
+          if (!_wzOpen) return;
           _wz({ title: T, text: t("wz.res.working"), progress: { pct: j.total ? Math.round(j.done * 100 / j.total) : 50, text: "" } });
           if (!j.running) { err = j.aborted || (j.errors && j.errors.length ? j.errors[0] : null); break; }
         }
       } catch (e) { err = String(e.message || e); }
-      await _wz({ title: T, text: err ? t("wz.res.fail").replace("{why}", _wzHuman(err)) : t("wz.res.jsonOk"), buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
+      await _wz({ title: T, text: err ? t("wz.res.fail").replace("{why}", _wzHuman(err)) : t("wz.res.jsonOk"), button: { id: "ok", label: t("wz.done") } });
       return _wzClose();
     }
-    // a card image: download it, write it to a card, change the card
     const [, dest, name] = v.split(":");
-    if ((await _wz({ title: T, text: t("wz.res.cardIntro"), buttons: [{ id: "x", label: t("wz.close") }, { id: "dl", label: t("wz.upd.download"), main: true }] })) !== "dl") return _wzClose();
+    if ((await _wz({ title: T, text: t("wz.res.cardIntro"), button: { id: "dl", label: t("wz.upd.download") } })) !== "dl") return _wzClose();
     const a = document.createElement("a"); a.href = _adminUrl(_wzUrl(`tinypilot/sd-download/${encodeURIComponent(name)}?dest=${encodeURIComponent(dest)}`)); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-    if ((await _wz({ title: T, text: t("wz.upd.downloading"), buttons: [_wzLater(), { id: "go", label: t("wz.next"), main: true }] })) !== "go") return _wzClose();
+    if ((await _wz({ title: T, text: t("wz.upd.downloading"), button: { id: "go", label: t("wz.next") } })) !== "go") return _wzClose();
     if (!(await _wzCardSteps(T, ""))) return _wzClose();
     if (!(await _wzWaitTinypilot(T, "", ""))) return _wzClose();
-    await _wz({ title: T, text: t("wz.res.cardOk"), buttons: [{ id: "ok", label: t("wz.done"), main: true }] });
+    await _wz({ title: T, text: t("wz.res.cardOk"), button: { id: "ok", label: t("wz.done") } });
     _wzClose();
   }
   function _imgWire() {

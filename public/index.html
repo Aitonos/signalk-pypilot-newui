@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev739" />
+  <link rel="stylesheet" href="style.css?v=Rev740" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2146,7 +2146,7 @@
       <div class="setup-block" data-setup-order="166" data-block-key="backup">
         <div class="section-title" data-i18n="bk.title">Backups</div>
         <div class="row" style="margin-top:8px">
-          <button type="button" class="primary" id="bk-start" style="flex:1 1 auto;min-height:64px" data-i18n="bk.start">Backup</button>
+          <button type="button" class="primary" id="bk-start" style="flex:1 1 auto;min-height:64px;font-size:18px;background:var(--warn);border-color:var(--warn)" data-i18n="bk.start">Start</button>
         </div>
         <div class="hint" style="margin-top:10px"><span data-i18n="bk.folder">Backup folder:</span> <span id="bk-dir" class="bk-dir"></span></div>
         <details class="cfg-section" style="margin-top:10px">
@@ -2865,25 +2865,27 @@
   </div>
 
   <!-- Rev406: Diálogo reutilizable con tema del visor (reemplaza prompt/alert/confirm nativos). -->
-  <!-- Rev738: backup / update windows (same pieces as pm-dialog). The
-       backdrop does not close it: a copy in progress must not be dropped by
-       a stray tap. -->
-  <div id="wiz" class="pm-modal" hidden>
-    <div class="pm-backdrop"></div>
-    <div class="pm-card pm-dialog-card" role="dialog" aria-labelledby="wiz-title">
-      <header class="pm-header">
-        <h3 id="wiz-title"></h3>
-      </header>
-      <div class="pm-dialog-body">
-        <div id="wiz-step" class="hint" style="margin-bottom:6px"></div>
-        <div id="wiz-text" style="font-size:16px;line-height:1.45;white-space:pre-line"></div>
-        <div id="wiz-list" style="margin-top:10px;font-size:15px;line-height:1.7"></div>
+  <!-- Rev740 (Carlos QA Rev739): backup windows with the CANONICAL visor
+       popup (.popup-overlay + .popup-box + h4 + red .popup-close on the left
+       + .popup-body, like "Configure the rose corners" and the tide popup).
+       Two choices of the same weight = .overlay-cards / .overlay-card; one
+       action = button.primary, centred. A tap outside does not close it: a
+       copy in progress must not be dropped by accident. -->
+  <div class="popup-overlay" id="wiz">
+    <div class="popup-box" onclick="event.stopPropagation()">
+      <h4 id="wiz-title"></h4>
+      <button type="button" class="popup-close" id="wiz-x">✕</button>
+      <div class="popup-body">
+        <div id="wiz-step" class="hint"></div>
+        <div id="wiz-text" style="font-size:16px;line-height:1.5;white-space:pre-line;margin:4px 0 14px"></div>
+        <div id="wiz-cards" class="overlay-cards"></div>
+        <div id="wiz-list" style="font-size:15px;line-height:1.8"></div>
         <div class="doctor-progress-wrap" id="wiz-prog" hidden>
           <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="wiz-prog-fill"></div></div>
           <div class="doctor-progress-time" id="wiz-prog-text"></div>
         </div>
+        <div id="wiz-actions" style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px"></div>
       </div>
-      <footer class="pm-footer pm-dialog-actions" id="wiz-actions"></footer>
     </div>
   </div>
 
@@ -2974,6 +2976,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev739"></script>
+  <script src="app.js?v=Rev740"></script>
 </body>
 </html>
