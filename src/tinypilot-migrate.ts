@@ -216,7 +216,8 @@ export function mergeNetworking(imageText: string | null, boatText: string | nul
  *  keys, rewritten with the boat's client values so no other wifi stays. */
 export function mergeNetworkingClient(imageText: string | null, boatText: string | null): FileMerge {
   if (!imageText) return { text: null, action: "skip", reason: "not in the new image" };
-  const i = parseKv(imageText), b = boatText ? parseKv(boatText) : null;
+  if (!boatText) return { text: null, action: "skip", reason: "not in the copy (make a new copy first)" };
+  const i = parseKv(imageText), b = parseKv(boatText);
   if (!i || !b) return { text: null, action: "skip", reason: "unknown format" };
   const lines = [...i.keys()].map((k) => `${k}=${k.startsWith("client_") && b.has(k) ? b.get(k) : i.get(k)}`);
   return { text: lines.join("\n") + "\n", action: "merge", reason: "client wifi of the boat" };
