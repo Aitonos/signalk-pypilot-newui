@@ -97,7 +97,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev737";
+const PLUGIN_REVISION = "Rev738";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3790,6 +3790,12 @@ module.exports = function (app: any) {
 
       router.get("/tinypilot/image/status", async (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;
+        // Rev738: a prepared image holds the wifi key and the password hash;
+        // the assistant deletes it at the end, and anything older than 7
+        // days goes here.
+        for (const o of _imgOutputs()) {
+          if (Date.now() - o.ts > 7 * 86400_000) for (const f of [o.name, o.name + ".sha256"]) { try { require("fs").unlinkSync(require("path").join(_imgBase(), f)); } catch { /* gone */ } }
+        }
         const copy = _imgCopy();
         const listing = req.query?.listing === "1" ? await _imgListPypilotOrg() : _imgListing;
         res.json({

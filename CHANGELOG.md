@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev734-737)
+## Unreleased (Rev734-738)
 
 ### Important: TinyPilot SD images made before this version
 
@@ -15,6 +15,24 @@
   (see Fixed below), so make a fresh one too.
 
 ### Added
+- **Backups, made simple** (Rev738). Setup > Backups has two big buttons.
+  Each one opens windows one after another, like setting up a phone: one
+  question or one button each, no buttons while it works, and nothing
+  technical on screen (the checks run inside and show only ✔).
+  - **Back up my installation as it is now:** one button saves the
+    settings and copies and checks the card.
+  - **Back up and update the TinyPilot system:**
+    1. your settings are saved;
+    2. one question: is it for this same TinyPilot?
+    3. the new card is prepared;
+    4. download;
+    5. four short "Done" steps to write and swap the card, then it waits by
+       itself for the TinyPilot to come back with the new version;
+    6. four yes/no checks in port.
+
+    Any "no" tells you to put the old card back. The prepared image is
+    deleted at the end, or after 7 days.
+  - Saved copies, card images and restore are folded under "Saved copies".
 - **Two clear choices in Setup > Settings backup** (Rev737):
   - **Back up my installation as it is now** saves the settings and an
     image of the TinyPilot's card.
