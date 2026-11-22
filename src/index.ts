@@ -97,7 +97,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev740";
+const PLUGIN_REVISION = "Rev741";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3660,11 +3660,73 @@ module.exports = function (app: any) {
       });
       router.get("/tinypilot/sd-backup/status", (_req: any, res: any) => {
         const dests = _sdDests();
+        const pref = _bkPreferredDir();
+        const prefDest = (pref && dests.find((d: any) => d.dir === pref)) || dests[0];
+        // Rev741: the preferred folder first, so the windows pre-select it.
+        const ordered = prefDest ? [prefDest, ...dests.filter((d: any) => d !== prefDest)] : dests;
         res.json({
           job: _sdJob,
-          destinations: dests,
-          images: dests.flatMap((d) => _sdImagesIn(d.dir).map((im: any) => ({ ...im, dest: d.id, destLabel: d.label }))),
+          destinations: ordered,
+          preferred: prefDest ? { id: prefDest.id, dir: prefDest.dir } : null,
+          images: dests.flatMap((d) => _sdImagesIn(d.dir).map((im: any) => ({ ...im, dest: d.id, destLabel: d.label, checking: _sdChecking.has(require("path").join(d.dir, im.name)) }))),
+          updates: _imgOutputs(),
         });
+      });
+      // ============================================================
+      // Rev741 (Carlos 2026-11-22, QA of the backups card): manage backups.
+      //   DELETE /backup/file/:name                  - a settings copy
+      //   DELETE /tinypilot/sd-file/:name?dest=      - a card image (+ its check)
+      //   POST   /tinypilot/sd-check {name, dest}    - check an older card image now
+      //   POST   /tinypilot/backup-folder {folder}   - the backup folder (preferred)
+      // ============================================================
+      const _bkFolderFile = () => require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "backup-folder.json");
+      const _bkPreferredDir = (): string | null => {
+        try { const d = JSON.parse(require("fs").readFileSync(_bkFolderFile(), "utf8"))?.dir; return typeof d === "string" && _sdCheckFolder(d) ? _sdCheckFolder(d) : null; } catch { return null; }
+      };
+      const _sdChecking = new Set<string>();
+      router.delete("/backup/file/:name", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        const name = String(req.params?.name || "");
+        if (!isBackupName(name)) { res.status(404).json({ error: "not found" }); return; }
+        try { require("fs").unlinkSync(require("path").join(backupDir(), name)); } catch { res.status(404).json({ error: "not found" }); return; }
+        res.json({ ok: true });
+      });
+      router.delete("/tinypilot/sd-file/:name", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        const name = String(req.params?.name || "");
+        const dest = _sdDests().find((d: any) => d.id === String(req.query?.dest || "default"));
+        if (!isSdImageName(name) || !dest) { res.status(404).json({ error: "not found" }); return; }
+        if (_sdJob?.running && _sdJob.file === name) { res.status(409).json({ error: "that copy is being made" }); return; }
+        for (const f of [name, name + ".check.json"]) { try { require("fs").unlinkSync(require("path").join(dest.dir, f)); } catch { /* gone */ } }
+        res.json({ ok: true });
+      });
+      router.post("/tinypilot/sd-check", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        const name = String(req.body?.name || "");
+        const dest = _sdDests().find((d: any) => d.id === String(req.body?.dest || "default"));
+        if (!isSdImageName(name) || !dest) { res.status(404).json({ error: "not found" }); return; }
+        const file = require("path").join(dest.dir, name);
+        if (!require("fs").existsSync(file)) { res.status(404).json({ error: "not found" }); return; }
+        if (_sdChecking.has(file)) { res.status(409).json({ error: "already being checked" }); return; }
+        _sdChecking.add(file);
+        res.status(202).json({ ok: true });
+        try {
+          const v = await validateImageFile(file, require("path").join(backupDir(), "tinypilot-images", "work"));
+          require("fs").writeFileSync(file + ".check.json", JSON.stringify({ ...v, ts: Date.now() }));
+          // eslint-disable-next-line no-console
+          console.log(`[sd-check] ${name}: ${v.ok ? "ok" : "DAMAGED " + v.detail}`);
+        } catch (e: any) {
+          try { require("fs").writeFileSync(file + ".check.json", JSON.stringify({ ok: false, detail: String(e?.message || e), ts: Date.now() })); } catch { /* silent */ }
+        } finally { _sdChecking.delete(file); }
+      });
+      router.post("/tinypilot/backup-folder", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        const rp = _sdCheckFolder(String(req.body?.folder || ""));
+        if (!rp) { res.status(400).json({ error: "that folder is not allowed (home, /media or /mnt only) or does not exist" }); return; }
+        try { require("fs").accessSync(rp, require("fs").constants.W_OK); } catch { res.status(400).json({ error: `cannot write in ${rp}` }); return; }
+        _sdRememberFolder(rp);
+        try { require("fs").writeFileSync(_bkFolderFile(), JSON.stringify({ dir: rp })); } catch { /* silent */ }
+        res.json({ ok: true, dir: rp });
       });
       router.get("/tinypilot/sd-download/:name", (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;

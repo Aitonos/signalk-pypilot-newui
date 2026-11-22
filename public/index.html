@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev740" />
+  <link rel="stylesheet" href="style.css?v=Rev741" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2148,18 +2148,17 @@
         <div class="row" style="margin-top:8px">
           <button type="button" class="primary" id="bk-start" style="flex:1 1 auto;min-height:64px;font-size:18px;background:var(--warn);border-color:var(--warn)" data-i18n="bk.start">Start</button>
         </div>
-        <div class="hint" style="margin-top:10px"><span data-i18n="bk.folder">Backup folder:</span> <span id="bk-dir" class="bk-dir"></span></div>
+        <div class="hint" style="margin-top:10px"><span data-i18n="bk.folder">Backup folder:</span> <a href="#" id="bk-folder" class="bk-dir" data-i18n-title="bk.folderPick" title="Choose another folder"></a></div>
         <details class="cfg-section" style="margin-top:10px">
           <summary data-i18n="bk.available">Available backups</summary>
           <div class="cfg-body" id="sd-section">
             <div class="hint"><b data-i18n="bk.savedCards">Card images</b></div>
             <div id="sd-list" class="bk-list"></div>
+            <div class="hint" style="margin-top:8px"><b data-i18n="bk.updates">System update images</b></div>
+            <div id="upd-list" class="bk-list"></div>
             <div class="hint" style="margin-top:8px"><b data-i18n="bk.savedSettings">Settings copies (one a day, automatic)</b></div>
-            <div class="row" style="align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">
-              <button type="button" class="ghost" id="bk-dl" data-i18n="bk.download">Download the latest</button>
-            </div>
             <div id="bk-note" class="hint"></div>
-            <div id="bk-list" class="bk-list"></div>
+            <div id="bk-list" class="bk-list" style="max-height:170px;overflow-y:auto"></div>
           </div>
         </details>
         <!-- kept for the existing code paths; the windows do the work -->
@@ -2167,6 +2166,7 @@
           <select id="sd-dest"></select><button type="button" id="sd-browse"></button>
           <div id="sd-space-fill"></div><div id="sd-space-text"></div>
           <button type="button" id="bk-now"></button><button type="button" id="sd-now"></button>
+          <span id="bk-dir"></span><button type="button" id="bk-dl"></button>
           <div id="sd-prog-wrap"><div id="sd-prog-fill"></div><div id="sd-prog-text"></div></div>
           <div id="sd-note"></div>
         </div>
@@ -2976,6 +2976,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev740"></script>
+  <script src="app.js?v=Rev741"></script>
 </body>
 </html>

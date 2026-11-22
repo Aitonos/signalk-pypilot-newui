@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev734-740)
+## Unreleased (Rev734-741)
 
 ### Important: TinyPilot SD images made before this version
 
@@ -15,6 +15,17 @@
   (see Fixed below), so make a fresh one too.
 
 ### Added
+- **Managing backups** (Rev741):
+  - **Back** in every window, except while it works.
+  - **Still on the old card?** When the TinyPilot comes back on the old
+    card, it asks whether the card was changed, and offers to wait again or
+    write the card again.
+  - **Available backups** are in three groups: card images, system update
+    images and settings copies (the settings copies scroll inside their
+    box). Each one can be deleted, and an older card image has **Check
+    now**.
+  - **Backup folder:** click it to choose another folder; it becomes the
+    default.
 - **One Backup button** (Rev739):
   - **Make a backup** then offers your whole installation as it is now, or
     an update to a newer TinyPilot. It asks where to save it: the backup
