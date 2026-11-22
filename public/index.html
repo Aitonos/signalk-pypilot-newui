@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev734" />
+  <link rel="stylesheet" href="style.css?v=Rev735" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2176,6 +2176,74 @@
           <div id="sd-note" class="hint"></div>
           <div id="sd-list" class="bk-list"></div>
         </div>
+        <!-- Rev735 (Carlos 2026-11-22): assistant that prepares a new TinyPilot
+             image with the boat's settings inside, for a SECOND card. Step by
+             step: what, how, why and what you need. The TinyPilot's own card
+             is never touched. -->
+        <div class="conn-sub" id="img-section">
+          <div class="conn-sub-title" data-i18n="img.title">New TinyPilot image, already set up</div>
+          <div class="hint" data-i18n="img.hint">Moves the TinyPilot to a newer image without losing anything: this Raspberry Pi prepares the new image with your wifi, calibration, profiles, remote and password already inside, and you write it to a second card. Your current card is never touched: it stays as your way back.</div>
+          <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <button type="button" class="primary" id="img-open" data-i18n="img.open">Open the assistant</button>
+          </div>
+          <div id="img-wiz" hidden>
+            <div class="doctor-progress-wrap">
+              <div class="doctor-progress-label" id="img-stepno"></div>
+              <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="img-stepfill"></div></div>
+              <div class="doctor-progress-time" id="img-steptitle"></div>
+            </div>
+            <div class="img-step" data-step="0">
+              <div class="hint" data-i18n-html="img.s0.body"></div>
+            </div>
+            <div class="img-step" data-step="1" hidden>
+              <div class="hint" data-i18n-html="img.s1.body"></div>
+              <div id="img-copy" class="bk-list"></div>
+              <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+                <button type="button" class="primary" id="img-copy-now" data-i18n="img.copyNow">Make a fresh copy now</button>
+              </div>
+            </div>
+            <div class="img-step" data-step="2" hidden>
+              <div class="hint" data-i18n-html="img.s2.body"></div>
+              <div id="img-sources" class="bk-list"></div>
+            </div>
+            <div class="img-step" data-step="3" hidden>
+              <div class="hint" data-i18n-html="img.s3.body"></div>
+              <div id="img-groups" class="bk-list"></div>
+              <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+                <button type="button" id="img-plan" data-i18n="img.planBtn">Show what will change</button>
+              </div>
+              <div id="img-planout" class="bk-list"></div>
+            </div>
+            <div class="img-step" data-step="4" hidden>
+              <div class="hint" data-i18n-html="img.s4.body"></div>
+              <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+                <button type="button" class="primary" id="img-build" data-i18n="img.buildBtn">Prepare the image</button>
+              </div>
+              <div id="img-outputs" class="bk-list"></div>
+            </div>
+            <div class="img-step" data-step="5" hidden>
+              <div class="hint" data-i18n-html="img.s5.body"></div>
+            </div>
+            <div class="img-step" data-step="6" hidden>
+              <div class="hint" data-i18n-html="img.s6.body"></div>
+              <div id="img-hostkey" class="bk-list"></div>
+            </div>
+            <div class="img-step" data-step="7" hidden>
+              <div class="hint" data-i18n-html="img.s7.body"></div>
+            </div>
+            <div class="doctor-progress-wrap" id="img-prog-wrap" hidden>
+              <div class="doctor-progress-label" id="img-prog-label"></div>
+              <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="img-prog-fill"></div></div>
+              <div class="doctor-progress-time" id="img-prog-text"></div>
+            </div>
+            <div id="img-note" class="hint"></div>
+            <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+              <button type="button" class="ghost" id="img-back" data-i18n="img.back">Back</button>
+              <button type="button" class="primary" id="img-next" data-i18n="img.next">Next</button>
+              <button type="button" class="ghost" id="img-close" data-i18n="img.close">Close</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="setup-block" data-setup-order="170" data-block-key="paths">
         <div class="section-title" data-i18n="setup.paths.title">Paths &amp; API</div>
@@ -2958,6 +3026,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev734"></script>
+  <script src="app.js?v=Rev735"></script>
 </body>
 </html>

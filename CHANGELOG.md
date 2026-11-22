@@ -1,5 +1,45 @@
 # Changelog
 
+## Unreleased (Rev734-735)
+
+### Added
+- **New TinyPilot image, already set up** (Setup > Settings backup). An
+  assistant that moves the TinyPilot to a newer image without losing
+  anything, and without touching its card:
+  1. a fresh settings copy;
+  2. the new image from pypilot.org, or one on a USB stick;
+  3. what to bring over;
+  4. this Raspberry Pi prepares the image;
+  5. you write it to a SECOND card with Raspberry Pi Imager;
+  6. change the card;
+  7. checks in port.
+
+  It brings over your wifi, profiles, remote and screen, motor and rudder,
+  NMEA and wind, and optionally the IMU calibration. It also keeps the
+  TinyPilot's password and SSH keys, and adds the Signal K packages some
+  images miss.
+
+  Each file is checked in the copy and in the new image, and merged only when
+  its format matches. Anything else is skipped and the list says why.
+  Whatever the image carried from the boat it was made on is reset to
+  pypilot's defaults, never kept. The old card stays as the way back. Based
+  on Jean-Marc Douroux's manual procedure (Navitop).
+- **The TinyPilot's SSH host key is remembered.** A change is shown, and
+  you can accept it after a new card.
+
+### Changed
+- **Wider settings copy:**
+  - it now also keeps the boat wifi (`networking.txt`), the display driver,
+    the TinyPilot's password hash and its SSH host keys;
+  - it is read without a terminal, so nothing typed can end up in the copy.
+- **TinyPilot SD image:** made with pypilot, its remote and its screen
+  stopped for those minutes. Everything starts again at the end, also if the
+  connection drops.
+
+### Fixed
+- **Settings copy lost a file.** A file without a final newline (such as
+  `gpsd_baud_hint`) made the next file in the copy disappear.
+
 ## 3.16.2 — 2026-11-21 — TinyPilot 0.71: Fix it now
 
 Rev731-733 on top of 3.16.1, from the OpenMarine forum (Michael's find).
