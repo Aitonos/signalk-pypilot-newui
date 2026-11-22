@@ -85,7 +85,7 @@ import { IMU_FALLBACK_KEYS, IMU_FALLBACK_PATHS, otherSourceFresh, imuFallbackVal
 import { withLocalAliases, requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { accessReport, AccessReport, DiagRing, maskHost, sanitizeConfig } from "./diagnostic";
 import { HostKeyMemory } from "./tinypilot-hostkey";
-import { analyzeImage, planBuild, buildImage, ImageInfo, BuildPlan, toolsMissing as imgToolsMissing, freeBytes as imgFreeBytes, run as imgRun, verifyCompressed, validateImageFile, sha256File as imgSha256 } from "./tinypilot-image";
+import { analyzeImage, planBuild, buildImage, ImageInfo, BuildPlan, toolsMissing as imgToolsMissing, freeBytes as imgFreeBytes, run as imgRun, verifyCompressed, validateImageFile, sha256File as imgSha256, killCurrent as imgKillCurrent } from "./tinypilot-image";
 import { DEFAULT_GROUPS, Groups } from "./tinypilot-migrate";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
@@ -97,7 +97,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev743";
+const PLUGIN_REVISION = "Rev744";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3883,18 +3883,33 @@ module.exports = function (app: any) {
           try { sha = fs2.readFileSync(p + ".sha256", "utf8").split(/\s+/)[0] || null; } catch { /* none */ }
           let check: any = null;
           try { check = JSON.parse(fs2.readFileSync(p + ".check.json", "utf8")); } catch { /* older ones: checked when built if the .sha256 is there */ if (sha) check = { ok: true, detail: "checked when prepared" }; }
-          return { name: n, size, ts, sha256: sha, check, note: _noteOf(p) };
+          return { name: n, size, ts, sha256: sha, check, source: check?.source ?? null, note: _noteOf(p) };
         }).sort((a, b) => b.ts - a.ts);
       };
-      const _imgListPypilotOrg = async () => {
-        if (_imgListing && Date.now() - _imgListing.ts < 3600_000) return _imgListing;
+      // Rev744 (Carlos): the page with the official images may move; when it
+      // fails the assistant asks for the new address and it is kept here.
+      const IMG_SOURCE_DEFAULT = "https://pypilot.org/images/";
+      const _imgSourceFile = () => require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "image-source.json");
+      const _imgSource = (): string => {
+        try { const u = JSON.parse(require("fs").readFileSync(_imgSourceFile(), "utf8"))?.url; if (typeof u === "string" && /^https?:\/\//.test(u)) return u; } catch { /* default */ }
+        return IMG_SOURCE_DEFAULT;
+      };
+      const _imgListPypilotOrg = async (force = false) => {
+        if (!force && _imgListing && !_imgListing.error && Date.now() - _imgListing.ts < 3600_000) return _imgListing;
+        const base = _imgSource();
         try {
-          const r = await fetch("https://pypilot.org/images/", { signal: AbortSignal.timeout(15_000) });
+          const r = await fetch(base, { signal: AbortSignal.timeout(15_000) });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
           const html = await r.text();
-          const images = [...new Set([...html.matchAll(/href="\/images\/(tinypilot_(\d{4})_(\d{2})_(\d{2})\.img\.xz)"/g)].map((m) => `${m[1]}|${m[2]}-${m[3]}-${m[4]}`))]
-            .map((s) => { const [name, date] = s.split("|"); return { name, date, url: `https://pypilot.org/images/${name}` }; })
-            .sort((a, b) => b.date.localeCompare(a.date));
-          _imgListing = { ts: Date.now(), images, error: null };
+          // any link to tinypilot_YYYY_MM_DD.img.xz, absolute or relative to the page
+          const seen = new Map<string, { name: string; date: string; url: string }>();
+          for (const m of html.matchAll(/href="([^"]*?(tinypilot_(\d{4})_(\d{2})_(\d{2})\.img\.xz))"/g)) {
+            let url = "";
+            try { url = new URL(m[1], base).toString(); } catch { continue; }
+            if (!seen.has(m[2])) seen.set(m[2], { name: m[2], date: `${m[3]}-${m[4]}-${m[5]}`, url });
+          }
+          const images = [...seen.values()].sort((a, b) => b.date.localeCompare(a.date));
+          _imgListing = { ts: Date.now(), images, error: images.length ? null : "no TinyPilot images on that page" };
         } catch (e: any) { _imgListing = { ts: Date.now(), images: [], error: String(e?.message || e) }; }
         return _imgListing;
       };
@@ -3947,6 +3962,7 @@ module.exports = function (app: any) {
           outputs: _imgOutputs(),
           lastPlan: _imgLastPlan,
           pypilotVersionNow: _pypilotVer(),
+          imageSource: _imgSource(),
           connected: !!client?.connected,
           hostKey: _hostKeys.get(),
           groups: DEFAULT_GROUPS,
@@ -3956,8 +3972,10 @@ module.exports = function (app: any) {
         if (!requireAdmin(req, res)) return;
         if (_imgBusy(res) || !_imgFree(res)) return;
         const url = String(req.body?.url || "");
-        const m = /^https:\/\/pypilot\.org\/images\/(tinypilot_[\w.-]+\.img\.xz)$/.exec(url);
-        if (!m) { res.status(400).json({ error: "only images from https://pypilot.org/images/" }); return; }
+        const m = /\/(tinypilot_[\w.-]+\.img\.xz)$/.exec(url);
+        let sameSite = false;
+        try { sameSite = new URL(url).origin === new URL(_imgSource()).origin; } catch { /* no */ }
+        if (!m || !sameSite) { res.status(400).json({ error: `only images from ${_imgSource()}` }); return; }
         const file = require("path").join(_imgWork(), m[1]);
         const job: ImgJob = { kind: "fetch", running: true, step: "download", detail: m[1], bytes: 0, totalBytes: 0, startedTs: Date.now(), finishedTs: null, error: null };
         _imgJob = job;
@@ -4039,13 +4057,16 @@ module.exports = function (app: any) {
       // computed again from the saved file and compared).
       const _imgDownload = async (url: string, file: string, job: ImgJob): Promise<void> => {
         job.step = "download"; job.bytes = 0; job.totalBytes = 0;
-        const r = await fetch(url, { signal: AbortSignal.timeout(3_600_000) });
+        _imgAbort = new AbortController();
+        const r = await fetch(url, { signal: AbortSignal.any([_imgAbort.signal, AbortSignal.timeout(3_600_000)]) });
         if (!r.ok || !r.body) throw new Error(`download: HTTP ${r.status}`);
         job.totalBytes = Number(r.headers.get("content-length") || 0);
         const out = require("fs").createWriteStream(file + ".part");
         const reader = (r.body as any).getReader();
         for (;;) {
-          const { done, value } = await reader.read();
+          let chunk: any;
+          try { chunk = await reader.read(); } catch (e: any) { out.destroy(); try { require("fs").unlinkSync(file + ".part"); } catch { /* none */ } throw e; }
+          const { done, value } = chunk;
           if (done) break;
           job.bytes += value.length;
           if (!out.write(Buffer.from(value))) await new Promise((ok) => out.once("drain", ok));
@@ -4070,7 +4091,7 @@ module.exports = function (app: any) {
         } else {
           const l = await _imgListPypilotOrg();
           const newest = l.images[0];
-          if (!newest) { res.status(502).json({ error: "pypilot.org cannot be reached: choose an image on a USB stick in Details" }); return; }
+          if (!newest) { res.status(502).json({ error: "image page unreachable", source: _imgSource(), detail: l.error }); return; }
           srcName = newest.name;
           const local = _imgSources().find((x) => x.name === newest.name);
           if (local) srcPath = local.path; else url = newest.url;
@@ -4101,12 +4122,49 @@ module.exports = function (app: any) {
           const again = await imgSha256(out);
           if (again !== r.sha256) throw new Error("the prepared image's SHA-256 changed when read again: the disk of this Raspberry Pi may be failing");
           (job as any).result = { name, sha256: r.sha256, bytes: r.bytes, pypilotVersion: info.pypilotVersion };
-          try { require("fs").writeFileSync(out + ".check.json", JSON.stringify({ ok: true, detail: "e2fsck + gzip -t + SHA-256 read back", ts: Date.now() })); } catch { /* silent */ }
-        } catch (e: any) { job.error = String(e?.message || e); }
+          try { require("fs").writeFileSync(out + ".check.json", JSON.stringify({ ok: true, detail: "e2fsck + gzip -t + SHA-256 read back", source: srcName, ts: Date.now() })); } catch { /* silent */ }
+        } catch (e: any) { job.error = (job as any).cancel ? "cancelled" : String(e?.message || e); }
+        _imgAbort = null;
+        if (job.error) {
+          // nothing half done is left behind (secrets included)
+          const fs2 = require("fs"), path2 = require("path");
+          for (const f of [path2.join(_imgWork(), "new.img"), path2.join(_imgWork(), srcName + ".part")]) { try { fs2.unlinkSync(f); } catch { /* none */ } }
+          try { fs2.rmSync(path2.join(_imgWork(), "tmp"), { recursive: true, force: true }); } catch { /* none */ }
+          try { for (const n of fs2.readdirSync(_imgBase())) if (n.endsWith(".part")) fs2.unlinkSync(path2.join(_imgBase(), n)); } catch { /* none */ }
+        }
         _imgInfo = null;
         job.running = false; job.finishedTs = Date.now();
         // eslint-disable-next-line no-console
         console.log(`[image] prepare ${srcName}: ${job.error || "ok, " + ((job as any).result?.name || "")}`);
+      });
+      // Rev744: POST /tinypilot/image/source {url} - the new address of the
+      // official images, checked (it must list TinyPilot images) and kept.
+      router.post("/tinypilot/image/source", async (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        let url = String(req.body?.url || "").trim();
+        if (!/^https?:\/\//.test(url)) { res.status(400).json({ error: "the address must start with https://" }); return; }
+        if (!url.endsWith("/") && !/\.html?$/.test(url)) url += "/";
+        const prev = _imgSource();
+        try { require("fs").writeFileSync(_imgSourceFile(), JSON.stringify({ url })); } catch (e: any) { res.status(500).json({ error: String(e?.message || e) }); return; }
+        const l = await _imgListPypilotOrg(true);
+        if (l.error) {
+          try { require("fs").writeFileSync(_imgSourceFile(), JSON.stringify({ url: prev })); } catch { /* silent */ }
+          await _imgListPypilotOrg(true);
+          res.status(400).json({ error: `no TinyPilot images found at ${url} (${l.error})` });
+          return;
+        }
+        res.json({ ok: true, url, newest: l.images[0] });
+      });
+      // Rev744: POST /tinypilot/image/cancel - really stop a preparation: the
+      // download and the running step, and delete what was half done.
+      let _imgAbort: AbortController | null = null;
+      router.post("/tinypilot/image/cancel", (req: any, res: any) => {
+        if (!requireAdmin(req, res)) return;
+        if (!_imgJob?.running) { res.json({ ok: true, running: false }); return; }
+        (_imgJob as any).cancel = true;
+        try { _imgAbort?.abort(); } catch { /* gone */ }
+        imgKillCurrent();
+        res.json({ ok: true });
       });
       router.get("/tinypilot/image/file/:name", (req: any, res: any) => {
         if (!requireAdmin(req, res)) return;

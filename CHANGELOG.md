@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev734-743)
+## Unreleased (Rev734-744)
 
 ### Important: TinyPilot SD images made before this version
 
@@ -15,6 +15,23 @@
   (see Fixed below), so make a fresh one too.
 
 ### Added
+- **Safer and clearer** (Rev744):
+  - **Deletions:** every deletion in the visor (backups, black box, display
+    presets, sessions) highlights and focuses "No".
+  - **Preparing a new card:**
+    - "Keep going in the background" and "Cancel the preparation" are
+      under the bar, and the X asks the same;
+    - cancelling really stops it, the download included, and deletes what
+      was half done.
+  - **Using a prepared image:** it says whether that image is still made
+    from the newest one on the image page, or that a newer one is out.
+  - **Image page moved:** when the page with the official images does not
+    answer, the assistant asks whether the address has changed, checks the
+    new one and keeps it.
+  - **Small fixes:**
+    - the card images list showed nothing;
+    - notes are in italics in the windows too;
+    - Back on the download window.
 - **Backup in progress, said once for the whole boat** (Rev742). While
   the card copy stops pypilot on purpose:
   - one visual notification goes out on Signal K, with no sound: "Backup in

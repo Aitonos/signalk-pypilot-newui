@@ -82,12 +82,17 @@ export function debugfsScript(writes: WriteOp[], removes: string[]): string {
 export interface RunResult { code: number; stdout: Buffer; stderr: string }
 
 /** Runs a tool at the lowest priority. `ionice` only when present. */
+/** Rev744: the child process running now, so a cancel can stop it. */
+let _current: import("child_process").ChildProcess | null = null;
+export function killCurrent(): void { try { _current?.kill("SIGKILL"); } catch { /* gone */ } }
+
 export function run(cmd: string, args: string[], opts: { input?: string; stdoutFile?: string; timeoutMs?: number } = {}): Promise<RunResult> {
   return new Promise((resolve) => {
     const nice = ["-n", "19"];
     const hasIonice = fs.existsSync("/usr/bin/ionice");
     const argv = hasIonice ? [...nice, "ionice", "-c3", cmd, ...args] : [...nice, cmd, ...args];
     const p = spawn("nice", argv, { stdio: ["pipe", opts.stdoutFile ? "pipe" : "pipe", "pipe"] });
+    _current = p;
     const out: Buffer[] = [];
     let err = "";
     let file: fs.WriteStream | null = null;
@@ -97,6 +102,7 @@ export function run(cmd: string, args: string[], opts: { input?: string; stdoutF
     const t = opts.timeoutMs ? setTimeout(() => { try { p.kill("SIGKILL"); } catch { /* gone */ } }, opts.timeoutMs) : null;
     p.on("error", (e) => { if (t) clearTimeout(t); resolve({ code: -1, stdout: Buffer.alloc(0), stderr: String(e?.message || e) }); });
     p.on("close", (code) => {
+      if (_current === p) _current = null;
       if (t) clearTimeout(t);
       const done = () => resolve({ code: code ?? -1, stdout: Buffer.concat(out), stderr: err });
       if (file) file.end(done); else done();
