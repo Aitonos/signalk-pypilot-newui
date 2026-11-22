@@ -60,3 +60,51 @@ describe("latest copy in the data dir (Rev663)", () => {
     assert.deepEqual(fs.readdirSync(dataDir), [LATEST_COPY_NAME], "no .tmp left");
   });
 });
+
+describe("Rev734: wider TinyPilot copy and host key memory", () => {
+  it("copies the wifi, the extra files and the system identity, never DSA keys", () => {
+    const { tinypilotCopyCommand, TINYPILOT_FILES, TINYPILOT_SYSTEM_FILES } = require("../settings-backup");
+    for (const f of ["networking.txt", "lcddriver", "web.conf", "nmea0device"]) assert.ok(TINYPILOT_FILES.includes(f), f);
+    const c: string = tinypilotCopyCommand();
+    assert.match(c, /sudo -n grep '\^tc:' \/etc\/shadow/);
+    assert.match(c, /ssh_host_ed25519_key/);
+    assert.ok(!/dsa_key/.test(c.replace(/ecdsa/g, "")));
+    assert.ok(TINYPILOT_SYSTEM_FILES.includes("sys/shadow-tc"));
+  });
+  it("parses system files and ignores unknown names", () => {
+    const out = [`${TINYPILOT_MARK}networking.txt`, "mode=Master+Managed", "client_ssid=boat",
+      `${TINYPILOT_MARK}sys/shadow-tc`, "tc:$6$abc$def:19000:0:99999:7:::",
+      `${TINYPILOT_MARK}sys/evil`, "nope"].join("\n");
+    const f = parseTinypilotFiles(out);
+    assert.equal(f["networking.txt"], "mode=Master+Managed\nclient_ssid=boat\n");
+    assert.equal(f["sys/shadow-tc"], "tc:$6$abc$def:19000:0:99999:7:::\n");
+    assert.equal(f["sys/evil"], undefined);
+  });
+  it("host key: first seen, same, changed, accepted", () => {
+    const { HostKeyMemory } = require("../tinypilot-hostkey");
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "hk-")), "k.json");
+    const m = new HostKeyMemory(file);
+    assert.equal(m.observe(Buffer.from("A"), 1), "new");
+    assert.equal(m.observe(Buffer.from("A"), 2), "same");
+    assert.equal(m.observe(Buffer.from("B"), 3), "changed");
+    assert.ok(new HostKeyMemory(file).get().changed);
+    m.accept(4);
+    assert.equal(m.observe(Buffer.from("B"), 5), "same");
+  });
+});
+
+describe("Rev734: a file without a final newline does not swallow the next one", () => {
+  it("each mark starts on its own line", () => {
+    const { tinypilotCopyCommand } = require("../settings-backup");
+    const c: string = tinypilotCopyCommand();
+    const marks = c.split(`echo "${TINYPILOT_MARK}`).length - 1;
+    const withNewline = c.split(`echo; echo "${TINYPILOT_MARK}`).length - 1;
+    assert.ok(marks > 10);
+    assert.equal(withNewline, marks, "every mark has the newline before it");
+    // what the shell prints for "4800" (no newline) followed by the next file
+    const out = `\n${TINYPILOT_MARK}gpsd_baud_hint\n4800\n${TINYPILOT_MARK}networking.txt\nmode=Master\n\n`;
+    const f = parseTinypilotFiles(out);
+    assert.equal(f["gpsd_baud_hint"], "4800\n");
+    assert.equal(f["networking.txt"], "mode=Master\n");
+  });
+});

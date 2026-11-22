@@ -13,7 +13,9 @@
 //   - tinypilot: pypilot's own config files from the TinyPilot over SSH
 //     (pypilot.conf holds EVERY profile's gains), when SSH is configured.
 // Never: trips, sessions, logs, history, black box (data, not settings),
-// the SSH password or pypilot's Signal K token.
+// the SSH password or pypilot's Signal K token. Rev734: it does carry the
+// boat wifi key (networking.txt), the TinyPilot's password HASH and its SSH
+// host keys, needed to prepare a new image; never logged.
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -26,8 +28,24 @@ const NAME = /^pypilot-newui-(\d{4}-\d{2}-\d{2})\.json$/;
 export const BACKUP_SECRET_KEYS = ["sshPassword"];
 
 /** pypilot files copied from the TinyPilot (~/.pypilot). Not the
- *  signalk-token, not the .bak copies. */
-export const TINYPILOT_FILES = ["pypilot.conf", "hat.conf", "pypilot_client.conf", "RTIMULib.ini", "servodevice", "blacklist_serial_ports", "gpsd_baud_hint"];
+ *  signalk-token, not the .bak copies. Rev734 (Carlos 2026-11-22): also the
+ *  boat wifi (networking.txt), the display driver and the files newer images
+ *  keep there (web.conf, nmea0device), so a new image can be prepared with
+ *  them (tinypilot-migrate.ts). Files a given image does not have are simply
+ *  not in the copy. */
+export const TINYPILOT_FILES = ["pypilot.conf", "hat.conf", "pypilot_client.conf", "RTIMULib.ini", "servodevice", "blacklist_serial_ports", "gpsd_baud_hint", "networking.txt", "lcddriver", "web.conf", "nmea0device"];
+
+/** Rev734: system files outside ~/.pypilot, read with sudo, so the new image
+ *  keeps the TinyPilot's login and identity: the tc line of /etc/shadow (the
+ *  password hash, never the password) and the SSH host keys (the plugin then
+ *  still recognises the TinyPilot). DSA keys are left out: newer OpenSSH
+ *  refuses them. */
+const SSH_KEY_DIR = "/usr/local/etc/ssh";
+const HOST_KEY_TYPES = ["rsa", "ecdsa", "ed25519"];
+export const TINYPILOT_SYSTEM_FILES = [
+  "sys/shadow-tc",
+  ...HOST_KEY_TYPES.flatMap((t) => [`sys/ssh_host_${t}_key`, `sys/ssh_host_${t}_key.pub`]),
+];
 
 export function backupDir(home: string = os.homedir()): string {
   return path.join(home, BACKUP_DIR_NAME);
@@ -92,8 +110,19 @@ export function stripSecrets(opts: Record<string, unknown>): Record<string, unkn
 
 /** Splits the output of the TinyPilot copy command into files. */
 export const TINYPILOT_MARK = "===PNU:FILE===";
+// Rev734: "echo;" before each mark - a file without a final newline
+// (gpsd_baud_hint is just "4800") used to glue the next mark to its last
+// line, and that next file was lost. The extra blank line is trimmed.
 export function tinypilotCopyCommand(): string {
-  return TINYPILOT_FILES.map((f) => `echo "${TINYPILOT_MARK}${f}"; cat ~/.pypilot/${f} 2>/dev/null`).join("; ");
+  const own = TINYPILOT_FILES.map((f) => `echo; echo "${TINYPILOT_MARK}${f}"; cat ~/.pypilot/${f} 2>/dev/null`);
+  const sys = [
+    `echo; echo "${TINYPILOT_MARK}sys/shadow-tc"; sudo -n grep '^tc:' /etc/shadow 2>/dev/null`,
+    ...HOST_KEY_TYPES.flatMap((t) => [
+      `echo; echo "${TINYPILOT_MARK}sys/ssh_host_${t}_key"; sudo -n cat ${SSH_KEY_DIR}/ssh_host_${t}_key 2>/dev/null`,
+      `echo; echo "${TINYPILOT_MARK}sys/ssh_host_${t}_key.pub"; cat ${SSH_KEY_DIR}/ssh_host_${t}_key.pub 2>/dev/null`,
+    ]),
+  ];
+  return [...own, ...sys].join("; ");
 }
 export function parseTinypilotFiles(stdout: string): Record<string, string> {
   const files: Record<string, string> = {};
@@ -105,7 +134,7 @@ export function parseTinypilotFiles(stdout: string): Record<string, string> {
     if (line.startsWith(TINYPILOT_MARK)) {
       close();
       const name = line.slice(TINYPILOT_MARK.length).trim();
-      cur = TINYPILOT_FILES.includes(name) ? name : null;
+      cur = TINYPILOT_FILES.includes(name) || TINYPILOT_SYSTEM_FILES.includes(name) ? name : null;
       buf = [];
       continue;
     }

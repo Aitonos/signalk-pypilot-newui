@@ -28,6 +28,33 @@ export function sdReadCommand(mib: number): string {
   return `sync; sudo nice -n 19 dd if=/dev/mmcblk0 bs=1M count=${Math.floor(mib)} 2>/dev/null`;
 }
 
+/** Rev734 (Carlos 2026-11-22; GPT and Gemini audit): a consistent image.
+ *  pypilot writes pypilot.conf to the card every few minutes, so a plain dd
+ *  can catch a half-written file. Stop pypilot, its web and hat services,
+ *  sync, remount the card read-only, read it, then put everything back.
+ *  - Only the image goes to stdout; "PNU_RO=1" (or 0 if the read-only
+ *    remount was refused) goes to stderr. On the boat's TinyPilot it is
+ *    refused (3 extensions are loop-mounted read-write from the card), so in
+ *    practice the protection is pypilot stopped (the only regular writer)
+ *    plus sync; read-only is a bonus where it works.
+ *  - Everything is put back on exit, also if the SSH session drops (trap),
+ *    and a detached safety net does it again after `netS` seconds in case
+ *    the shell is killed outright. Both are harmless if already done. */
+export const SD_PART = "/mnt/mmcblk0p2";
+const SD_SERVICES = "/etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat";
+export function sdReadConsistentCommand(mib: number, netS = 1800): string {
+  const back = `sudo mount -o remount,rw ${SD_PART} >/dev/null 2>&1; sudo sv up ${SD_SERVICES} >/dev/null 2>&1`;
+  // "cmd &" must not be followed by ";" (a syntax error in sh).
+  return `setsid sh -c 'sleep ${Math.floor(netS)}; ${back}' </dev/null >/dev/null 2>&1 & ` + [
+    `trap '${back}' EXIT HUP INT TERM`,
+    `sudo sv down ${SD_SERVICES} >/dev/null 2>&1`,
+    `sleep 2; sync`,
+    `RO=0; sudo mount -o remount,ro ${SD_PART} >/dev/null 2>&1 && RO=1`,
+    `echo "PNU_RO=$RO" >&2`,
+    `sudo nice -n 19 dd if=/dev/mmcblk0 bs=1M count=${Math.floor(mib)} 2>/dev/null`,
+  ].join("; ");
+}
+
 export function sdImageName(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `tinypilot-sd-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.img.gz`;

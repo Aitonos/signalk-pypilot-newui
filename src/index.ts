@@ -77,13 +77,14 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
-import { SD_PROBE_COMMAND, sdImageMiB, sdReadCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations, isAllowedFolder, folderRoots } from "./tinypilot-sd";
+import { SD_PROBE_COMMAND, sdImageMiB, sdReadConsistentCommand, sdImageName, isSdImageName, sdImagesToDrop, sdDestinations, isAllowedFolder, folderRoots } from "./tinypilot-sd";
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
 import { IMU_FALLBACK_KEYS, IMU_FALLBACK_PATHS, otherSourceFresh, imuFallbackValues, newFallbackPathState, stepFallbackPath } from "./imu-fallback";
 import { withLocalAliases, requestsToApprove, pypilotDevicePlan, PendingRequest, DeviceEntry } from "./pypilot-sk-access";
 import { accessReport, AccessReport, DiagRing, maskHost, sanitizeConfig } from "./diagnostic";
+import { HostKeyMemory } from "./tinypilot-hostkey";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -94,7 +95,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev733";
+const PLUGIN_REVISION = "Rev734";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -673,6 +674,12 @@ module.exports = function (app: any) {
     return isLocalPypilotHost(host, _tinypilotIps.host === host ? _tinypilotIps.ips : []);
   };
   const _sshUser = (): string => props.sshUser || defaultSshUser(_pypilotIsLocal());
+  // Rev734: remember the TinyPilot's SSH host key (records, never blocks).
+  const _hostKeys = new HostKeyMemory(require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "tinypilot-hostkey.json"));
+  const _hostVerifier = (h: string) => (key: Buffer): boolean => {
+    try { if (h && h === props.host && _hostKeys.observe(key) === "changed") app.debug(`[ssh] the TinyPilot's host key changed (${props.host})`); } catch { /* never blocks */ }
+    return true;
+  };
   /** Keep the newest pypilot device read/write and remove the rest. */
   const _tidyPypilotDevices = (): void => {
     const sec = _skSecurity();
@@ -2959,6 +2966,7 @@ module.exports = function (app: any) {
                 host, port: 22, username: sshUser, password: sshPassword,
                 readyTimeout: 8000,
                 tryKeyboard: true,
+                hostVerifier: _hostVerifier(host),
               });
               conn.on("keyboard-interactive", (_n: any, _i: any, _l: any, _p: any, finish2: any) => {
                 finish2([sshPassword]);
@@ -3031,7 +3039,10 @@ module.exports = function (app: any) {
       // { ok, stdout, code, elapsedMs }. Used by both /debug-cmd (with
       // whitelisted presets) and /ssh-exec (with the user's own
       // command from the interactive console).
-      async function _runSsh(cmd: string, timeoutMs: number = 30000):
+      // Rev734: raw = no pty and no password typed in (for commands whose
+      // output is kept, like the backup: sudo -n needs no password, and a pty
+      // could echo it into the output).
+      async function _runSsh(cmd: string, timeoutMs: number = 30000, opts: { raw?: boolean } = {}):
         Promise<{ ok: boolean; stdout: string; code?: number; elapsedMs: number; error?: string }>
       {
         const sshUser = _sshUser();
@@ -3054,7 +3065,7 @@ module.exports = function (app: any) {
             };
             const killTimer = setTimeout(() => finish({ ok: false, stdout: `timeout ${timeoutMs}ms` }), timeoutMs);
             conn.on("ready", () => {
-              conn.exec(cmd, { pty: true }, (err: any, stream: any) => {
+              conn.exec(cmd, opts.raw ? {} : { pty: true }, (err: any, stream: any) => {
                 if (err) { clearTimeout(killTimer); finish({ ok: false, stdout: err.message }); return; }
                 let out = "";
                 let truncated = false;
@@ -3067,7 +3078,7 @@ module.exports = function (app: any) {
                 };
                 stream.on("data", keep);
                 stream.stderr.on("data", keep);
-                setTimeout(() => { try { stream.write(sshPassword + "\n"); } catch {} }, 300);
+                if (!opts.raw) setTimeout(() => { try { stream.write(sshPassword + "\n"); } catch {} }, 300);
               });
             });
             conn.on("error", (err: any) => { clearTimeout(killTimer); finish({ ok: false, stdout: `ssh: ${err?.message || err}` }); });
@@ -3077,6 +3088,7 @@ module.exports = function (app: any) {
                 host: props.host, port: 22,
                 username: sshUser, password: sshPassword,
                 readyTimeout: 8000, tryKeyboard: true,
+                hostVerifier: _hostVerifier(props.host),
               });
               conn.on("keyboard-interactive", (_n: any, _i: any, _l: any, _p: any, finish2: any) => {
                 finish2([sshPassword]);
@@ -3260,7 +3272,7 @@ module.exports = function (app: any) {
           // pypilot's own files hold every profile's gains; best effort.
           let tinypilot: { files: Record<string, string>; error?: string } = { files: {} };
           if (props.sshPassword) {
-            const r = await _runSsh(tinypilotCopyCommand(), 20000);
+            const r = await _runSsh(tinypilotCopyCommand(), 30000, { raw: true });
             tinypilot = r.ok || r.stdout.includes("===PNU:FILE===")
               ? { files: parseTinypilotFiles(r.stdout) }
               : { files: {}, error: (r.error || r.stdout || "ssh failed").slice(0, 200) };
@@ -3453,7 +3465,7 @@ module.exports = function (app: any) {
       // into ~/Backups-pypilot-newui; the newest SD_KEEP are kept. It loads
       // the Pi Zero for a few minutes: refused with the autopilot engaged,
       // stopped if it gets engaged meanwhile.
-      type SdJob = { running: boolean; file: string | null; dest: string; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null };
+      type SdJob = { running: boolean; file: string | null; dest: string; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null; consistent?: boolean };
       let _sdJob: SdJob | null = null;
       // Rev672 (Carlos 2026-11-09): the image can go to a USB stick, disk or
       // network share mounted under /media or /mnt, chosen from this list
@@ -3502,7 +3514,7 @@ module.exports = function (app: any) {
           return { name: n, size, ts };
         });
       };
-      const _sshStreamToGzip = (cmd: string, file: string, onBytes: (n: number) => void, stillWanted: () => boolean): Promise<{ ok: boolean; bytes: number; error?: string }> => {
+      const _sshStreamToGzip = (cmd: string, file: string, onBytes: (n: number) => void, stillWanted: () => boolean): Promise<{ ok: boolean; bytes: number; error?: string; stderr?: string }> => {
         return new Promise((resolve) => {
           const fs2 = require("fs");
           const zlib = require("zlib");
@@ -3511,13 +3523,15 @@ module.exports = function (app: any) {
           const { Client } = require("ssh2");
           const conn = new Client();
           let bytes = 0;
+          let errText = "";   // Rev734: small stderr capture (PNU_RO=1/0)
           let settled = false;
           let idle: NodeJS.Timeout | null = null;
           let watch: NodeJS.Timeout | null = null;
           const tmp = `${file}.tmp`;
-          const finish = (r: { ok: boolean; bytes: number; error?: string }) => {
+          const finish = (r: { ok: boolean; bytes: number; error?: string; stderr?: string }) => {
             if (settled) return;
             settled = true;
+            r.stderr = errText;
             if (idle) clearTimeout(idle);
             if (watch) clearInterval(watch);
             try { conn.end(); } catch { /* silent */ }
@@ -3530,6 +3544,7 @@ module.exports = function (app: any) {
               if (err) { finish({ ok: false, bytes: 0, error: err.message }); return; }
               let exitCode: number | null = null;
               stream.on("exit", (code: number) => { exitCode = code; });
+              stream.stderr.on("data", (d: Buffer) => { if (errText.length < 2000) errText += d.toString(); });
               const counter = new Transform({
                 transform(chunk: Buffer, _enc: string, cb: (e: any, d?: Buffer) => void) { bytes += chunk.length; onBytes(bytes); kick(); cb(null, chunk); },
               });
@@ -3550,7 +3565,7 @@ module.exports = function (app: any) {
           });
           conn.on("error", (e: any) => finish({ ok: false, bytes, error: e?.message || String(e) }));
           try {
-            conn.connect({ host: props.host, port: 22, username: _sshUser(), password: props.sshPassword, readyTimeout: 8000 });
+            conn.connect({ host: props.host, port: 22, username: _sshUser(), password: props.sshPassword, readyTimeout: 8000, hostVerifier: _hostVerifier(props.host) });
           } catch (e: any) { finish({ ok: false, bytes: 0, error: e?.message || String(e) }); }
         });
       };
@@ -3584,7 +3599,8 @@ module.exports = function (app: any) {
         const job: SdJob = { running: true, file: require("path").basename(file), dest: dest.id, bytes: 0, totalBytes: mib * 1024 * 1024, startedTs: Date.now(), finishedTs: null, error: null };
         _sdJob = job;
         res.status(202).json({ ok: true, totalBytes: job.totalBytes });
-        const r = await _sshStreamToGzip(sdReadCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
+        const r = await _sshStreamToGzip(sdReadConsistentCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
+        job.consistent = /PNU_RO=1/.test(r.stderr || "");
         job.running = false;
         job.finishedTs = Date.now();
         if (!r.ok) job.error = r.error || "failed";
@@ -3595,7 +3611,7 @@ module.exports = function (app: any) {
           }
         }
         // eslint-disable-next-line no-console
-        console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : "ok"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
+        console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : "ok"}${job.consistent ? " (pypilot stopped, card read-only)" : " (pypilot stopped, card stayed read-write)"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
       });
       // Rev673: folder browser for the SD image destination.
       //   GET /tinypilot/folders           - the roots (home, /media, /mnt)
@@ -5036,6 +5052,7 @@ module.exports = function (app: any) {
                 host: props.host, port: 22,
                 username: sshUser, password: sshPassword,
                 readyTimeout: 8000, tryKeyboard: true,
+                hostVerifier: _hostVerifier(props.host),
               });
               conn.on("keyboard-interactive", (_n: any, _i: any, _l: any, _p: any, finish2: any) => {
                 finish2([sshPassword]);

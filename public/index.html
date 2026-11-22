@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev733" />
+  <link rel="stylesheet" href="style.css?v=Rev734" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2152,7 +2152,7 @@
         <!-- Rev671 (Carlos 2026-11-09): image of the TinyPilot's SD card. -->
         <div class="conn-sub" id="sd-section">
           <div class="conn-sub-title" data-i18n="sd.title">TinyPilot SD card</div>
-          <div class="hint" data-i18n="sd.hint">A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off; it takes a few minutes and loads the TinyPilot meanwhile. The last 3 are kept.</div>
+          <div class="hint" data-i18n="sd.hint">A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.</div>
           <!-- Rev672: destination with its free space, and the copy's progress
                (same bars as the Doctor). -->
           <div class="row" style="align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
@@ -2958,6 +2958,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev733"></script>
+  <script src="app.js?v=Rev734"></script>
 </body>
 </html>

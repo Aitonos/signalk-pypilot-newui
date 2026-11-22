@@ -42,6 +42,19 @@ describe("TinyPilot SD image (Rev671)", () => {
   it("dd at the lowest priority, after sync", () => {
     assert.equal(sdReadCommand(1094), "sync; sudo nice -n 19 dd if=/dev/mmcblk0 bs=1M count=1094 2>/dev/null");
   });
+  it("Rev734: consistent read - services down, read-only, put back on exit and by a safety net", () => {
+    const { sdReadConsistentCommand } = require("../tinypilot-sd");
+    const c: string = sdReadConsistentCommand(1094, 1800);
+    assert.match(c, /setsid sh -c 'sleep 1800; sudo mount -o remount,rw \/mnt\/mmcblk0p2 [^']*sudo sv up [^']*' <\/dev\/null/);
+    assert.match(c, /trap '[^']*remount,rw[^']*sv up[^']*' EXIT HUP INT TERM/);
+    assert.ok(c.indexOf("sv down") < c.indexOf("remount,ro") && c.indexOf("remount,ro") < c.indexOf("dd if=/dev/mmcblk0"));
+    assert.match(c, /echo "PNU_RO=\$RO" >&2/);
+    assert.match(c, /dd if=\/dev\/mmcblk0 bs=1M count=1094 2>\/dev\/null$/);
+    // nothing but the image may reach stdout
+    for (const part of c.split("; ")) {
+      if (/^(sudo sv down|sudo mount -o remount,ro)/.test(part)) assert.match(part, />\/dev\/null 2>&1/);
+    }
+  });
   it("names and keeps the newest three", () => {
     assert.equal(sdImageName(new Date(2026, 10, 9)), "tinypilot-sd-2026-11-09.img.gz");
     assert.ok(!isSdImageName("../etc/passwd"));
