@@ -909,10 +909,12 @@ export class AutopilotProvider {
       // the route (APB) and would overwrite any target. A +-1/+-10 means
       // "I take over": compass, current heading + the nudge.
       if (this.data.engaged && String(this.data.mode || "").toLowerCase() === "nav") {
-        const apH = Number(((this.client as any).getValues?.() || {})["ap.heading"]);
+        // Rev746: the compass heading (in NAV pypilot's ap.heading is the
+        // track, a few degrees off with current or leeway).
+        const hRad = this._readHeadingRad();
         await this.setMode("compass");
-        if (!Number.isFinite(apH)) return;
-        const want = apH * DEG_TO_RAD + rad;
+        if (hRad === null) return;
+        const want = hRad + rad;
         // Same race as the tack cancel (Rev515): pypilot recomputes the
         // command on the mode change in its own loop - wait, write, verify.
         await this._waitValue("ap.mode", "compass", 1500);
@@ -1087,22 +1089,34 @@ export class AutopilotProvider {
    *  null if ALL sources are empty. Used by BOTH startVirtualTack (as a
    *  precondition) and the _runVirtualTack loop (so the loop sees the same
    *  heading source the planner saw). */
+  /** Rev746: public for the route follower's safe exit. */
+  readHeadingRad(): number | null { return this._readHeadingRad(); }
   private _readHeadingRad(): number | null {
     // Rev532 (Gemini audit #7): the virtual tack writes these headings
     // back to pypilot as compass targets, so read them in pypilot's own
     // frame first. navigation.headingTrue adds the variation (and may be
     // another compass): with 15 deg of variation the first step was
     // 15 deg off.
+    // Rev746 (Carlos sea trial 2026-11-23, SAFETY): pypilot's ap.heading is
+    // the heading OF THE CURRENT MODE - in wind / true wind mode it is the
+    // wind angle, not the boat's heading. Read first (Rev532) it made a
+    // starboard tack from wind mode start from AWA 45 deg instead of the
+    // real 149 deg heading, and send 113 deg: the bow swung to PORT. The
+    // compass (imu.heading, same frame as compass mode) comes first now;
+    // ap.heading only when pypilot is in compass mode.
     const values = (this.client as any).getValues?.() || {};
+    const fin = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
     const apH = values["ap.heading"];
-    if (typeof apH === "number" && Number.isFinite(apH)) return apH * DEG_TO_RAD;
+    if (values["ap.mode"] === "compass" && fin(apH)) return apH * DEG_TO_RAD;
+    const imuLp = values["imu.heading_lowpass"];
+    if (fin(imuLp)) return imuLp * DEG_TO_RAD;
+    const imuH = values["imu.heading"];
+    if (fin(imuH)) return imuH * DEG_TO_RAD;
     try {
       const skH = this.app?.getSelfPath?.("navigation.headingMagnetic");
       const v = skH?.value;
       if (typeof v === "number" && Number.isFinite(v)) return v;
     } catch { /* noop */ }
-    const imuH = values["imu.heading"];
-    if (typeof imuH === "number" && Number.isFinite(imuH)) return imuH * DEG_TO_RAD;
     try {
       const skH = this.app?.getSelfPath?.("navigation.headingTrue");
       const v = skH?.value;
