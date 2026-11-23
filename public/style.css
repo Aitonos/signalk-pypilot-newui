@@ -676,7 +676,7 @@ main {
 }
 /* Rev751 (Carlos: "debe ser mucho más pequeño"): the unit and the degree
    sign after a corner number, a bit over half the number's size. */
-.dash-rose .dash-cell .cu { font-size: 0.55em; }
+.dash-rose .dash-cell .cu { font-size: 0.55em; margin-left: 0.12em; }   /* Rev753: close to the number */
 /* Rev752 (Carlos: a small degree sign half way up looked odd): small and at
    the top of the number, where a degree sign belongs. */
 .dash-rose .dash-cell .cdeg { font-size: 0.6em; vertical-align: top; }

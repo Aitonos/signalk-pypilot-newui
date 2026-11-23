@@ -1093,6 +1093,7 @@
       "dash.corner.tr": "Top right",
       "dash.corner.bl": "Bottom left",
       "dash.corner.br": "Bottom right",
+      "dash.corner.chip": "Bottom centre",
       "dash.corner.empty": "(empty)",
       "dash.wind.arrows": "WIND ARROWS",
       "dash.wind.awa": "AWA (apparent, amber)",
@@ -2708,6 +2709,7 @@
       "dash.corner.tr": "Arriba derecha",
       "dash.corner.bl": "Abajo izquierda",
       "dash.corner.br": "Abajo derecha",
+      "dash.corner.chip": "Abajo centro",
       "dash.corner.empty": "(vacío)",
       "dash.wind.arrows": "FLECHAS DE VIENTO",
       "dash.wind.awa": "AWA (aparente, amber)",
@@ -4318,6 +4320,7 @@
       "dash.corner.tr": "Oben rechts",
       "dash.corner.bl": "Unten links",
       "dash.corner.br": "Unten rechts",
+      "dash.corner.chip": "Unten Mitte",
       "dash.corner.empty": "(leer)",
       "dash.wind.arrows": "WINDPFEILE",
       "dash.wind.awa": "AWA (scheinbar, gelb)",
@@ -5901,6 +5904,7 @@
       "dash.corner.tr": "Haut droite",
       "dash.corner.bl": "Bas gauche",
       "dash.corner.br": "Bas droite",
+      "dash.corner.chip": "Bas centre",
       "dash.corner.empty": "(vide)",
       "dash.wind.arrows": "FLÈCHES DE VENT",
       "dash.wind.awa": "AWA (apparent, ambre)",
@@ -8061,6 +8065,7 @@
       m = document.createElement("div");
       m.id = "rose-chip-selector-modal";
       m.className = "tune-fork-backdrop";
+      m.style.zIndex = "3100";   // Rev753: also above the visor settings popup
       m.innerHTML =
         `<div class="modal-card" style="max-width:420px">` +
         `  <h3 id="rose-chip-sel-title" style="margin:0 0 6px 0"></h3>` +
@@ -8083,6 +8088,7 @@
         state.roseBottomChipIdx = 0;
         _saveRoseBottomChipPaths();
         renderRoseBottomChip();
+        _dashChipSelSync();   // Rev753
         m.hidden = true;
       });
     }
@@ -8196,7 +8202,7 @@
       // (was a full innerHTML rewrite on every delta).
       // Rev748 (Carlos): the unit in its own span, smaller than the number.
       // Rev751: the degree sign too.
-      const cu = (x) => String(x).replace(/ (kn|m|%|°C)$/, '<span class="cu"> $1</span>').replace(/°$/, '<span class="cdeg">°</span>');
+      const cu = (x) => String(x).replace(/ (kn|m|%|°C)$/, '<span class="cu">$1</span>').replace(/°$/, '<span class="cdeg">°</span>');
       const html = (val && typeof val === "object" && "value" in val)
         ? `<div class="label">${paintedLabel}</div><div class="value">${cu(val.value)}</div><div class="sub">${cu(val.sub)}</div>`
         : `<div class="label">${paintedLabel}</div><div class="value">${cu(val)}</div>`;
@@ -8328,7 +8334,27 @@
   function _depthKeysSeen() {
     return ["depthDBK", "depthDBT", "depthDBS"].filter((k, i) => state.depthBy && state.depthBy[i] != null);
   }
+  // Rev753 (Carlos): a fifth selector, the data under the rose (the bottom
+  // chip). It shows the current choice and opens the chip's own picker.
+  function _dashChipSelSync() {
+    const sel = document.getElementById("dash-corner-chip");
+    if (!sel) return;
+    const lab = (k) => { const m = DASH_DATA[k]; if (!m) return k; return typeof m.label === "function" ? m.label() : m.label; };
+    const txt = (state.roseBottomChipPaths || []).map(lab).join(" · ") || "-";
+    sel.innerHTML = "";
+    const o = document.createElement("option");
+    o.textContent = txt;
+    sel.appendChild(o);
+    if (!sel._wired) {
+      sel._wired = true;
+      const open = (ev) => { ev.preventDefault(); sel.blur(); _openRoseChipSelectorModal(); };
+      sel.addEventListener("mousedown", open);
+      sel.addEventListener("touchstart", open, { passive: false });
+      sel.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") open(ev); });
+    }
+  }
   function _dashPopulateSelectors() {
+    _dashChipSelSync();
     _zonesLoad(false);
     // Rev58: the corner dropdown lists CORE keys + user-enabled extras +
     // any custom paths the user has added. Everything else stays hidden
@@ -26050,7 +26076,9 @@
         if (g.ticks.length > 1) {
           const step = g.ticks[1].v - g.ticks[0].v;
           const mant = step / Math.pow(10, Math.floor(Math.log10(step) + 1e-9));
-          const minor = step / (Math.round(mant) === 2 ? 4 : 5);
+          // Rev753 (Carlos): units only - 0 / 2 / 4 gets one line between
+          // each, 0 / 5 / 10 four, 0 / 10 / 20 every 2.
+          const minor = step / (Math.round(mant) === 2 ? 2 : 5);
           ctx.lineWidth = 0.5;
           for (let v = g.lo + minor, n = 0; v < g.hi - minor / 2 && n < 200; v += minor, n += 1) {
             if (Math.abs(((v - g.lo) / step) - Math.round((v - g.lo) / step)) < 1e-6) continue;
@@ -26058,13 +26086,17 @@
             ctx.strokeStyle = "#1b2733";
             ctx.beginPath(); ctx.moveTo(marginL, y); ctx.lineTo(marginL + plotW, y); ctx.stroke();
             ctx.strokeStyle = "#6b7a8c";
-            ctx.beginPath(); ctx.moveTo(marginL + plotW, y); ctx.lineTo(marginL + plotW + 4, y); ctx.stroke();   // Rev752: outwards
+            ctx.beginPath(); ctx.moveTo(marginL + plotW, y); ctx.lineTo(marginL + plotW + 5, y); ctx.stroke();   // Rev752: outwards
           }
           ctx.lineWidth = 1;
         }
         ctx.font = `${fs}px ui-monospace, monospace`;
         ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
+        // Rev753 (Carlos): each number sits on its own mark, which is longer
+        // than the unit marks (the top one goes under its mark if there is
+        // no room above).
+        ctx.textBaseline = "bottom";
+        const markW = Math.max(10, Math.min(marginR - 2, fs));
         for (const tk of g.ticks) {
           const y = yOf(tk.v);
           ctx.strokeStyle = "#1f2b38";
@@ -26072,9 +26104,22 @@
           ctx.moveTo(marginL, y);
           ctx.lineTo(marginL + plotW, y);
           ctx.stroke();
+          ctx.strokeStyle = "#8e9bab";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(marginL + plotW, y); ctx.lineTo(marginL + plotW + markW, y); ctx.stroke();
+          ctx.lineWidth = 1;
           ctx.fillStyle = "#b8c4d0";
-          ctx.fillText(tk.txt, marginL + plotW + 4, Math.max(plotTop + fs / 2, Math.min(bandBot - fs / 2, y)));
+          const above = y - 2 - fs >= plotTop - 2;
+          ctx.textBaseline = above ? "bottom" : "top";
+          ctx.fillText(tk.txt, marginL + plotW + 2, above ? y - 2 : y + 2);
         }
+        ctx.textBaseline = "middle";
+        // Rev753 (Carlos: the curves ran in behind the scale): traces stay
+        // inside the plot, a few px short of the scale line.
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(marginL, bandTop, plotW - 3, bandBot - bandTop + 2);
+        ctx.clip();
         for (const k of g.keys) {
           ctx.strokeStyle = CHART_COLORS[k] || "#e6edf3";
           ctx.lineWidth = fs >= 12 ? 2 : 1.5;
@@ -26090,6 +26135,7 @@
           }
           ctx.stroke();
         }
+        ctx.restore();
         ctx.setLineDash([]);
         c.bands.push({ key: g.keys[0], keys: g.keys, bandTop, bandBot, lo: g.lo, hi: g.hi });
       } else {

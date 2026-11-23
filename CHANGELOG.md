@@ -22,9 +22,12 @@
   - the legend shows the value now and, in brackets, the average over the
     window (it showed only the average, which lags minutes behind a change
     of wind);
-  - fine lines between the scale numbers (every 1 between 0, 5 and 10), to
-    read a value by eye, with a short mark at the scale; a speed scale
-    spans at least 1 kn, so its numbers never repeat.
+  - fine lines at each unit between the scale numbers, to read a value by
+    eye, with a short mark at the scale; each number sits on its own,
+    longer mark; the curves stop short of the scale; a speed scale spans at
+    least 1 kn, so its numbers never repeat.
+- **A fifth selector in the visor settings:** what the box under the rose
+  shows (bottom centre), next to the four corners.
 - **Frozen values in the chart and its averages.** A Signal K path that
   stopped publishing (an old true wind speed, for example) kept its last
   value for ever. Values older than 15 s now count as missing.
