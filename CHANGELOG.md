@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.16.3 — 2026-11-23 — Safety: virtual tack from wind mode
+
+Rev746-747 on top of 3.16.2, from a sea trial.
+
+### Fixed
+- **A virtual tack started from a wind mode could turn the boat the wrong
+  way.** The tack took its starting heading from pypilot's `ap.heading`, but
+  in wind modes pypilot reports the wind angle there, not the boat's heading.
+  A starboard tack at about 45° apparent wind could send the bow to port.
+  This affected every version since 3.7.0. The tack now reads the compass
+  heading first (`imu.heading_lowpass`, then `imu.heading`), and uses
+  `ap.heading` only in compass mode.
+- The same fix applies to the ±1° / ±10° buttons from NAV mode and to the
+  safe exit from a route (in NAV, `ap.heading` is the course over ground).
+- New regression test that replays the sea-trial case in the simulator.
+
 ## 3.16.2 — 2026-11-21 — TinyPilot 0.71: Fix it now
 
 Rev731-733 on top of 3.16.1, from the OpenMarine forum (Michael's find).
