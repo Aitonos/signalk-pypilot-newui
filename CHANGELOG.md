@@ -2,6 +2,41 @@
 
 ## Unreleased (Rev734-745, Rev748+)
 
+### From the 23/11 sea trial and the forum (Rev748-749)
+
+- **Wind too light for wind mode** (new alarm, off by default). In 1-4 kn
+  of wind the wind direction means nothing: the pilot chases it, saturates
+  the rudder and can end up across the wind. With the AP in a wind mode and
+  the wind it steers by (apparent or true) under the threshold for 30 s,
+  it warns. In its row of Setup > Alarms you choose the threshold (2-6 kn,
+  4 by default) and **Warn only** or **Switch to compass**. Switch to
+  compass keeps the current compass heading and says so ("switched to
+  compass at 123°"). It never goes back to wind mode on its own.
+- **No more false heading-deviation alarms after a big course change.**
+  After several ±10, a +90 or a new route leg, the 1-minute error still
+  held the turn, and the alarm went off with the boat already on course.
+  While the boat closes the gap at a normal rate it waits; a boat that does
+  not turn still raises it.
+- **Panel chart:**
+  - tap "-10m" to choose 2 min, 10 min, 30 min or **2 h**;
+  - the legend shows the value now and, in brackets, the average over the
+    window (it showed only the average, which lags minutes behind a change
+    of wind);
+  - a scale on the heel bar, both sides, every 5°.
+- **Frozen values in the chart and its averages.** A Signal K path that
+  stopped publishing (an old true wind speed, for example) kept its last
+  value for ever. Values older than 15 s now count as missing.
+- **Bigger numbers** (Carlos, and Kalle on the OpenMarine forum): the rose
+  corners, the heading and its error, and the multifunction panel are 3 px
+  larger; the unit after a number (kn, m, %) is a little smaller; the rose
+  a little smaller.
+- **Depth no longer jumps between below keel and below transducer** (Kalle).
+  Below keel is used, then below transducer, then below surface, a lower
+  one only while the higher one is missing.
+- **Update the TinyPilot:** it first says it is checking the newest
+  version, and the address it checks; if that page does not answer it asks
+  for the new address. With the newest version already prepared it says so.
+
 ### Important: TinyPilot SD images made before this version
 
 - **Do not rely on a TinyPilot SD card image made with an earlier

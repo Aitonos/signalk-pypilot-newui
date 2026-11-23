@@ -66,6 +66,15 @@ export interface EvalContext {
   // Rev640 (Carlos 2026-11-06): pypilot (the TinyPilot) has a Signal K
   // access request waiting for approval.
   pypilotAccessPending?: boolean;
+  // Rev748 (Carlos sea trial 2026-11-23): the target moved a lot a moment
+  // ago (several +-10, +90, a new route leg) and the boat is still turning
+  // towards it. The 1-minute RMS still carries the turn, so heading
+  // deviation and drift wait (see CourseChangeWatch).
+  courseChangeSettling?: boolean;
+  // Rev748 (Carlos 2026-11-23: "cuando el viento cae de 3-4 nudos se vuelve
+  // muy inestable"): wind the current wind mode steers by (AWS in wind,
+  // TWS in true wind), 30 s mean in knots; and the compass switch made.
+  lightWind?: { kn: number | null; thresholdKn: number; switchedAtMs?: number | null; switchedHdgDeg?: number | null };
 }
 
 /** Per-install threshold overrides. Any field left undefined keeps
@@ -181,6 +190,8 @@ export const DEFAULT_RULES: RuleDef[] = [
       // maniobra por su cuenta y el "error" que reporta pypilot es
       // el gap intencionado durante el swing.
       if (c.maneuverPseudoActive) return false;
+      // Rev748: a big target change is still being steered to.
+      if (c.courseChangeSettling) return false;
       // Rev323 mode-aware threshold. En wind / true-wind el heading
       // command es un AWA/TWA target, que oscila naturalmente ±20-30°
       // en olas y ráfagas mientras el AP sí está corrigiendo. Subir
@@ -213,6 +224,7 @@ export const DEFAULT_RULES: RuleDef[] = [
       if (!c.kpis || !c.sample || !c.sample.engaged) return false;
       if (c.maneuverInProgress) return false; // Rev311: silencio en maniobra
       if (c.maneuverPseudoActive) return false; // Rev323: idem pseudo-modo
+      if (c.courseChangeSettling) return false;  // Rev748
       const mean = c.kpis.window1m.meanErrorRad;
       return typeof mean === "number" && Math.abs(mean) > (5 * Math.PI / 180);
     },
@@ -533,7 +545,81 @@ export const DEFAULT_RULES: RuleDef[] = [
       return `Pitch ${pitchDeg.toFixed(0)}° (threshold ${thrDeg}°)`;
     },
   },
+  {
+    // Rev748 (Carlos sea trial 2026-11-23): in 1-4 kn of wind the wind
+    // direction means nothing, the pilot chases it, saturates the rudder and
+    // ends across the wind. Off by default like every alarm; with
+    // "switch to compass" chosen the plugin also takes the boat to compass
+    // mode on the current heading (index.ts) and the alarm says so.
+    id: "light-wind",
+    label: "Wind too light for wind mode",
+    severity: "warn",
+    defaultEnabled: false,
+    addedRev: 748,
+    sustainSec: 10,
+    description: "Wind mode engaged with the wind it steers by (apparent or true) under the threshold for 30 s. It can also switch to compass mode on the current heading.",
+    evaluate: (c) => {
+      const lw = c.lightWind;
+      if (!lw) return false;
+      if (lw.switchedAtMs != null && c.nowMs - lw.switchedAtMs < LIGHT_WIND_SWITCH_NOTICE_MS) return true;
+      if (!c.sample || !c.sample.engaged) return false;
+      if (!(c.sample.mode || "").toLowerCase().includes("wind")) return false;
+      if (c.maneuverInProgress || c.maneuverPseudoActive) return false;
+      return typeof lw.kn === "number" && Number.isFinite(lw.kn) && lw.kn < lw.thresholdKn;
+    },
+    message: (c) => {
+      const lw = c.lightWind;
+      const kn = (lw?.kn ?? 0).toFixed(1);
+      if (lw?.switchedAtMs != null && c.nowMs - lw.switchedAtMs < LIGHT_WIND_SWITCH_NOTICE_MS) {
+        return `Wind ${kn} kn: switched to compass at ${Math.round(lw.switchedHdgDeg ?? 0)}°`;
+      }
+      return `Wind ${kn} kn: too light for wind mode, steer by compass`;
+    },
+  },
 ];
+
+// Rev748: light wind. Default threshold and how long the "switched to
+// compass" notice stays up.
+export const LIGHT_WIND_DEFAULT_KN = 4;
+export const LIGHT_WIND_SWITCH_NOTICE_MS = 120_000;
+
+/** Rev748 (Carlos sea trial 2026-11-23, 16:27 and 17:34): heading deviation
+ *  fired with the boat 1° off, after +70/+20 of target and after a route
+ *  leg change, because the 1-minute RMS still held the turn. This watch
+ *  notices a target step and says "settling" while the boat closes the
+ *  error at a believable rate (1°/s, 10° slack), for the time the turn
+ *  plus the RMS minute needs. A boat that does not turn gets no grace. */
+export const COURSE_STEP_RAD = 10 * Math.PI / 180;
+export class CourseChangeWatch {
+  private prevCmd: number | null = null;
+  private prevMode: string | null = null;
+  private stepAtMs: number | null = null;
+  private err0Deg = 0;
+  /** Feed once per tick; returns true while a target change is settling. */
+  update(nowMs: number, cmdRad: number | null, mode: string | null, errRad: number | null, engaged: boolean): boolean {
+    const m = (mode || "").toLowerCase();
+    if (!engaged || cmdRad == null || !Number.isFinite(cmdRad)) {
+      this.prevCmd = null; this.prevMode = m; this.stepAtMs = null;
+      return false;
+    }
+    const errDeg = errRad != null && Number.isFinite(errRad) ? Math.abs(errRad) * 180 / Math.PI : null;
+    if (this.prevCmd != null) {
+      let d = cmdRad - this.prevCmd;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.abs(d) >= COURSE_STEP_RAD || m !== this.prevMode) {
+        this.stepAtMs = nowMs;
+        this.err0Deg = errDeg ?? Math.abs(d) * 180 / Math.PI;
+      }
+    }
+    this.prevCmd = cmdRad; this.prevMode = m;
+    if (this.stepAtMs == null) return false;
+    const el = (nowMs - this.stepAtMs) / 1000;
+    const graceSec = Math.min(240, 60 + this.err0Deg / 2);
+    if (el > graceSec) { this.stepAtMs = null; return false; }
+    if (errDeg == null) return true;
+    return errDeg <= Math.max(20, this.err0Deg - el + 10);
+  }
+}
 
 // Rev299 (I1): defaults for the attitude envelope.
 export const RULE_ATTITUDE_HEEL_DEG = 45;

@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev748" />
+  <link rel="stylesheet" href="style.css?v=Rev749" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -221,7 +221,7 @@
             </div>
             <iframe id="freeboard-embed-iframe" title="Freeboard-SK"></iframe>
           </div>
-          <svg id="wind-rose" class="rose-svg" viewBox="-100 -110 200 220" preserveAspectRatio="xMidYMid meet">
+          <svg id="wind-rose" class="rose-svg" viewBox="-100 -116 200 226" preserveAspectRatio="xMidYMid meet">
             <!-- Outer compass ring -->
             <!-- Rev522 (Carlos, sunlight): degree labels and the heading chip
                  frame in white. Rev529-530: ring, ticks and the top / bottom box frames grey, lighter
@@ -583,11 +583,11 @@
                  cover the target diamond that sits just below the top
                  of the ring. Bottom edge stays at y=-84 as before. -->
             <g id="rose-hdg-chip">
-              <rect x="-22" y="-110" width="44" height="26" rx="4" ry="4"
+              <rect x="-26" y="-116" width="52" height="32" rx="4" ry="4"
                     fill="rgba(0,0,0,0.78)" stroke="#8e9bab" stroke-width="1"/>
-              <text id="rose-hdg-value" x="0" y="-100" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="12" font-weight="900" font-family="ui-monospace, monospace">---</text>
-              <text id="rose-hdg-deg"   x="0" y="-100" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="9" font-weight="700">°</text>
-              <text id="rose-hdg-prec"  x="0" y="-89" text-anchor="middle" dominant-baseline="middle" fill="#b8c4d0" font-size="9" font-weight="800" font-family="ui-monospace, monospace">--</text>
+              <text id="rose-hdg-value" x="0" y="-104" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-size="14" font-weight="900" font-family="ui-monospace, monospace">---</text>
+              <text id="rose-hdg-deg"   x="0" y="-104" text-anchor="start"  dominant-baseline="middle" fill="#ffffff" font-size="10" font-weight="700">°</text>
+              <text id="rose-hdg-prec"  x="0" y="-91" text-anchor="middle" dominant-baseline="middle" fill="#b8c4d0" font-size="11" font-weight="800" font-family="ui-monospace, monospace">--</text>
             </g>
             <!-- Rev216 (Carlos): rotation-sense indicator. A curved
                  arrow drawn just inside the compass ring, showing
@@ -945,6 +945,7 @@
               <button class="chart-window-btn" data-hwindow="2m">2 min</button>
               <button class="chart-window-btn" data-hwindow="10m">10 min</button>
               <button class="chart-window-btn" data-hwindow="30m">30 min</button>
+              <button class="chart-window-btn" data-hwindow="2h">2 h</button>
             </div>
             <div class="chart-paths-row" id="helm-chart-paths">
               <label class="chart-path-chip"><input type="checkbox" data-hpath="sog"><span>SOG</span></label>
@@ -2709,6 +2710,21 @@
 
   <!-- Rev172 (Carlos): long-press-on-boat action sheet. Two choices:
        reopen the corner-selector popup, or open the tack log modal. -->
+  <!-- Rev748 (Carlos): tap on the panel chart's "-10m": its time window. -->
+  <div class="popup-overlay" id="helm-window-pop"
+       onclick="if(event.target.id==='helm-window-pop')this.classList.remove('open')">
+    <div class="popup-box" onclick="event.stopPropagation()" style="max-width:360px">
+      <h4 style="margin:0 0 6px 0" data-i18n="helmChart.window">Chart time</h4>
+      <button class="popup-close" onclick="document.getElementById('helm-window-pop').classList.remove('open')">✕</button>
+      <div class="chart-window-row" style="margin-top:10px">
+        <button class="chart-window-btn" data-pwindow="2m">2 min</button>
+        <button class="chart-window-btn" data-pwindow="10m">10 min</button>
+        <button class="chart-window-btn" data-pwindow="30m">30 min</button>
+        <button class="chart-window-btn" data-pwindow="2h">2 h</button>
+      </div>
+    </div>
+  </div>
+
   <div class="popup-overlay" id="boat-menu-pop"
        onclick="if(event.target.id==='boat-menu-pop')this.classList.remove('open')">
     <div class="popup-box" onclick="event.stopPropagation()" style="max-width:360px">
@@ -2976,6 +2992,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev748"></script>
+  <script src="app.js?v=Rev749"></script>
 </body>
 </html>

@@ -442,6 +442,12 @@
       // Rev135: alarm engine i18n. Backend still emits English via
       // the AP Notifications channel; the visor renders these when
       // present, and everyone else keeps the backend fallback.
+      "alarm.rule.light-wind.label": "Wind too light for wind mode",
+      "alarm.rule.light-wind.msg": "Wind {kn} kn: too light for wind mode, steer by compass",
+      "alarm.rule.light-wind.msgSwitched": "Wind {kn} kn: switched to compass at {hdg}°",
+      "alarm.lightWind.under": "Under",
+      "alarm.lightWind.warn": "Warn only",
+      "alarm.lightWind.compass": "Switch to compass",
       "alarm.rule.heading-deviation.label":    "Heading deviation",
       "alarm.rule.heading-deviation.msg":      "Sustained AP heading error of {deg}°",
       "alarm.rule.cruise-drift.label":         "Sustained heading drift",
@@ -750,6 +756,8 @@
       "bk.noCardBtn": "Make a copy now",
       "wz.noteOpt": "Add a note (optional):",
       "wz.notePh": "For example: after calibrating the compass",
+      "wz.upd.checking": "Checking the newest TinyPilot version…\n{url}",
+      "wz.upd.resumeNewest": "You already have the newest version (TinyPilot {date}) downloaded and prepared:\n{name} ({when})",
       "wz.upd.resume": "You already have this image with the new version prepared:\n{name} ({when})",
       "wz.upd.goOn": "Use this image",
       "wz.upd.fresh": "Prepare a new one",
@@ -1271,6 +1279,7 @@
       "dash.helmViews.title": "Double tap cycles through:",
       "dash.helmViews.bar":   "Heel / rudder bar",
       "dash.helmViews.chart": "Chart",
+      "helmChart.window": "Chart time",
       "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
       "dash.helmBar.rudder": "Rudder angle",
@@ -2043,6 +2052,12 @@
       "sq.col.status":             "Estado",
       "sq.action.ignore":          "Ignorar",
       "sq.action.restore":         "Restaurar",
+      "alarm.rule.light-wind.label": "Viento flojo para el modo viento",
+      "alarm.rule.light-wind.msg": "Viento de {kn} nudos: demasiado flojo para el modo viento, gobierna por compás",
+      "alarm.rule.light-wind.msgSwitched": "Viento de {kn} nudos: paso a compás a {hdg}°",
+      "alarm.lightWind.under": "Por debajo de",
+      "alarm.lightWind.warn": "Solo avisar",
+      "alarm.lightWind.compass": "Pasar a compás",
       "alarm.rule.heading-deviation.label":    "Desvío de rumbo",
       "alarm.rule.heading-deviation.msg":      "Error de rumbo del piloto: {deg}° sostenido",
       "alarm.rule.cruise-drift.label":         "Desvío sostenido del rumbo",
@@ -2350,6 +2365,8 @@
       "bk.noCardBtn": "Hacer una copia ahora",
       "wz.noteOpt": "Añadir una nota (opcional):",
       "wz.notePh": "Por ejemplo: tras calibrar el compás",
+      "wz.upd.checking": "Comprobando la última versión de TinyPilot…\n{url}",
+      "wz.upd.resumeNewest": "Ya tienes descargada y preparada la última versión (TinyPilot {date}):\n{name} ({when})",
       "wz.upd.resume": "Ya tienes preparada esta imagen con la versión nueva:\n{name} ({when})",
       "wz.upd.goOn": "Usar esta imagen",
       "wz.upd.fresh": "Preparar una nueva",
@@ -2877,6 +2894,7 @@
       "dash.helmViews.title": "El doble toque alterna entre:",
       "dash.helmViews.bar":   "Barra de escora / timón",
       "dash.helmViews.chart": "Gráfica",
+      "helmChart.window": "Tiempo de la gráfica",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
       "dash.helmBar.rudder": "Ángulo del timón",
@@ -3415,6 +3433,12 @@
       "lc.st.every": "alle",
       "lc.st.file":  "Datei",
       "lc.st.last":  "letzte",
+      "alarm.rule.light-wind.label": "Zu wenig Wind für den Windmodus",
+      "alarm.rule.light-wind.msg": "Wind {kn} kn: zu schwach für den Windmodus, nach Kompass steuern",
+      "alarm.rule.light-wind.msgSwitched": "Wind {kn} kn: auf Kompass {hdg}° umgeschaltet",
+      "alarm.lightWind.under": "Unter",
+      "alarm.lightWind.warn": "Nur warnen",
+      "alarm.lightWind.compass": "Auf Kompass schalten",
       "alarm.rule.heading-deviation.label":    "Kursabweichung",
       "alarm.rule.heading-deviation.msg":      "AP-Kursfehler {deg}° anhaltend",
       "alarm.rule.unable-to-steer.label":      "AP verliert Steuerung",
@@ -4042,6 +4066,8 @@
       "bk.noCardBtn": "Jetzt eine Kopie machen",
       "wz.noteOpt": "Notiz hinzufügen (optional):",
       "wz.notePh": "Zum Beispiel: nach dem Kalibrieren des Kompasses",
+      "wz.upd.checking": "Neueste TinyPilot-Version wird geprüft…\n{url}",
+      "wz.upd.resumeNewest": "Du hast die neueste Version (TinyPilot {date}) schon heruntergeladen und vorbereitet:\n{name} ({when})",
       "wz.upd.resume": "Du hast dieses Image mit der neuen Version schon vorbereitet:\n{name} ({when})",
       "wz.upd.goOn": "Dieses Image verwenden",
       "wz.upd.fresh": "Ein neues vorbereiten",
@@ -4478,6 +4504,7 @@
       "dash.helmViews.title": "Doppeltipp wechselt zwischen:",
       "dash.helmViews.bar": "Krängungs- / Ruderleiste",
       "dash.helmViews.chart": "Grafik",
+      "helmChart.window": "Diagrammzeit",
       "helmChart.empty": "Noch keine Daten für die gewählten Reihen",
       "dash.helmBar.heel": "Krängung (Standard)",
       "dash.helmBar.rudder": "Ruderwinkel",
@@ -4989,6 +5016,12 @@
       "lc.st.every": "chaque",
       "lc.st.file":  "fichier",
       "lc.st.last":  "dernière",
+      "alarm.rule.light-wind.label": "Vent trop faible pour le mode vent",
+      "alarm.rule.light-wind.msg": "Vent {kn} nd : trop faible pour le mode vent, barrer au compas",
+      "alarm.rule.light-wind.msgSwitched": "Vent {kn} nd : passage au compas à {hdg}°",
+      "alarm.lightWind.under": "Sous",
+      "alarm.lightWind.warn": "Avertir seulement",
+      "alarm.lightWind.compass": "Passer au compas",
       "alarm.rule.heading-deviation.label":    "Écart de cap",
       "alarm.rule.heading-deviation.msg":      "Erreur de cap AP de {deg}° persistante",
       "alarm.rule.unable-to-steer.label":      "AP en perte d'autorité",
@@ -5616,6 +5649,8 @@
       "bk.noCardBtn": "Faire une copie maintenant",
       "wz.noteOpt": "Ajouter une note (facultatif) :",
       "wz.notePh": "Par exemple : après la calibration du compas",
+      "wz.upd.checking": "Vérification de la dernière version de TinyPilot…\n{url}",
+      "wz.upd.resumeNewest": "Tu as déjà téléchargé et préparé la dernière version (TinyPilot {date}) :\n{name} ({when})",
       "wz.upd.resume": "Tu as déjà préparé cette image avec la nouvelle version :\n{name} ({when})",
       "wz.upd.goOn": "Utiliser cette image",
       "wz.upd.fresh": "En préparer une nouvelle",
@@ -6052,6 +6087,7 @@
       "dash.helmViews.title": "Le double tap alterne entre :",
       "dash.helmViews.bar": "Barre de gîte / barre",
       "dash.helmViews.chart": "Graphique",
+      "helmChart.window": "Durée du graphique",
       "helmChart.empty": "Pas encore de données pour les séries choisies",
       "dash.helmBar.heel": "Gîte (défaut)",
       "dash.helmBar.rudder": "Angle de barre",
@@ -7648,10 +7684,19 @@
       case "environment.depth.belowKeel":
       case "environment.depth.belowTransducer":
       case "environment.depth.belowSurface":
-        // First non-null wins: prefer belowKeel > belowTransducer > belowSurface.
+        // Rev748 (Kalle, OpenMarine forum: depth jumping between DBT and
+        // DBK): the comment said belowKeel > belowTransducer > belowSurface
+        // but every delta overwrote the value. A lower one is used only
+        // while no higher one has arrived for 10 s.
         {
           const v = numericOrNull(value);
-          if (v != null) { state.depth = v; renderRoseBottomChip(); }
+          if (v == null) break;
+          const rank = { "environment.depth.belowKeel": 0, "environment.depth.belowTransducer": 1, "environment.depth.belowSurface": 2 }[path];
+          const now = Date.now();
+          const seen = state._depthSeen || (state._depthSeen = [0, 0, 0]);
+          seen[rank] = now;
+          for (let r = 0; r < rank; r += 1) if (now - seen[r] < 10000) return;
+          state.depth = v; renderRoseBottomChip();
         }
         break;
       // Rev58: polar-performance-plugin. All values kept in SI (m/s for
@@ -7733,8 +7778,8 @@
         // Rev65: HDG font shrunk from 18 to 14 for the new chip, so the
         // per-char heuristic drops from 12 to 9 units.
         let w;
-        try { w = hdgTxt.getComputedTextLength(); } catch { w = s.length * 9; }
-        if (!isFinite(w) || w <= 0) w = s.length * 9;
+        try { w = hdgTxt.getComputedTextLength(); } catch { w = s.length * 10.5; }
+        if (!isFinite(w) || w <= 0) w = s.length * 10.5;   // Rev748: font 12 -> 14
         _setAttr(hdgDeg, "x", (w / 2 + 1).toFixed(1));
       }
     }
@@ -8131,9 +8176,11 @@
       // Wind returns {value, sub}; the rest returns a string.
       // Rev490: only touch the DOM when the tile content really changed
       // (was a full innerHTML rewrite on every delta).
+      // Rev748 (Carlos): the unit in its own span, smaller than the number.
+      const cu = (x) => String(x).replace(/ (kn|m|%|°C)$/, '<span class="cu"> $1</span>');
       const html = (val && typeof val === "object" && "value" in val)
-        ? `<div class="label">${paintedLabel}</div><div class="value">${val.value}</div><div class="sub">${val.sub}</div>`
-        : `<div class="label">${paintedLabel}</div><div class="value">${val}</div>`;
+        ? `<div class="label">${paintedLabel}</div><div class="value">${cu(val.value)}</div><div class="sub">${cu(val.sub)}</div>`
+        : `<div class="label">${paintedLabel}</div><div class="value">${cu(val)}</div>`;
       if (el._lastHtml !== html) { el.innerHTML = html; el._lastHtml = html; }
       // Rev48: color coding by data type - keep classic traffic-signal palette.
       // Rev151: tgt goes red (matches the AP button); awa/aws lean amber;
@@ -9508,15 +9555,32 @@
     const N = 6;
     const S = (n) => t("wz.stepOf").replace("{n}", String(n)).replace("{total}", String(N));
     let st = null;
+    // Rev748 (Carlos): first say what it is doing - checking the newest
+    // version at the images page - and ask for a new address if that page
+    // does not answer.
+    let srcCur = "";
+    try { srcCur = (await _wzJson("tinypilot/image/status")).imageSource || ""; } catch { /* empty */ }
+    _wz({ title: T, text: t("wz.upd.checking").replace("{url}", srcCur), progress: { pct: 30, text: "" } });
     try { st = await _wzJson("tinypilot/image/status?listing=1"); } catch { /* fresh start */ }
-    let result = null, sameBoat = true, keep = false, imgUrl = "", s = "intro";
+    let result = null, sameBoat = true, keep = false, imgUrl = "", s = "intro", srcNext = "prepare";
     if (st && st.job && st.job.kind === "prepare" && st.job.running) s = "prepare";
+    else if (st && st.pypilotOrg && st.pypilotOrg.error) { s = "source"; srcNext = "start"; }
     else if (st && st.outputs && st.outputs.length) s = "resume";
     for (;;) {
+      if (s === "start") {
+        _wz({ title: T, text: t("wz.upd.checking").replace("{url}", (st && st.imageSource) || ""), progress: { pct: 30, text: "" } });
+        try { st = await _wzJson("tinypilot/image/status?listing=1"); } catch { /* keep */ }
+        srcNext = "prepare";
+        if (st && st.pypilotOrg && st.pypilotOrg.error) { s = "source"; srcNext = "start"; continue; }
+        s = st && st.outputs && st.outputs.length ? "resume" : "intro"; continue;
+      }
       if (s === "resume") {
         const o = st.outputs[0];
         const oName = o.name.replace(/\.img\.gz$/, "");
-        const r = await _wz({ title: T, text: t("wz.upd.resume").replace("{name}", oName).replace("{when}", new Date(o.ts).toLocaleString()) + _wzNewest(st, o), html: o.note ? `<div class="hint" style="font-style:italic;margin:-6px 0 10px">${_wzEsc(o.note)}</div>` : "", extra: _wzBack(), cards: [
+        const newest = st && st.pypilotOrg && st.pypilotOrg.images && st.pypilotOrg.images[0];
+        const isNewest = !!(newest && o.source && newest.name === o.source);
+        const head = isNewest ? t("wz.upd.resumeNewest").replace("{date}", newest.date) : t("wz.upd.resume");
+        const r = await _wz({ title: T, text: head.replace("{name}", oName).replace("{when}", new Date(o.ts).toLocaleString()) + (isNewest ? "" : _wzNewest(st, o)), html: o.note ? `<div class="hint" style="font-style:italic;margin:-6px 0 10px">${_wzEsc(o.note)}</div>` : "", extra: _wzBack(), cards: [
           { id: "go", icon: "yes", title: t("wz.upd.goOn"), desc: oName },
           { id: "new", icon: "update", title: t("wz.upd.fresh"), desc: t("wz.upd.freshDesc") },
         ] });
@@ -9642,10 +9706,10 @@
         for (;;) {
           const field = `<input id="wz-src" type="url" class="pm-dialog-input" style="width:100%" value="${_wzEsc(cur)}">` + (msg ? `<div class="hint" style="color:var(--err);margin-top:6px">${_wzEsc(msg)}</div>` : "");
           const r = await _wz({ title: T, step: S(3), text: t("wz.upd.srcQ").replace("{url}", cur), html: field, extra: _wzBack(), button: { id: "save", label: t("wz.upd.srcSave") } });
-          if (r === "back") { s = "same"; break; }
+          if (r === "back") { if (srcNext === "start") return "back"; s = "same"; break; }
           if (r !== "save") return "x";
           const url = (document.getElementById("wz-src")?.value || "").trim();
-          try { await _wzPost("tinypilot/image/source", { url }); s = "prepare"; st = null; break; }
+          try { await _wzPost("tinypilot/image/source", { url }); s = srcNext; st = null; break; }
           catch (e) { msg = t("wz.upd.srcBad"); cur = url; }
         }
         continue;
@@ -13474,6 +13538,21 @@
   // a bar grows from the centre, red to port / green to starboard, from
   // where "-10m" starts to where "NOW" starts, under the 0 line; the big
   // number goes right after the bar's end (Rev725: no peak tick).
+  // Rev748 (Carlos): a scale on the heel bar, both sides - a mark every
+  // 5 deg up to 30, heavier every 10 (same marks as the bar view).
+  function _hchTicks(box, zeroX, half) {
+    const key = `${Math.round(zeroX)}|${Math.round(half)}`;
+    if (box.dataset.ticks === key) return;
+    box.dataset.ticks = key;
+    box.querySelectorAll(".hch-tick").forEach((n) => n.remove());
+    for (let d = -30; d <= 30; d += 5) {
+      if (d === 0) continue;
+      const tk = document.createElement("span");
+      tk.className = d % 10 === 0 ? "hch-tick major" : "hch-tick";
+      tk.style.left = Math.round(zeroX + (d / 30) * half) + "px";
+      box.insertBefore(tk, box.firstChild);
+    }
+  }
   function _renderHelmChartHeel() {
     const tag = document.getElementById("helm-chart-heel-tag");
     if (!tag) return;
@@ -13482,6 +13561,7 @@
     if (state.heelRad == null) {
       _setText(tag, "--");
       const z = (box.parentElement ? box.parentElement.clientWidth / 2 : box.clientWidth / 2) - box.offsetLeft;
+      _hchTicks(box, z, Math.max(1, Math.min(z, box.clientWidth - z)));
       tag.style.left = Math.max(0, Math.round(z - tag.offsetWidth / 2)) + "px";
       if (fill) fill.style.width = "0%";
       return;
@@ -13495,6 +13575,7 @@
     const W = box.clientWidth;
     const zeroX = (box.parentElement ? box.parentElement.clientWidth / 2 : W / 2) - box.offsetLeft;
     const half = Math.max(1, Math.min(zeroX, W - zeroX));
+    _hchTicks(box, zeroX, half);
     const xOf = (p) => zeroX + p * half;
     // Rev723 (Carlos): the bar's end is the heel; the number goes right
     // after it, outside the bar (to the right to starboard, to the left to
@@ -24826,7 +24907,11 @@
         fetch(`/plugins/${PLUGIN_ID}/alarms/rules`),
       ]);
       if (stateRes.ok) _al.state = await stateRes.json();
-      if (rulesRes.ok) _al.rules = (await rulesRes.json()).rules || [];
+      if (rulesRes.ok) {
+        const rj = await rulesRes.json();
+        _al.rules = rj.rules || [];
+        _al.lightWind = rj.lightWind || null;   // Rev748
+      }
       _alRenderBanner();
       _alRenderConfig();
       _alMaybePlaySound();
@@ -24877,6 +24962,12 @@
       // Rev710: backend says "pypilot disconnected for N s"; spoken, so words.
       const r = /(\d+) ?s\b/.exec(msg);
       if (r) out.dur = _alDurationWords(Number(r[1]));
+    } else if (id === "light-wind") {
+      // Rev748: "Wind 2.5 kn: ..." / "... switched to compass at 123°".
+      const r = /Wind ([\d.]+) kn/.exec(msg);
+      if (r) out.kn = r[1];
+      const h = /compass at (\d+)°/.exec(msg);
+      if (h) { out.hdg = h[1]; out.__variant = "msgSwitched"; }
     } else if (id === "attitude-heel-extreme" || id === "attitude-pitch-extreme") {
       const r = /(\d+)° \(threshold (\d+)°\)/.exec(msg);
       if (r) { out.deg = r[1]; out.thr = r[2]; }
@@ -25068,6 +25159,8 @@
       desc.className = "ac-desc";
       desc.textContent = r.description;
       body.appendChild(lab); body.appendChild(desc);
+      // Rev748: light wind - threshold and what to do, in the rule's row.
+      if (r.id === "light-wind" && _al.lightWind) body.appendChild(_alLightWindControls());
       // Status pill
       const status = document.createElement("span");
       status.className = "ac-status ";
@@ -25158,6 +25251,50 @@
       row.appendChild(muteBtn);
       el.appendChild(row);
     }
+  }
+  // Rev748 (Carlos 2026-11-23): light-wind threshold (kn) and action, saved
+  // through /supervisor/config like the other alarm settings. Same select
+  // style as the severity picker of each row.
+  function _alLightWindControls() {
+    const lw = _al.lightWind;
+    const wrap = document.createElement("div");
+    wrap.className = "ac-desc";
+    wrap.style.display = "flex";
+    wrap.style.flexWrap = "wrap";
+    wrap.style.alignItems = "center";
+    wrap.style.gap = "6px";
+    wrap.style.marginTop = "6px";
+    const mkSel = (opts, cur, onChange) => {
+      const sel = document.createElement("select");
+      sel.className = "ac-severity-sel";
+      sel.style.padding = "6px 8px";
+      sel.style.fontSize = "13px";
+      sel.style.background = "var(--bg-2)";
+      sel.style.color = "var(--fg)";
+      sel.style.border = "1px solid var(--border)";
+      sel.style.borderRadius = "6px";
+      for (const [v, l] of opts) {
+        const o = document.createElement("option");
+        o.value = String(v); o.textContent = l;
+        if (String(v) === String(cur)) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener("change", () => onChange(sel.value));
+      return sel;
+    };
+    const save = (patch) => {
+      Object.assign(lw, patch.lightWindKn != null ? { kn: patch.lightWindKn } : {}, patch.lightWindAction ? { action: patch.lightWindAction } : {});
+      skFetch(`/plugins/${PLUGIN_ID}/supervisor/config`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+      }).then(() => _alFetch()).catch(() => {});
+    };
+    const lab = document.createElement("span");
+    lab.textContent = t("alarm.lightWind.under");
+    wrap.appendChild(lab);
+    wrap.appendChild(mkSel([2, 3, 4, 5, 6].map((n) => [n, `${n} kn`]), lw.kn, (v) => save({ lightWindKn: Number(v) })));
+    wrap.appendChild(mkSel([["warn", t("alarm.lightWind.warn")], ["compass", t("alarm.lightWind.compass")]], lw.action,
+      (v) => save({ lightWindAction: v })));
+    return wrap;
   }
   function _alEnsureAudioCtx() {
     if (_al.audioCtx) return _al.audioCtx;
@@ -25685,7 +25822,16 @@
     return v.toFixed(2);
   }
 
-  const CHART_WINDOWS = { "30s": 30000, "2m": 120000, "10m": 600000, "30m": 1800000 };
+  // Rev748: legend numbers without the unit (the band's scale and the
+  // series name say it), so value and average fit on a phone.
+  function _fmtLegendValue(key, v) {
+    if (v == null || typeof v !== "number") return "--";
+    const u = CHART_UNIT[key];
+    if (u === "speed") return (v * 1.94384).toFixed(1);
+    if (u === "wangle" || u === "hdg" || u === "heel" || u === "rudder") return `${Math.round(v * RAD2DEG)}°`;
+    return v.toFixed(1);
+  }
+  const CHART_WINDOWS = { "30s": 30000, "2m": 120000, "10m": 600000, "30m": 1800000, "2h": 7200000 };
   // Rev584: the renderer below draws any chart state shaped like this
   // one; the Control strip keeps its own (_helmChart) on another canvas.
   const _chart = {
@@ -25784,10 +25930,18 @@
       // Legend: one line, average of each chosen series over the window
       // ("--" = no data; the polar speed is only published while
       // sailing). The font shrinks until the line fits.
+      // Rev748 (Carlos: "eso debiera ser algo vivo"): the value now (mean
+      // of the last 5 s, the last sample on the 2 h chart) and, in
+      // brackets, the average over the window. Before only the window
+      // average showed, which lags minutes behind a change of wind.
+      const liveFrom = (c.lastFetchTs || Date.now()) - Math.max(5000, (CHART_WINDOWS[c.window] || 0) > 1800000 ? 15000 : 0);
+      const tail = c.lastSamples.filter((smp) => smp.ts >= liveFrom);
       g.legend = g.keys.map((k) => {
         const avg = _chartAverage(c.lastSamples, k, g.unit);
+        const now = _chartAverage(tail, k, g.unit);
+        const live = now == null ? "--" : _fmtLegendValue(k, now);
         return {
-          txt: `${CHART_LABELS[k] || k} ${avg == null ? "--" : _fmtSampleValue(k, avg)}`,
+          txt: `${CHART_LABELS[k] || k} ${live}${avg == null ? "" : ` (Ø${_fmtLegendValue(k, avg)})`}`,
           color: CHART_COLORS[k] || "#e6edf3",
         };
       });
@@ -25994,6 +26148,7 @@
     if (w === "2m") return "1m";
     if (w === "10m") return "5m";
     if (w === "30m") return "15m";
+    if (w === "2h") return "1h";
     return "";
   }
 
@@ -26117,12 +26272,12 @@
   const _HELM_VIEW_LS_KEY = "pypilotnewui.helmView";
   const _HELM_CHART_LS_KEY = "pypilotnewui.helmChart";
   const _HELM_CHART_PATHS = ["sog", "stw", "polarSpeed", "vmg", "aws", "tws", "awa", "twa", "heel", "rudder", "servoCurrent"];
-  const _HELM_CHART_WINDOWS = ["2m", "10m", "30m"];
+  const _HELM_CHART_WINDOWS = ["2m", "10m", "30m", "2h"];   // Rev748: 2 h
   const _helmChart = {
     canvasId: "helm-chart",
     hintId: "helm-chart-empty",
     emptyKey: "helmChart.empty",
-    fontPx: 13,
+    fontPx: 16,          // Rev748 (Carlos): +3
     hideMidTime: true,   // Rev613: the tab-bar toggle sits at the bottom centre
     window: "10m",
     enabled: new Set(["sog", "polarSpeed", "aws", "tws"]),
@@ -26600,6 +26755,20 @@
     };
     setTimeout(tryStart, 2500);
   }
+  function _helmWindowPick() {
+    const pop = document.getElementById("helm-window-pop");
+    if (!pop) return;
+    pop.querySelectorAll(".chart-window-btn").forEach((b) => b.classList.toggle("active", b.dataset.pwindow === _helmChart.window));
+    pop.classList.add("open");
+  }
+  function _helmSetWindow(w) {
+    if (!_HELM_CHART_WINDOWS.includes(w)) return;
+    _helmChart.window = w;
+    _helmChart.lastSamples = [];
+    _helmChartSave();
+    document.querySelectorAll("#helm-chart-windows .chart-window-btn").forEach((b) => b.classList.toggle("active", b.dataset.hwindow === w));
+    _helmApplyView();
+  }
   function _helmOpenSettings() {
     _dashPopulateSelectors();
     const pop = document.getElementById("dash-help-pop");
@@ -26630,6 +26799,23 @@
       lastTap = now; lastX = ev.clientX; lastY = ev.clientY;
     });
     strip.addEventListener("dblclick", (ev) => ev.preventDefault());
+    // Rev748 (Carlos): a tap on the chart's "-10m" opens the time window
+    // picker (after the double-tap wait, so a double tap still changes view).
+    let winTimer = null, wdX = 0, wdY = 0, wdT = 0;
+    strip.addEventListener("pointerdown", (ev) => { wdX = ev.clientX; wdY = ev.clientY; wdT = Date.now(); });
+    strip.addEventListener("pointerup", (ev) => {
+      if (winTimer) { clearTimeout(winTimer); winTimer = null; return; }
+      if (_helmView() !== "chart") return;
+      if (Math.abs(ev.clientX - wdX) > 10 || Math.abs(ev.clientY - wdY) > 10) return;   // a slide reads values
+      if (Date.now() - wdT > 450) return;   // a long press opens the settings
+      const cv = _helmChart.canvas;
+      const g = _helmChart.geom;
+      if (!cv || !g) return;
+      const r = cv.getBoundingClientRect();
+      const x = ev.clientX - r.left, y = ev.clientY - r.top;
+      if (y < r.height - g.marginB - 10 || x > g.marginL + 90) return;
+      winTimer = setTimeout(() => { winTimer = null; _helmWindowPick(); }, 420);
+    });
     // Rev586 (Carlos): finger on the chart reads the values of that
     // instant; a long press without moving opens its settings.
     _helmChart.canvas = document.getElementById("helm-chart");
@@ -26672,10 +26858,13 @@
       btn.addEventListener("click", () => {
         winBtns.forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
-        _helmChart.window = btn.dataset.hwindow || "10m";
-        _helmChart.lastSamples = [];
-        _helmChartSave();
-        _helmApplyView();
+        _helmSetWindow(btn.dataset.hwindow || "10m");
+      });
+    });
+    document.querySelectorAll("#helm-window-pop .chart-window-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        _helmSetWindow(btn.dataset.pwindow);
+        document.getElementById("helm-window-pop").classList.remove("open");
       });
     });
     document.querySelectorAll("#helm-chart-paths input[type=checkbox]").forEach((cb) => {

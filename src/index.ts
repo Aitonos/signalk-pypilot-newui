@@ -12,7 +12,7 @@ import { scanLanReport } from "./scanner";
 import { AutopilotProvider } from "./autopilot-provider";
 import { isLocalPypilotHost, defaultSshUser, pypilotRestartCommand, tinypilot071FixCommand } from "./pypilot-host";
 import { Historian, Sample, SamplePath } from "./historian";
-import { KPIComputer, KPISnapshot } from "./kpis";
+import { KPIComputer, KPISnapshot, errorRad } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
 import { DisplayPresets } from "./display-presets";
@@ -22,7 +22,7 @@ import { legState, buildApb, wpLabel, isLatLon, M_PER_NM, LatLon } from "./route
 import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
-import { AlarmEngine, resolveEnabled } from "./alarms";
+import { AlarmEngine, resolveEnabled, CourseChangeWatch, LIGHT_WIND_DEFAULT_KN } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
 import { EpisodeDetector } from "./episodes";
@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev748";
+const PLUGIN_REVISION = "Rev749";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -279,6 +279,9 @@ interface PluginProps {
   // marine SIM/4G environment). Default 15 s; sailors on a stable LAN
   // can shorten it, sailors on lossy 4G can extend it.
   alarmPypilotDiscSec?: number;
+  // Rev748: light wind in a wind mode - threshold (kn) and what to do.
+  lightWindKn?: number;
+  lightWindAction?: "warn" | "compass";
   // Rev291 (F1): NAV mode target source preference. "auto" (default)
   // uses steerTo when the plotter provides it, bearingTrue otherwise.
   // Currently READ-ONLY: the plugin exposes the computed target under
@@ -333,6 +336,11 @@ module.exports = function (app: any) {
   let deltaSentCount = 0;
   // Rev93: telemetry historian for the Chart tab + Rev95 KPIs.
   let historian: Historian | null = null;
+  // Rev748 (Carlos: a 2 h chart): one sample every 10 s for 2 h, memory
+  // only, so the 1 Hz historian (saved to disk) stays its size.
+  let historianLong: Historian | null = null;
+  let _histLongTs = 0;
+  const HIST_LONG_PERIOD_MS = 10_000;
   // Rev95: KPI computer + its SK-paths publisher interval.
   let kpis: KPIComputer | null = null;
   let kpiPublishTimer: NodeJS.Timeout | null = null;
@@ -1337,6 +1345,8 @@ module.exports = function (app: any) {
       // it too. Kept modest on purpose so Pi 4 hosts have headroom;
       // disk persistence is opt-in in a later batch.
       historian = new Historian({ capacitySamples: 1800, samplePeriodMs: 1000 });
+      historianLong = new Historian({ capacitySamples: 720, samplePeriodMs: HIST_LONG_PERIOD_MS });
+      _histLongTs = 0;
       // Rev618 (Carlos): the last 30 min survive a restart (new revision,
       // Signal K restart) - saved when the plugin stops and every 10 min,
       // put back here before sampling resumes.
@@ -1656,6 +1666,8 @@ module.exports = function (app: any) {
         // advisory notification when tracking has been sustainedly bad
         // or over-tight. Never applies anything.
         try { tickProfileAdvisor(s.ts); } catch { /* silent */ }
+        // Rev748: the 2 h chart's sample, every 10 s.
+        if (historianLong && s.ts - _histLongTs >= HIST_LONG_PERIOD_MS - 500) { historianLong.push(s); _histLongTs = s.ts; }
         return s;
       });
       kpiPublishTimer = setInterval(() => {
@@ -1682,6 +1694,7 @@ module.exports = function (app: any) {
         saveHistorian();   // Rev618: keep the last 30 min for the next start
         try { historian.stop(); } catch { /* defensive */ }
         historian = null;
+        historianLong = null;
       }
       // Rev95: stop the KPI publisher and drop the computer.
       if (kpiPublishTimer) {
@@ -2080,7 +2093,9 @@ module.exports = function (app: any) {
         }
         const windowMs = parseWindowMs(req.query?.window);
         const paths = parseSamplePaths(req.query?.paths);
-        const samples = historian.slice(windowMs, paths);
+        // Rev748: past 30 min the 10 s history (2 h).
+        const src = windowMs > 30 * 60_000 && historianLong ? historianLong : historian;
+        const samples = src.slice(windowMs, paths);
         res.json({
           windowMs,
           count: samples.length,
@@ -2313,7 +2328,7 @@ module.exports = function (app: any) {
       });
       router.get("/alarms/rules", (_req: any, res: any) => {
         if (!alarms) { res.status(503).json({ error: "alarms not initialised" }); return; }
-        res.json({ rules: alarms.describe() });
+        res.json({ rules: alarms.describe(), lightWind: { kn: props.lightWindKn ?? LIGHT_WIND_DEFAULT_KN, action: props.lightWindAction ?? "warn" } });
       });
       router.post("/alarms/ack/:id", (req: any, res: any) => {
         if (!alarms) { res.status(503).json({ error: "alarms not initialised" }); return; }
@@ -4477,6 +4492,8 @@ module.exports = function (app: any) {
           alarmServoTempC: props.alarmServoTempC ?? 60,
           alarmServoMotorTempC: props.alarmServoMotorTempC ?? 70,
           alarmPypilotDiscSec: props.alarmPypilotDiscSec ?? 15,
+          lightWindKn: props.lightWindKn ?? LIGHT_WIND_DEFAULT_KN,
+          lightWindAction: props.lightWindAction ?? "warn",
           apbSource: props.apbSource ?? "auto",
           navAdvanceOn: props.navAdvanceOn ?? "circle-or-perpendicular",
         });
@@ -4564,6 +4581,13 @@ module.exports = function (app: any) {
         }
         if (typeof b.alarmPypilotDiscSec === "number") {
           patch.alarmPypilotDiscSec = clampNumber(b.alarmPypilotDiscSec, 3, 300, 15);
+        }
+        // Rev748: light wind.
+        if (typeof b.lightWindKn === "number") {
+          patch.lightWindKn = clampNumber(b.lightWindKn, 1, 10, LIGHT_WIND_DEFAULT_KN);
+        }
+        if (b.lightWindAction === "warn" || b.lightWindAction === "compass") {
+          patch.lightWindAction = b.lightWindAction;
         }
         // Rev291 (F1): APB source preference (read-only side, no
         // pypilot write yet).
@@ -5833,6 +5857,8 @@ module.exports = function (app: any) {
       alarmServoTempC: clampNumber(options.alarmServoTempC, 40, 85, 60),
       alarmServoMotorTempC: clampNumber(options.alarmServoMotorTempC, 40, 90, 70),
       alarmPypilotDiscSec: clampNumber(options.alarmPypilotDiscSec, 3, 300, 15),
+      lightWindKn: clampNumber(options.lightWindKn, 1, 10, LIGHT_WIND_DEFAULT_KN),
+      lightWindAction: options.lightWindAction === "compass" ? "compass" : "warn",
       // Rev299 (I1): attitude envelope thresholds. Ranges kept wide
       // enough for coastal cruisers (25Â°) and racers who purposely
       // put the rail under (60Â°). Defaults are conservative.
@@ -7227,10 +7253,20 @@ module.exports = function (app: any) {
 
   function collectSample(): Sample {
     const pv = (client && client.connected) ? client.getValues() : {};
+    // Rev748 (Carlos 2026-11-23: chart averages that did not add up): a path
+    // that stopped publishing kept its last value here for ever, so the
+    // chart, its averages and the KPIs repeated a frozen number (a speedTrue
+    // left over, a TWS equal to an old AWS). Older than 15 s = no value; a
+    // node without a timestamp keeps the old behaviour.
+    const nowMs = Date.now();
     const skNum = (path: string): number | null => {
       try {
-        const v = app.getSelfPath(path + ".value");
-        return typeof v === "number" && !isNaN(v) ? v : null;
+        const node = app.getSelfPath(path);
+        const v = node && typeof node === "object" ? (node as any).value : undefined;
+        if (typeof v !== "number" || isNaN(v)) return null;
+        const ts = Date.parse(String((node as any).timestamp));
+        if (isFinite(ts) && Math.abs(nowMs - ts) > 15_000) return null;
+        return v;
       } catch { return null; }
     };
     // Rev94: navigation.attitude arrives as a composite object
@@ -7390,6 +7426,47 @@ module.exports = function (app: any) {
     for (const [id, on] of resolveEnabled(alarms.ruleDefaults(), list, props.alarmsKnown)) alarms.setEnabled(id, on);
   }
 
+  // Rev748: target-change grace for heading deviation, and light wind.
+  const _courseWatch = new CourseChangeWatch();
+  let _lightWindSwitch: { atMs: number; hdgDeg: number } | null = null;
+  let _lightWindBusy = false;
+  /** 30 s mean of the wind the current wind mode steers by (kn), null
+   *  outside wind modes or with under 10 readings. */
+  function _lightWindKn(mode: string | null): number | null {
+    const m = (mode || "").toLowerCase();
+    if (!historian || !m.includes("wind")) return null;
+    const key = m.includes("true") ? "tws" : "aws";
+    let n = 0, sum = 0;
+    for (const s of historian.slice(30_000, [key])) {
+      const v = (s as any)[key];
+      if (typeof v === "number" && Number.isFinite(v)) { n += 1; sum += v; }
+    }
+    return n >= 10 ? (sum / n) * 1.943844 : null;
+  }
+  /** Rev748: light wind with "switch to compass" chosen - compass mode on
+   *  the compass heading (read before the mode change, as the route safe
+   *  exit does). AUTOWIND is switched off, as picking compass by hand does. */
+  async function _lightWindToCompass(): Promise<void> {
+    if (_lightWindBusy || !apProvider || !props.allowWrites) return;
+    if (apProvider.isVirtualTackActive()) return;
+    _lightWindBusy = true;
+    try {
+      const hRad = apProvider.readHeadingRad();
+      if (hRad === null) return;
+      const iface = apProvider.toProviderInterface() as any;
+      if (props.autowindEnabled) _autowindSetEnabled(false, "light wind: compass");
+      await iface.setMode("compass", apProvider.deviceId);
+      await iface.setTarget(hRad, apProvider.deviceId);
+      const deg = ((hRad * 180 / Math.PI) % 360 + 360) % 360;
+      _lightWindSwitch = { atMs: Date.now(), hdgDeg: deg };
+      // eslint-disable-next-line no-console
+      console.log(`[light-wind] switched to compass at ${deg.toFixed(0)} deg`);
+      _bbTrigger("alarm", `light-wind: switched to compass at ${deg.toFixed(0)} deg`);
+    } catch (e: any) {
+      app.debug?.(`[light-wind] compass switch: ${e?.message || e}`);
+    } finally { _lightWindBusy = false; }
+  }
+
   function evaluateAndPublishAlarms(sample: Sample): void {
     if (!alarms) return;
     // Rev742: pypilot is stopped on purpose (card copy): nothing to alarm about.
@@ -7439,8 +7516,23 @@ module.exports = function (app: any) {
       maneuverPseudoActive: _pseudoActive(),
       // Rev508: stuck pilot / recovery / external disengage.
       steer: steerWatch.snapshot(),
+      // Rev748.
+      courseChangeSettling: _courseWatch.update(Date.now(), sample.headingCmd, sample.mode, errorRad(sample), !!sample.engaged),
+      lightWind: {
+        kn: _lightWindKn(sample.mode),
+        thresholdKn: props.lightWindKn ?? LIGHT_WIND_DEFAULT_KN,
+        switchedAtMs: _lightWindSwitch?.atMs ?? null,
+        switchedHdgDeg: _lightWindSwitch?.hdgDeg ?? null,
+      },
     };
     const changed = alarms.tick(ctx);
+    // Rev748: the light-wind alarm just fired in a wind mode and the sailor
+    // chose "switch to compass".
+    if (changed.includes("light-wind") && props.lightWindAction === "compass") {
+      const st = alarms.ruleState("light-wind");
+      const inWind = (sample.mode || "").toLowerCase().includes("wind");
+      if (st && st.active && st.activeSinceMs === ctx.nowMs && inWind && sample.engaged) void _lightWindToCompass();
+    }
     // Rev525: every alarm that becomes active opens a black-box incident.
     // Only with the AP engaged: alarms in port would fill it.
     if (sample.engaged) {
@@ -7826,15 +7918,15 @@ module.exports = function (app: any) {
     if (typeof raw !== "string") return 30_000;
     const trimmed = raw.trim().toLowerCase();
     if (!trimmed) return 30_000;
-    const m = /^(\d+(?:\.\d+)?)\s*(ms|s|m|min)?$/.exec(trimmed);
+    const m = /^(\d+(?:\.\d+)?)\s*(ms|s|m|min|h)?$/.exec(trimmed);
     if (!m) return 30_000;
     const n = parseFloat(m[1]);
     if (!isFinite(n) || n <= 0) return 30_000;
     const unit = (m[2] || "s").toLowerCase();
-    const mul = unit === "ms" ? 1 : (unit === "m" || unit === "min") ? 60_000 : 1000;
+    const mul = unit === "ms" ? 1 : (unit === "m" || unit === "min") ? 60_000 : unit === "h" ? 3_600_000 : 1000;
     // Cap to the historian capacity so a huge window does not blow up
     // the JSON payload; historian.slice will trim naturally too.
-    return Math.min(n * mul, 60 * 60_000);
+    return Math.min(n * mul, 120 * 60_000);   // Rev748: 2 h (the 10 s history)
   }
 
   // Rev93: parse `?paths=headingCmd,rudder,servoCurrent` into a typed
