@@ -94,7 +94,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev733";
+const PLUGIN_REVISION = "Rev747";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -5791,9 +5791,11 @@ module.exports = function (app: any) {
     if (!apProvider || !client || !_routeInNav()) return false;
     const iface = apProvider.toProviderInterface() as any;
     try {
+      // Rev746: the compass heading, read before the mode change (in NAV
+      // pypilot's ap.heading is the track, not the compass).
+      const hRad = apProvider.readHeadingRad();
       await iface.setMode("compass", apProvider.deviceId);
-      const h = Number(client.getValues()["ap.heading"]);
-      if (Number.isFinite(h)) await iface.setTarget(h * Math.PI / 180, apProvider.deviceId);
+      if (hRad !== null) await iface.setTarget(hRad, apProvider.deviceId);
       return true;
     } catch (e: any) { app.debug?.(`[route] safe exit: ${e?.message || e}`); return false; }
   }

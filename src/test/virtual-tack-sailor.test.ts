@@ -15,7 +15,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const wrapDeg = (d: number) => ((d % 360) + 360) % 360;
 const signedDeg = (d: number) => ((d + 540) % 360) - 180;
 
-function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: number; compassStallDeg?: number; modeChangeClobberDeg?: number }) {
+function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: number; compassStallDeg?: number; modeChangeClobberDeg?: number; pypilotHeadings?: boolean }) {
   const values: Record<string, unknown> = {
     "ap.enabled": true, "ap.mode": "wind", "ap.heading_command": 0,
   };
@@ -66,6 +66,12 @@ function makeSim(opts: { twdDeg: number; headingDeg: number; turnDegPerTick?: nu
     }
     else err = -signedDeg(cmd - awaDeg()); // wind: AWA target, bow opposite
     if (Math.abs(err) > 0.5) headingDeg += Math.sign(err) * Math.min(step, Math.abs(err));
+    // Rev746: like real pypilot, ap.heading is the heading OF THE MODE
+    // (the wind angle in wind modes); imu.heading is the compass.
+    if (opts.pypilotHeadings) {
+      values["imu.heading"] = wrapDeg(headingDeg);
+      values["ap.heading"] = mode === "compass" ? wrapDeg(headingDeg) : awaDeg();
+    }
   }, 20);
   return {
     client, app, writes, values,
@@ -648,6 +654,27 @@ describe("setTargetIfWanted (Rev639)", () => {
       await (p as any).setTarget(45 * D);
       assert.notEqual(p.targetGeneration(), ours, "the caller sees a newer order and leaves it");
       assert.ok(Math.abs(Number(targets[targets.length - 1]) - 45) < 0.01);
+    } finally { sim.stop(); }
+  });
+});
+
+
+describe("virtual tack - start heading in pypilot's frame (Rev746, sea trial 2026-11-23)", () => {
+  it("a starboard tack from WIND mode swings the bow to starboard, even though ap.heading is the wind angle", async () => {
+    // The sea trial case: starboard tack, AWA about +45, heading 149.
+    const sim = makeSim({ twdDeg: 194, headingDeg: 149, turnDegPerTick: 2, pypilotHeadings: true });
+    sim.values["ap.heading"] = sim.awa();
+    sim.values["imu.heading"] = 149;
+    const p = new AutopilotProvider(sim.client as any, sim.app);
+    sim.attach(p);
+    try {
+      await p.startVirtualTack({ direction: "starboard" });
+      await waitFor(() => sim.writes.some((w) => w.name === "ap.heading_command" && sim.values["ap.mode"] === "compass"), 2000);
+      const first = sim.writes.find((w) => w.name === "ap.heading_command");
+      assert.ok(first, "a compass target was written");
+      const delta = signedDeg(Number(first!.value) - 149);
+      assert.ok(delta > 0, `the first compass target must be to STARBOARD of 149 (got ${Number(first!.value).toFixed(1)}, delta ${delta.toFixed(1)})`);
+      await (p.toProviderInterface() as any).disengage("_default");
     } finally { sim.stop(); }
   });
 });
