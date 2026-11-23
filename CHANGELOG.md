@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased (Rev734-745, Rev748+)
+## 3.17.0 — 2026-11-23 — Backup assistant, light-wind alarm, clearer chart
 
-### From the 23/11 sea trial and the forum (Rev748-749)
+Rev734-754 on top of 3.16.3 (whose virtual-tack safety fix is included).
+
+### From the 23/11 sea trial and the forum (Rev748-754)
 
 - **Wind too light for wind mode** (new alarm, off by default). In 1-4 kn
   of wind the wind direction means nothing: the pilot chases it, saturates
@@ -42,7 +44,7 @@
   one only while the higher one is missing. A corner can also show one of
   them in particular (DBK, DBT, DBS), once it has arrived.
 - **Clearer English** in the backup and update assistant.
-- **Update the TinyPilot:** it first says it is checking the newest
+- **Update your TinyPilot:** it first says it is checking the newest
   version, and the address it checks; if that page does not answer it asks
   for the new address. With the newest version already prepared it says so,
   also for images prepared before this version. Its title is now "Update
