@@ -619,9 +619,13 @@ main {
 /* Rev51: values scale with viewport but never exceed 36 px so a 3-digit
    number always fits inside 28 % of the rose square. Sub-line stays
    small for units. */
+/* Rev751 (Carlos: the second line was as big as the first on the phone and
+   much smaller on the laptop): one size for the corner number, --cv, and
+   the second line (wind speed) always 80 % of it, on every screen. */
+.dash-rose .dash-cell { --cv: clamp(21px, calc(3.5vw + 3px), 37px); }
 .dash-rose .dash-cell .value {
   width: 100%;
-  font-size: clamp(21px, calc(3.5vw + 3px), 37px) !important;   /* Rev748: +3 */
+  font-size: var(--cv) !important;
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -630,7 +634,7 @@ main {
 /* Rev445 (Carlos QA Rev444): one more notch up for the AWS/TWS sub-line. */
 .dash-rose .dash-cell .sub {
   width: 100%;
-  font-size: clamp(20px, 3.8vw, 32px) !important;
+  font-size: calc(var(--cv) * 0.8) !important;   /* Rev751 */
   line-height: 1.1;
   margin-top: 3px;
   font-weight: 700;
@@ -665,14 +669,12 @@ main {
      Rev172 (Carlos): !important to beat the earlier
      `.dash-rose .dash-cell .sub { font-size: clamp(11px,2vw,16px) !important }`
      rule; without it the earlier declaration wins by cascade. */
-  font-size: clamp(21px, calc(min(3.6vw, 3.4vh) + 3px), 33px) !important;   /* Rev748: +3 */
   font-weight: 700;
   margin-top: 4px;
 }
-/* Rev748 (Carlos): the unit after a corner number (kn, m, %, °C) keeps the
-   size it had before the +3, minus 2 px. */
-.dash-rose .dash-cell .value .cu { font-size: clamp(16px, calc(3.5vw - 2px), 32px); }
-.dash-rose .dash-cell .sub .cu   { font-size: clamp(16px, calc(min(3.6vw, 3.4vh) - 2px), 28px); }
+/* Rev751 (Carlos: "debe ser mucho más pequeño"): the unit and the degree
+   sign after a corner number, a bit over half the number's size. */
+.dash-rose .dash-cell .cu { font-size: 0.55em; }
 /* Rev172 (Carlos): landscape on a large screen (laptop / tablet) - the
    wind-chip AWS/TWS badge was going oversized because 5vw at 2000px hits
    the 46px ceiling. Cap it lower for landscape on wide screens. */
@@ -683,10 +685,6 @@ main {
   .dash-rose .wind-chip .label {
     font-size: clamp(10px, 1.4vw, 13px);
   }
-  .dash-rose .dash-cell .sub {
-    font-size: clamp(17px, calc(min(2vw, 3vh) + 3px), 25px) !important;   /* Rev748: +3 */
-  }
-  .dash-rose .dash-cell .sub .cu { font-size: clamp(12px, calc(min(2vw, 3vh) - 2px), 20px); }
 }
 .dash-rose .dash-cell:active { transform: scale(0.95); transition: transform 80ms ease; }
 

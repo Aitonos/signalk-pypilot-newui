@@ -22,17 +22,22 @@
   - the legend shows the value now and, in brackets, the average over the
     window (it showed only the average, which lags minutes behind a change
     of wind);
-  - a scale on the heel bar, both sides, every 5°.
+  - a scale on the heel bar, both sides, every 5°;
+  - fine lines between the scale numbers (every 1 between 0, 5 and 10), to
+    read a value by eye.
 - **Frozen values in the chart and its averages.** A Signal K path that
   stopped publishing (an old true wind speed, for example) kept its last
   value for ever. Values older than 15 s now count as missing.
 - **Bigger numbers** (Carlos, and Kalle on the OpenMarine forum): the rose
   corners, the heading and its error, and the multifunction panel are 3 px
-  larger; the unit after a number (kn, m, %) is a little smaller. The rose
-  keeps its size.
+  larger. In the corners the second line is always 80 % of the first, on
+  every screen, and the unit or degree sign after a number is about half
+  its size. The rose keeps its size.
 - **Depth no longer jumps between below keel and below transducer** (Kalle).
   Below keel is used, then below transducer, then below surface, a lower
-  one only while the higher one is missing.
+  one only while the higher one is missing. A corner can also show one of
+  them in particular (DBK, DBT, DBS), once it has arrived.
+- **Clearer English** in the backup and update assistant.
 - **Update the TinyPilot:** it first says it is checking the newest
   version, and the address it checks; if that page does not answer it asks
   for the new address. With the newest version already prepared it says so.

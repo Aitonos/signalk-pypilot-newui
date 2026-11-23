@@ -713,39 +713,39 @@
       "sd.hint": "A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.",
       "wz.sec.q": "Keep the passwords and keys in the backup? (boat wifi, TinyPilot password, SSH keys)",
       "wz.sec.yes": "Yes, keep them",
-      "wz.sec.yesDesc": "Everything comes back on its own. Keep the backup in a safe place.",
-      "wz.sec.no": "No, I'll put them in myself",
-      "wz.sec.noDesc": "Without them; the wifi is set again on the TinyPilot by hand.",
+      "wz.sec.yesDesc": "Everything is restored automatically. Store the backup somewhere safe.",
+      "wz.sec.no": "No, I'll enter them myself",
+      "wz.sec.noDesc": "They are left out. You will set up the wifi on the TinyPilot again by hand.",
       "wz.img.q": "Which version do you want to install?",
       "wz.img.newest": "newest, recommended",
       "wz.img.onPi": "on this Raspberry Pi",
       "wz.img.from": "Images from {url}",
-      "wz.experimental": "EXPERIMENTAL: handle it with care.",
+      "wz.experimental": "EXPERIMENTAL: handle with care.",
       "wz.why.admin": "Log in to Signal K as an administrator and try again.",
-      "wz.why.moving": "The boat is moving: make the copy moored.",
+      "wz.why.moving": "The boat is moving. Make the backup when moored.",
       "wz.why.nostop": "pypilot did not stop, so nothing was copied. Try again.",
       "wz.why.writes": "Writing to the autopilot is switched off in the plugin settings.",
-      "wz.upd.same": "Does the new card go into this same TinyPilot, without having changed the motor or moved the IMU?",
-      "wz.upd.sameYesDesc": "Calibration, motor and rudder go with it.",
-      "wz.upd.sameNoDesc": "Motor, rudder and IMU stay at factory values: calibrate them.",
-      "wz.upd.intro": "EXPERIMENTAL: handle it with care.\n\nWe will move your TinyPilot to a newer version, with your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nDo it in port: at the end the card is changed and the autopilot stops for a while. The assistant does not write the card you have in.",
-      "wz.res.confirmCard": "The whole card goes back to that day: it is written to a card and changed, like an update. The assistant does not write the card you have in.",
+      "wz.upd.same": "Will the new card go into this same TinyPilot, with the same motor and the IMU where it is now?",
+      "wz.upd.sameYesDesc": "Calibration, motor and rudder settings are carried over.",
+      "wz.upd.sameNoDesc": "Motor, rudder and IMU start from factory values; you will need to calibrate them.",
+      "wz.upd.intro": "EXPERIMENTAL: handle with care.\n\nThis updates your TinyPilot to a newer version and keeps your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nDo this in port: at the end you swap the card and the autopilot is off for a while. The assistant never writes to the card currently in the TinyPilot.",
+      "wz.res.confirmCard": "The whole card goes back to how it was that day. As with an update, you write it to a new card and swap it in. The assistant never writes to the card currently in the TinyPilot.",
       "wz.upd.keepBg": "Keep going in the background",
       "wz.upd.cancelBtn": "Cancel the preparation",
-      "wz.upd.srcQ": "The page with the TinyPilot images does not answer:\n{url}\nHas the address changed? Type the new one.",
+      "wz.upd.srcQ": "The TinyPilot image page is not responding:\n{url}\nHas the address changed? Enter the new one.",
       "wz.upd.srcSave": "Save and try again",
       "wz.upd.srcBad": "No TinyPilot images were found at that address.",
       "dlg.yesDelete": "Yes, delete",
       "wz.upd.freshDesc": "A new card with the newest TinyPilot version and all your settings.",
-      "wz.upd.isNewest": "It is still the newest version on pypilot.org ({date}) ✔",
-      "wz.upd.newer": "There is a newer version on pypilot.org ({name}): prepare a new one.",
+      "wz.upd.isNewest": "This is still the newest version on pypilot.org ({date}) ✔",
+      "wz.upd.newer": "A newer version is available on pypilot.org ({name}). Prepare a new card.",
       "wz.upd.stopQ": "Your new card is being prepared.",
       "wz.upd.keep": "Keep going",
-      "wz.upd.keepDesc": "It finishes on its own; press Start later to go on.",
+      "wz.upd.keepDesc": "It will finish by itself. Press Start later to continue.",
       "wz.upd.cancel": "Cancel it",
-      "wz.upd.cancelDesc": "Stops now, the download too, and deletes what was half done.",
-      "wz.upd.cancelled": "Cancelled. Nothing was left half done.",
-      "wz.upd.bg": "It keeps preparing on its own.\nPress Start again later to go on.",
+      "wz.upd.cancelDesc": "Stops now, including the download, and deletes anything half-finished.",
+      "wz.upd.cancelled": "Cancelled. Nothing half-finished was left behind.",
+      "wz.upd.bg": "Preparation continues in the background.\nPress Start again later to continue.",
       "bk.note": "Note",
       "bk.noteTitle": "Note for this backup",
       "bk.noteHint": "What was this backup? For example: after calibrating the compass.",
@@ -756,20 +756,20 @@
       "bk.noCardBtn": "Make a copy now",
       "wz.noteOpt": "Add a note (optional):",
       "wz.notePh": "For example: after calibrating the compass",
-      "wz.upd.checking": "Checking the newest TinyPilot version…\n{url}",
-      "wz.upd.resumeNewest": "You already have the newest version (TinyPilot {date}) downloaded and prepared:\n{name} ({when})",
-      "wz.upd.resume": "You already have this image with the new version prepared:\n{name} ({when})",
+      "wz.upd.checking": "Checking for the newest TinyPilot version…\n{url}",
+      "wz.upd.resumeNewest": "The newest version (TinyPilot {date}) is already downloaded and prepared:\n{name} ({when})",
+      "wz.upd.resume": "An image with the new version is already prepared:\n{name} ({when})",
       "wz.upd.goOn": "Use this image",
       "wz.upd.fresh": "Prepare a new one",
       "wz.res.confirm": "You are going to restore:\n{name}",
-      "wz.res.confirmJson": "The profiles and gains of that copy come back. Nothing else is touched. Switch the autopilot off first.",
+      "wz.res.confirmJson": "The profiles and gains from that backup are restored. Nothing else changes. Disengage the autopilot first.",
       "wz.back": "Back",
-      "wz.upd.w5old": "The TinyPilot is still on the old card ({ver}).\nHave you changed the card?",
-      "wz.upd.oldYes": "Yes, I changed it",
-      "wz.upd.oldYesDesc": "It still came back with the old version.",
+      "wz.upd.w5old": "The TinyPilot is still running the old card ({ver}).\nHave you swapped the card?",
+      "wz.upd.oldYes": "Yes, I swapped it",
+      "wz.upd.oldYesDesc": "But it came back with the old version.",
       "wz.upd.oldNo": "Not yet",
-      "wz.upd.oldNoDesc": "Back to changing the card.",
-      "wz.upd.restart": "Switch the TinyPilot off and on again.\nIf it still comes back with the old version, the new card may not have been written well.",
+      "wz.upd.oldNoDesc": "Go back to swapping the card.",
+      "wz.upd.restart": "Switch the TinyPilot off and on again.\nIf it still comes back with the old version, the new card may not have been written correctly.",
       "wz.upd.rewrite": "Write the card again",
       "wz.upd.waitAgain": "Wait again",
       "bk.updates": "System update images",
@@ -796,9 +796,9 @@
       "wz.otherFolder": "Another folder…",
       "wz.confirm": "Confirm",
       "wz.now.where": "Where do you want to save the backup?",
-      "wz.now.intro": "We will save your TinyPilot as it is now: all its settings and its whole card.\n\nDo it in port: for a few minutes the autopilot will not work.",
-      "wz.upd.preparing": "Preparing your new card. It takes about 10 minutes.\nThe autopilot keeps working meanwhile.",
-      "wz.upd.downloading": "It is downloading to your computer.\nIf the browser opened another window for it, come back here when it finishes and press Next.",
+      "wz.now.intro": "This saves your TinyPilot exactly as it is now: all its settings and the whole card.\n\nDo this in port: the autopilot will be off for a few minutes.",
+      "wz.upd.preparing": "Preparing your new card. It takes about 10 minutes.\nThe autopilot keeps working in the meantime.",
+      "wz.upd.downloading": "Downloading to your computer.\nIf the browser opened another window, come back here when it finishes and press Next.",
       "wz.res.title": "Restore a backup",
       "wz.res.where": "Where is the backup?",
       "wz.res.none": "There are no backups in that folder.",
@@ -808,11 +808,11 @@
       "wz.res.pick": "Which backup do you want to restore?",
       "wz.res.go": "Restore",
       "wz.res.working": "Restoring…",
-      "wz.res.fail": "It could not be restored.\n{why}",
+      "wz.res.fail": "The backup could not be restored.\n{why}",
       "wz.res.jsonOk": "Restored ✔",
-      "wz.res.cardIntro": "To restore a whole card it is written to a card, like an update. First download it to your computer.",
+      "wz.res.cardIntro": "To restore a whole card, you write it to a new card, as with an update. First download it to your computer.",
       "wz.res.back": "Your TinyPilot is back ✔",
-      "wz.res.cardOk": "Restored ✔\nYour TinyPilot is as it was on that day.",
+      "wz.res.cardOk": "Restored ✔\nYour TinyPilot is back to how it was that day.",
       "bk.title": "Backups",
       "bk.saved": "Saved copies",
       "wz.close": "Close",
@@ -835,13 +835,13 @@
       "wz.now.l2": "Card copied",
       "wz.now.l3": "Copy checked",
       "wz.now.fail": "The backup could not be made.\n{why}",
-      "wz.now.bad": "The copy came out wrong. It has to be made again.",
+      "wz.now.bad": "The copy is not valid. Please make it again.",
       "wz.why.engaged": "Switch the autopilot off and try again.",
-      "wz.why.ssh": "The TinyPilot cannot be reached. Check it is on and that its SSH password is set in Settings.",
-      "wz.why.space": "There is no room left on this Raspberry Pi.",
+      "wz.why.ssh": "The TinyPilot cannot be reached. Check that it is on and that its SSH password is set in Setup.",
+      "wz.why.space": "There is not enough free space on this Raspberry Pi.",
       "wz.why.internet": "There is no internet to download the new version.",
-      "wz.why.damaged": "The file came out damaged. Try again.",
-      "wz.why.other": "Try again. If it keeps failing, tell us.",
+      "wz.why.damaged": "The file is damaged. Try again.",
+      "wz.why.other": "Try again. If it keeps failing, please let us know.",
       "wz.upd.title": "Update the TinyPilot",
       "wz.upd.copying": "Saving your settings…",
       "wz.upd.c1": "Calibration, motor and profiles",
@@ -849,21 +849,21 @@
       "wz.upd.c3": "Remote control",
       "wz.upd.c4": "Password",
       "wz.upd.copied": "Settings saved ✔",
-      "wz.upd.copyFail": "Not all the settings could be saved.\n{why}",
-      "wz.upd.sameYes": "Yes, for this one",
-      "wz.upd.sameNo": "No, for another",
+      "wz.upd.copyFail": "Some settings could not be saved.\n{why}",
+      "wz.upd.sameYes": "Yes, same TinyPilot",
+      "wz.upd.sameNo": "No, a different one",
       "wz.upd.p.start": "Starting…",
       "wz.upd.p.download": "Downloading the new version…",
       "wz.upd.p.read": "Opening the new version…",
-      "wz.upd.p.write": "Putting your settings in…",
+      "wz.upd.p.write": "Adding your settings…",
       "wz.upd.p.check": "Checking everything is right…",
-      "wz.upd.prepFail": "It could not be prepared.\n{why}",
+      "wz.upd.prepFail": "The card could not be prepared.\n{why}",
       "wz.upd.ready": "Your new card is ready to download ✔",
       "wz.upd.download": "Download",
       "wz.upd.w1": "Put the new card in your computer's card reader.",
       "wz.upd.w2": "Open Raspberry Pi Imager. Under Operating system choose “Use custom” and pick the file you just downloaded.",
       "wz.upd.w3": "Under Storage choose the new card and press Write. Wait until it finishes.",
-      "wz.upd.w4": "Switch the autopilot off. Switch the TinyPilot off, take the old card out and keep it. Put the new one in.",
+      "wz.upd.w4": "Disengage the autopilot. Switch off the TinyPilot, remove the old card and keep it safe. Insert the new one.",
       "wz.upd.w5": "Switch the TinyPilot on.",
       "wz.upd.w5wait": "Waiting for the TinyPilot to come back…",
       "wz.upd.w5long": "It is taking longer than usual. If the screen only says N/A, switch it off and on again.",
@@ -7695,7 +7695,10 @@
           const now = Date.now();
           const seen = state._depthSeen || (state._depthSeen = [0, 0, 0]);
           seen[rank] = now;
-          for (let r = 0; r < rank; r += 1) if (now - seen[r] < 10000) return;
+          // Rev751 (Carlos): each one also kept on its own, so a corner can
+          // show the one the sailor picks (DBK / DBT / DBS).
+          (state.depthBy || (state.depthBy = [null, null, null]))[rank] = v;
+          for (let r = 0; r < rank; r += 1) if (now - seen[r] < 10000) { renderRoseBottomChip(); return; }
           state.depth = v; renderRoseBottomChip();
         }
         break;
@@ -7899,6 +7902,10 @@
       return (!state.engaged || state.pypilotHealthy === false || state.target == null) ? "---" : Math.round(state.target * RAD2DEG) + "°";
     } },
     depth: { label: "DEPTH", read: () => state.depth == null ? "---" : state.depth.toFixed(1) + " m" },
+    // Rev751 (Carlos): one depth in particular - listed once it has arrived.
+    depthDBK: { label: "DBK", read: () => _depthBy(0) },
+    depthDBT: { label: "DBT", read: () => _depthBy(1) },
+    depthDBS: { label: "DBS", read: () => _depthBy(2) },
     mode:  { label: "MODE",  read: () => String(state.mode || "---") },
     // Rev58: polar-performance-plugin (opt-in per user via popup toggle).
     // The toggle only controls whether these entries are OFFERED in the
@@ -8093,7 +8100,7 @@
     const baseKeys = ["sog","cog","hdg","depth","awa","aws","twa","tws","twd","wind","tgt","mode"];
     const extraKeys = DASH_EXTRA_KEYS.filter((k) => _dashExtras.has(k));
     const custKeys = _dashCustom.map((_, i) => _dashCustomKey(i));
-    const catalog = [...baseKeys, ...extraKeys, ...custKeys].filter((k) => DASH_DATA[k]);
+    const catalog = [...baseKeys, ..._depthKeysSeen(), ...extraKeys, ...custKeys].filter((k) => DASH_DATA[k]);
     const selected = new Set(state.roseBottomChipPaths || []);
     const order = state.roseBottomChipPaths.slice();  // kept to drop oldest on overflow
     const refreshCountUI = () => {
@@ -8177,7 +8184,8 @@
       // Rev490: only touch the DOM when the tile content really changed
       // (was a full innerHTML rewrite on every delta).
       // Rev748 (Carlos): the unit in its own span, smaller than the number.
-      const cu = (x) => String(x).replace(/ (kn|m|%|°C)$/, '<span class="cu"> $1</span>');
+      // Rev751: the degree sign too.
+      const cu = (x) => String(x).replace(/ (kn|m|%|°C)$/, '<span class="cu"> $1</span>').replace(/°$/, '<span class="cu">°</span>');
       const html = (val && typeof val === "object" && "value" in val)
         ? `<div class="label">${paintedLabel}</div><div class="value">${cu(val.value)}</div><div class="sub">${cu(val.sub)}</div>`
         : `<div class="label">${paintedLabel}</div><div class="value">${cu(val)}</div>`;
@@ -8189,7 +8197,7 @@
                          wind: state.windCornerShow === "twa" ? "wind-true" : "wind-app",
                          awa:"wind-app", aws:"wind-app",
                          twa:"wind-true", tws:"wind-true", twd:"twd",
-                         sog:"sog", cog:"cog", depth:"depth", mode:"mode" };
+                         sog:"sog", cog:"cog", depth:"depth", depthDBK:"depth", depthDBT:"depth", depthDBS:"depth", mode:"mode" };
       const want = colorMap[key] || null;
       for (const c of ["heading","target","wind","sog","depth","cog","mode","twa","twd","wind-app","wind-true"]) {
         if (c !== want && el.classList.contains(c)) el.classList.remove(c);
@@ -8301,6 +8309,14 @@
       sel.disabled = false;
     }
   }
+  function _depthBy(i) {
+    const v = state.depthBy ? state.depthBy[i] : null;
+    return v == null ? "---" : v.toFixed(1) + " m";
+  }
+  // Rev751: the depths this boat sends, in the corner and chip lists.
+  function _depthKeysSeen() {
+    return ["depthDBK", "depthDBT", "depthDBS"].filter((k, i) => state.depthBy && state.depthBy[i] != null);
+  }
   function _dashPopulateSelectors() {
     _zonesLoad(false);
     // Rev58: the corner dropdown lists CORE keys + user-enabled extras +
@@ -8309,6 +8325,7 @@
     const CORE_KEYS = ["none","hdg","awa","aws","twa","tws","twd","wind","sog","cog","tgt","depth","mode"];
     const listKeys = () => [
       ...CORE_KEYS,
+      ..._depthKeysSeen(),
       ...DASH_EXTRA_KEYS.filter((k) => _dashExtras.has(k)),
       ..._dashCustom.map((_, i) => _dashCustomKey(i)),
     ].filter((k) => DASH_DATA[k]);
@@ -25941,7 +25958,7 @@
         const now = _chartAverage(tail, k, g.unit);
         const live = now == null ? "--" : _fmtLegendValue(k, now);
         return {
-          txt: `${CHART_LABELS[k] || k} ${live}${avg == null ? "" : ` (Ø${_fmtLegendValue(k, avg)})`}`,
+          txt: `${CHART_LABELS[k] || k} ${live}${avg == null ? "" : ` (${_fmtLegendValue(k, avg)})`}`,
           color: CHART_COLORS[k] || "#e6edf3",
         };
       });
@@ -26027,6 +26044,25 @@
       }
       if (g.ticks.length > 0) {
         const yOf = (v) => bandBot - ((v - g.lo) / (g.hi - g.lo)) * (bandBot - plotTop);
+        // Rev751 (Carlos: "si la gráfica va por 3 o 4"): fine lines between
+        // the scale numbers - every 1 between 0 / 5 / 10, every 2 between
+        // 0 / 10 / 20, every 0.5 between 0 / 2 / 4 - and a short mark at
+        // the scale.
+        if (g.ticks.length > 1) {
+          const step = g.ticks[1].v - g.ticks[0].v;
+          const mant = step / Math.pow(10, Math.floor(Math.log10(step) + 1e-9));
+          const minor = step / (Math.round(mant) === 2 ? 4 : 5);
+          ctx.lineWidth = 0.5;
+          for (let v = g.lo + minor, n = 0; v < g.hi - minor / 2 && n < 200; v += minor, n += 1) {
+            if (Math.abs(((v - g.lo) / step) - Math.round((v - g.lo) / step)) < 1e-6) continue;
+            const y = yOf(v);
+            ctx.strokeStyle = "#1b2733";
+            ctx.beginPath(); ctx.moveTo(marginL, y); ctx.lineTo(marginL + plotW, y); ctx.stroke();
+            ctx.strokeStyle = "#6b7a8c";
+            ctx.beginPath(); ctx.moveTo(marginL + plotW - 5, y); ctx.lineTo(marginL + plotW, y); ctx.stroke();
+          }
+          ctx.lineWidth = 1;
+        }
         ctx.font = `${fs}px ui-monospace, monospace`;
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
