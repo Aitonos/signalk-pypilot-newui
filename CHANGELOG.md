@@ -28,8 +28,8 @@
   value for ever. Values older than 15 s now count as missing.
 - **Bigger numbers** (Carlos, and Kalle on the OpenMarine forum): the rose
   corners, the heading and its error, and the multifunction panel are 3 px
-  larger; the unit after a number (kn, m, %) is a little smaller; the rose
-  a little smaller.
+  larger; the unit after a number (kn, m, %) is a little smaller. The rose
+  keeps its size.
 - **Depth no longer jumps between below keel and below transducer** (Kalle).
   Below keel is used, then below transducer, then below surface, a lower
   one only while the higher one is missing.
