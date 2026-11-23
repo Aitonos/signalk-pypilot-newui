@@ -842,7 +842,7 @@
       "wz.why.internet": "There is no internet to download the new version.",
       "wz.why.damaged": "The file is damaged. Try again.",
       "wz.why.other": "Try again. If it keeps failing, please let us know.",
-      "wz.upd.title": "Update the TinyPilot",
+      "wz.upd.title": "Update your TinyPilot",
       "wz.upd.copying": "Saving your settings…",
       "wz.upd.c1": "Calibration, motor and profiles",
       "wz.upd.c2": "Boat wifi",
@@ -2451,7 +2451,7 @@
       "wz.why.internet": "No hay internet para bajar la versión nueva.",
       "wz.why.damaged": "El fichero ha salido dañado. Vuelve a intentarlo.",
       "wz.why.other": "Vuelve a intentarlo. Si sigue fallando, avísanos.",
-      "wz.upd.title": "Actualizar el TinyPilot",
+      "wz.upd.title": "Actualizar tu TinyPilot",
       "wz.upd.copying": "Guardando tus ajustes…",
       "wz.upd.c1": "Calibración, motor y perfiles",
       "wz.upd.c2": "Wifi del barco",
@@ -4152,7 +4152,7 @@
       "wz.why.internet": "Kein Internet, um die neue Version herunterzuladen.",
       "wz.why.damaged": "Die Datei ist beschädigt. Versuch es noch einmal.",
       "wz.why.other": "Versuch es noch einmal. Wenn es weiter nicht klappt, sag uns Bescheid.",
-      "wz.upd.title": "TinyPilot aktualisieren",
+      "wz.upd.title": "Deinen TinyPilot aktualisieren",
       "wz.upd.copying": "Speichert deine Einstellungen…",
       "wz.upd.c1": "Kalibrierung, Motor und Profile",
       "wz.upd.c2": "Boots-WLAN",
@@ -5735,7 +5735,7 @@
       "wz.why.internet": "Pas d'internet pour télécharger la nouvelle version.",
       "wz.why.damaged": "Le fichier est endommagé. Réessaie.",
       "wz.why.other": "Réessaie. Si ça continue d'échouer, préviens-nous.",
-      "wz.upd.title": "Mettre à jour le TinyPilot",
+      "wz.upd.title": "Mettre à jour ton TinyPilot",
       "wz.upd.copying": "Enregistrement de tes réglages…",
       "wz.upd.c1": "Calibration, moteur et profils",
       "wz.upd.c2": "Wifi du bateau",
@@ -8167,6 +8167,17 @@
   function _dashSaveCfg() {
     try { localStorage.setItem(DASH_CORNER_LS_KEY, JSON.stringify(_dashCornerCfg)); } catch {}
   }
+  // Rev752 (Carlos: the corners looked different in portrait and landscape
+  // on the phone): their size follows the rose square, not the screen.
+  (function _cornerSizeFromRose() {
+    const rw = document.querySelector(".dash-rose .rose-wrap");
+    if (!rw || typeof ResizeObserver === "undefined") return;
+    new ResizeObserver(() => {
+      const r = rw.getBoundingClientRect();
+      const side = Math.min(r.width, r.height);
+      if (side > 0) rw.style.setProperty("--cv", Math.max(20, Math.min(40, side * 0.075)).toFixed(1) + "px");
+    }).observe(rw);
+  })();
   function _dashRenderCorners() {
     for (const corner of ["tl","tr","bl","br"]) {
       const el = document.querySelector(`.dash-cell[data-corner="${corner}"]`);
@@ -8185,7 +8196,7 @@
       // (was a full innerHTML rewrite on every delta).
       // Rev748 (Carlos): the unit in its own span, smaller than the number.
       // Rev751: the degree sign too.
-      const cu = (x) => String(x).replace(/ (kn|m|%|°C)$/, '<span class="cu"> $1</span>').replace(/°$/, '<span class="cu">°</span>');
+      const cu = (x) => String(x).replace(/ (kn|m|%|°C)$/, '<span class="cu"> $1</span>').replace(/°$/, '<span class="cdeg">°</span>');
       const html = (val && typeof val === "object" && "value" in val)
         ? `<div class="label">${paintedLabel}</div><div class="value">${cu(val.value)}</div><div class="sub">${cu(val.sub)}</div>`
         : `<div class="label">${paintedLabel}</div><div class="value">${cu(val)}</div>`;
@@ -9595,7 +9606,9 @@
         const o = st.outputs[0];
         const oName = o.name.replace(/\.img\.gz$/, "");
         const newest = st && st.pypilotOrg && st.pypilotOrg.images && st.pypilotOrg.images[0];
-        const isNewest = !!(newest && o.source && newest.name === o.source);
+        // Rev752: images prepared before Rev745 did not record their source;
+        // prepared after the newest one was published = made from it.
+        const isNewest = !!(newest && (o.source ? newest.name === o.source : o.ts > Date.parse(newest.date)));
         const head = isNewest ? t("wz.upd.resumeNewest").replace("{date}", newest.date) : t("wz.upd.resume");
         const r = await _wz({ title: T, text: head.replace("{name}", oName).replace("{when}", new Date(o.ts).toLocaleString()) + (isNewest ? "" : _wzNewest(st, o)), html: o.note ? `<div class="hint" style="font-style:italic;margin:-6px 0 10px">${_wzEsc(o.note)}</div>` : "", extra: _wzBack(), cards: [
           { id: "go", icon: "yes", title: t("wz.upd.goOn"), desc: oName },
@@ -13555,21 +13568,6 @@
   // a bar grows from the centre, red to port / green to starboard, from
   // where "-10m" starts to where "NOW" starts, under the 0 line; the big
   // number goes right after the bar's end (Rev725: no peak tick).
-  // Rev748 (Carlos): a scale on the heel bar, both sides - a mark every
-  // 5 deg up to 30, heavier every 10 (same marks as the bar view).
-  function _hchTicks(box, zeroX, half) {
-    const key = `${Math.round(zeroX)}|${Math.round(half)}`;
-    if (box.dataset.ticks === key) return;
-    box.dataset.ticks = key;
-    box.querySelectorAll(".hch-tick").forEach((n) => n.remove());
-    for (let d = -30; d <= 30; d += 5) {
-      if (d === 0) continue;
-      const tk = document.createElement("span");
-      tk.className = d % 10 === 0 ? "hch-tick major" : "hch-tick";
-      tk.style.left = Math.round(zeroX + (d / 30) * half) + "px";
-      box.insertBefore(tk, box.firstChild);
-    }
-  }
   function _renderHelmChartHeel() {
     const tag = document.getElementById("helm-chart-heel-tag");
     if (!tag) return;
@@ -13578,7 +13576,6 @@
     if (state.heelRad == null) {
       _setText(tag, "--");
       const z = (box.parentElement ? box.parentElement.clientWidth / 2 : box.clientWidth / 2) - box.offsetLeft;
-      _hchTicks(box, z, Math.max(1, Math.min(z, box.clientWidth - z)));
       tag.style.left = Math.max(0, Math.round(z - tag.offsetWidth / 2)) + "px";
       if (fill) fill.style.width = "0%";
       return;
@@ -13592,7 +13589,6 @@
     const W = box.clientWidth;
     const zeroX = (box.parentElement ? box.parentElement.clientWidth / 2 : W / 2) - box.offsetLeft;
     const half = Math.max(1, Math.min(zeroX, W - zeroX));
-    _hchTicks(box, zeroX, half);
     const xOf = (p) => zeroX + p * half;
     // Rev723 (Carlos): the bar's end is the heel; the number goes right
     // after it, outside the bar (to the right to starboard, to the left to
@@ -25990,11 +25986,14 @@
         if (g.unit === "speed") vmax = vmin + 1;   // all zero: 0..1, not -1..1
         else { vmin -= 1; vmax += 1; }
       }
+      // Rev752 (Carlos: "0.2 / 0.1 / 0.1 / 0.0", a scale that repeats): a
+      // speed band spans at least 1 kn, so it never steps by 0.05.
+      if (g.unit === "speed" && vmax - vmin < 1) vmax = vmin + 1;
       const rows = Math.max(1, Math.floor((g.bandBot - g.plotTop) / (fs * 2.4)));
       const step = _chartNiceStep((vmax - vmin) / rows);
       g.lo = Math.floor(vmin / step) * step;
       g.hi = Math.max(g.lo + step, Math.ceil(vmax / step) * step);
-      const dec = step < 1 ? 1 : 0;
+      const dec = step < 0.1 ? 2 : step < 1 ? 1 : 0;   // Rev752: never two equal labels
       const suffix = g.unit in CHART_UNIT_SUFFIX ? CHART_UNIT_SUFFIX[g.unit] : "°";
       ctx.font = `${fs}px ui-monospace, monospace`;
       // Bounded: a step too small for the magnitude could stop `v` moving.
@@ -26059,7 +26058,7 @@
             ctx.strokeStyle = "#1b2733";
             ctx.beginPath(); ctx.moveTo(marginL, y); ctx.lineTo(marginL + plotW, y); ctx.stroke();
             ctx.strokeStyle = "#6b7a8c";
-            ctx.beginPath(); ctx.moveTo(marginL + plotW - 5, y); ctx.lineTo(marginL + plotW, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(marginL + plotW, y); ctx.lineTo(marginL + plotW + 4, y); ctx.stroke();   // Rev752: outwards
           }
           ctx.lineWidth = 1;
         }
