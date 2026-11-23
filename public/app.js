@@ -705,6 +705,25 @@
       "bk.failed": "Backup failed",
       "sd.title": "TinyPilot SD card",
       "sd.hint": "A full image of the TinyPilot's card (about 1 GB): system, pypilot, every profile and the IMU calibration. If the card fails, write it to a new card of 2 GB or more with Raspberry Pi Imager. Only with the autopilot off. pypilot, its remote and its screen stop for those few minutes and the card is read-only, so the image comes out clean. The last 3 are kept.",
+      "wz.sec.q": "Keep the passwords and keys in the backup? (boat wifi, TinyPilot password, SSH keys)",
+      "wz.sec.yes": "Yes, keep them",
+      "wz.sec.yesDesc": "Everything comes back on its own. Keep the backup in a safe place.",
+      "wz.sec.no": "No, I'll put them in myself",
+      "wz.sec.noDesc": "Without them; the wifi is set again on the TinyPilot by hand.",
+      "wz.img.q": "Which version do you want to install?",
+      "wz.img.newest": "newest, recommended",
+      "wz.img.onPi": "on this Raspberry Pi",
+      "wz.img.from": "Images from {url}",
+      "wz.experimental": "EXPERIMENTAL: handle it with care.",
+      "wz.why.admin": "Log in to Signal K as an administrator and try again.",
+      "wz.why.moving": "The boat is moving: make the copy moored.",
+      "wz.why.nostop": "pypilot did not stop, so nothing was copied. Try again.",
+      "wz.why.writes": "Writing to the autopilot is switched off in the plugin settings.",
+      "wz.upd.same": "Does the new card go into this same TinyPilot, without having changed the motor or moved the IMU?",
+      "wz.upd.sameYesDesc": "Calibration, motor and rudder go with it.",
+      "wz.upd.sameNoDesc": "Motor, rudder and IMU stay at factory values: calibrate them.",
+      "wz.upd.intro": "EXPERIMENTAL: handle it with care.\n\nWe will move your TinyPilot to a newer version, with your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nDo it in port: at the end the card is changed and the autopilot stops for a while. The assistant does not write the card you have in.",
+      "wz.res.confirmCard": "The whole card goes back to that day: it is written to a card and changed, like an update. The assistant does not write the card you have in.",
       "wz.upd.keepBg": "Keep going in the background",
       "wz.upd.cancelBtn": "Cancel the preparation",
       "wz.upd.srcQ": "The page with the TinyPilot images does not answer:\n{url}\nHas the address changed? Type the new one.",
@@ -736,7 +755,6 @@
       "wz.upd.fresh": "Prepare a new one",
       "wz.res.confirm": "You are going to restore:\n{name}",
       "wz.res.confirmJson": "The profiles and gains of that copy come back. Nothing else is touched. Switch the autopilot off first.",
-      "wz.res.confirmCard": "The whole card goes back to that day: it is written to a card and changed, like an update. Your current card is not touched.",
       "wz.back": "Back",
       "wz.upd.w5old": "The TinyPilot is still on the old card ({ver}).\nHave you changed the card?",
       "wz.upd.oldYes": "Yes, I changed it",
@@ -758,8 +776,6 @@
       "wz.restoreDesc": "Bring back a backup you made before.",
       "wz.whichNowDesc": "Keep a copy of your TinyPilot as it is today.",
       "wz.whichUpdDesc": "Prepare a new card with the newest version and all your settings.",
-      "wz.upd.sameYesDesc": "Your calibration comes with it.",
-      "wz.upd.sameNoDesc": "Only your profiles and remote go; calibrate the other one.",
       "bk.folder": "Backup folder:",
       "bk.available": "Available backups",
       "wz.title": "Backup",
@@ -773,7 +789,6 @@
       "wz.confirm": "Confirm",
       "wz.now.where": "Where do you want to save the backup?",
       "wz.now.intro": "We will save your TinyPilot as it is now: all its settings and its whole card.\n\nDo it in port: for a few minutes the autopilot will not work.",
-      "wz.upd.intro": "We will move your TinyPilot to the newest version, with all your settings.\n\nYou need:\n• a new microSD card (Class 10, 8 GB or more)\n• a card reader on your computer\n• the Raspberry Pi Imager program\n\nDo it in port: at the end the card is changed and the autopilot stops for a while. Your current card is not touched.",
       "wz.upd.preparing": "Preparing your new card. It takes about 10 minutes.\nThe autopilot keeps working meanwhile.",
       "wz.upd.downloading": "It is downloading to your computer.\nIf the browser opened another window for it, come back here when it finishes and press Next.",
       "wz.res.title": "Restore a backup",
@@ -827,7 +842,6 @@
       "wz.upd.c4": "Password",
       "wz.upd.copied": "Settings saved ✔",
       "wz.upd.copyFail": "Not all the settings could be saved.\n{why}",
-      "wz.upd.same": "Is the new card for this same TinyPilot?",
       "wz.upd.sameYes": "Yes, for this one",
       "wz.upd.sameNo": "No, for another",
       "wz.upd.p.start": "Starting…",
@@ -2291,6 +2305,25 @@
       "bk.failed": "La copia falló",
       "sd.title": "Tarjeta SD de la TinyPilot",
       "sd.hint": "Una imagen completa de la tarjeta de la TinyPilot (unos 1 GB): sistema, pypilot, todos los perfiles y la calibración de la IMU. Si la tarjeta falla, se graba en una tarjeta nueva de 2 GB o más con Raspberry Pi Imager. Solo con el piloto desconectado. Durante esos minutos pypilot, su mando y su pantalla se paran y la tarjeta queda en solo lectura, para que la imagen salga limpia. Se guardan las 3 últimas.",
+      "wz.sec.q": "¿Guardar en el backup las contraseñas y claves? (wifi del barco, contraseña del TinyPilot, claves SSH)",
+      "wz.sec.yes": "Sí, guardarlas",
+      "wz.sec.yesDesc": "Todo vuelve solo. Guarda el backup en un sitio seguro.",
+      "wz.sec.no": "No, las meteré yo",
+      "wz.sec.noDesc": "Sin ellas; la wifi se vuelve a poner a mano en el TinyPilot.",
+      "wz.img.q": "¿Qué versión quieres instalar?",
+      "wz.img.newest": "la más reciente, recomendada",
+      "wz.img.onPi": "en esta Raspberry Pi",
+      "wz.img.from": "Imágenes de {url}",
+      "wz.experimental": "EXPERIMENTAL: manéjalo con cuidado.",
+      "wz.why.admin": "Entra en Signal K como administrador y vuelve a intentarlo.",
+      "wz.why.moving": "El barco se está moviendo: haz la copia amarrado.",
+      "wz.why.nostop": "pypilot no se paró, así que no se copió nada. Vuelve a intentarlo.",
+      "wz.why.writes": "La escritura en el piloto está desactivada en los ajustes del plugin.",
+      "wz.upd.same": "¿La tarjeta nueva va en este mismo TinyPilot, sin haber cambiado el motor ni movido la IMU?",
+      "wz.upd.sameYesDesc": "La calibración, el motor y el timón van con ella.",
+      "wz.upd.sameNoDesc": "Motor, timón e IMU quedan de fábrica: hay que calibrarlos.",
+      "wz.upd.intro": "EXPERIMENTAL: manéjalo con cuidado.\n\nVamos a pasar tu TinyPilot a una versión más nueva, con tus ajustes.\n\nNecesitas:\n• una tarjeta microSD nueva (Clase 10, 8 GB o más)\n• un lector de tarjetas en tu ordenador\n• el programa Raspberry Pi Imager\n\nHazlo en puerto: al final se cambia la tarjeta y el piloto estará parado un rato. El asistente no graba la tarjeta que tienes puesta.",
+      "wz.res.confirmCard": "La tarjeta entera vuelve a ese día: se graba en una tarjeta y se cambia, como en una actualización. El asistente no graba la tarjeta que tienes puesta.",
       "wz.upd.keepBg": "Seguir en segundo plano",
       "wz.upd.cancelBtn": "Cancelar la preparación",
       "wz.upd.srcQ": "La página de las imágenes de TinyPilot no responde:\n{url}\n¿Ha cambiado la dirección? Escribe la nueva.",
@@ -2322,7 +2355,6 @@
       "wz.upd.fresh": "Preparar una nueva",
       "wz.res.confirm": "Vas a restaurar:\n{name}",
       "wz.res.confirmJson": "Vuelven los perfiles y ganancias de esa copia. Lo demás no se toca. Antes, desconecta el piloto.",
-      "wz.res.confirmCard": "La tarjeta entera vuelve a ese día: se graba en una tarjeta y se cambia, como en una actualización. Tu tarjeta de ahora no se toca.",
       "wz.back": "Atrás",
       "wz.upd.w5old": "El TinyPilot sigue con la tarjeta vieja ({ver}).\n¿Has cambiado ya la tarjeta?",
       "wz.upd.oldYes": "Sí, ya la cambié",
@@ -2344,8 +2376,6 @@
       "wz.restoreDesc": "Recupera un backup que hiciste antes.",
       "wz.whichNowDesc": "Guarda una copia de tu TinyPilot tal como está hoy.",
       "wz.whichUpdDesc": "Prepara una tarjeta nueva con la versión más nueva y todos tus ajustes.",
-      "wz.upd.sameYesDesc": "Tu calibración va con ella.",
-      "wz.upd.sameNoDesc": "Solo van tus perfiles y el mando; el otro hay que calibrarlo.",
       "bk.folder": "Carpeta de backups:",
       "bk.available": "Backups disponibles",
       "wz.title": "Backup",
@@ -2359,7 +2389,6 @@
       "wz.confirm": "Confirmar",
       "wz.now.where": "¿Dónde quieres guardar el backup?",
       "wz.now.intro": "Vamos a guardar tu TinyPilot tal como está ahora: todos sus ajustes y su tarjeta entera.\n\nHazlo en puerto: durante unos minutos el piloto no funcionará.",
-      "wz.upd.intro": "Vamos a pasar tu TinyPilot a la versión más nueva, con todos tus ajustes.\n\nNecesitas:\n• una tarjeta microSD nueva (Clase 10, 8 GB o más)\n• un lector de tarjetas en tu ordenador\n• el programa Raspberry Pi Imager\n\nHazlo en puerto: al final se cambia la tarjeta y el piloto estará parado un rato. Tu tarjeta de ahora no se toca.",
       "wz.upd.preparing": "Preparando tu tarjeta nueva. Tarda unos 10 minutos.\nMientras tanto el piloto sigue funcionando.",
       "wz.upd.downloading": "Se está descargando en tu ordenador.\nSi el navegador abrió otra ventana para la descarga, vuelve aquí cuando termine y pulsa Siguiente.",
       "wz.res.title": "Restaurar un backup",
@@ -2413,7 +2442,6 @@
       "wz.upd.c4": "Contraseña",
       "wz.upd.copied": "Ajustes guardados ✔",
       "wz.upd.copyFail": "No se han podido guardar todos los ajustes.\n{why}",
-      "wz.upd.same": "¿La tarjeta nueva es para este mismo TinyPilot?",
       "wz.upd.sameYes": "Sí, para este",
       "wz.upd.sameNo": "No, para otro",
       "wz.upd.p.start": "Empezando…",
@@ -3969,6 +3997,25 @@
       "bk.failed": "Sicherung fehlgeschlagen",
       "sd.title": "SD-Karte des TinyPilot",
       "sd.hint": "Ein vollständiges Abbild der Karte des TinyPilot (etwa 1 GB): System, pypilot, alle Profile und die IMU-Kalibrierung. Fällt die Karte aus, mit Raspberry Pi Imager auf eine neue Karte ab 2 GB schreiben. Nur mit ausgeschaltetem Autopilot. pypilot, Fernbedienung und Display halten für diese Minuten an und die Karte ist schreibgeschützt, damit das Abbild sauber ist. Die letzten 3 bleiben erhalten.",
+      "wz.sec.q": "Passwörter und Schlüssel in der Sicherung behalten? (Boots-WLAN, TinyPilot-Passwort, SSH-Schlüssel)",
+      "wz.sec.yes": "Ja, behalten",
+      "wz.sec.yesDesc": "Alles kommt von selbst zurück. Bewahre die Sicherung sicher auf.",
+      "wz.sec.no": "Nein, gebe ich selbst ein",
+      "wz.sec.noDesc": "Ohne sie; das WLAN wird am TinyPilot von Hand neu eingestellt.",
+      "wz.img.q": "Welche Version möchtest du installieren?",
+      "wz.img.newest": "neueste, empfohlen",
+      "wz.img.onPi": "auf diesem Raspberry Pi",
+      "wz.img.from": "Images von {url}",
+      "wz.experimental": "EXPERIMENTELL: mit Vorsicht verwenden.",
+      "wz.why.admin": "Melde dich in Signal K als Administrator an und versuch es noch einmal.",
+      "wz.why.moving": "Das Boot bewegt sich: mach die Kopie im Hafen.",
+      "wz.why.nostop": "pypilot hat nicht angehalten, also wurde nichts kopiert. Versuch es noch einmal.",
+      "wz.why.writes": "Schreiben auf den Autopiloten ist in den Plugin-Einstellungen ausgeschaltet.",
+      "wz.upd.same": "Kommt die neue Karte in genau diesen TinyPilot, ohne den Motor getauscht oder die IMU bewegt zu haben?",
+      "wz.upd.sameYesDesc": "Kalibrierung, Motor und Ruder kommen mit.",
+      "wz.upd.sameNoDesc": "Motor, Ruder und IMU bleiben auf Werkseinstellung: neu kalibrieren.",
+      "wz.upd.intro": "EXPERIMENTELL: mit Vorsicht verwenden.\n\nWir bringen deinen TinyPilot auf eine neuere Version, mit deinen Einstellungen.\n\nDu brauchst:\n• eine neue microSD-Karte (Class 10, 8 GB oder mehr)\n• einen Kartenleser am Computer\n• das Programm Raspberry Pi Imager\n\nMach es im Hafen: am Ende wird die Karte getauscht und der Autopilot steht eine Weile still. Der Assistent beschreibt nicht die eingesteckte Karte.",
+      "wz.res.confirmCard": "Die ganze Karte geht auf jenen Tag zurück: Sie wird auf eine Karte geschrieben und getauscht, wie bei einer Aktualisierung. Der Assistent beschreibt nicht die eingesteckte Karte.",
       "wz.upd.keepBg": "Im Hintergrund weitermachen",
       "wz.upd.cancelBtn": "Vorbereitung abbrechen",
       "wz.upd.srcQ": "Die Seite mit den TinyPilot-Images antwortet nicht:\n{url}\nHat sich die Adresse geändert? Gib die neue ein.",
@@ -4000,7 +4047,6 @@
       "wz.upd.fresh": "Ein neues vorbereiten",
       "wz.res.confirm": "Du spielst zurück:\n{name}",
       "wz.res.confirmJson": "Die Profile und Verstärkungen dieser Kopie kommen zurück. Sonst wird nichts verändert. Schalte vorher den Autopiloten aus.",
-      "wz.res.confirmCard": "Die ganze Karte geht auf jenen Tag zurück: Sie wird auf eine Karte geschrieben und getauscht, wie bei einer Aktualisierung. Deine jetzige Karte wird nicht verändert.",
       "wz.back": "Zurück",
       "wz.upd.w5old": "Der TinyPilot läuft noch mit der alten Karte ({ver}).\nHast du die Karte schon getauscht?",
       "wz.upd.oldYes": "Ja, getauscht",
@@ -4022,8 +4068,6 @@
       "wz.restoreDesc": "Hol eine frühere Sicherung zurück.",
       "wz.whichNowDesc": "Behalte eine Kopie deines TinyPilot, so wie er heute ist.",
       "wz.whichUpdDesc": "Bereite eine neue Karte mit der neuesten Version und all deinen Einstellungen vor.",
-      "wz.upd.sameYesDesc": "Deine Kalibrierung kommt mit.",
-      "wz.upd.sameNoDesc": "Nur Profile und Fernbedienung kommen mit; den anderen neu kalibrieren.",
       "bk.folder": "Sicherungsordner:",
       "bk.available": "Vorhandene Sicherungen",
       "wz.title": "Sicherung",
@@ -4037,7 +4081,6 @@
       "wz.confirm": "Bestätigen",
       "wz.now.where": "Wo soll die Sicherung gespeichert werden?",
       "wz.now.intro": "Wir speichern deinen TinyPilot so, wie er jetzt ist: alle Einstellungen und die ganze Karte.\n\nMach es im Hafen: einige Minuten lang funktioniert der Autopilot nicht.",
-      "wz.upd.intro": "Wir bringen deinen TinyPilot auf die neueste Version, mit all deinen Einstellungen.\n\nDu brauchst:\n• eine neue microSD-Karte (Class 10, 8 GB oder mehr)\n• einen Kartenleser am Computer\n• das Programm Raspberry Pi Imager\n\nMach es im Hafen: am Ende wird die Karte getauscht und der Autopilot steht eine Weile still. Deine jetzige Karte wird nicht verändert.",
       "wz.upd.preparing": "Bereitet deine neue Karte vor. Das dauert etwa 10 Minuten.\nDer Autopilot arbeitet währenddessen normal weiter.",
       "wz.upd.downloading": "Sie wird auf deinen Computer geladen.\nWenn der Browser dafür ein anderes Fenster geöffnet hat, komm hierher zurück, sobald es fertig ist, und drück Weiter.",
       "wz.res.title": "Sicherung zurückspielen",
@@ -4091,7 +4134,6 @@
       "wz.upd.c4": "Passwort",
       "wz.upd.copied": "Einstellungen gespeichert ✔",
       "wz.upd.copyFail": "Nicht alle Einstellungen konnten gespeichert werden.\n{why}",
-      "wz.upd.same": "Ist die neue Karte für genau diesen TinyPilot?",
       "wz.upd.sameYes": "Ja, für diesen",
       "wz.upd.sameNo": "Nein, für einen anderen",
       "wz.upd.p.start": "Startet…",
@@ -5529,6 +5571,25 @@
       "bk.failed": "Échec de la sauvegarde",
       "sd.title": "Carte SD du TinyPilot",
       "sd.hint": "Une image complète de la carte du TinyPilot (environ 1 Go) : système, pypilot, tous les profils et la calibration de l'IMU. Si la carte lâche, écrivez-la sur une carte neuve de 2 Go ou plus avec Raspberry Pi Imager. Uniquement pilote débrayé. Pendant ces minutes, pypilot, sa télécommande et son écran s'arrêtent et la carte passe en lecture seule, pour une image propre. Les 3 dernières sont gardées.",
+      "wz.sec.q": "Garder les mots de passe et clés dans la sauvegarde ? (wifi du bateau, mot de passe du TinyPilot, clés SSH)",
+      "wz.sec.yes": "Oui, les garder",
+      "wz.sec.yesDesc": "Tout revient tout seul. Range la sauvegarde en lieu sûr.",
+      "wz.sec.no": "Non, je les mettrai moi-même",
+      "wz.sec.noDesc": "Sans eux ; le wifi se remet à la main sur le TinyPilot.",
+      "wz.img.q": "Quelle version veux-tu installer ?",
+      "wz.img.newest": "la plus récente, conseillée",
+      "wz.img.onPi": "sur ce Raspberry Pi",
+      "wz.img.from": "Images de {url}",
+      "wz.experimental": "EXPÉRIMENTAL : à manier avec précaution.",
+      "wz.why.admin": "Connecte-toi à Signal K en administrateur et réessaie.",
+      "wz.why.moving": "Le bateau bouge : fais la copie à quai.",
+      "wz.why.nostop": "pypilot ne s'est pas arrêté, donc rien n'a été copié. Réessaie.",
+      "wz.why.writes": "L'écriture vers le pilote est désactivée dans les réglages du plugin.",
+      "wz.upd.same": "La nouvelle carte va-t-elle dans ce même TinyPilot, sans avoir changé le moteur ni bougé l'IMU ?",
+      "wz.upd.sameYesDesc": "La calibration, le moteur et le safran viennent avec.",
+      "wz.upd.sameNoDesc": "Moteur, safran et IMU restent en réglages d'usine : à calibrer.",
+      "wz.upd.intro": "EXPÉRIMENTAL : à manier avec précaution.\n\nNous allons passer ton TinyPilot à une version plus récente, avec tes réglages.\n\nIl te faut :\n• une carte microSD neuve (Classe 10, 8 Go ou plus)\n• un lecteur de cartes sur ton ordinateur\n• le programme Raspberry Pi Imager\n\nFais-le au port : à la fin on change la carte et le pilote s'arrête un moment. L'assistant n'écrit pas la carte en place.",
+      "wz.res.confirmCard": "Toute la carte revient à ce jour-là : on l'écrit sur une carte et on la change, comme pour une mise à jour. L'assistant n'écrit pas la carte en place.",
       "wz.upd.keepBg": "Continuer en arrière-plan",
       "wz.upd.cancelBtn": "Annuler la préparation",
       "wz.upd.srcQ": "La page des images TinyPilot ne répond pas :\n{url}\nL'adresse a-t-elle changé ? Écris la nouvelle.",
@@ -5560,7 +5621,6 @@
       "wz.upd.fresh": "En préparer une nouvelle",
       "wz.res.confirm": "Tu vas restaurer :\n{name}",
       "wz.res.confirmJson": "Les profils et gains de cette copie reviennent. Le reste n'est pas touché. Débraye d'abord le pilote.",
-      "wz.res.confirmCard": "Toute la carte revient à ce jour-là : on l'écrit sur une carte et on la change, comme pour une mise à jour. Ta carte actuelle n'est pas touchée.",
       "wz.back": "Retour",
       "wz.upd.w5old": "Le TinyPilot tourne encore sur l'ancienne carte ({ver}).\nAs-tu déjà changé la carte ?",
       "wz.upd.oldYes": "Oui, je l'ai changée",
@@ -5582,8 +5642,6 @@
       "wz.restoreDesc": "Récupère une sauvegarde faite avant.",
       "wz.whichNowDesc": "Garde une copie de ton TinyPilot tel qu'il est aujourd'hui.",
       "wz.whichUpdDesc": "Prépare une nouvelle carte avec la version la plus récente et tous tes réglages.",
-      "wz.upd.sameYesDesc": "Ta calibration vient avec.",
-      "wz.upd.sameNoDesc": "Seuls tes profils et la télécommande viennent ; l'autre est à calibrer.",
       "bk.folder": "Dossier des sauvegardes :",
       "bk.available": "Sauvegardes disponibles",
       "wz.title": "Sauvegarde",
@@ -5597,7 +5655,6 @@
       "wz.confirm": "Confirmer",
       "wz.now.where": "Où veux-tu enregistrer la sauvegarde ?",
       "wz.now.intro": "Nous allons enregistrer ton TinyPilot tel qu'il est maintenant : tous ses réglages et sa carte entière.\n\nFais-le au port : pendant quelques minutes, le pilote ne fonctionnera pas.",
-      "wz.upd.intro": "Nous allons passer ton TinyPilot à la version la plus récente, avec tous tes réglages.\n\nIl te faut :\n• une carte microSD neuve (Classe 10, 8 Go ou plus)\n• un lecteur de cartes sur ton ordinateur\n• le programme Raspberry Pi Imager\n\nFais-le au port : à la fin on change la carte et le pilote s'arrête un moment. Ta carte actuelle n'est pas touchée.",
       "wz.upd.preparing": "Préparation de ta nouvelle carte. Cela prend environ 10 minutes.\nPendant ce temps, le pilote continue de fonctionner.",
       "wz.upd.downloading": "Elle se télécharge sur ton ordinateur.\nSi le navigateur a ouvert une autre fenêtre pour cela, reviens ici quand c'est fini et appuie sur Suivant.",
       "wz.res.title": "Restaurer une sauvegarde",
@@ -5651,7 +5708,6 @@
       "wz.upd.c4": "Mot de passe",
       "wz.upd.copied": "Réglages enregistrés ✔",
       "wz.upd.copyFail": "Tous les réglages n'ont pas pu être enregistrés.\n{why}",
-      "wz.upd.same": "La nouvelle carte est-elle pour ce même TinyPilot ?",
       "wz.upd.sameYes": "Oui, pour celui-ci",
       "wz.upd.sameNo": "Non, pour un autre",
       "wz.upd.p.start": "Démarrage…",
@@ -9262,6 +9318,10 @@
   function _wzHuman(err) {
     const e = String(err || "");
     if (/engaged/i.test(e)) return t("wz.why.engaged");
+    if (/administrator/i.test(e)) return t("wz.why.admin");
+    if (/moving/i.test(e)) return t("wz.why.moving");
+    if (/did not stop/i.test(e)) return t("wz.why.nostop");
+    if (/allowWrites/i.test(e)) return t("wz.why.writes");
     if (/SSH|ssh/.test(e)) return t("wz.why.ssh");
     if (/space/i.test(e)) return t("wz.why.space");
     if (/pypilot\.org|reach/i.test(e)) return t("wz.why.internet");
@@ -9274,6 +9334,13 @@
     const newest = st && st.pypilotOrg && st.pypilotOrg.images && st.pypilotOrg.images[0];
     if (!newest || !o || !o.source) return "";
     return "\n\n" + (newest.name === o.source ? t("wz.upd.isNewest").replace("{date}", newest.date) : t("wz.upd.newer").replace("{name}", newest.name));
+  }
+  /** Rev745 (Carlos): keep the passwords and keys in the backup, or not. */
+  async function _wzAskSecrets(T, step) {
+    return _wz({ title: T, step, text: t("wz.sec.q"), extra: _wzBack(), cards: [
+      { id: "yes", icon: "save", title: t("wz.sec.yes"), desc: t("wz.sec.yesDesc") },
+      { id: "no", icon: "no", title: t("wz.sec.no"), desc: t("wz.sec.noDesc") },
+    ] });
   }
   // ---- Start: two choices ----
   // Rev741: every window has "Back" (except while it works); the flows are
@@ -9295,7 +9362,7 @@
       if (s === "which") {
         const b = await _wz({ title: T, text: t("wz.which"), extra: _wzBack(), cards: [
           { id: "now", icon: "save", title: t("wz.whichNow"), desc: t("wz.whichNowDesc") },
-          { id: "upd", icon: "update", title: t("wz.whichUpd"), desc: t("wz.whichUpdDesc") },
+          { id: "upd", icon: "update", title: t("wz.whichUpd"), desc: t("wz.whichUpdDesc") + " " + t("wz.experimental") },
         ] });
         if (b === "back") { s = "what"; continue; }
         if (b === "now") { if ((await _wzBackupNow()) === "back") continue; return _wzClose(); }
@@ -9332,17 +9399,24 @@
   // ---- make a backup of the installation as it is now ----
   async function _wzBackupNow() {
     const T = t("wz.now.title");
-    let s = "where", where = null;
+    let s = "where", where = null, keep = false;
     for (;;) {
       if (s === "where") {
         where = await _wzWhere(T, t("wz.now.where"));
         if (where === "back") return "back";
         if (!where) return "x";
+        s = "keys"; continue;
+      }
+      if (s === "keys") {
+        const r = await _wzAskSecrets(T, "");
+        if (r === "back") { s = "where"; continue; }
+        if (r !== "yes" && r !== "no") return "x";
+        keep = r === "yes";
         s = "intro"; continue;
       }
       if (s === "intro") {
         const r = await _wz({ title: T, text: t("wz.now.intro"), extra: _wzBack(), button: { id: "go", label: t("wz.now.go") } });
-        if (r === "back") { s = "where"; continue; }
+        if (r === "back") { s = "keys"; continue; }
         if (r !== "go") return "x";
         s = "work"; continue;
       }
@@ -9350,7 +9424,7 @@
       let err = null, check = null, file = null, doneDest = "default";
       try {
         _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
-        await _wzPost("backup/now");
+        await _wzPost("backup/now", { secrets: keep });
         await _wzPost("tinypilot/sd-backup", where);
         for (;;) {
           await _wzSleep(2000);
@@ -9435,7 +9509,7 @@
     const S = (n) => t("wz.stepOf").replace("{n}", String(n)).replace("{total}", String(N));
     let st = null;
     try { st = await _wzJson("tinypilot/image/status?listing=1"); } catch { /* fresh start */ }
-    let result = null, sameBoat = true, s = "intro";
+    let result = null, sameBoat = true, keep = false, imgUrl = "", s = "intro";
     if (st && st.job && st.job.kind === "prepare" && st.job.running) s = "prepare";
     else if (st && st.outputs && st.outputs.length) s = "resume";
     for (;;) {
@@ -9455,20 +9529,27 @@
         const r = await _wz({ title: T, text: t("wz.upd.intro"), extra: _wzBack(), button: { id: "go", label: t("wz.start") } });
         if (r === "back") return "back";
         if (r !== "go") return "x";
+        s = "keys"; continue;
+      }
+      if (s === "keys") {
+        const r = await _wzAskSecrets(T, S(1));
+        if (r === "back") { s = "intro"; continue; }
+        if (r !== "yes" && r !== "no") return "x";
+        keep = r === "yes";
         s = "copy"; continue;
       }
       if (s === "copy") {
         _wz({ title: T, step: S(1), text: t("wz.upd.copying"), progress: { pct: 40, text: "" } });
         let s2 = null, err = null;
-        try { await _wzPost("backup/now"); s2 = await _wzJson("tinypilot/image/status"); } catch (e) { err = String(e.message || e); }
+        try { await _wzPost("backup/now", { secrets: keep }); s2 = await _wzJson("tinypilot/image/status?listing=1"); st = s2; } catch (e) { err = String(e.message || e); }
         const has = (s2 && s2.copy && s2.copy.has) || {};
         const lines = [
           { ok: !!has["pypilot.conf"], label: t("wz.upd.c1") }, { ok: !!has["networking.txt"], label: t("wz.upd.c2") },
-          { ok: !!has["hat.conf"], label: t("wz.upd.c3") }, { ok: !!has["sys/shadow-tc"], label: t("wz.upd.c4") },
+          { ok: !!has["hat.conf"], label: t("wz.upd.c3") }, ...(keep ? [{ ok: !!has["sys/shadow-tc"], label: t("wz.upd.c4") }] : []),
         ];
         const good = !err && has["pypilot.conf"] && has["networking.txt"];
         const r = await _wz({ title: T, step: S(1), text: good ? t("wz.upd.copied") : t("wz.upd.copyFail").replace("{why}", _wzHuman(err || "ssh")), list: lines, extra: _wzBack(), button: good ? { id: "go", label: t("wz.next") } : { id: "again", label: t("wz.again") } });
-        if (r === "back") { s = "intro"; continue; }
+        if (r === "back") { s = "keys"; continue; }
         if (r === "again") continue;
         if (r !== "go") return "x";
         s = "same"; continue;
@@ -9481,6 +9562,25 @@
         if (r === "back") { s = "copy"; continue; }
         if (r !== "yes" && r !== "no") return "x";
         sameBoat = r === "yes";
+        s = "image"; continue;
+      }
+      if (s === "image") {
+        // Rev745 (Carlos): the images on the page, the newest recommended;
+        // and the ones already on this Raspberry Pi or a USB stick
+        let sx = st;
+        try { sx = await _wzJson("tinypilot/image/status?listing=1"); st = sx; } catch { /* keep */ }
+        const org = (sx && sx.pypilotOrg && sx.pypilotOrg.images) || [];
+        const local = ((sx && sx.sources) || []).filter((l) => !org.some((o) => o.name === l.name));
+        if (!org.length && !local.length) { s = "source"; continue; }
+        const opt = (v, label, sub, sel) => `<label style="display:block;margin:8px 0"><input type="radio" name="wz-img" value="${_wzEsc(v)}" ${sel ? "checked" : ""}/> <b>${_wzEsc(label)}</b>${sub ? `<br><span class="hint">${_wzEsc(sub)}</span>` : ""}</label>`;
+        const html = `<div style="max-height:46dvh;overflow-y:auto">`
+          + org.map((o, i) => opt(`url|${o.url}`, `TinyPilot ${o.date}`, i === 0 ? `${o.name} · ${t("wz.img.newest")}` : o.name, i === 0)).join("")
+          + local.map((l, i) => opt(`src|${l.path}`, l.name, `${t("wz.img.onPi")} · ${Math.round(l.size / 1048576)} MB`, !org.length && i === 0)).join("")
+          + `</div><div class="hint" style="margin-top:6px">${_wzEsc(t("wz.img.from").replace("{url}", (sx && sx.imageSource) || ""))}</div>`;
+        const r = await _wz({ title: T, step: S(2), text: t("wz.img.q"), html, extra: _wzBack(), button: { id: "ok", label: t("wz.next") } });
+        if (r === "back") { s = "same"; continue; }
+        if (r !== "ok") return "x";
+        imgUrl = document.querySelector('input[name="wz-img"]:checked')?.value || "";
         s = "prepare"; continue;
       }
       if (s === "prepare") {
@@ -9489,7 +9589,9 @@
         try {
           if (!(st && st.job && st.job.kind === "prepare" && st.job.running)) {
             _wz({ title: T, step: S(3), text: t("wz.upd.preparing"), progress: { pct: 2, text: t("wz.upd.p.start") } });
-            await _wzPost("tinypilot/image/prepare", { imu: sameBoat, groups: sameBoat ? {} : { wifi: false, motor: false, login: false } });
+            const groups = { ...(sameBoat ? {} : { motor: false }), ...(keep ? {} : { wifi: false, login: false }) };
+            const pick = imgUrl.startsWith("url|") ? { url: imgUrl.slice(4) } : imgUrl.startsWith("src|") ? { src: imgUrl.slice(4) } : {};
+            await _wzPost("tinypilot/image/prepare", { imu: sameBoat, groups, ...pick });
           }
           st = null;
           const t0 = Date.now();
@@ -9529,7 +9631,7 @@
         // Rev744 (Carlos): the page with the official images may have moved
         if (/image page unreachable|download: HTTP|no TinyPilot images/i.test(String(err || ""))) { s = "source"; continue; }
         const r = await _wz({ title: T, step: S(3), text: t("wz.upd.prepFail").replace("{why}", _wzHuman(err)), extra: _wzBack(), button: { id: "again", label: t("wz.again") } });
-        if (r === "back") { s = "same"; continue; }
+        if (r === "back") { s = "image"; continue; }
         if (r !== "again") return "x";
         continue;
       }

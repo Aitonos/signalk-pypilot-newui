@@ -47,13 +47,21 @@ describe("TinyPilot SD image (Rev671)", () => {
     const c: string = sdReadConsistentCommand(1094, 1800);
     assert.match(c, /setsid sh -c 'sleep 1800; sudo mount -o remount,rw \/mnt\/mmcblk0p2 [^']*sudo sv up [^']*' <\/dev\/null/);
     assert.match(c, /trap '[^']*remount,rw[^']*sv up[^']*' EXIT HUP INT TERM/);
-    assert.ok(c.indexOf("sv down") < c.indexOf("remount,ro") && c.indexOf("remount,ro") < c.indexOf("dd if=/dev/mmcblk0"));
+    assert.ok(c.indexOf("sv -w 15 down") < c.indexOf("remount,ro") && c.indexOf("remount,ro") < c.indexOf("dd if=/dev/mmcblk0"));
     assert.match(c, /echo "PNU_RO=\$RO" >&2/);
-    assert.match(c, /dd if=\/dev\/mmcblk0 bs=1M count=1094 2>\/dev\/null$/);
+    assert.match(c, /dd if=\/dev\/mmcblk0 bs=1M count=1094 2>\/dev\/null & DD=\$!; wait \$DD$/);
     // nothing but the image may reach stdout
     for (const part of c.split("; ")) {
-      if (/^(sudo sv down|sudo mount -o remount,ro)/.test(part)) assert.match(part, />\/dev\/null 2>&1/);
+      if (/^(sudo sv -w 15 down|sudo mount -o remount,ro)/.test(part)) assert.match(part, />\/dev\/null 2>&1/);
     }
+  });
+  it("Rev745: the safety net and dd are killed on exit; no copy unless the services are really down", () => {
+    const { sdReadConsistentCommand } = require("../tinypilot-sd");
+    const c: string = sdReadConsistentCommand(1094, 1800);
+    assert.match(c, /<\/dev\/null >\/dev\/null 2>&1 & NET=\$!; /);
+    assert.match(c, /trap 'kill \$DD 2>\/dev\/null; kill -TERM -\$NET 2>\/dev\/null; [^']*' EXIT/);
+    assert.ok(c.indexOf('grep -q "^run:"') > c.indexOf("sv -w 15 down") && c.indexOf('grep -q "^run:"') < c.indexOf("dd if="));
+    assert.match(c, /echo "PNU_SVUP=1" >&2; exit 3/);
   });
   it("names and keeps the newest three", () => {
     // Rev737: version, boat, date and time, "backup"

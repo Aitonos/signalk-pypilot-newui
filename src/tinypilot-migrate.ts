@@ -174,9 +174,11 @@ export function mergePypilotConf(imageText: string | null, boatText: string, gro
     if (droppedProfileKeys.size) warnings.push(`Profile values the new image does not know were left out: ${[...droppedProfileKeys].join(", ")}.`);
   }
   if (groups.imu) {
-    for (const k of ["imu.accel.calibration.locked", "imu.compass.calibration.locked"]) {
-      if (boatGlobal.get(k) === "true") warnings.push(`${k} is true in the copy: that calibration stays locked on the new card.`);
-    }
+    // Rev745 (Gemini): a locked accelerometer calibration blocks calibrating
+    // again on 0.71; it is only ever redone by hand, so unlocking is harmless.
+    const i = out.findIndex((l) => l.key === "imu.accel.calibration.locked");
+    if (i >= 0 && out[i].raw === "true") { out[i] = { key: out[i].key, raw: "false" }; warnings.push("imu.accel.calibration.locked set to false on the new card (it blocks calibrating again)."); }
+    if (boatGlobal.get("imu.compass.calibration.locked") === "true") warnings.push("imu.compass.calibration.locked is true in the copy: that calibration stays locked on the new card.");
   }
   return { text: serialize({ global: out, sections, bad: [] }), changes, droppedProfileKeys: [...droppedProfileKeys], notCarried, profiles, warnings };
 }

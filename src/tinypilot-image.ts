@@ -19,7 +19,7 @@ import fs from "fs";
 import path from "path";
 import {
   Groups, mergePypilotConf, mergeNetworking, mergeNetworkingClient, mergeHatConf, mergeSmallFile,
-  leftoverFiles, mergeOnboot, mergeShadow, ConfChange,
+  leftoverFiles, mergeOnboot, mergeShadow, ConfChange, SK_FIX_TCZ,
 } from "./tinypilot-migrate";
 
 export interface MbrPart { index: number; type: number; start: number; sectors: number }
@@ -157,7 +157,12 @@ export class ImageFs {
   }
   async apply(script: string, scriptFile: string): Promise<RunResult> {
     fs.writeFileSync(scriptFile, script);
-    return run(findTool(DEBUGFS)!, ["-w", "-f", scriptFile, this.dev()], { timeoutMs: 300_000 });
+    const r = await run(findTool(DEBUGFS)!, ["-w", "-f", scriptFile, this.dev()], { timeoutMs: 300_000 });
+    // Rev745 (Gemini): debugfs reports most failures on stderr with exit 0.
+    // "rm" of a file that is not there is expected; anything else stops.
+    const bad = r.stderr.split(/\r?\n/).filter((l) => l.trim() && !/^debugfs \d/.test(l) && !/^debugfs: /.test(l) && !/File not found by ext2_lookup/.test(l));
+    if (r.code === 0 && bad.length) return { ...r, code: 1, stderr: bad.join("; ") };
+    return r;
   }
   async fsck(): Promise<RunResult> { return run(findTool(E2FSCK)!, ["-fn", this.dev()], { timeoutMs: 600_000 }); }
 }
@@ -247,6 +252,7 @@ export interface ImageInfo {
   optional: string[];
   mydata: { present: boolean; members: string[]; shadowTc: string | null; hostKeys: string[] };
   pypilotVersion: string | null;
+  deps?: Record<string, string[]>;
 }
 
 export const CRITICAL_FILES = ["pypilot.conf", "networking.txt", "networking.txt-client", "hat.conf", "servodevice", "pypilot_client.conf", "web.conf", "nmea0device", "lcddriver", "blacklist_serial_ports", "gpsd_baud_hint"];
@@ -275,6 +281,14 @@ export async function analyzeImage(src: string, workDir: string, progress: Progr
   for (const f of CRITICAL_FILES) files[f] = dir.some((e) => e.name === f) ? await ifs.cat(`/.pypilot/${f}`) : null;
   const onboot = await ifs.cat("/tce/onboot.lst");
   const optional = ((await ifs.ls("/tce/optional")) ?? []).map((e) => e.name);
+  // Rev745 (Gemini): the .dep of each Signal K package, to check its
+  // dependencies are in the image before adding it to onboot.lst.
+  const deps: Record<string, string[]> = {};
+  for (const tcz of SK_FIX_TCZ) {
+    if (!optional.includes(tcz + ".dep")) { deps[tcz] = []; continue; }
+    const d = await ifs.cat(`/tce/optional/${tcz}.dep`);
+    deps[tcz] = (d ?? "").split(/\s+/).map((x) => x.trim()).filter(Boolean);
+  }
   const mydata = { present: false, members: [] as string[], shadowTc: null as string | null, hostKeys: [] as string[] };
   const md = path.join(w.tmp, "mydata.tgz");
   if (await ifs.dump("/tce/mydata.tgz", md)) {
@@ -297,7 +311,7 @@ export async function analyzeImage(src: string, workDir: string, progress: Progr
   for (const vp of ["/tinypilot/pypilot/pypilot/version.py", "/tinypilot/pypilot/version.py", "/pypilot/pypilot/version.py"]) { v = await ifs.cat(vp); if (v) break; }
   const m = v ? (/strversion\s*=\s*['"]([^'"]+)['"]/.exec(v) || /version\s*=\s*['"]([^'"]+)['"]/.exec(v)) : null;
   if (m) pypilotVersion = m[1];
-  return { src, raw: w.raw, offsetBytes: p2.start * 512, pypilotDir: dir, files, onboot, optional, mydata, pypilotVersion };
+  return { src, raw: w.raw, offsetBytes: p2.start * 512, pypilotDir: dir, files, onboot, optional, mydata, pypilotVersion, deps };
 }
 
 export interface FileRow { file: string; inCopy: boolean; inImage: boolean; action: "merge" | "copy" | "skip" | "remove"; reason: string }
@@ -345,7 +359,9 @@ export function planBuild(info: ImageInfo, copy: Record<string, string>, groups:
 
   let onbootAdded: string[] = [];
   if (groups.skFix && info.onboot != null) {
-    const o = mergeOnboot(info.onboot, info.optional);
+    // a package whose dependencies are missing from the image is left out
+    const okOptional = info.optional.filter((n) => !SK_FIX_TCZ.includes(n) || (info.deps?.[n] ?? []).every((d) => info.optional.includes(d)));
+    const o = mergeOnboot(info.onboot, okOptional);
     onbootAdded = o.added;
     rows.push({ file: "tce/onboot.lst", inCopy: false, inImage: true, action: o.added.length ? "merge" : "skip", reason: o.added.length ? `Signal K packages added: ${o.added.length}` : "nothing to add (already there or not in the image)" });
     if (o.added.length) writes.push({ name: "/tce/onboot.lst", text: o.text });
@@ -375,6 +391,16 @@ export function planBuild(info: ImageInfo, copy: Record<string, string>, groups:
   return { rows, conf, writes, removes, onbootAdded, mydata };
 }
 
+/** Rev745 (Gemini L): owner and mode of a file written into the image. A
+ *  file the image already has keeps its own; a NEW file in ~/.pypilot takes
+ *  pypilot.conf's (tc:staff), never the uid of the process running here; a
+ *  file in /tce/ keeps the one it replaces, else root. */
+export function ownerFor(name: string, pypilotDir: DirEntry[], tceDir: DirEntry[]): { mode: number; uid: number; gid: number } {
+  const isAbs = name.startsWith("/");
+  const m = isAbs ? tceDir.find((e) => `/tce/${e.name}` === name) : (pypilotDir.find((e) => e.name === name) ?? pypilotDir.find((e) => e.name === "pypilot.conf"));
+  return { mode: m ? m.mode : 0o644, uid: m ? m.uid : 0, gid: m ? m.gid : 0 };
+}
+
 /** Applies a plan to the unpacked image and produces the .img.gz. */
 export async function buildImage(info: ImageInfo, plan: BuildPlan, outFile: string, progress: Progress): Promise<{ file: string; sha256: string; bytes: number }> {
   const w = workPaths(path.dirname(info.raw));
@@ -388,8 +414,8 @@ export async function buildImage(info: ImageInfo, plan: BuildPlan, outFile: stri
     fs.writeFileSync(local, wr.text);
     const isAbs = wr.name.startsWith("/");
     const target = isAbs ? wr.name : `/.pypilot/${wr.name}`;
-    const m = isAbs ? tce?.find((e) => `/tce/${e.name}` === wr.name) : (meta(wr.name) ?? meta("pypilot.conf"));
-    ops.push({ path: target, local, mode: m ? m.mode : 0o644, uid: m ? m.uid : 0, gid: m ? m.gid : 0 });
+    const o = ownerFor(wr.name, info.pypilotDir, tce ?? []);
+    ops.push({ path: target, local, ...o });
   });
   if (Object.keys(plan.mydata).length) {
     progress("mydata");

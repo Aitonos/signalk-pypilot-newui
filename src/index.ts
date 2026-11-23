@@ -87,6 +87,7 @@ import { accessReport, AccessReport, DiagRing, maskHost, sanitizeConfig } from "
 import { HostKeyMemory } from "./tinypilot-hostkey";
 import { analyzeImage, planBuild, buildImage, ImageInfo, BuildPlan, toolsMissing as imgToolsMissing, freeBytes as imgFreeBytes, run as imgRun, verifyCompressed, validateImageFile, sha256File as imgSha256, killCurrent as imgKillCurrent } from "./tinypilot-image";
 import { DEFAULT_GROUPS, Groups } from "./tinypilot-migrate";
+import { blankWifiKeys } from "./settings-backup";
 import { backupDir, listBackups, writeBackup, writeLatestCopy, LATEST_COPY_NAME, isBackupName, tinypilotCopyCommand, parseTinypilotFiles, dayName, BACKUP_KEEP } from "./settings-backup";
 import { TripRecorder, TripSample } from "./trip-recorder";
 import {
@@ -97,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev744";
+const PLUGIN_REVISION = "Rev745";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -497,6 +498,7 @@ module.exports = function (app: any) {
   // hangs never hides a real problem for long. signalk-mareas-ihm reads the
   // same path and holds its IMU-stale warning.
   let _maintenance: { reason: string; sinceMs: number; untilMs: number } | null = null;
+  let _lastImuTs = 0;   // Rev745: last new IMU heading from pypilot
   const MAINT_PATH = "notifications.autopilot.maintenance";
   const _maintActive = (): boolean => !!(_maintenance && Date.now() < _maintenance.untilMs);
   const _publishMaint = (on: boolean): void => {
@@ -520,6 +522,28 @@ module.exports = function (app: any) {
     if (!_maintenance) return;
     _maintenance = null;
     _publishMaint(false);
+  };
+  /** Rev745 (GPT): the notice goes only when pypilot answers again AND new
+   *  IMU headings arrive - never by time alone. If that does not happen in
+   *  3 minutes, a clear "autopilot not verified" warning replaces it and the
+   *  alarms count again. */
+  const _endMaintenanceWhenBack = (sinceMs: number): void => {
+    const t0 = Date.now();
+    const tick = () => {
+      if (!_maintenance) return;
+      if (client?.healthy && _lastImuTs > sinceMs) { _clearMaintenance(); return; }
+      if (Date.now() - t0 > 180_000) {
+        _maintenance = null;
+        try {
+          app.handleMessage(PLUGIN_ID, { context: "vessels." + app.selfId, updates: [{ $source: SOURCE_LABEL, timestamp: new Date().toISOString(), values: [{
+            path: MAINT_PATH, value: { state: "warn", method: ["visual", "sound"], message: "The autopilot did not come back after the backup: check it before using it." },
+          }] }] });
+        } catch { /* silent */ }
+        return;
+      }
+      setTimeout(tick, 2000);
+    };
+    setTimeout(tick, 2000);
   };
   let disconnectedSinceMs: number | null = null;
   let lastEngagedMs: number | null = null;   // Rev710: pypilot-disconnected only if engaged
@@ -797,6 +821,20 @@ module.exports = function (app: any) {
     const key = req.headers?.["x-pnu-admin"] || req.query?.admin;
     if (_adminPinOf().allows(key)) return true;
     res.status(403).json({ error: "admin PIN required", adminRequired: true });
+    return false;
+  };
+  /** Rev745 (GPT + Gemini F1): backups and images can hold the wifi key,
+   *  the TinyPilot's password hash and its SSH host keys. Serving them, and
+   *  stopping pypilot, needs a Signal K administrator - whatever the plugin's
+   *  own PIN says. Signal K identifies the session by its cookie, so a plain
+   *  download link works for a logged-in admin. With Signal K's security off,
+   *  nothing is checked (like the rest of the server). */
+  const requireSkAdmin = (req: any, res: any): boolean => {
+    if (!requireAdmin(req, res)) return false;
+    const strategy = (app as any).securityStrategy;
+    const securityOn = !!strategy && !(typeof strategy.isDummy === "function" && strategy.isDummy());
+    if (!securityOn || req.skPrincipal?.permissions === "admin") return true;
+    res.status(403).json({ error: "Signal K administrator login required", skAdminRequired: true });
     return false;
   };
   // Rev648 (Carlos 2026-11-06): after the sailor stops or deletes the trip
@@ -1144,6 +1182,7 @@ module.exports = function (app: any) {
       });
 
       client.on("value", (name: string, value: unknown) => {
+        if (name === "imu.heading" || name === "imu.heading_lowpass") _lastImuTs = Date.now();   // Rev745
         // Rev696: heading fallback - one delta per new heading, at most 5 Hz.
         if (imuFallbackActive && name === "imu.heading_lowpass" && Date.now() - imuFallbackLastPub >= 200) {
           imuFallbackLastPub = Date.now();
@@ -3291,6 +3330,12 @@ module.exports = function (app: any) {
           try { return JSON.parse(txt); } catch { return txt; }
         } catch { return null; }
       };
+      // Rev745 (Carlos): keep the passwords and keys (wifi, TinyPilot, SSH) in
+      // the backup or not - asked when a backup is made, remembered for the
+      // automatic daily copy (default: not kept).
+      const _bkSecretsFile = () => require("path").join(app.getDataDirPath ? app.getDataDirPath() : ".", "backup-secrets.json");
+      const _bkKeepSecrets = (): boolean => { try { return JSON.parse(require("fs").readFileSync(_bkSecretsFile(), "utf8"))?.keep === true; } catch { return false; } };
+      const _bkSetKeepSecrets = (keep: boolean): void => { try { require("fs").writeFileSync(_bkSecretsFile(), JSON.stringify({ keep })); } catch { /* silent */ } };
       async function _bkRun(): Promise<{ ok: boolean; name?: string; error?: string }> {
         if (_bkBusy) return { ok: false, error: "a backup is already being made" };
         _bkBusy = true;
@@ -3307,10 +3352,13 @@ module.exports = function (app: any) {
           // pypilot's own files hold every profile's gains; best effort.
           let tinypilot: { files: Record<string, string>; error?: string } = { files: {} };
           if (props.sshPassword) {
-            const r = await _runSsh(tinypilotCopyCommand(), 30000, { raw: true });
+            const keep = _bkKeepSecrets();
+            const r = await _runSsh(tinypilotCopyCommand(keep), 30000, { raw: true });
             tinypilot = r.ok || r.stdout.includes("===PNU:FILE===")
               ? { files: parseTinypilotFiles(r.stdout) }
               : { files: {}, error: (r.error || r.stdout || "ssh failed").slice(0, 200) };
+            if (!keep && tinypilot.files["networking.txt"]) tinypilot.files["networking.txt"] = blankWifiKeys(tinypilot.files["networking.txt"]);
+            (tinypilot as any).secrets = keep;
           } else tinypilot.error = "SSH not configured: only the active profile is in this copy";
           _bkLastTinypilot = tinypilot.error || null;
           const content = {
@@ -3393,7 +3441,8 @@ module.exports = function (app: any) {
         });
       });
       router.post("/backup/now", async (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;   // Rev653
+        if (!requireSkAdmin(req, res)) return;   // Rev653
+        if (typeof req.body?.secrets === "boolean") _bkSetKeepSecrets(req.body.secrets);   // Rev745
         res.json(await _bkRun());
       });
       // ---- Rev668 (Carlos 2026-11-09): restore pypilot from a copy ----
@@ -3440,10 +3489,11 @@ module.exports = function (app: any) {
         res.json(_restoreJob || { running: false });
       });
       router.post("/backup/restore", (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         if (!props.allowWrites) { res.status(403).json({ error: "allowWrites disabled" }); return; }
         if (!client || !client.connected) { res.status(503).json({ error: "pypilot not connected" }); return; }
         if (_restoreJob?.running) { res.status(409).json({ error: "a restore is already running" }); return; }
+        if (_sdJob?.running || _imgJob?.running) { res.status(409).json({ error: "another backup job is running" }); return; }   // Rev745
         if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
         const name = String(req.body?.name || "");
         // Rev671 (Carlos 2026-11-09): only our part - profiles. Installation
@@ -3626,10 +3676,19 @@ module.exports = function (app: any) {
         });
       };
       router.post("/tinypilot/sd-backup", async (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         if (!props.sshPassword) { res.status(409).json({ error: "SSH to the TinyPilot is not configured" }); return; }
         if (_pypilotIsLocal()) { res.status(409).json({ error: "pypilot runs on this Signal K machine: there is no TinyPilot card to copy" }); return; }   // Rev707
         if (_sdJob?.running) { res.status(409).json({ error: "a copy is already running" }); return; }
+        // Rev745 (GPT + Gemini F4/F5/F8): one heavy job at a time, writes
+        // allowed, and the boat stopped (or no speed known) - checked here,
+        // right before pypilot is stopped.
+        if (_imgJob?.running || _restoreJob?.running) { res.status(409).json({ error: "another backup job is running" }); return; }
+        if (props.allowWrites === false) { res.status(403).json({ error: "allowWrites disabled" }); return; }
+        {
+          const sog = Number((app.getSelfPath("navigation.speedOverGround") as any)?.value);
+          if (Number.isFinite(sog) && sog >= 0.5) { res.status(409).json({ error: `the boat is moving (${(sog * 1.94384).toFixed(1)} kn): make the copy moored` }); return; }
+        }
         if (_apEngagedNow()) { res.status(409).json({ error: "the autopilot is engaged - disengage it first" }); return; }
         // Rev673: a folder picked in the folder browser, checked again here.
         if (typeof req.body?.folder === "string") {
@@ -3658,9 +3717,9 @@ module.exports = function (app: any) {
         _setMaintenance("backup", 40 * 60_000);   // Rev742: pypilot stops for the copy
         const r = await _sshStreamToGzip(sdReadConsistentCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
         job.consistent = /PNU_RO=1/.test(r.stderr || "");
-        // Rev742: pypilot is started again at the end of the stream; give it
-        // a moment to come back before alarms count again.
-        setTimeout(_clearMaintenance, 20_000);
+        // Rev745: the notice goes when pypilot is verified back (not by time).
+        if (/PNU_SVUP=1/.test(r.stderr || "")) job.error = "pypilot did not stop: nothing was copied";
+        _endMaintenanceWhenBack(Date.now());
         if (!r.ok) job.error = r.error || "failed";
         else if (r.bytes < job.totalBytes) job.error = `short read: ${r.bytes} of ${job.totalBytes} bytes`;
         if (!job.error) {
@@ -3736,7 +3795,7 @@ module.exports = function (app: any) {
       };
       const _sdChecking = new Set<string>();
       router.delete("/backup/file/:name", (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         const name = String(req.params?.name || "");
         if (!isBackupName(name)) { res.status(404).json({ error: "not found" }); return; }
         try { require("fs").unlinkSync(require("path").join(backupDir(), name)); } catch { res.status(404).json({ error: "not found" }); return; }
@@ -3744,7 +3803,7 @@ module.exports = function (app: any) {
         res.json({ ok: true });
       });
       router.delete("/tinypilot/sd-file/:name", (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         const name = String(req.params?.name || "");
         const dest = _sdDests().find((d: any) => d.id === String(req.query?.dest || "default"));
         if (!isSdImageName(name) || !dest) { res.status(404).json({ error: "not found" }); return; }
@@ -3800,7 +3859,7 @@ module.exports = function (app: any) {
         res.json({ ok: true, dir: rp });
       });
       router.get("/tinypilot/sd-download/:name", (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         const name = String(req.params?.name || "");
         if (!isSdImageName(name)) { res.status(404).json({ error: "not found" }); return; }
         const dest = _sdDests().find((d) => d.id === String(req.query?.dest || "default"));
@@ -3811,7 +3870,7 @@ module.exports = function (app: any) {
         res.type("application/gzip").sendFile(file);
       });
       router.get("/backup/download/:name", (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;   // Rev653
+        if (!requireSkAdmin(req, res)) return;   // Rev653
         let name = String(req.params?.name || "");
         if (name === "latest") name = listBackups(backupDir())[0]?.name || "";
         if (!isBackupName(name)) { res.status(404).json({ error: "not found" }); return; }
@@ -3839,6 +3898,19 @@ module.exports = function (app: any) {
       type ImgJob = { kind: "fetch" | "analyze" | "build" | "prepare"; running: boolean; step: string; detail: string | null; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null };
       let _imgJob: ImgJob | null = null;
       let _imgInfo: ImageInfo | null = null;
+      // Rev745 (GPT + Gemini F3): what a restart may have left half done (it
+      // can hold secrets), and a planned-stop notice that never ended.
+      try {
+        const fs2 = require("fs"), path2 = require("path");
+        const work = path2.join(backupDir(), "tinypilot-images", "work");
+        for (const n of (fs2.existsSync(work) ? fs2.readdirSync(work) : [])) {
+          if (n === "new.img" || n.endsWith(".part") || n.startsWith("check-")) { try { fs2.unlinkSync(path2.join(work, n)); } catch { /* gone */ } }
+        }
+        try { fs2.rmSync(path2.join(work, "tmp"), { recursive: true, force: true }); } catch { /* none */ }
+        const base = path2.join(backupDir(), "tinypilot-images");
+        for (const n of (fs2.existsSync(base) ? fs2.readdirSync(base) : [])) if (n.endsWith(".part")) { try { fs2.unlinkSync(path2.join(base, n)); } catch { /* gone */ } }
+      } catch { /* best effort */ }
+      _publishMaint(false);
       let _imgLastPlan: ReturnType<typeof _imgPlanSummaryT> | null = null;
       let _imgListing: { ts: number; images: { name: string; url: string; date: string }[]; error: string | null } | null = null;
       const _imgBase = () => require("path").join(backupDir(), "tinypilot-images");
@@ -3882,7 +3954,7 @@ module.exports = function (app: any) {
           try { const st = fs2.statSync(p); size = st.size; ts = st.mtimeMs; } catch { /* gone */ }
           try { sha = fs2.readFileSync(p + ".sha256", "utf8").split(/\s+/)[0] || null; } catch { /* none */ }
           let check: any = null;
-          try { check = JSON.parse(fs2.readFileSync(p + ".check.json", "utf8")); } catch { /* older ones: checked when built if the .sha256 is there */ if (sha) check = { ok: true, detail: "checked when prepared" }; }
+          try { check = JSON.parse(fs2.readFileSync(p + ".check.json", "utf8")); if (check && typeof check.size === "number" && check.size !== size) check = null; } catch { /* older ones: checked when built if the .sha256 is there */ if (sha) check = { ok: true, detail: "checked when prepared" }; }
           return { name: n, size, ts, sha256: sha, check, source: check?.source ?? null, note: _noteOf(p) };
         }).sort((a, b) => b.ts - a.ts);
       };
@@ -3916,6 +3988,7 @@ module.exports = function (app: any) {
       const _imgBusy = (res: any): boolean => {
         if (_imgJob?.running) { res.status(409).json({ error: "the assistant is already working" }); return true; }
         if (_sdJob?.running) { res.status(409).json({ error: "an SD card copy is running" }); return true; }
+        if (_restoreJob?.running) { res.status(409).json({ error: "a restore is running" }); return true; }   // Rev745
         return false;
       };
       const _imgFree = (res: any): boolean => {
@@ -4076,7 +4149,7 @@ module.exports = function (app: any) {
         require("fs").renameSync(file + ".part", file);
       };
       router.post("/tinypilot/image/prepare", async (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         if (_imgBusy(res) || !_imgFree(res)) return;
         const copy = _imgCopy();
         if (!copy.files["pypilot.conf"]) { res.status(409).json({ error: "make the settings copy first (step 1)" }); return; }
@@ -4084,7 +4157,15 @@ module.exports = function (app: any) {
         if (typeof req.body?.imu === "boolean") groups.imu = req.body.imu;
         // the image: one chosen in Details, else the newest from pypilot.org
         let srcPath: string | null = null, url: string | null = null, srcName = "";
-        if (typeof req.body?.src === "string" && req.body.src) {
+        if (typeof req.body?.url === "string" && req.body.url) {
+          // Rev745 (Carlos): an image chosen from the page's list
+          const l = await _imgListPypilotOrg();
+          const pick = l.images.find((i) => i.url === req.body.url);
+          if (!pick) { res.status(404).json({ error: "that image is not on the image page" }); return; }
+          srcName = pick.name;
+          const local = _imgSources().find((x) => x.name === pick.name);
+          if (local) srcPath = local.path; else url = pick.url;
+        } else if (typeof req.body?.src === "string" && req.body.src) {
           const s = _imgSources().find((x) => x.path === req.body.src);
           if (!s) { res.status(404).json({ error: "that image file is not in the list" }); return; }
           srcPath = s.path; srcName = s.name;
@@ -4107,22 +4188,27 @@ module.exports = function (app: any) {
             srcPath = dl;
             await _imgDownload(url, dl, job);
           }
+          const stopIfCancelled = () => { if ((job as any).cancel) throw new Error("cancelled"); };
+          stopIfCancelled();
           job.step = "verify"; job.bytes = 0; job.totalBytes = 0;
           const v = await verifyCompressed(srcPath!);
+          stopIfCancelled();
           if (!v.ok) { if (url) { try { require("fs").unlinkSync(srcPath!); } catch { /* none */ } } throw new Error(`the image file is damaged (${v.detail})${url ? ": downloaded again next time" : ""}`); }
-          const info = await analyzeImage(srcPath!, _imgWork(), (step, detail) => { job.step = step; job.detail = detail ?? null; });
+          const info = await analyzeImage(srcPath!, _imgWork(), (step, detail) => { stopIfCancelled(); job.step = step; job.detail = detail ?? null; });
+          stopIfCancelled();
           const plan = planBuild(info, copy.files, groups);
           _imgLastPlan = _imgPlanSummary(plan);
           const name = backupImageName(new Date(), info.pypilotVersion, _boatName());
           const out = require("path").join(_imgBase(), name);
-          const r = await buildImage(info, plan, out, (step) => { job.step = step; });
+          const r = await buildImage(info, plan, out, (step) => { stopIfCancelled(); job.step = step; });
+          stopIfCancelled();
           job.step = "revalidate";
           const c = await verifyCompressed(out);
           if (!c.ok) throw new Error(`the prepared image did not pass ${c.detail}`);
           const again = await imgSha256(out);
           if (again !== r.sha256) throw new Error("the prepared image's SHA-256 changed when read again: the disk of this Raspberry Pi may be failing");
           (job as any).result = { name, sha256: r.sha256, bytes: r.bytes, pypilotVersion: info.pypilotVersion };
-          try { require("fs").writeFileSync(out + ".check.json", JSON.stringify({ ok: true, detail: "e2fsck + gzip -t + SHA-256 read back", source: srcName, ts: Date.now() })); } catch { /* silent */ }
+          try { require("fs").writeFileSync(out + ".check.json", JSON.stringify({ ok: true, detail: "e2fsck + gzip -t + SHA-256 read back", source: srcName, size: r.bytes, sha256: r.sha256, ts: Date.now() })); } catch { /* silent */ }
         } catch (e: any) { job.error = (job as any).cancel ? "cancelled" : String(e?.message || e); }
         _imgAbort = null;
         if (job.error) {
@@ -4167,7 +4253,7 @@ module.exports = function (app: any) {
         res.json({ ok: true });
       });
       router.get("/tinypilot/image/file/:name", (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         const raw = String(req.params?.name || "");
         const sha = raw.endsWith(".sha256");
         const name = sha ? raw.slice(0, -7) : raw;
@@ -4178,7 +4264,7 @@ module.exports = function (app: any) {
         res.type(sha ? "text/plain" : "application/gzip").sendFile(file);
       });
       router.delete("/tinypilot/image/file/:name", (req: any, res: any) => {
-        if (!requireAdmin(req, res)) return;
+        if (!requireSkAdmin(req, res)) return;
         const name = String(req.params?.name || "");
         if (!IMG_OUT.test(name)) { res.status(404).json({ error: "not found" }); return; }
         for (const f of [name, name + ".sha256", name + ".check.json", name + ".note.txt"]) { try { require("fs").unlinkSync(require("path").join(_imgBase(), f)); } catch { /* gone */ } }

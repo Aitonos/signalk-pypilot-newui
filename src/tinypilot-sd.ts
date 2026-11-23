@@ -49,14 +49,21 @@ export const SD_PART = "/mnt/mmcblk0p2";
 const SD_SERVICES = "/etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat";
 export function sdReadConsistentCommand(mib: number, netS = 1800): string {
   const back = `sudo mount -o remount,rw ${SD_PART} >/dev/null 2>&1; sudo sv up ${SD_SERVICES} >/dev/null 2>&1`;
+  // Rev745 (GPT + Gemini): the safety net is killed when the copy ends (it
+  // used to wake up 30 min later and could start pypilot in the middle of
+  // the next copy), dd is killed before putting things back, and the copy
+  // does not start until runit confirms the three services are down.
   // "cmd &" must not be followed by ";" (a syntax error in sh).
-  return `setsid sh -c 'sleep ${Math.floor(netS)}; ${back}' </dev/null >/dev/null 2>&1 & ` + [
-    `trap '${back}' EXIT HUP INT TERM`,
-    `sudo sv down ${SD_SERVICES} >/dev/null 2>&1`,
+  return `setsid sh -c 'sleep ${Math.floor(netS)}; ${back}' </dev/null >/dev/null 2>&1 & NET=$!; ` + [
+    // setsid makes the net its own process group: kill the group, sleep included
+    `trap 'kill $DD 2>/dev/null; kill -TERM -$NET 2>/dev/null; kill $NET 2>/dev/null; ${back}' EXIT HUP INT TERM`,
+    `sudo sv -w 15 down ${SD_SERVICES} >/dev/null 2>&1`,
+    `if sudo sv status ${SD_SERVICES} 2>/dev/null | grep -q "^run:"; then echo "PNU_SVUP=1" >&2; exit 3; fi`,
     `sleep 2; sync`,
     `RO=0; sudo mount -o remount,ro ${SD_PART} >/dev/null 2>&1 && RO=1`,
     `echo "PNU_RO=$RO" >&2`,
-    `sudo nice -n 19 dd if=/dev/mmcblk0 bs=1M count=${Math.floor(mib)} 2>/dev/null`,
+    `sudo nice -n 19 dd if=/dev/mmcblk0 bs=1M count=${Math.floor(mib)} 2>/dev/null & DD=$!`,
+    `wait $DD`,
   ].join("; ");
 }
 

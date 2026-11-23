@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Rev734-744)
+## Unreleased (Rev734-745)
 
 ### Important: TinyPilot SD images made before this version
 
@@ -15,6 +15,35 @@
   (see Fixed below), so make a fresh one too.
 
 ### Added
+- **Reviewed with GPT and Gemini** (Rev745):
+  - **Passwords and keys:** a backup asks whether to keep them (wifi,
+    TinyPilot password, SSH keys). The automatic daily copy follows the last
+    choice and, by default, carries none; the wifi key is blanked.
+  - **Signal K administrator:** downloading backups or images, preparing an
+    image, stopping pypilot for a card copy, restoring and deleting all need
+    one when Signal K's security is on, whatever the plugin's own PIN says.
+  - **Before stopping pypilot,** the card copy checks on the server that
+    writes are allowed, nothing else heavy is running and the boat is not
+    moving. The copy only starts once runit confirms pypilot is down.
+  - **The safety net** that restarts pypilot is ended with the copy, so it
+    can no longer wake up in the middle of a later one.
+  - **The "backup in progress" notice** is cleared only when pypilot
+    answers again and new IMU headings arrive. If they do not within 3
+    minutes, a clear "the autopilot did not come back" warning takes its
+    place.
+  - **Cancelling a preparation** also stops between steps.
+  - **On start,** half-done files from an interrupted preparation are
+    deleted.
+  - **debugfs errors** are caught even when it exits 0.
+  - **The Signal K packages** are only added when their dependencies are in
+    the image.
+  - **The accelerometer calibration** is never left locked on the new card.
+  - **A check file** must match the size of its image.
+  - **The update** lets you pick the version from the list on the image
+    page; the newest is recommended. It is marked **EXPERIMENTAL: handle it
+    with care**.
+  - **Its question** is now: same TinyPilot, without having changed the
+    motor or moved the IMU?
 - **Safer and clearer** (Rev744):
   - **Deletions:** every deletion in the visor (backups, black box, display
     presets, sessions) highlights and focuses "No".

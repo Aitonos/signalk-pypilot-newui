@@ -72,7 +72,7 @@ describe("tinypilot-migrate - pypilot.conf (Rev735)", () => {
     assert.equal(val(m.text, "wind.offset"), "3.0000");
     assert.equal(val(m.text, "wind.rate"), "4.0000", "a key only the new version has stays");
     for (const k of ["imu.gyrobias", "servo.faults", "servo.amp_hours", "ap.tack.count", "imu.compass.calibration.points"]) assert.equal(val(m.text, k), undefined, k);
-    assert.equal(val(m.text, "imu.accel.calibration.locked"), "true");
+    assert.equal(val(m.text, "imu.accel.calibration.locked"), "false", "Rev745: never left locked on the new card");
     assert.ok(m.warnings.some((w) => /locked/.test(w)));
     assert.deepEqual(m.notCarried, ["some.old.key"]);
   });
@@ -169,5 +169,27 @@ describe("tinypilot-image - damaged file system detection (Rev736)", () => {
     const { fsNotOpen } = require("../tinypilot-image");
     assert.ok(fsNotOpen("x.img?offset=1: Block bitmap checksum does not match bitmap while reading allocation bitmaps\nls: Filesystem not open"));
     assert.ok(!fsNotOpen("debugfs 1.47.0 (5-Feb-2023)\n"));
+  });
+});
+
+describe("Rev745: secrets, ownership and calibration lock (GPT + Gemini audit)", () => {
+  it("a backup without secrets has no shadow nor SSH keys, and blank wifi keys", () => {
+    const { tinypilotCopyCommand, blankWifiKeys } = require("../settings-backup");
+    const c: string = tinypilotCopyCommand(false);
+    assert.ok(!/shadow|ssh_host|sudo/.test(c));
+    assert.match(tinypilotCopyCommand(true), /ssh_host_ed25519_key/);
+    assert.equal(blankWifiKeys("mode=Master\nkey=abc\nclient_ssid=boat\nclient_key=secret\n"), "mode=Master\nkey=\nclient_ssid=boat\nclient_key=\n");
+  });
+  it("a NEW file in .pypilot gets pypilot.conf's owner (tc:staff), never the local process uid", () => {
+    const { ownerFor } = require("../tinypilot-image");
+    const dir = [{ name: "pypilot.conf", mode: 0o644, uid: 1001, gid: 50, size: 1 }, { name: "networking.txt", mode: 0o644, uid: 0, gid: 0, size: 1 }];
+    assert.deepEqual(ownerFor("lcddriver", dir, []), { mode: 0o644, uid: 1001, gid: 50 });
+    assert.deepEqual(ownerFor("networking.txt", dir, []), { mode: 0o644, uid: 0, gid: 0 });
+    assert.deepEqual(ownerFor("/tce/onboot.lst", dir, [{ name: "onboot.lst", mode: 0o664, uid: 1001, gid: 50, size: 1 }]), { mode: 0o664, uid: 1001, gid: 50 });
+    assert.deepEqual(ownerFor("/tce/new.lst", dir, []), { mode: 0o644, uid: 0, gid: 0 });
+  });
+  it("the accelerometer calibration is never left locked on the new card", () => {
+    const m = mergePypilotConf(IMAGE, BOAT, g({ imu: true }));
+    assert.equal(parseConf(m.text).global.find((l) => l.key === "imu.accel.calibration.locked")?.raw, "false");
   });
 });

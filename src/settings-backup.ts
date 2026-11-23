@@ -113,8 +113,12 @@ export const TINYPILOT_MARK = "===PNU:FILE===";
 // Rev734: "echo;" before each mark - a file without a final newline
 // (gpsd_baud_hint is just "4800") used to glue the next mark to its last
 // line, and that next file was lost. The extra blank line is trimmed.
-export function tinypilotCopyCommand(): string {
+/** Rev745 (Carlos 2026-11-22; GPT + Gemini F1): the password hash and the
+ *  SSH host keys only when the sailor chose to keep them; otherwise the copy
+ *  has none, and the wifi key is blanked (blankWifiKeys). */
+export function tinypilotCopyCommand(withSecrets = true): string {
   const own = TINYPILOT_FILES.map((f) => `echo; echo "${TINYPILOT_MARK}${f}"; cat ~/.pypilot/${f} 2>/dev/null`);
+  if (!withSecrets) return own.join("; ");
   const sys = [
     `echo; echo "${TINYPILOT_MARK}sys/shadow-tc"; sudo -n grep '^tc:' /etc/shadow 2>/dev/null`,
     ...HOST_KEY_TYPES.flatMap((t) => [
@@ -142,4 +146,9 @@ export function parseTinypilotFiles(stdout: string): Record<string, string> {
   }
   close();
   return files;
+}
+
+/** Rev745: networking.txt without its keys (key= / client_key= emptied). */
+export function blankWifiKeys(text: string): string {
+  return String(text).split("\n").map((l) => /^(key|client_key)=/.test(l) ? l.replace(/=.*$/, "=") : l).join("\n");
 }
