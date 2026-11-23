@@ -26109,9 +26109,8 @@
           ctx.beginPath(); ctx.moveTo(marginL + plotW, y); ctx.lineTo(marginL + plotW + markW, y); ctx.stroke();
           ctx.lineWidth = 1;
           ctx.fillStyle = "#b8c4d0";
-          const above = y - 2 - fs >= plotTop - 2;
-          ctx.textBaseline = above ? "bottom" : "top";
-          ctx.fillText(tk.txt, marginL + plotW + 2, above ? y - 2 : y + 2);
+          // Rev754 (Carlos): a number with no room above its mark is left out.
+          if (y - 2 - fs >= plotTop - 2) ctx.fillText(tk.txt, marginL + plotW + 2, y - 2);
         }
         ctx.textBaseline = "middle";
         // Rev753 (Carlos: the curves ran in behind the scale): traces stay
