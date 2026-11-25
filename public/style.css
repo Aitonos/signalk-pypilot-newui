@@ -5382,3 +5382,18 @@ body.layout-one.lo-controls #tab-control .controls .row-nudge-ap { height: 100%;
 body.layout-one.lo-controls #tab-control .controls .row-tack-mode > *,
 body.layout-one.lo-controls #tab-control .controls .row-nudge-ap > * { height: 100%; min-height: 0; }
 body.layout-one.lo-controls #tab-control .controls .swipe-hint { margin-top: 0; min-height: 48px; }
+/* Rev758 (Carlos: the rose left a gap under it): in portrait the rose's
+   height is capped to leave room for the buttons and the panel; in the
+   one-at-a-time layout they are hidden, so the rose takes the whole tab. */
+body.layout-one:not(.lo-controls) #tab-control .dash-rose {
+  flex: 1 1 0 !important;
+  max-height: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+body.layout-one:not(.lo-controls) #tab-control .dash-rose .rose-wrap {
+  aspect-ratio: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+}
