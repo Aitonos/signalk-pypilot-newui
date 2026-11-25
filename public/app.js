@@ -1286,6 +1286,7 @@
       "dash.layout.both": "Rose and controls",
       "dash.layout.one": "One at a time",
       "cal.msg.levelling": "Levelling… keep the boat still and upright.",
+      "cal.msg.att3": "Now: heel {heel}° · pitch {pitch}° · heading {hdg}°",
       "cal.msg.att": "Heel {heel}° · Pitch {pitch}°",
       "cal.msg.levelled": "Levelled ✔",
       "cal.msg.sent": "Sent to pypilot ✔",
@@ -2914,6 +2915,7 @@
       "dash.layout.both": "Rosa y controles",
       "dash.layout.one": "Uno cada vez",
       "cal.msg.levelling": "Nivelando… mantén el barco quieto y adrizado.",
+      "cal.msg.att3": "Ahora: escora {heel}° · cabeceo {pitch}° · rumbo {hdg}°",
       "cal.msg.att": "Escora {heel}° · Cabeceo {pitch}°",
       "cal.msg.levelled": "Nivelado ✔",
       "cal.msg.sent": "Enviado a pypilot ✔",
@@ -4537,6 +4539,7 @@
       "dash.layout.both": "Rose und Bedienung",
       "dash.layout.one": "Einzeln",
       "cal.msg.levelling": "Nivellierung läuft… Boot ruhig und aufrecht halten.",
+      "cal.msg.att3": "Jetzt: Krängung {heel}° · Längsneigung {pitch}° · Kurs {hdg}°",
       "cal.msg.att": "Krängung {heel}° · Längsneigung {pitch}°",
       "cal.msg.levelled": "Nivelliert ✔",
       "cal.msg.sent": "An pypilot gesendet ✔",
@@ -6133,6 +6136,7 @@
       "dash.layout.both": "Rose et commandes",
       "dash.layout.one": "Une à la fois",
       "cal.msg.levelling": "Mise à niveau… garde le bateau immobile et droit.",
+      "cal.msg.att3": "Maintenant : gîte {heel}° · tangage {pitch}° · cap {hdg}°",
       "cal.msg.att": "Gîte {heel}° · Tangage {pitch}°",
       "cal.msg.levelled": "Mis à niveau ✔",
       "cal.msg.sent": "Envoyé à pypilot ✔",
@@ -7688,6 +7692,9 @@
         // re-render if the sailor picked "E" as source.
         if (value && typeof value === "object" && typeof value.roll === "number") {
           state.heelRad = value.roll;
+          // Rev759: pitch and yaw too, for the live reading in Calibration.
+          state.pitchRad = typeof value.pitch === "number" ? value.pitch : null;
+          state.yawRad = typeof value.yaw === "number" ? value.yaw : null;
           if (_helmBarSource() === "heel") _renderHelmBar();
           _renderHelmChartHeel();   // Rev718
         }
@@ -17412,13 +17419,31 @@
     // on both touch and mouse, before the browser synthesises `click`).
     // The `click` listener swallows the phantom that follows so it cannot
     // race the cooldown. Keyboard activation stays on keydown.
+    // Rev759 (Carlos): short press = AP, long press = mode and profile.
+    // With the AP ON the press still takes it off at once (unchanged: the
+    // quickest possible disengage); with it OFF it engages on release, so a
+    // long press can open the mode / profile window instead.
+    window._apPressStart = (onLong) => {
+      if (state.engaged) { doEngage(); return null; }
+      let fired = false;
+      const timer = setTimeout(() => {
+        fired = true;
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* silent */ }
+        onLong();
+      }, 600);
+      return { end: (cancel) => { clearTimeout(timer); if (!fired && !cancel) doEngage(); } };
+    };
+    let _engPress = null;
     eng.addEventListener("pointerdown", (e) => {
       // Only main button / primary pointer. Skip anything else so
       // right-click / middle-click never toggle the AP.
       if (e.button !== undefined && e.button !== 0) return;
       e.preventDefault();
-      doEngage();
+      _engPress = window._apPressStart(() => _modeSelectPopupOpen());
     });
+    eng.addEventListener("pointerup", () => { if (_engPress) { _engPress.end(false); _engPress = null; } });
+    eng.addEventListener("pointercancel", () => { if (_engPress) { _engPress.end(true); _engPress = null; } });
+    eng.addEventListener("pointerleave", () => { if (_engPress) { _engPress.end(true); _engPress = null; } });
     eng.addEventListener("click", (e) => {
       // Swallowed - pointerdown already handled the intent. Prevents
       // the synthesised click from also firing doEngage.
@@ -18713,6 +18738,7 @@
     // Rev756 (forum, Michael: "no button reaction" on Level): every
     // calibration button now says what happened - sent, levelling (with the
     // bar following pypilot's countdown), done, or why it was not sent.
+    _calAttLive();   // Rev759
     $("#cal-level").addEventListener("click", async () => {
       if (await _calSend("imu.alignmentCounter", 100)) _calLevelWatch();
     });
@@ -18747,6 +18773,22 @@
     _calMsg(t("cal.msg.sent"), "ok");
     return true;
   }
+  // Rev759 (Carlos: "no veo la lectura del momento"): heel, pitch and heading
+  // as read now, always shown while Calibration is open.
+  let _calAttTimer = null;
+  function _calAttLive() {
+    if (_calAttTimer) return;
+    _calAttTimer = setInterval(() => {
+      const el = document.getElementById("cal-att");
+      if (!el) return;
+      if (!el.offsetParent && !el.hidden) return;   // section not on screen
+      const d = (r) => (typeof r === "number" && isFinite(r)) ? (r * RAD2DEG).toFixed(1) : "--";
+      const hdg = typeof state.heading === "number" ? String(Math.round(((state.heading * RAD2DEG) % 360 + 360) % 360)).padStart(3, "0") : "---";
+      const txt = t("cal.msg.att3").replace("{heel}", d(state.heelRad)).replace("{pitch}", d(state.pitchRad)).replace("{hdg}", hdg);
+      el.hidden = false;
+      if (el.textContent !== txt) el.textContent = txt;
+    }, 1000);
+  }
   let _calLevelTimer = null;
   function _calLevelWatch() {
     const bar = document.querySelector("#cal-level-progress .bar");
@@ -18770,8 +18812,7 @@
           }
         }
       } catch { /* next tick */ }
-      const attEl = document.getElementById("cal-att");
-      if (attEl) { attEl.hidden = !att; attEl.textContent = att; }
+      void att;   // Rev759: the live line (_calAttLive) shows heel / pitch / heading
       if (done) {
         if (Date.now() - done > 120000) { clearInterval(_calLevelTimer); _calLevelTimer = null; }
         return;
@@ -27043,10 +27084,19 @@
     document.querySelectorAll("#layout-dots button").forEach((b) => b.addEventListener("click", () => _layoutShow(b.dataset.lo)));
     const ap = document.getElementById("rose-ap-btn");
     if (ap) {
-      const stop = (e) => { e.stopPropagation(); };
-      ap.addEventListener("pointerdown", stop);
-      ap.addEventListener("pointerup", stop);
-      ap.addEventListener("click", (e) => { e.stopPropagation(); _modeSelectPopupOpen(); });   // Rev757
+      // Rev759 (Carlos): same as the controls' AP - short press engages /
+      // disengages, long press opens the mode and profile window.
+      let press = null;
+      ap.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        if (e.button !== undefined && e.button !== 0) return;
+        e.preventDefault();
+        press = window._apPressStart ? window._apPressStart(() => _modeSelectPopupOpen()) : null;
+      });
+      ap.addEventListener("pointerup", (e) => { e.stopPropagation(); if (press) { press.end(false); press = null; } });
+      ap.addEventListener("pointercancel", () => { if (press) { press.end(true); press = null; } });
+      ap.addEventListener("pointerleave", () => { if (press) { press.end(true); press = null; } });
+      ap.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); });
     }
     // Swipe between the two blocks. Not from a button / field (the AP
     // button acts on touch) nor from the chart (a finger reads it there).

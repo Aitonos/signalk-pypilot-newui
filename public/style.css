@@ -5397,3 +5397,6 @@ body.layout-one:not(.lo-controls) #tab-control .dash-rose .rose-wrap {
   height: 100% !important;
   max-height: 100% !important;
 }
+/* Rev759: AP engages on release now (a long press opens mode and profile);
+   no browser panning may cancel that press. */
+#engage-toggle, #rose-ap-btn { touch-action: none; }
