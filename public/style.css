@@ -5406,3 +5406,13 @@ body.layout-one:not(.lo-controls) #tab-control .dash-rose .rose-wrap {
 /* Rev768: the profile line on the mode button, in the dim text colour
    (the orange is for AUTO WIND's reason). */
 .mode-select-btn .mode-btn-prof { color: var(--fg-dim); }
+/* Rev771 (Carlos): the profile name 3 px bigger and on up to two lines. */
+.mode-select-btn .mode-btn-profname {
+  font-size: calc(0.6em + 3px);
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

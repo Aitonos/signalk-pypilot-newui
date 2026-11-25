@@ -14783,6 +14783,7 @@
       tg.textContent = tag;
       btn.appendChild(tg);
     }
+    sub.classList.add("mode-btn-profname");   // Rev771: bigger, up to two lines
     sub.textContent = state.profile;
     btn.appendChild(sub);
   }
