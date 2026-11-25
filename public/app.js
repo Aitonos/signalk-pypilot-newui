@@ -1148,6 +1148,7 @@
       "dash.overlay.ais.title":  "AIS collision alarm",
       "pypilot.offline.title":   "AUTOPILOT NOT REACHABLE",
       "pypilot.offline.hint":    "Controls disabled. The autopilot keeps its last course. Check the connection to the pypilot Pi.",
+      "pypilot.offline.hintGeneric": "Controls disabled. The autopilot keeps its last course. Check the connection to Signal K.",
       "pypilot.maint.title": "BACKUP IN PROGRESS",
       "pypilot.maint.hint": "The autopilot is not available right now. It comes back by itself as soon as the backup ends.",
       "dash.overlay.ais.needs":  "Warns when another AIS vessel may collide with us. It is drawn on the rose with its course and distance. Requires the @signalk/collision-alerts plugin. Double-tap the rose to open the chart (Freeboard).",
@@ -2792,6 +2793,7 @@
       "dash.overlay.ais.title":  "Alarma de colisión AIS",
       "pypilot.offline.title":   "SIN CONEXIÓN AL AUTOPILOTO",
       "pypilot.offline.hint":    "Los comandos están deshabilitados. El autopilot sigue en su último rumbo. Comprueba la conexión al Pi del pypilot.",
+      "pypilot.offline.hintGeneric": "Los comandos están deshabilitados. El piloto sigue en su último rumbo. Comprueba la conexión con Signal K.",
       "pypilot.maint.title": "BACKUP EN CURSO",
       "pypilot.maint.hint": "En estos momentos el piloto no está disponible. Volverá solo en cuanto termine el backup.",
       "dash.overlay.ais.needs":  "Avisa cuando otro barco con AIS puede chocar con nosotros. Se pinta en la rosa con su rumbo y su distancia. Necesita el plugin @signalk/collision-alerts. Doble toque en la rosa abre la carta (Freeboard).",
@@ -4431,6 +4433,7 @@
       "dash.overlay.ais.title": "AIS-Kollisionsalarm",
       "pypilot.offline.title": "AUTOPILOT NICHT ERREICHBAR",
       "pypilot.offline.hint": "Bedienung gesperrt. Der Autopilot hält seinen letzten Kurs. Verbindung zum pypilot-Pi prüfen.",
+      "pypilot.offline.hintGeneric": "Bedienung gesperrt. Der Autopilot hält seinen letzten Kurs. Verbindung zu Signal K prüfen.",
       "pypilot.maint.title": "SICHERUNG LÄUFT",
       "pypilot.maint.hint": "Der Autopilot ist gerade nicht verfügbar. Er kommt von selbst zurück, sobald die Sicherung fertig ist.",
       "dash.overlay.ais.needs": "Warnt, wenn ein anderes AIS-Schiff mit uns kollidieren könnte. Es wird mit Kurs und Abstand auf der Rose gezeichnet. Braucht das Plugin @signalk/collision-alerts. Doppeltipp auf die Rose öffnet die Karte (Freeboard).",
@@ -6043,6 +6046,7 @@
       "dash.overlay.ais.title": "Alarme de collision AIS",
       "pypilot.offline.title": "PILOTE INJOIGNABLE",
       "pypilot.offline.hint": "Commandes désactivées. Le pilote garde son dernier cap. Vérifiez la connexion au Pi de pypilot.",
+      "pypilot.offline.hintGeneric": "Commandes désactivées. Le pilote garde son dernier cap. Vérifiez la connexion à Signal K.",
       "pypilot.maint.title": "SAUVEGARDE EN COURS",
       "pypilot.maint.hint": "Le pilote n'est pas disponible pour l'instant. Il revient tout seul dès la fin de la sauvegarde.",
       "dash.overlay.ais.needs": "Avertit quand un autre navire AIS risque de nous percuter. Il est dessiné sur la rose avec son cap et sa distance. Nécessite le plugin @signalk/collision-alerts. Double tap sur la rose pour ouvrir la carte (Freeboard).",
@@ -11531,7 +11535,15 @@
       return;
     }
     const modeStr = String(state.mode || "").toLowerCase();
-    const isWindMode = modeStr.includes("wind");
+    // Rev792: the spin-off draws the target only for a mode whose reference
+    // is certain (_apModeRef).
+    const modeRef = _apModeRef(state.mode);
+    if (modeRef == null) {
+      g.style.display = "none";
+      if (raya) raya.style.display = "none";
+      return;
+    }
+    const isWindMode = PRODUCT === "generic" ? modeRef !== "compass" : modeStr.includes("wind");
     let deg;
     if (isWindMode) {
       deg = targetRad * RAD2DEG;
@@ -11624,7 +11636,7 @@
     if (offBox) {
       const sp = offBox.querySelectorAll("span");
       if (sp[0]) sp[0].textContent = t(maint ? "pypilot.maint.title" : "pypilot.offline.title");
-      if (sp[1]) sp[1].textContent = t(maint ? "pypilot.maint.hint" : "pypilot.offline.hint");
+      if (sp[1]) sp[1].textContent = t(maint ? "pypilot.maint.hint" : PRODUCT === "generic" ? "pypilot.offline.hintGeneric" : "pypilot.offline.hint");
     }
     if (offBox && !offBox.__tapWired) {
       offBox.__tapWired = true;
@@ -14777,6 +14789,18 @@
   // "@profile:" so the mode-select change handler can route them
   // separately. Called after any mutation of state.modeList or
   // state.profiles. Preserves the current selection where possible.
+  // Rev792 (GPT review): the reference of a mode, only when its name leaves
+  // no doubt. "wind" alone may be apparent or true, "auto" magnetic or true:
+  // the spin-off then shows the mode but draws no target and computes no
+  // error. PyPilot New-UI keeps its own modes (compass / gps / nav / wind /
+  // true wind).
+  function _apModeRef(mode) {
+    const m = String(mode || "").toLowerCase().trim();
+    if (PRODUCT !== "generic") return m.includes("wind") ? (m.includes("true") ? "true wind" : "wind") : "compass";
+    if (m === "compass") return "compass";
+    if (m === "true wind" || m === "truewind" || m === "true-wind" || m === "wind true") return "true wind";
+    return null;
+  }
   function _rebuildModeSelect() {
     // Rev425 (Carlos QA Rev424, 2026-10-08): the visible mode selector
     // is now a custom popup; the hidden native <select id="mode-select">
@@ -19545,8 +19569,9 @@
       // pypilot is down.
       if (typeof j.healthy === "boolean") {
         const prev = state.pypilotHealthy;
-        state.pypilotHealthy = j.healthy;
-        if (prev !== j.healthy) renderEngage();
+        const h = PRODUCT === "generic" ? true : j.healthy;   // Rev792: pypilot's health is not the spin-off's
+        state.pypilotHealthy = h;
+        if (prev !== h) renderEngage();
       }
       // Rev742: pypilot stopped on purpose (card copy) - say so, not "unreachable".
       { const m = !!j.maintenance; if (m !== !!state.maintenance) { state.maintenance = j.maintenance || null; renderEngage(); } }
@@ -28311,6 +28336,7 @@
         } catch { /* silent */ }
         if (typeof j.healthy !== "boolean") return;
         const prev = state.pypilotHealthy;
+        if (PRODUCT === "generic") j.healthy = true;   // Rev792: pypilot's health is not the spin-off's
         state.pypilotHealthy = j.healthy;
         { const m = !!j.maintenance; if (m !== !!state.maintenance) { state.maintenance = j.maintenance || null; renderEngage(); } }   // Rev742
         if (prev !== j.healthy) {

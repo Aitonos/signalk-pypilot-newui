@@ -52,6 +52,11 @@ export interface Sample {
   // Rev783: false when the pilot does not say whether it is engaged
   // (Autopilot Enhanced Visor); `engaged` is then false too. Unset = known.
   engagedKnown?: boolean;
+  // Rev792: Autopilot Enhanced Visor only - the reference of the pilot's
+  // mode when its name leaves no doubt ("compass" / "true wind"), null when
+  // it does ("wind", "auto", "route"...): then no heading error is computed.
+  // Unset in PyPilot New-UI, which keeps reading `mode`.
+  modeRef?: "compass" | "true wind" | null;
   mode:          string | null;  // "compass" | "wind" | "gps" | "true wind" | ...
 }
 

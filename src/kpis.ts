@@ -262,7 +262,9 @@ export class KPIComputer {
  *  installation without the derived-data plugin still gets a value. */
 export function errorRad(s: Sample): number | null {
   if (s.headingCmd == null) return null;
-  const mode = (s.mode || "").toLowerCase();
+  // Rev792: the spin-off's mode with no certain reference -> no error.
+  if (s.modeRef === null) return null;
+  const mode = (s.modeRef ?? s.mode ?? "").toLowerCase();
   let actual: number | null;
   if (mode.includes("true") && mode.includes("wind")) {
     // Rev538 (GPT review 4 #10): AWA is not TWA; without TWA the error is unknown.
@@ -277,4 +279,16 @@ export function errorRad(s: Sample): number | null {
   // "no error" instead of an endless loop on Signal K's thread.
   const e = wrapPi(s.headingCmd - actual);
   return Number.isFinite(e) ? e : null;
+}
+
+/** Rev792 (GPT review): Autopilot Enhanced Visor trusts a mode's reference
+ *  only when its name leaves no doubt. "wind" alone may be apparent or true
+ *  and "auto" magnetic or true, so they give null: the mode is shown, no
+ *  heading error or wind-mode alarm is computed. Same rule as the visor's
+ *  _apModeRef. */
+export function genericModeRef(mode: string | null | undefined): "compass" | "true wind" | null {
+  const m = String(mode ?? "").toLowerCase().trim();
+  if (m === "compass") return "compass";
+  if (m === "true wind" || m === "truewind" || m === "true-wind" || m === "wind true") return "true wind";
+  return null;
 }

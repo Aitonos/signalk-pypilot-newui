@@ -12,7 +12,7 @@ import { scanLanReport } from "./scanner";
 import { AutopilotProvider } from "./autopilot-provider";
 import { isLocalPypilotHost, defaultSshUser, pypilotRestartCommand, tinypilot071FixCommand } from "./pypilot-host";
 import { Historian, Sample, SamplePath } from "./historian";
-import { KPIComputer, KPISnapshot, errorRad } from "./kpis";
+import { KPIComputer, KPISnapshot, errorRad, genericModeRef } from "./kpis";
 import { SensorQualityMonitor, DEFAULT_QUALITY_WATCH } from "./sensor-quality";
 import { VisorPrefs } from "./visor-prefs";
 import { DisplayPresets } from "./display-presets";
@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev791";
+const PLUGIN_REVISION = "Rev792";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -7428,6 +7428,8 @@ module.exports = function (app: any) {
       pitch:         skAttitudeField("pitch"),
       engaged,
       ...(engagedKnown ? {} : { engagedKnown: false }),
+      // Rev792: the spin-off's mode reference (see historian.ts).
+      ...(PRODUCT === "generic" ? { modeRef: genericModeRef(mode) } : {}),
       mode,
     };
   }

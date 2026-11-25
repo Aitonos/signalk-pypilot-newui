@@ -40,3 +40,30 @@ describe("spin-off request checkpoint (Rev785)", () => {
     }
   });
 });
+
+// Rev792: the spin-off computes a heading error only for a mode whose
+// reference is certain.
+import { errorRad, genericModeRef } from "../kpis";
+describe("spin-off mode reference (Rev792)", () => {
+  const D = Math.PI / 180;
+  it("names that leave no doubt", () => {
+    assert.equal(genericModeRef("compass"), "compass");
+    assert.equal(genericModeRef(" Compass "), "compass");
+    assert.equal(genericModeRef("true wind"), "true wind");
+    assert.equal(genericModeRef("trueWind"), "true wind");
+  });
+  it("ambiguous names give no reference", () => {
+    for (const m of ["wind", "auto", "route", "nav", "gps", "standby", "", null, undefined]) assert.equal(genericModeRef(m as any), null, String(m));
+  });
+  it("no error with a null reference, the right one otherwise", () => {
+    assert.equal(errorRad({ headingCmd: 100 * D, mode: "wind", modeRef: null, awa: 80 * D, headingActual: 90 * D } as any), null);
+    const c = errorRad({ headingCmd: 100 * D, mode: "auto", modeRef: "compass", headingActual: 90 * D } as any);
+    assert.ok(c != null && Math.abs(c / D - 10) < 1e-9);
+    const tw = errorRad({ headingCmd: 100 * D, mode: "x", modeRef: "true wind", twa: 95 * D, awa: 40 * D } as any);
+    assert.ok(tw != null && Math.abs(tw / D - 5) < 1e-9);
+  });
+  it("PyPilot New-UI samples (no modeRef) keep working by mode", () => {
+    const e = errorRad({ headingCmd: 100 * D, mode: "wind", awa: 90 * D } as any);
+    assert.ok(e != null && Math.abs(e / D - 10) < 1e-9);
+  });
+});

@@ -563,7 +563,8 @@ export const DEFAULT_RULES: RuleDef[] = [
       if (!lw) return false;
       if (lw.switchedAtMs != null && c.nowMs - lw.switchedAtMs < LIGHT_WIND_SWITCH_NOTICE_MS) return true;
       if (!c.sample || !c.sample.engaged) return false;
-      if (!(c.sample.mode || "").toLowerCase().includes("wind")) return false;
+      // Rev792: the spin-off goes by the mode's certain reference.
+      if (!(c.sample.modeRef !== undefined ? (c.sample.modeRef || "") : (c.sample.mode || "")).toLowerCase().includes("wind")) return false;
       if (c.maneuverInProgress || c.maneuverPseudoActive) return false;
       return typeof lw.kn === "number" && Number.isFinite(lw.kn) && lw.kn < lw.thresholdKn;
     },
