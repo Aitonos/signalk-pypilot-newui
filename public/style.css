@@ -5381,7 +5381,7 @@ body.layout-one.lo-controls #tab-control .controls .row-tack-mode,
 body.layout-one.lo-controls #tab-control .controls .row-nudge-ap { height: 100% !important; flex: initial !important; align-items: stretch; }   /* Rev774: beats the portrait row height */
 body.layout-one.lo-controls #tab-control .controls .row-tack-mode > *,
 body.layout-one.lo-controls #tab-control .controls .row-nudge-ap > * { height: 100% !important; min-height: 0; }
-body.layout-one.lo-controls #tab-control .controls .swipe-hint { margin-top: 0; min-height: 48px; }
+body.layout-one.lo-controls #tab-control .controls .swipe-hint { margin-top: 0; min-height: 48px; height: 100% !important; }   /* Rev777: the chart / Freeboard view kept its portrait height and left a gap */
 /* Rev758 (Carlos: the rose left a gap under it): in portrait the rose's
    height is capped to leave room for the buttons and the panel; in the
    one-at-a-time layout they are hidden, so the rose takes the whole tab. */
@@ -5416,3 +5416,6 @@ body.layout-one:not(.lo-controls) #tab-control .dash-rose .rose-wrap {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Rev777: the dots get their own strip under the block, so they never sit
+   on the panel's chart or the heel number. */
+body.layout-one #tab-control.active { padding-bottom: 20px !important; }

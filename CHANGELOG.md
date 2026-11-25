@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.18.2 — 2026-11-25 — Screenshots renewed, one block at a time fixes
+
+Rev776-778 on top of 3.18.1.
+
+- **All screenshots renewed** for the README and the App Store, in English
+  and with the current visor: rose and controls, one block at a time, a
+  profile for each mode, the mode window, calibration with the live
+  reading, the logbook with its real tacks and gybes, tide, Tune, profile
+  manager, visor settings, Freeboard-SK and AnchorWatch Pro in the rose.
+- **One block at a time:** with the bottom panel as a chart or Freeboard,
+  the controls now fill the whole height (the panel kept its portrait
+  height and left a gap), and the dots have their own strip under the
+  block instead of sitting on the chart.
+- **Visor settings:** the Layout text explained an older behaviour of the
+  rose's AP button; it now says what it does (short press engages, long
+  press opens the mode and profile window).
+
 ## 3.18.1 — 2026-11-25 — Ready for pypilot's next version, new screenshots
 
 Rev774-775 on top of 3.18.0.

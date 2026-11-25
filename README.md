@@ -43,15 +43,11 @@ Questions, ideas and sailing reports: **[PyPilot New-UI thread on the OpenMarine
 |---|---|
 | ![Control tab with the bottom bar as a chart: SOG, polar max speed, AWS and TWS on one knots scale](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/09-control-strip-chart.jpg) | ![Control tab with Freeboard-SK in the bottom bar under the controls](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/10-control-strip-freeboard.jpg) |
 
-![Phone in portrait: compass rose, controls and Freeboard-SK in the bottom bar](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/11-control-phone-freeboard-300.jpg)
-
 | Chartplotter embedded | AnchorWatch Pro inside the rose |
 |---|---|
 | ![Freeboard-SK embedded in the rose box](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/02-chartplotter-embedded.jpg) | ![Anchor-watch visor of AnchorWatch Pro inside the rose](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/03-anchorwatch-in-rose.jpg) |
 
-| Tide at a glance | Modes · head to wind / downwind |
-|---|---|
-| ![Tide popup with the tide curve](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tide-popup.jpg) | ![Mode picker with AUTO WIND, Head to wind and Dead downwind](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/05-modes-autowind.jpg) |
+![Tide popup with the tide curve and the next low water](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/04-tide-popup.jpg)
 
 | Tune · gain sliders | Logbook · trip detail |
 |---|---|
