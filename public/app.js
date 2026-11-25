@@ -8243,7 +8243,7 @@
   // steps, then back to the original. Saved per corner and per orientation
   // on this device, so each corner keeps the size that suits it.
   const _CORNER_BOOST_LS_KEY = "pypilotnewui.cornerBoost";
-  const _CORNER_BOOST_PX = 1.5, _CORNER_BOOST_STEPS = 3;
+  const _CORNER_BOOST_PX = 3, _CORNER_BOOST_STEPS = 3;   // Rev762 (Carlos): 3 px a step
   function _cornerBoostOrient() {
     return window.matchMedia && window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
   }

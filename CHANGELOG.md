@@ -16,7 +16,7 @@
   is lifted; a long press opens the mode and profile window instead, with
   the autopilot on or off.
 - **Each corner's number size, by tapping it:** each tap makes the number
-  1.5 px bigger, three steps, then back to the original. Saved per corner
+  3 px bigger, three steps, then back to the original. Saved per corner
   and per orientation (portrait / landscape) on each device. The combined
   Wind corner keeps its tap for apparent / true.
 - **Calibration buttons say what happened.** Level (boat is flat) showed
