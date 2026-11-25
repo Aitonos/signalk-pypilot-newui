@@ -325,6 +325,8 @@
       "regata.btn.stop": "STOP",
       "alert.noAwa": "No apparent wind right now - the sensor is not publishing.",
       "alert.noProvider": "No Signal K autopilot found. Turn PyPilot New-UI off and on again in the Signal K admin so it registers.",
+      "alert.noDefaultPilot": "No default autopilot in Signal K. Install your autopilot's Signal K plugin and choose it as the default in the Signal K admin.",
+      "alert.pypilotIsDefault": "The default autopilot in Signal K is pypilot. Use PyPilot New-UI to steer it; this visor sends no commands to it.",
       "alert.notPersisted": "Applied but not saved in pypilot.",
       "alert.badJson": "The file is not valid.",
       "alert.uploadFail": "Upload failed.",
@@ -1958,6 +1960,8 @@
       "regata.btn.stop": "PARAR",
       "alert.noAwa": "Sin dato de viento aparente ahora mismo: el sensor no publica.",
       "alert.noProvider": "No hay piloto en Signal K. Apaga y enciende PyPilot New-UI en el admin de Signal K para que se registre.",
+      "alert.noDefaultPilot": "No hay piloto por defecto en Signal K. Instala el plugin de Signal K de tu piloto y elígelo por defecto en el admin de Signal K.",
+      "alert.pypilotIsDefault": "El piloto por defecto en Signal K es pypilot. Usa PyPilot New-UI para gobernarlo; este visor no le envía órdenes.",
       "alert.notPersisted": "Aplicado pero no guardado en pypilot.",
       "alert.badJson": "El archivo no es válido.",
       "alert.uploadFail": "No se pudo subir.",
@@ -3757,6 +3761,8 @@
       "regata.btn.stop": "STOPP",
       "alert.noAwa": "Gerade kein scheinbarer Wind - der Sensor sendet nicht.",
       "alert.noProvider": "Kein Signal-K-Autopilot gefunden. PyPilot New-UI im Signal-K-Admin aus- und wieder einschalten, damit er sich registriert.",
+      "alert.noDefaultPilot": "Kein Standard-Autopilot in Signal K. Das Signal-K-Plugin Ihres Autopiloten installieren und im Signal-K-Admin als Standard wählen.",
+      "alert.pypilotIsDefault": "Der Standard-Autopilot in Signal K ist pypilot. Zum Steuern PyPilot New-UI verwenden; diese Oberfläche sendet ihm keine Befehle.",
       "alert.notPersisted": "Angewendet, aber nicht in pypilot gespeichert.",
       "alert.badJson": "Die Datei ist ungültig.",
       "alert.uploadFail": "Hochladen fehlgeschlagen.",
@@ -5358,6 +5364,8 @@
       "regata.btn.stop": "STOP",
       "alert.noAwa": "Pas de vent apparent pour l'instant : le capteur ne publie pas.",
       "alert.noProvider": "Aucun pilote Signal K trouvé. Désactivez puis réactivez PyPilot New-UI dans l'admin Signal K pour qu'il s'enregistre.",
+      "alert.noDefaultPilot": "Aucun pilote par défaut dans Signal K. Installez le plugin Signal K de votre pilote et choisissez-le par défaut dans l'admin Signal K.",
+      "alert.pypilotIsDefault": "Le pilote par défaut dans Signal K est pypilot. Utilisez PyPilot New-UI pour le piloter ; cette interface ne lui envoie aucune commande.",
       "alert.notPersisted": "Appliqué mais pas enregistré dans pypilot.",
       "alert.badJson": "Le fichier n'est pas valide.",
       "alert.uploadFail": "Échec de l'envoi.",
@@ -7127,6 +7135,7 @@
       "steering.autopilot.target",
       "steering.autopilot.engaged",
       "steering.autopilot.availableActions",
+      "steering.autopilot.defaultPilot", // Rev783: the spin-off follows the default device
       // Rev388 Fase B: backend FSM publishes snapshots here; visor
       // opens the read-only HUD + pins mode/target when active.
       "steering.autopilot.virtualTack",
@@ -7234,6 +7243,17 @@
     for (const u of msg.updates) {
       const values = u.values || [];
       for (const v of values) {
+        // Rev783 (GPT review): Autopilot Enhanced Visor reads the pilot only
+        // from the device it steers. Signal K labels every Autopilot API
+        // delta with the device id ($source); others are ignored, and a new
+        // default device makes the visor choose again.
+        if (PRODUCT === "generic" && typeof v.path === "string" && v.path.startsWith("steering.autopilot.")) {
+          if (v.path === "steering.autopilot.defaultPilot") {
+            if ((v.value || "") !== (state.autopilotId || "")) _genericRediscover();
+            continue;
+          }
+          if (AP_STD_LEAVES.has(v.path) && (!state.autopilotId || u.$source !== state.autopilotId)) continue;
+        }
         state.values[v.path] = v.value;
         applyValue(v.path, v.value);
         // Rev63 / 2.0.0: gain paths now verbatim (see publisher.ts refactor).
@@ -15374,6 +15394,38 @@
   // the same auth level as our /status endpoint. If you can GET /status, you
   // can also engage / set mode / set target.
 
+  // Rev783: the standard Autopilot API leaves, read in the spin-off only
+  // from the device it steers.
+  const AP_STD_LEAVES = new Set([
+    "steering.autopilot.state",
+    "steering.autopilot.mode",
+    "steering.autopilot.target",
+    "steering.autopilot.engaged",
+    "steering.autopilot.availableActions",
+  ]);
+  let _genericRediscoverBusy = false;
+  async function _genericRediscover() {
+    if (_genericRediscoverBusy) return;
+    _genericRediscoverBusy = true;
+    try { await discoverAutopilot(); } finally { _genericRediscoverBusy = false; }
+  }
+  // Rev783: the spin-off reads the chosen device once (state, mode, target,
+  // engaged) - providers only send deltas on change.
+  async function _genericSeedPilot(id) {
+    try {
+      const res = await fetch(`/signalk/v2/api/vessels/self/autopilots/${encodeURIComponent(id)}?_=${Date.now()}`, { credentials: "include", cache: "no-store" });
+      if (!res.ok || state.autopilotId !== id) return;
+      const j = await res.json();
+      state.apOptions = j?.options || null;
+      for (const leaf of ["state", "mode", "target", "engaged"]) {
+        if (j && j[leaf] !== undefined) {
+          const path = "steering.autopilot." + leaf;
+          state.values[path] = j[leaf];
+          applyValue(path, j[leaf]);
+        }
+      }
+    } catch (e) { console.warn("[pypilot-newui] seed pilot failed", e); }
+  }
   async function discoverAutopilot() {
     try {
       // Always fetch fresh - do not trust cache in case the user switched
@@ -15410,6 +15462,7 @@
         state.engaged = null; state.apState = null; state.mode = null; state.target = null; state.availableActions = [];
       }
       state.autopilotId = picked;
+      if (PRODUCT === "generic" && picked) _genericSeedPilot(picked);
       console.info("[pypilot-newui] autopilotId =", picked, "(from", entries.map(e => e[0]).join(","), ")");
     } catch (e) { console.warn("discoverAutopilot failed", e); }
   }
@@ -15761,7 +15814,8 @@
   async function ensureAutopilotId() {
     if (!state.autopilotId) await discoverAutopilot();
     if (!state.autopilotId) {
-      alert(t("alert.noProvider"));
+      // Rev783: the spin-off says why it will not steer.
+      alert(t(PRODUCT !== "generic" ? "alert.noProvider" : state.apIsPypilotElsewhere ? "alert.pypilotIsDefault" : "alert.noDefaultPilot"));
       return false;
     }
     return true;

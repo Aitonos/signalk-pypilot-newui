@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev782";
+const PLUGIN_REVISION = "Rev783";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -7357,9 +7357,9 @@ module.exports = function (app: any) {
     // dividing by 180/PI on the way out). Convert to rad to match the
     // rest of the Sample fields.
     const cmdDeg = pv["ap.heading_command"];
-    const skTarget = PRODUCT === "generic" ? (() => { try { const n = app.getSelfPath("steering.autopilot.target"); const v = n && typeof n === "object" ? (n as any).value : undefined; return typeof v === "number" && isFinite(v) ? v : null; } catch { return null; } })() : null;
+    // Rev783: the target is read from the default device in the return below.
     // Rev780: the spin-off's target comes in radians from the Autopilot API.
-    const headingCmdRad = PRODUCT === "generic" ? skTarget : typeof cmdDeg === "number" ? cmdDeg * Math.PI / 180 : null;
+    const headingCmdRad = PRODUCT === "generic" ? null : typeof cmdDeg === "number" ? cmdDeg * Math.PI / 180 : null;
     // Servo current + temp arrive as plain numbers from pypilot.
     const servoA = typeof pv["servo.current"] === "number" ? (pv["servo.current"] as number) : null;
     const servoT = typeof pv["servo.controller_temp"] === "number" ? (pv["servo.controller_temp"] as number) : null;
@@ -7373,11 +7373,23 @@ module.exports = function (app: any) {
     // absorbProvider = false.
     // Rev780: the spin-off reads the pilot from the standard Signal K
     // Autopilot API paths (steering.autopilot.*, any provider).
+    // Rev783 (GPT review): only the DEFAULT device's values (Signal K keeps
+    // one per $source under `values`), never pypilot's, and "unknown" when
+    // the pilot does not say whether it is engaged.
     const skAp = (leaf: string): unknown => {
-      try { const n = app.getSelfPath(`steering.autopilot.${leaf}`); return n && typeof n === "object" ? (n as any).value : undefined; } catch { return undefined; }
+      try {
+        const def = (app.getSelfPath("steering.autopilot.defaultPilot") as any)?.value;
+        if (typeof def !== "string" || !def || /pypilot/i.test(def)) return undefined;
+        const n: any = app.getSelfPath(`steering.autopilot.${leaf}`);
+        if (!n || typeof n !== "object") return undefined;
+        if (n.values && typeof n.values === "object" && n.values[def]) return n.values[def].value;
+        return n.$source === def ? n.value : undefined;
+      } catch { return undefined; }
     };
+    const skEngaged = PRODUCT === "generic" ? skAp("engaged") : undefined;
+    const engagedKnown = PRODUCT === "generic" ? typeof skEngaged === "boolean" : true;
     const engaged = PRODUCT === "generic"
-      ? (skAp("engaged") === true)
+      ? (skEngaged === true)
       : apProvider
       ? !!apProvider.data.engaged
       : (pv["ap.enabled"] === true || pv["ap.enabled"] === 1);
@@ -7388,7 +7400,7 @@ module.exports = function (app: any) {
       : (typeof pv["ap.mode"] === "string" ? pv["ap.mode"] as string : null);
     return {
       ts: Date.now(),
-      headingCmd:    headingCmdRad,
+      headingCmd:    PRODUCT === "generic" ? (() => { const v = skAp("target"); return typeof v === "number" && isFinite(v) ? v : null; })() : headingCmdRad,
       headingActual: skNum("navigation.headingMagnetic"),
       rudder:        skNum("steering.rudderAngle"),
       servoCurrent:  servoA,
@@ -7415,6 +7427,7 @@ module.exports = function (app: any) {
       heel:          skAttitudeField("roll"),
       pitch:         skAttitudeField("pitch"),
       engaged,
+      ...(engagedKnown ? {} : { engagedKnown: false }),
       mode,
     };
   }

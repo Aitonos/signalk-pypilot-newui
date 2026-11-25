@@ -49,6 +49,9 @@ export interface Sample {
   // still fills the sample without crashing.
   pitch:         number | null;  // rad - navigation.attitude.pitch (positive bow up)
   engaged:       boolean;
+  // Rev783: false when the pilot does not say whether it is engaged
+  // (Autopilot Enhanced Visor); `engaged` is then false too. Unset = known.
+  engagedKnown?: boolean;
   mode:          string | null;  // "compass" | "wind" | "gps" | "true wind" | ...
 }
 
