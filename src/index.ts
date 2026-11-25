@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev771";
+const PLUGIN_REVISION = "Rev772";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -6182,6 +6182,9 @@ module.exports = function (app: any) {
           }
         }
       }
+      // Rev772 (Carlos): a new outing forgets the profiles picked by hand per
+      // mode, so each mode starts again from its default profile.
+      for (const k of Object.keys(_modeProfileLast)) delete _modeProfileLast[k];
       tripRecorder.start({
         navStateAtStart: navState,
         gainsAtStart: Object.keys(gains).length > 0 ? gains : null,

@@ -31,6 +31,18 @@
   or else its default. Not for AUTO WIND, head to wind or downwind (they
   set their own) nor while Smart Pilot's auto profile by wind is on. Mode
   changes from the remote, KIP or Freeboard leave the profile alone.
+- **Logbook: only real tacks and gybes count.** A small course change, or
+  the wind vane swinging in light air, was counted as a tack (the map's
+  markers even used a 2.8° threshold: 84 "tacks" on a calm day with
+  none). Now a tack or gybe counts only when the true wind changes side
+  and stays there for 45 s, the boat turns 50° or more (mean heading
+  before and after) and it is moving at over 1 kn. Wind ahead of the beam
+  before the turn makes it a tack, abaft a gybe; they are counted apart.
+  The count, the map markers and the live trip use this one rule, and
+  older trips are counted again the first time they are opened.
+- **A new outing starts each mode from its default profile** again (the
+  profiles picked by hand per mode are forgotten when the logbook opens a
+  new trip).
 - **Calibration buttons say what happened.** Level (boat is flat) showed
   nothing, so it looked dead. Now it says "Levelling…", the bar follows
   pypilot's countdown and it ends with "Levelled ✔"; if it could not be

@@ -1471,6 +1471,7 @@
       "trips.hl.peakSog":       "Peak SOG",
       "trips.hl.minVolt":       "Min voltage",
       "trips.hl.checkServo":    "check servo wiring",
+      "trips.hl.gybe": "Gybe",
       "trips.hl.tack":          "Tack",
       "trips.hl.at":            "at",
       // Reconnect restore banner
@@ -3023,7 +3024,7 @@
       "trips.caption.avg":      "med",
       "trips.caption.max":      "max",
       "trips.caption.heelMax":  "Escora max",
-      "trips.caption.tacks":    "Bordos",
+      "trips.caption.tacks":    "Viradas",
       "trips.caption.voltMin":  "Volt min",
       "trips.caption.sags":     "caidas",
       "trips.status.recording": "BITÁCORA EN CURSO desde hace",
@@ -3102,7 +3103,8 @@
       "trips.hl.peakSog":       "Máxima velocidad",
       "trips.hl.minVolt":       "Voltaje mínimo",
       "trips.hl.checkServo":    "revisar cableado servo",
-      "trips.hl.tack":          "Bordo",
+      "trips.hl.gybe": "Trasluchada",
+      "trips.hl.tack":          "Virada",
       "trips.hl.at":            "a las",
       // Banner de restauración tras reconexion
       "restore.msg":         "Pypilot volvio tras {sec}s. ¿Restaurar target anterior {tgt}?",
@@ -4715,6 +4717,7 @@
       "trips.hl.peakSog": "Spitzen-SOG",
       "trips.hl.minVolt": "Min. Spannung",
       "trips.hl.checkServo": "Servoverkabelung prüfen",
+      "trips.hl.gybe": "Halse",
       "trips.hl.tack": "Wende",
       "trips.hl.at": "um",
       "restore.msg": "Pypilot nach {sec}s zurück. Vorheriges Ziel {tgt} wiederherstellen?",
@@ -6314,6 +6317,7 @@
       "trips.hl.peakSog": "Pic de SOG",
       "trips.hl.minVolt": "Tension min",
       "trips.hl.checkServo": "vérifier le câblage du servo",
+      "trips.hl.gybe": "Empannage",
       "trips.hl.tack": "Virement",
       "trips.hl.at": "à",
       "restore.msg": "Pypilot de retour après {sec}s. Rétablir la consigne précédente {tgt} ?",
@@ -20273,7 +20277,7 @@
     const distNm = s ? s.distanceNm.toFixed(1) : "?";
     const sog = s?.sogAvgKn != null ? s.sogAvgKn.toFixed(1) : "?";
     const tws = s?.twsAvgKn != null ? s.twsAvgKn.toFixed(1) : "?";
-    const tacks = s?.tacks ?? 0;
+    const tacks = (s?.tacks ?? 0) + (s?.gybes ?? 0);   // Rev772: tacks and gybes
     const avg = t("trips.caption.avg");
     const bordos = t("trips.caption.tacks").toLowerCase();
     const nameEsc = trip.name ? String(trip.name).replace(/[<>&"']/g, (c) => ({ "<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;","'":"&#39;" })[c]) : "";
@@ -20644,7 +20648,7 @@
       [t("trips.kpi.twsAvg"),     `${summary.twsAvgKn?.toFixed(1) ?? "?"} kn`, "#5ce8c0"],
       [t("trips.kpi.twsMax"),     `${summary.twsMaxKn?.toFixed(1) ?? "?"} kn`, "#ffcf47"],
       [t("trips.kpi.heelMax"),    `${summary.heelMaxDeg?.toFixed(0) ?? "?"}°`, "#ff9500"],
-      [t("trips.kpi.tacks"),      `${summary.tacks}`, "#e8ecf1"],
+      [t("chart.stat.tacksGybes"), `${summary.tacks} / ${summary.gybes ?? 0}`, "#e8ecf1"],
       [t("trips.kpi.engaged"),    `${(summary.pctEngaged||0).toFixed(0)}%`, "#e8ecf1"],
       [t("trips.kpi.voltMin"),    `${summary.voltMinV?.toFixed(2) ?? "?"} V`, summary.voltMinV != null && summary.voltMinV < 11 ? "#ff5d5d" : "#4dd982"],
     ];
@@ -21067,18 +21071,17 @@
       const s = nearest(summary.minVoltTs);
       if (s) makeMarker(s, "🔋", `${t("trips.hl.minVolt")}: <b>${summary.minVoltV.toFixed(2)} V</b><br>${_tsShort(summary.minVoltTs)}<br><span style='color:#ff9500'>${t("trips.hl.checkServo")}</span>`);
     }
-    // Tack markers: detect sign flip of AWA in the raw stream. Use the
-    // same 8s sustain as the backend so the count matches summary.tacks.
-    let lastSign = 0, lastFlipTs = 0, tackNo = 0;
-    for (const s of samples) {
-      if (typeof s.awa !== "number") continue;
-      const sgn = s.awa > 0.05 ? 1 : (s.awa < -0.05 ? -1 : 0);
-      if (sgn !== 0 && lastSign !== 0 && sgn !== lastSign && s.ts - lastFlipTs > 8000) {
-        tackNo += 1;
-        makeMarker(s, "↻", `${t("trips.hl.tack")} #${tackNo}<br>${_tsShort(s.ts)}<br>AWA ${(s.awa * RAD2DEG).toFixed(0)}°`);
-        lastFlipTs = s.ts;
-      }
-      if (sgn !== 0) lastSign = sgn;
+    // Rev772 (Carlos: "una virada es un bordo o una trasluchada, no un
+    // cambio leve de rumbo"): the markers are the backend's tacks and gybes
+    // (wind changes side AND the boat turns 50 deg or more, under way), the
+    // same list the counts come from. The old 2.8 deg AWA flip is gone.
+    let manNo = 0;
+    for (const e of (summary && Array.isArray(summary.manoeuvres) ? summary.manoeuvres : [])) {
+      const s = nearest(e.ts);
+      if (!s) continue;
+      manNo += 1;
+      const label = e.kind === "gybe" ? t("trips.hl.gybe") : t("trips.hl.tack");
+      makeMarker(s, "↻", `${label} #${manNo}<br>${_tsShort(e.ts)}<br>${e.turnDeg}°`);
     }
     // Fit to the trace bounding box with a small padding.
     const bounds = L.latLngBounds(samples.map(s => [s.lat, s.lon]));
@@ -21384,7 +21387,7 @@
     // Rev332 (Carlos, 2026-09-28): quitada ESCORA MED (poco útil), se
     // conserva ESCORA MAX que sí interesa como highlight del día.
     cards += mkCard(t("trips.kpi.heelMax"),   fmt(s.heelMaxDeg, "°", 1));
-    cards += mkCard(t("trips.kpi.tacks"),     `${s.tacks}`);
+    cards += mkCard(t("chart.stat.tacksGybes"), `${s.tacks} / ${s.gybes ?? 0}`);
     if (s.pctUpwind != null || s.pctReach != null || s.pctDownwind != null) {
       const up = s.pctUpwind != null ? Math.round(s.pctUpwind) : 0;
       const rc = s.pctReach != null ? Math.round(s.pctReach) : 0;

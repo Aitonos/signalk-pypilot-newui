@@ -17,12 +17,16 @@
 // because a trip is not gated on AP engagement - it covers motor legs,
 // tender rides and sailing all in one file.
 
+import { ManoeuvreDetector, detectManoeuvres, Manoeuvre } from "./manoeuvres";
 import * as fs from "fs";
 import * as path from "path";
 
 /** Rev553: a "trip" that moved less than this is a dock test (anchor
  *  watch dropped in the marina, autostate noise), not an outing. */
 export const TRIP_MIN_DISTANCE_NM = 0.1;
+
+/** Rev772: summaries with this mark count tacks and gybes by ./manoeuvres. */
+export const MANOEUVRES_REV = 772;
 
 export interface TripSample {
   ts: number;
@@ -76,8 +80,13 @@ export interface TripSummary {
   pctReach:  number | null;   // 65..110
   pctDownwind: number | null; // > 110
 
-  // Maneuvers
+  // Maneuvers. Rev772: tacks and gybes by ./manoeuvres (the wind changes
+  // side AND the boat turns 50 deg or more, under way); `manoeuvres` lists
+  // them for the map; `manoeuvresRev` marks summaries already counted so.
   tacks: number;
+  gybes?: number;
+  manoeuvres?: Manoeuvre[];
+  manoeuvresRev?: number;
 
   // Battery health
   voltAvgV: number | null;
@@ -141,7 +150,7 @@ export class TripRecorder {
   private sogSum = 0; private sogN = 0; private sogMax: number | null = null;
   private heelSumAbs = 0; private heelN = 0; private heelMaxAbs: number | null = null;
   private upwindN = 0; private reachN = 0; private downwindN = 0; private polN = 0;
-  private tackCount = 0; private lastAwaSign = 0; private lastTackSignFlipTs = 0;
+  private man = new ManoeuvreDetector();   // Rev772
   private voltSum = 0; private voltN = 0; private voltMin: number | null = null;
   private voltInSag = false; private voltSags = 0;
   // Rev330: integración de Ah desde servoCurrent (Amps) × dt (h).
@@ -277,30 +286,8 @@ export class TripRecorder {
       else if (abs < 110) this.reachN += 1;
       else this.downwindN += 1;
       this.polN += 1;
-      // Rev453 (Carlos sea trial 2026-10-10): "cualquier modificación de
-      // rumbo queda grabada como tack. Solo hay que marcar tacks que son
-      // verdaderamente tacks." The old threshold of 0.05 rad (2.8°) was
-      // way too permissive — a boat on a run can oscillate ±5° with
-      // every wave and each flip past 8s was counted. A gybe (|AWA|>90°)
-      // was also indistinguishable from a tack. Fix: only consider the
-      // boat "upwind-tacked" when |AWA| sits inside the close-hauled /
-      // tight-reach band on BOTH sides of the flip:
-      //   15° <= |AWA| <= 70°  → sign is meaningful (we are sailing a
-      //                          tack on this side).
-      // Everything else (|AWA|<15° drift at head-to-wind, |AWA|>70° reach
-      // or run) gets sgn=0 and does not drive the lastAwaSign history —
-      // so a wave in a dead run or a nudge at head-to-wind is a no-op.
-      const absAwaDeg = Math.abs(s.awa * RAD2DEG);
-      const sgn = (absAwaDeg >= 15 && absAwaDeg <= 70)
-        ? (s.awa > 0 ? 1 : -1)
-        : 0;
-      if (sgn !== 0 && this.lastAwaSign !== 0 && sgn !== this.lastAwaSign
-          && s.ts - this.lastTackSignFlipTs > 8000) {
-        this.tackCount += 1;
-        this.lastTackSignFlipTs = s.ts;
-      }
-      if (sgn !== 0) this.lastAwaSign = sgn;
     }
+    this.man.feed(s);   // Rev772: tacks and gybes
     if (typeof s.servoVolt === "number") {
       this.voltSum += s.servoVolt; this.voltN += 1;
       if (this.voltMin == null || s.servoVolt < this.voltMin) { this.voltMin = s.servoVolt; this.minVoltTs = s.ts; this.minVoltTracked = s.servoVolt; }
@@ -367,7 +354,7 @@ export class TripRecorder {
     } catch (e: any) {
       this.log("error", `trip summary write failed: ${e?.message || e}`);
     }
-    this.log("info", `[trip] closed ${this.currentId} (${this.sampleCount} samples, ${summary.distanceNm.toFixed(1)} nm, ${this.tackCount} tacks)`);
+    this.log("info", `[trip] closed ${this.currentId} (${this.sampleCount} samples, ${summary.distanceNm.toFixed(1)} nm, ${this.man.counts().tacks} tacks, ${this.man.counts().gybes} gybes)`);
     this._resetActive();
     return summary;
   }
@@ -397,7 +384,10 @@ export class TripRecorder {
       pctReach:    this.polN > 0 ? (this.reachN    / this.polN) * 100 : null,
       pctDownwind: this.polN > 0 ? (this.downwindN / this.polN) * 100 : null,
 
-      tacks: this.tackCount,
+      tacks: this.man.counts().tacks,
+      gybes: this.man.counts().gybes,
+      manoeuvres: this.man.events.slice(),
+      manoeuvresRev: MANOEUVRES_REV,
 
       voltAvgV: this.voltN > 0 ? this.voltSum / this.voltN : null,
       voltMinV: this.voltMin,
@@ -465,7 +455,7 @@ export class TripRecorder {
     this.sogSum = 0; this.sogN = 0; this.sogMax = null;
     this.heelSumAbs = 0; this.heelN = 0; this.heelMaxAbs = null;
     this.upwindN = 0; this.reachN = 0; this.downwindN = 0; this.polN = 0;
-    this.tackCount = 0; this.lastAwaSign = 0; this.lastTackSignFlipTs = 0;
+    this.man = new ManoeuvreDetector();
     this.voltSum = 0; this.voltN = 0; this.voltMin = null;
     this.voltInSag = false; this.voltSags = 0;
     this.energyAhSum = 0; this.lastAmpTs = null;
@@ -544,7 +534,26 @@ export class TripRecorder {
     if (this.currentId && id === this.currentId) return this.liveSummary();
     if (!TripRecorder.validId(id)) return null;
     const sumPath = path.join(this.dir, `trip-${id}.summary.json`);
-    try { return JSON.parse(fs.readFileSync(sumPath, "utf8")) as TripSummary; } catch { return null; }
+    let sum: TripSummary | null = null;
+    try { sum = JSON.parse(fs.readFileSync(sumPath, "utf8")) as TripSummary; } catch { return null; }
+    // Rev772: trips counted with the old rule get their tacks and gybes
+    // counted again from their samples, once, and saved.
+    if (sum && sum.manoeuvresRev !== MANOEUVRES_REV) {
+      try {
+        const rows = fs.readFileSync(this.jsonlPath(id), "utf8").split("\n");
+        const samples: any[] = [];
+        for (const l of rows) { if (!l) continue; try { const r = JSON.parse(l); if (r && r.type === "sample") samples.push(r); } catch { /* skip */ } }
+        const ev = detectManoeuvres(samples);
+        sum.tacks = ev.filter((e) => e.kind === "tack").length;
+        sum.gybes = ev.filter((e) => e.kind === "gybe").length;
+        sum.manoeuvres = ev;
+        sum.manoeuvresRev = MANOEUVRES_REV;
+        const tmp = sumPath + ".tmp";
+        fs.writeFileSync(tmp, JSON.stringify(sum, null, 2));
+        fs.renameSync(tmp, sumPath);
+      } catch { /* keep the old numbers */ }
+    }
+    return sum;
   }
 
   jsonlPath(id: string): string {
