@@ -67,3 +67,13 @@ describe("spin-off mode reference (Rev792)", () => {
     assert.ok(e != null && Math.abs(e / D - 10) < 1e-9);
   });
 });
+
+// Rev795: the spin-off's alarm rules never read pypilot.
+import { GENERIC_RULES, GENERIC_RULE_IDS, DEFAULT_RULES } from "../alarms";
+describe("spin-off alarm rules (Rev795)", () => {
+  it("only rules that exist, none of pypilot's", () => {
+    assert.equal(GENERIC_RULES.length, GENERIC_RULE_IDS.length);
+    for (const id of GENERIC_RULE_IDS) assert.ok(DEFAULT_RULES.some((r) => r.id === id), id);
+    for (const r of GENERIC_RULES) assert.ok(!/servo|rudder|pypilot|steer-|sensor-lost|low-voltage|unable-to-steer/.test(r.id), r.id);
+  });
+});

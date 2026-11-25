@@ -31,6 +31,10 @@
     || (() => { try { return new URLSearchParams(location.search).get("pnuProduct") === "generic"; } catch { return false; } })())
     ? "generic" : "pypilot";
   try { document.documentElement.classList.add("product-" + PRODUCT); } catch { /* silent */ }
+  // Rev795: the spin-off's own name in the browser tab.
+  try { if (PRODUCT === "generic") document.title = "Autopilot Enhanced Visor"; } catch { /* silent */ }
+  // Rev796: and at the top of the Info tab.
+  try { const it = document.querySelector("#tab-info .info-title"); if (PRODUCT === "generic" && it) it.textContent = "Autopilot Enhanced Visor"; } catch { /* silent */ }
 
   // Rev785 (Gemini / GPT review): one checkpoint for every request of the
   // spin-off. Plugin routes that only make sense with pypilot (its
@@ -1183,6 +1187,12 @@
       "tour.panelFb.p1": "Another double tap and the panel shows Freeboard.\nPress Next and I'll do it.",
       "tour.chart.p1": "Double tap the panel to go to the history chart.\nPress Next and I'll do it for you.",
       "tour.welcome.t": "Hi! Welcome to PyPilot New-UI",
+      "tour.welcome.tG": "Hi! Welcome to Autopilot Enhanced Visor",
+      "tour.ap.xG": "AP engages and disengages the autopilot.\nGrey means off; red means on.\nWhen you engage it, the autopilot keeps the course it picks itself, as with its own control head.",
+      "tour.mode.tG": "Modes",
+      "tour.mode.xG": "Pick one of the steering modes your autopilot offers. The names come from the autopilot itself.",
+      "tour.tack.xG": "Shown only when your autopilot can tack or gybe by itself.\nOne tap asks it to tack to that side (or gybe, with the wind aft). Wait for it to finish before the next one.",
+      "tour.setup.xG": "Here's what matters most:\nAlarms: choose what warns you and when.\nSensor quality: how your instruments are doing.\nThe logbook and the screen settings.",
       "tour.welcome.x": "I'll show you the basics in a few minutes.\nNothing on the pilot is touched during the tour, don't worry.\nYou can replay it any time from the Info tab.",
       "tour.rose.t": "The rose",
       "tour.rose.x": "It's your boat seen from above, with the heading at the very top.\nThe yellow A arrow is the apparent wind; the green T one, the true wind.\nWith the pilot engaged you'll see its target: red in compass, yellow in apparent wind, green in true wind.",
@@ -1261,6 +1271,7 @@
       "info.comp.optional":  "Optional",
       "info.comp.store":     "App Store",
       "info.comp.pypilot":   "The autopilot itself (host and port in Setup).",
+      "info.comp.provider": "Your autopilot's own Signal K plugin, chosen as the default autopilot in the Signal K admin.",
       "info.comp.mareas":    "Tide button on the rose (tide curve, next HW/LW, coefficient) and the AnchorWatch Pro anchor-watch visor inside the rose. Also fills AIS vessel names into Signal K.",
       "info.comp.freeboard": "Integrated chartplotter: double-tap the rose.",
       "info.comp.charts":    "Serves the chart tiles; without a chart provider the embedded chart stays empty.",
@@ -2829,6 +2840,12 @@
       "tour.panelFb.p1": "Otro doble toque y el panel pasa a Freeboard.\nPulsa Siguiente y lo hago yo.",
       "tour.chart.p1": "Haz doble toque en el panel para pasar a la gráfica de históricos.\nPulsa Siguiente y lo hago yo.",
       "tour.welcome.t": "¡Hola! Bienvenido a PyPilot New-UI",
+      "tour.welcome.tG": "¡Hola! Bienvenido a Autopilot Enhanced Visor",
+      "tour.ap.xG": "Con AP conectas y desconectas el piloto.\nGris es apagado; rojo, encendido.\nAl conectarlo, el piloto mantiene el rumbo que él mismo elige, como con su propio mando.",
+      "tour.mode.tG": "Modos",
+      "tour.mode.xG": "Elige uno de los modos de gobierno que ofrece tu piloto. Los nombres los da el propio piloto.",
+      "tour.tack.xG": "Solo aparecen si tu piloto sabe virar o trasluchar por sí mismo.\nUn toque le pide virar hacia ese lado (o trasluchar, con el viento por popa). Espera a que termine antes de otra.",
+      "tour.setup.xG": "Lo más importante:\nAlarmas: elige qué te avisa y cuándo.\nCalidad de sensores: cómo van tus instrumentos.\nEl cuaderno de bitácora y los ajustes de pantalla.",
       "tour.welcome.x": "Te enseño lo básico en unos minutos.\nDurante el tour no se toca el piloto, tranquilo.\nPuedes repetirlo cuando quieras desde la pestaña Info.",
       "tour.rose.t": "La rosa",
       "tour.rose.x": "Es tu barco visto desde arriba, con el rumbo arriba del todo.\nLa flecha amarilla A es el viento aparente; la verde T, el viento real.\nCon el piloto conectado verás su objetivo: rojo en compás, amarillo en viento aparente, verde en viento real.",
@@ -2907,6 +2924,7 @@
       "info.comp.optional":  "Opcional",
       "info.comp.store":     "App Store",
       "info.comp.pypilot":   "El propio piloto (host y puerto en Setup).",
+      "info.comp.provider": "El plugin de Signal K de tu piloto, elegido como piloto por defecto en el admin de Signal K.",
       "info.comp.mareas":    "Botón de mareas en la rosa (curva, próxima PM/BM, coeficiente) y el visor de fondeo de AnchorWatch Pro dentro de la rosa. Además pone los nombres AIS en Signal K.",
       "info.comp.freeboard": "Carta integrada: doble toque en la rosa.",
       "info.comp.charts":    "Sirve las cartas; sin un proveedor de cartas la carta integrada sale vacía.",
@@ -4470,6 +4488,12 @@
       "tour.panelFb.p1": "Noch ein Doppeltipp und das Panel zeigt Freeboard.\nDrück auf Weiter, ich mache es.",
       "tour.chart.p1": "Doppeltipp auf das Panel bringt die Verlaufsgrafik.\nDrück auf Weiter, ich mache es für dich.",
       "tour.welcome.t": "Hallo! Willkommen bei PyPilot New-UI",
+      "tour.welcome.tG": "Hallo! Willkommen bei Autopilot Enhanced Visor",
+      "tour.ap.xG": "Mit AP schaltest du den Autopiloten ein und aus.\nGrau heißt aus, Rot heißt ein.\nBeim Einschalten hält der Autopilot den Kurs, den er selbst wählt, wie mit seinem eigenen Bedienteil.",
+      "tour.mode.tG": "Modi",
+      "tour.mode.xG": "Wähle einen der Steuermodi, die dein Autopilot anbietet. Die Namen kommen vom Autopiloten selbst.",
+      "tour.tack.xG": "Nur sichtbar, wenn dein Autopilot selbst wenden oder halsen kann.\nEin Tipp lässt ihn zu dieser Seite wenden (oder halsen, bei Wind von achtern). Vor der nächsten warten, bis sie fertig ist.",
+      "tour.setup.xG": "Das Wichtigste:\nAlarme: wähle, was dich wann warnt.\nSensorqualität: wie es deinen Instrumenten geht.\nDas Logbuch und die Bildschirmeinstellungen.",
       "tour.welcome.x": "Ich zeige dir in ein paar Minuten das Wichtigste.\nWährend der Tour wird am Piloten nichts verändert, keine Sorge.\nDu kannst sie jederzeit im Tab Info wiederholen.",
       "tour.rose.t": "Die Rose",
       "tour.rose.x": "Das ist dein Boot von oben, mit dem Kurs ganz oben.\nDer gelbe Pfeil A ist der scheinbare Wind, der grüne T der wahre Wind.\nMit eingeschaltetem Piloten siehst du sein Ziel: rot im Kompassmodus, gelb im scheinbaren Wind, grün im wahren Wind.",
@@ -4548,6 +4572,7 @@
       "info.comp.optional": "Optional",
       "info.comp.store": "App Store",
       "info.comp.pypilot": "Der Autopilot selbst (Host und Port in Setup).",
+      "info.comp.provider": "Das Signal-K-Plugin deines Autopiloten, im Signal-K-Admin als Standard-Autopilot gewählt.",
       "info.comp.mareas": "Gezeitentaste auf der Rose (Kurve, nächstes HW/NW, Koeffizient) und die Ankerwache von AnchorWatch Pro in der Rose. Trägt außerdem AIS-Schiffsnamen in Signal K ein.",
       "info.comp.freeboard": "Integrierter Kartenplotter: Doppeltipp auf die Rose.",
       "info.comp.charts": "Liefert die Kartenkacheln; ohne Kartenanbieter bleibt die eingebettete Karte leer.",
@@ -6084,6 +6109,12 @@
       "tour.panelFb.p1": "Encore un double tap et le panneau affiche Freeboard.\nAppuyez sur Suivant et je le fais.",
       "tour.chart.p1": "Double tap sur le panneau pour passer au graphique d'historique.\nAppuyez sur Suivant et je le fais pour vous.",
       "tour.welcome.t": "Bonjour ! Bienvenue dans PyPilot New-UI",
+      "tour.welcome.tG": "Bonjour ! Bienvenue dans Autopilot Enhanced Visor",
+      "tour.ap.xG": "AP engage et désengage le pilote.\nGris : arrêté ; rouge : en marche.\nÀ l'engagement, le pilote garde le cap qu'il choisit lui-même, comme avec sa propre commande.",
+      "tour.mode.tG": "Modes",
+      "tour.mode.xG": "Choisissez l'un des modes de barre que propose votre pilote. Les noms viennent du pilote lui-même.",
+      "tour.tack.xG": "Visibles seulement si votre pilote sait virer ou empanner seul.\nUne touche lui demande de virer de ce côté (ou d'empanner, vent arrière). Attendez la fin avant le suivant.",
+      "tour.setup.xG": "L'essentiel :\nAlarmes : choisissez ce qui vous prévient et quand.\nQualité des capteurs : l'état de vos instruments.\nLe journal de bord et les réglages de l'écran.",
       "tour.welcome.x": "Je vous montre l'essentiel en quelques minutes.\nPendant la visite, rien ne change sur le pilote, pas d'inquiétude.\nVous pouvez la revoir quand vous voulez depuis l'onglet Info.",
       "tour.rose.t": "La rose",
       "tour.rose.x": "C'est votre bateau vu de dessus, le cap en haut.\nLa flèche jaune A est le vent apparent, la verte T le vent réel.\nPilote engagé, vous voyez sa consigne : rouge en mode compas, jaune en vent apparent, verte en vent réel.",
@@ -6162,6 +6193,7 @@
       "info.comp.optional": "Optionnel",
       "info.comp.store": "App Store",
       "info.comp.pypilot": "Le pilote lui-même (hôte et port dans Setup).",
+      "info.comp.provider": "Le plugin Signal K de votre pilote, choisi comme pilote par défaut dans l'admin Signal K.",
       "info.comp.mareas": "Bouton de marée sur la rose (courbe, prochaine PM/BM, coefficient) et la veille au mouillage d'AnchorWatch Pro dans la rose. Ajoute aussi les noms des navires AIS dans Signal K.",
       "info.comp.freeboard": "Traceur de cartes intégré : double tap sur la rose.",
       "info.comp.charts": "Fournit les tuiles de carte ; sans fournisseur de cartes, la carte intégrée reste vide.",
@@ -19597,7 +19629,7 @@
       if (!res.ok) throw new Error("status " + res.status);
       const j = await res.json();
       $("#setup-status").textContent = JSON.stringify(j, null, 2);
-      $("#rev-tag").textContent = `PyPilot New-UI ${j.revision || ""}`;
+      $("#rev-tag").textContent = `${PRODUCT === "generic" ? "Autopilot Enhanced Visor" : "PyPilot New-UI"} ${j.revision || ""}`;   // Rev795
       // Rev260 (Carlos): apply pypilot liveness to the UI (see
       // renderEngage), so engage/nudge/tack visibly grey out when
       // pypilot is down.
@@ -22971,8 +23003,13 @@
     const has = (pkg) => (pluginIds && pluginIds.has(pkg)) || webappNames.has(pkg);
     const chartCount = charts && typeof charts === "object" ? Object.keys(charts).length : 0;
     const rows = [
-      { name: "pypilot / TinyPilot", level: "required", what: "info.comp.pypilot",
-        st: state.pypilotHealthy === true ? "ok" : (state.pypilotHealthy === false ? "missing" : "unknown"), noStore: true },
+      // Rev796: Autopilot Enhanced Visor needs its pilot's Signal K provider
+      // as the default autopilot, not pypilot.
+      PRODUCT === "generic"
+        ? { name: "Signal K Autopilot API", level: "required", what: "info.comp.provider",
+            st: state.autopilotId ? "ok" : "missing", noStore: true }
+        : { name: "pypilot / TinyPilot", level: "required", what: "info.comp.pypilot",
+            st: state.pypilotHealthy === true ? "ok" : (state.pypilotHealthy === false ? "missing" : "unknown"), noStore: true },
       { name: "AnchorWatch Pro (signalk-mareas-ihm)", pkg: "signalk-mareas-ihm", level: "recommended", what: "info.comp.mareas",
         st: (mareasUp || has("signalk-mareas-ihm")) ? "ok" : "missing" },
       { name: "Freeboard-SK", pkg: "@signalk/freeboard-sk", level: "recommended", what: "info.comp.freeboard",
@@ -27422,6 +27459,10 @@
     if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
     // Optional steps only when their element is there (tide needs mareas).
     TOUR_STEPS = TOUR_STEPS_ALL.filter((st) => {
+      // Rev795: Autopilot Enhanced Visor has no Tune tab, and tack buttons
+      // only when its pilot offers a tack or a gybe.
+      if (PRODUCT === "generic" && st.key === "tune") return false;
+      if (PRODUCT === "generic" && st.key === "tack" && !document.documentElement.classList.contains("ap-can-tack")) return false;
       if (!st.optional) return true;
       if (typeof st.optional === "function") return st.optional();
       return _tourVisible(st.sel);
@@ -27471,9 +27512,12 @@
     if (_navAutoHideTimer) { clearTimeout(_navAutoHideTimer); _navAutoHideTimer = null; }
     const E = _tour.els;
     E.count.textContent = `${i + 1} / ${TOUR_STEPS.length}`;
-    E.title.textContent = t(`tour.${st.key}.t`);
+    // Rev795: Autopilot Enhanced Visor has its own wording for a few steps
+    // (key + "G"), the rest is shared.
+    const _tk = (k) => (PRODUCT === "generic" && t(k + "G") !== k + "G") ? k + "G" : k;
+    E.title.textContent = t(_tk(`tour.${st.key}.t`));
     const hasPhases = !missing && st.phases && st.phases.length;
-    _tourText(hasPhases ? `tour.${st.phases[0].key}` : `tour.${st.key}.${missing ? "m" : "x"}`);
+    _tourText(hasPhases ? `tour.${st.phases[0].key}` : _tk(`tour.${st.key}.${missing ? "m" : "x"}`));
     const img = missing ? st.sim : (hasPhases ? null : st.img);
     E.sim.hidden = !img;
     if (img) E.sim.src = img;

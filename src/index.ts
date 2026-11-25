@@ -22,7 +22,7 @@ import { legState, buildApb, wpLabel, isLatLon, M_PER_NM, LatLon } from "./route
 import { adjustedFinalWindRad } from "./virtual-tack";
 import { applyFirefoxFix, firefoxFixStatus } from "./firefox-fix";
 import { ServoHealthMonitor, ServoHealthSnapshot } from "./servo-health";
-import { AlarmEngine, resolveEnabled, CourseChangeWatch, LIGHT_WIND_DEFAULT_KN } from "./alarms";
+import { AlarmEngine, resolveEnabled, CourseChangeWatch, LIGHT_WIND_DEFAULT_KN, GENERIC_RULES } from "./alarms";
 import { runPrechecks } from "./prechecks";
 import { DoctorEngine } from "./doctor";
 import { EpisodeDetector } from "./episodes";
@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev794";
+const PLUGIN_REVISION = "Rev796";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -1481,7 +1481,8 @@ module.exports = function (app: any) {
       // tick + snapshot from the KPI computer + Sensor Quality + Servo
       // Health. Rules that fire publish canonical SK notifications and
       // land in /alarms/state for the visor banner.
-      alarms = new AlarmEngine();
+      // Rev795: the spin-off runs only the rules that work with any pilot.
+      alarms = PRODUCT === "generic" ? new AlarmEngine(GENERIC_RULES) : new AlarmEngine();
       steerWatch = new SteerWatch();
       autowind = new AutowindDecider();
       setTimeout(() => { try { _autowindPublish(); } catch { /* silent */ } }, 5000);

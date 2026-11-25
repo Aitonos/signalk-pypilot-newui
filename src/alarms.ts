@@ -898,3 +898,19 @@ export function resolveEnabled(
   }
   return out;
 }
+
+/** Rev795: the rules Autopilot Enhanced Visor runs. They read only Signal K
+ *  data and the pilot's standard Autopilot API state - never pypilot's
+ *  servo, rudder, voltage, sensors, connection or "steer" watch, which
+ *  the spin-off does not have (pypilot-disconnected would otherwise read
+ *  "not connected" forever). Heading deviation, cruise drift and light
+ *  wind only work with a mode whose reference is certain (see
+ *  genericModeRef in kpis.ts). */
+export const GENERIC_RULE_IDS: readonly string[] = [
+  "heading-deviation",
+  "cruise-drift",
+  "attitude-heel-extreme",
+  "attitude-pitch-extreme",
+  "light-wind",
+];
+export const GENERIC_RULES: RuleDef[] = DEFAULT_RULES.filter((r) => GENERIC_RULE_IDS.includes(r.id));

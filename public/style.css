@@ -5442,3 +5442,6 @@ html.product-generic #tab-setup > .setup-block[data-block-key="blackbox"],
 html.product-generic #tab-setup > .setup-group-head[data-group="tech"] { display: none !important; }
 html.product-generic:not(.ap-can-tack) #tack-port-btn,
 html.product-generic:not(.ap-can-tack) #tack-star-btn { visibility: hidden; }
+/* Rev796: no "classic pypilot UI" link in the spin-off's Info tab. */
+html.product-generic #info-oldui-link,
+html.product-generic #tab-info .info-sub .info-sep { display: none; }
