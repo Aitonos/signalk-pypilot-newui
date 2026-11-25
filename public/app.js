@@ -1294,6 +1294,7 @@
       "cal.msg.offline": "Not sent: pypilot is not connected.",
       "cal.msg.fail": "Not sent ({code}). Try again.",
       "mode.defProfile": "Default profile for {mode}",
+      "mode.profileMoved": "pypilot changed the mode to {mode} with the profile {profile}. Check the mode.",
       "mode.defNone": "None (keep the current profile)",
       "helmChart.window": "Chart time",
       "helmChart.empty":      "No data for the chosen series yet",
@@ -2926,6 +2927,7 @@
       "cal.msg.offline": "No se ha enviado: pypilot no está conectado.",
       "cal.msg.fail": "No se ha enviado ({code}). Inténtalo de nuevo.",
       "mode.defProfile": "Perfil por defecto para {mode}",
+      "mode.profileMoved": "pypilot cambió el modo a {mode} con el perfil {profile}. Revisa el modo.",
       "mode.defNone": "Ninguno (deja el perfil actual)",
       "helmChart.window": "Tiempo de la gráfica",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
@@ -4553,6 +4555,7 @@
       "cal.msg.offline": "Nicht gesendet: pypilot ist nicht verbunden.",
       "cal.msg.fail": "Nicht gesendet ({code}). Bitte erneut versuchen.",
       "mode.defProfile": "Standardprofil für {mode}",
+      "mode.profileMoved": "pypilot hat mit dem Profil {profile} in den Modus {mode} gewechselt. Bitte den Modus prüfen.",
       "mode.defNone": "Keins (aktuelles Profil behalten)",
       "helmChart.window": "Diagrammzeit",
       "helmChart.empty": "Noch keine Daten für die gewählten Reihen",
@@ -6153,6 +6156,7 @@
       "cal.msg.offline": "Non envoyé : pypilot n'est pas connecté.",
       "cal.msg.fail": "Non envoyé ({code}). Réessaie.",
       "mode.defProfile": "Profil par défaut pour {mode}",
+      "mode.profileMoved": "pypilot est passé en mode {mode} avec le profil {profile}. Vérifie le mode.",
       "mode.defNone": "Aucun (garder le profil actuel)",
       "helmChart.window": "Durée du graphique",
       "helmChart.empty": "Pas encore de données pour les séries choisies",
@@ -14706,7 +14710,18 @@
     const first = mb && mb.firstChild && mb.firstChild.nodeType === 3 ? mb.firstChild.textContent : (mb ? mb.textContent : "");
     const txt = (first || "").trim().toUpperCase().slice(0, 14);
     const m = document.getElementById("rose-ap-mode");
-    if (m && m.textContent !== txt) m.textContent = txt;
+    if (m && m.textContent !== txt) {
+      m.textContent = txt;
+      // Rev774: a long mode name ("APPARENT WIND") is squeezed to the
+      // button's width instead of running out of it.
+      m.removeAttribute("textLength");
+      m.removeAttribute("lengthAdjust");
+      try {
+        // measured when on screen, else ~4.6 units a letter at this size
+        const w = m.getComputedTextLength() || txt.length * 4.6;
+        if (w > 48) { m.setAttribute("textLength", "48"); m.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
+      } catch { /* not laid out yet */ }
+    }
   }
   function _renderModeSelectBtn() {
     try { setTimeout(_roseApRender, 0); } catch { /* silent */ }
@@ -15202,6 +15217,25 @@
     while (state.mode !== mode && Date.now() - t0 < 4000) await new Promise((r) => setTimeout(r, 200));
     if (state.mode !== mode || want === state.profile) return;
     try { await pluginRaw("profile", want); } catch { /* silent */ }
+    // Rev774 (Sean, forum tid 7165 #11): after 0.71 each pypilot pilot
+    // remembers its last mode, so the profile (with its pilot) may move the
+    // boat to another mode. If it did, put the chosen mode back ONCE - the
+    // pilot then remembers it - and if it still does not stay, say so
+    // instead of insisting.
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const t1 = Date.now();
+    while (state.mode === mode && Date.now() - t1 < 3000) await sleep(200);
+    if (state.mode === mode) return;
+    const nativeSel = document.getElementById("mode-select");
+    if (nativeSel) {
+      nativeSel.value = mode;
+      nativeSel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const t2 = Date.now();
+    while (state.mode !== mode && Date.now() - t2 < 4000) await sleep(200);
+    if (state.mode !== mode) {
+      _apWarnToast(t("mode.profileMoved").replace("{profile}", want).replace("{mode}", _modeLabel(state.mode || "")));
+    }
   }
   function _modeProfileDefaultPicker(li) {
     const mode = li.dataset.mode || "";

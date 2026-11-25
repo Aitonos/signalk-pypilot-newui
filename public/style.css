@@ -5378,9 +5378,9 @@ body.layout-one.lo-controls #tab-control .controls {
 body.layout-one.lo-controls #tab-control .controls:has(.swipe-hint.view-chart),
 body.layout-one.lo-controls #tab-control .controls:has(.swipe-hint.view-fb) { --strip-fr: 1.33fr; }
 body.layout-one.lo-controls #tab-control .controls .row-tack-mode,
-body.layout-one.lo-controls #tab-control .controls .row-nudge-ap { height: 100%; align-items: stretch; }
+body.layout-one.lo-controls #tab-control .controls .row-nudge-ap { height: 100% !important; flex: initial !important; align-items: stretch; }   /* Rev774: beats the portrait row height */
 body.layout-one.lo-controls #tab-control .controls .row-tack-mode > *,
-body.layout-one.lo-controls #tab-control .controls .row-nudge-ap > * { height: 100%; min-height: 0; }
+body.layout-one.lo-controls #tab-control .controls .row-nudge-ap > * { height: 100% !important; min-height: 0; }
 body.layout-one.lo-controls #tab-control .controls .swipe-hint { margin-top: 0; min-height: 48px; }
 /* Rev758 (Carlos: the rose left a gap under it): in portrait the rose's
    height is capped to leave room for the buttons and the panel; in the

@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.18.1 — 2026-11-25 — Ready for pypilot's next version, new screenshots
+
+Rev774-775 on top of 3.18.0.
+
+- **Ready for pypilot's next version** (announced by Sean on the forum):
+  each pypilot pilot will remember its last mode, so applying a mode's
+  profile could move the boat to another mode. After applying it the
+  plugin checks the mode, puts the chosen one back once if pypilot changed
+  it (the pilot then remembers it), and warns instead of insisting if it
+  still does not stay. With pypilot 0.71 nothing changes.
+- **One block at a time:** the controls now fill the whole height (in
+  portrait the button rows kept their own height and left gaps), and a long
+  mode name such as "APPARENT WIND" fits inside the rose's AP button.
+- **New screenshots** in the README and the App Store: one block at a time
+  (rose and controls), a profile for each mode, calibration with the live
+  reading, and the rose.
+
 ## 3.18.0 — 2026-11-25 — One block at a time, a profile for each mode, real tacks
 
 Rev756-773 on top of 3.17.0, from the forum (Kalle, Michael) and the boat.

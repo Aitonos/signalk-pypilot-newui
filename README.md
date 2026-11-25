@@ -31,6 +31,14 @@ Questions, ideas and sailing reports: **[PyPilot New-UI thread on the OpenMarine
 
 ## Screenshots
 
+| One block at a time · rose | One block at a time · controls |
+|---|---|
+| ![Half of a shared screen: the rose alone, with the AP and mode button on the boat](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/15-layout-one-rose.jpg) | ![The controls alone, using the whole height; swipe or the dots to go back to the rose](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/16-layout-one-controls.jpg) |
+
+| A profile for each mode | Calibration · live reading |
+|---|---|
+| ![Mode window: the profile linked to each mode under its name, DEF on the default](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/14-mode-profiles.jpg) | ![Calibration: heel, pitch and heading read now, Level and rudder buttons](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/17-calibration.jpg) |
+
 | Bottom bar · live chart | Bottom bar · Freeboard-SK |
 |---|---|
 | ![Control tab with the bottom bar as a chart: SOG, polar max speed, AWS and TWS on one knots scale](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/09-control-strip-chart.jpg) | ![Control tab with Freeboard-SK in the bottom bar under the controls](https://raw.githubusercontent.com/Aitonos/signalk-pypilot-newui/main/public/screenshots/10-control-strip-freeboard.jpg) |
