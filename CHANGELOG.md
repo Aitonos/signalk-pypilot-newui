@@ -21,6 +21,13 @@
   The heading box at the top of the rose works the same way. The combined
   Wind corner keeps its tap for apparent / true (on phones that tap acted
   twice and seemed to do nothing; fixed).
+- **A profile for each mode.** In the mode window, a long press on a mode
+  (compass, GPS, wind, true wind, NAV) picks its default profile; the
+  linked profile is shown next to the mode's name. Choosing the mode then
+  applies the profile last picked by hand in that mode during this outing,
+  or else its default. Not for AUTO WIND, head to wind or downwind (they
+  set their own) nor while Smart Pilot's auto profile by wind is on. Mode
+  changes from the remote, KIP or Freeboard leave the profile alone.
 - **Calibration buttons say what happened.** Level (boat is flat) showed
   nothing, so it looked dead. Now it says "Levelling…", the bar follows
   pypilot's countdown and it ends with "Levelled ✔"; if it could not be

@@ -1293,6 +1293,8 @@
       "cal.msg.noAccess": "Not sent: this screen has no Signal K write access. Approve it in the Signal K admin (Security > Access Requests).",
       "cal.msg.offline": "Not sent: pypilot is not connected.",
       "cal.msg.fail": "Not sent ({code}). Try again.",
+      "mode.defProfile": "Default profile for {mode}",
+      "mode.defNone": "None (keep the current profile)",
       "helmChart.window": "Chart time",
       "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
@@ -2922,6 +2924,8 @@
       "cal.msg.noAccess": "No se ha enviado: esta pantalla no tiene permiso de escritura en Signal K. Apruébala en el admin de Signal K (Security > Access Requests).",
       "cal.msg.offline": "No se ha enviado: pypilot no está conectado.",
       "cal.msg.fail": "No se ha enviado ({code}). Inténtalo de nuevo.",
+      "mode.defProfile": "Perfil por defecto para {mode}",
+      "mode.defNone": "Ninguno (deja el perfil actual)",
       "helmChart.window": "Tiempo de la gráfica",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
@@ -4546,6 +4550,8 @@
       "cal.msg.noAccess": "Nicht gesendet: Dieser Bildschirm hat in Signal K keine Schreibrechte. Im Signal-K-Admin genehmigen (Security > Access Requests).",
       "cal.msg.offline": "Nicht gesendet: pypilot ist nicht verbunden.",
       "cal.msg.fail": "Nicht gesendet ({code}). Bitte erneut versuchen.",
+      "mode.defProfile": "Standardprofil für {mode}",
+      "mode.defNone": "Keins (aktuelles Profil behalten)",
       "helmChart.window": "Diagrammzeit",
       "helmChart.empty": "Noch keine Daten für die gewählten Reihen",
       "dash.helmBar.heel": "Krängung (Standard)",
@@ -6143,6 +6149,8 @@
       "cal.msg.noAccess": "Non envoyé : cet écran n'a pas le droit d'écrire dans Signal K. Autorise-le dans l'admin Signal K (Security > Access Requests).",
       "cal.msg.offline": "Non envoyé : pypilot n'est pas connecté.",
       "cal.msg.fail": "Non envoyé ({code}). Réessaie.",
+      "mode.defProfile": "Profil par défaut pour {mode}",
+      "mode.defNone": "Aucun (garder le profil actuel)",
       "helmChart.window": "Durée du graphique",
       "helmChart.empty": "Pas encore de données pour les séries choisies",
       "dash.helmBar.heel": "Gîte (défaut)",
@@ -14933,12 +14941,33 @@
     // Mode list click handler (delegated).
     const list = m.querySelector("#mode-popup-list");
     if (list) {
+      // Rev766: long press on a mode = its default profile.
+      let lpTimer = null, lpFired = false;
+      list.addEventListener("pointerdown", (ev) => {
+        const li = ev.target.closest(".mode-popup-item[data-mode]");
+        lpFired = false;
+        if (!li || !MODE_PROFILE_MODES.includes(li.dataset.mode || "")) return;
+        clearTimeout(lpTimer);
+        lpTimer = setTimeout(() => {
+          lpFired = true;
+          try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* silent */ }
+          _modeProfileDefaultPicker(li);
+        }, 600);
+      });
+      const lpCancel = () => { clearTimeout(lpTimer); lpTimer = null; };
+      list.addEventListener("pointerup", lpCancel);
+      list.addEventListener("pointercancel", lpCancel);
+      list.addEventListener("pointerleave", lpCancel);
+      list.addEventListener("contextmenu", (ev) => { if (ev.target.closest(".mode-popup-item[data-mode]")) ev.preventDefault(); });
       list.addEventListener("click", (ev) => {
+        if (lpFired) { lpFired = false; return; }   // that press opened the default picker
+        if (ev.target.closest(".mode-def-list")) return;
         const li = ev.target.closest(".mode-popup-item");
         if (!li) return;
         const chosen = li.dataset.mode;
         if (!chosen) return;   // Rev519: greyed-out entry (AUTO WIND without GPS)
         _modeSelectPopupClose();
+        _modeProfileApplyAfter(chosen);   // Rev766
         if (chosen === "nav-next") { _routeNext(); return; }   // Rev545
         const nativeSel = document.getElementById("mode-select");
         if (nativeSel) {
@@ -14968,6 +14997,14 @@
         }
         if (chosen && chosen !== state.profile) {
           try { pluginRaw("profile", chosen); } catch { /* silent */ }
+          // Rev766: remembered for this mode for the rest of the outing.
+          if (MODE_PROFILE_MODES.includes(state.mode)) {
+            state.modeProfiles.last = { ...(state.modeProfiles.last || {}), [state.mode]: chosen };
+            skFetch(`/plugins/${PLUGIN_ID}/mode-profiles/last`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mode: state.mode, profile: chosen }),
+            }).catch(() => {});
+          }
         }
         _modeSelectPopupClose();
       });
@@ -15044,6 +15081,15 @@
       // on first open. The button on the bbar still uses the SHORT
       // label ("Aparente" / "Real") to fit the narrow chip.
       li.textContent = _modeLabel(v, true);
+      // Rev766: the profile linked to this mode, small, after the name.
+      const linked = _modeProfileFor(String(v));
+      if (linked) {
+        const sp = document.createElement("span");
+        sp.className = "mode-popup-def";
+        sp.style.cssText = "font-size:0.72em;opacity:0.75;margin-left:6px;font-weight:600";
+        sp.textContent = "· " + linked;
+        li.appendChild(sp);
+      }
       if (v === "autowind" && awNoTrue) {
         li.dataset.mode = "";
         li.style.opacity = "0.45";
@@ -15065,6 +15111,99 @@
     _rebuildModePopupProfiles();
     m.hidden = false;
     m.classList.add("open");
+    _modeProfilesFetch().then(() => {
+      // relabel with fresh links if they changed while open
+      if (!m.hidden) list.querySelectorAll(".mode-popup-item[data-mode]").forEach((li) => {
+        const sp = li.querySelector(".mode-popup-def");
+        const linked = _modeProfileFor(li.dataset.mode || "");
+        if (linked && !sp) {
+          const n = document.createElement("span");
+          n.className = "mode-popup-def";
+          n.style.cssText = "font-size:0.72em;opacity:0.75;margin-left:6px;font-weight:600";
+          n.textContent = "· " + linked;
+          li.appendChild(n);
+        } else if (sp) sp.textContent = linked ? "· " + linked : "";
+      });
+    });
+  }
+  // Rev766 (Carlos): each pypilot mode can carry a default profile. A long
+  // press on a mode in this window picks it; choosing the mode then applies
+  // the profile last picked by hand in that mode this outing, else its
+  // default. Not for AUTO WIND, head to wind or downwind (they set their own)
+  // nor while Smart Pilot's auto profile by wind is on.
+  const MODE_PROFILE_MODES = ["compass", "gps", "wind", "true wind", "nav"];
+  state.modeProfiles = { defaults: {}, last: {}, autoProfile: false };
+  async function _modeProfilesFetch() {
+    try {
+      const r = await skFetch(`/plugins/${PLUGIN_ID}/mode-profiles`, { cache: "no-store" });
+      if (r.ok) state.modeProfiles = await r.json();
+    } catch { /* keep */ }
+  }
+  function _modeProfileFor(mode) {
+    const mp = state.modeProfiles || {};
+    if (!MODE_PROFILE_MODES.includes(mode)) return null;
+    return (mp.last && mp.last[mode]) || (mp.defaults && mp.defaults[mode]) || null;
+  }
+  async function _modeProfileApplyAfter(mode) {
+    if (!MODE_PROFILE_MODES.includes(mode)) return;
+    await _modeProfilesFetch();
+    if (state.modeProfiles.autoProfile) return;
+    const want = _modeProfileFor(mode);
+    if (!want) return;
+    if (Array.isArray(state.profiles) && !state.profiles.includes(want)) return;   // deleted / renamed
+    // wait for pypilot to be in the mode (max 4 s), then set the profile
+    const t0 = Date.now();
+    while (state.mode !== mode && Date.now() - t0 < 4000) await new Promise((r) => setTimeout(r, 200));
+    if (state.mode !== mode || want === state.profile) return;
+    try { await pluginRaw("profile", want); } catch { /* silent */ }
+  }
+  function _modeProfileDefaultPicker(li) {
+    const mode = li.dataset.mode || "";
+    if (!MODE_PROFILE_MODES.includes(mode)) return;
+    const box = li.parentElement;
+    if (!box) return;
+    box.querySelectorAll(".mode-def-list").forEach((n) => n.remove());
+    const ul = document.createElement("ul");
+    ul.className = "mode-popup-list mode-popup-profile-list mode-def-list";
+    const head = document.createElement("li");
+    head.className = "mode-popup-group-label";
+    head.textContent = t("mode.defProfile").replace("{mode}", _modeLabel(mode, true));
+    ul.appendChild(head);
+    const cur = (state.modeProfiles.defaults || {})[mode] || "";
+    const add = (val, label) => {
+      const it = document.createElement("li");
+      it.className = "mode-popup-item";
+      it.dataset.defProfile = val;
+      it.textContent = label;
+      if (val === cur) it.classList.add("active");
+      ul.appendChild(it);
+    };
+    add("", t("mode.defNone"));
+    for (const p of (Array.isArray(state.profiles) ? state.profiles : [])) add(String(p), String(p));
+    ul.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const it = ev.target.closest(".mode-popup-item");
+      if (!it) return;
+      try {
+        const r = await skFetch(`/plugins/${PLUGIN_ID}/mode-profiles`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode, profile: it.dataset.defProfile || null }),
+        });
+        if (r.ok) { const j = await r.json(); state.modeProfiles.defaults = j.defaults || {}; state.modeProfiles.last = j.last || {}; }
+      } catch { /* silent */ }
+      ul.remove();
+      const sp = li.querySelector(".mode-popup-def");
+      const linked = _modeProfileFor(mode);
+      if (sp) sp.textContent = linked ? "· " + linked : "";
+      else if (linked) {
+        const n = document.createElement("span");
+        n.className = "mode-popup-def";
+        n.style.cssText = "font-size:0.72em;opacity:0.75;margin-left:6px;font-weight:600";
+        n.textContent = "· " + linked;
+        li.appendChild(n);
+      }
+    });
+    li.after(ul);
   }
   function _modeSelectPopupClose() {
     const m = document.getElementById("mode-select-modal");

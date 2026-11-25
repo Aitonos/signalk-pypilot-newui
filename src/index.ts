@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev765";
+const PLUGIN_REVISION = "Rev766";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -279,6 +279,8 @@ interface PluginProps {
   // marine SIM/4G environment). Default 15 s; sailors on a stable LAN
   // can shorten it, sailors on lossy 4G can extend it.
   alarmPypilotDiscSec?: number;
+  // Rev766 (Carlos): the default profile of each pypilot mode.
+  modeProfiles?: Record<string, string>;
   // Rev748: light wind in a wind mode - threshold (kn) and what to do.
   lightWindKn?: number;
   lightWindAction?: "warn" | "compass";
@@ -322,6 +324,19 @@ interface PluginProps {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Rev766: modes that can carry a default profile (pypilot's own modes; the
+// visor's pseudo-modes manage their own profile).
+const MODE_PROFILE_MODES = ["compass", "gps", "wind", "true wind", "nav"];
+function _cleanModeProfiles(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const m of MODE_PROFILE_MODES) {
+    const v = (raw as any)[m];
+    if (typeof v === "string" && v.trim()) out[m] = v.trim().slice(0, 80);
+  }
+  return out;
+}
+
 module.exports = function (app: any) {
   let client: PypilotClient | null = null;
   let apProvider: AutopilotProvider | null = null;
@@ -2086,6 +2101,34 @@ module.exports = function (app: any) {
       // Response: { count, windowMs, historian:{...status}, samples:[...] }.
       // The samples array is oldest-first and each row includes `ts` plus
       // the requested fields (or all Sample fields if paths is omitted).
+      // Rev766 (Carlos): profile linked to each mode. `defaults` is the
+      // sailor's choice (saved); `last` is the profile last picked by hand
+      // in each mode since Signal K started (this outing), which wins.
+      router.get("/mode-profiles", (_req: any, res: any) => {
+        res.json({ defaults: props.modeProfiles || {}, last: _modeProfileLast, modes: MODE_PROFILE_MODES, autoProfile: !!props.autoProfileEnabled });
+      });
+      router.post("/mode-profiles", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const mode = String(req.body?.mode || "");
+        if (!MODE_PROFILE_MODES.includes(mode)) return res.status(400).json({ error: "unknown mode" });
+        const prof = req.body?.profile;
+        const map = { ...(props.modeProfiles || {}) };
+        if (typeof prof === "string" && prof.trim()) map[mode] = prof.trim().slice(0, 80);
+        else delete map[mode];
+        props.modeProfiles = map;
+        delete _modeProfileLast[mode];   // a new default starts clean
+        try { app.savePluginOptions?.(props, () => { /* noop */ }); } catch { /* silent */ }
+        res.json({ defaults: map, last: _modeProfileLast });
+      });
+      router.post("/mode-profiles/last", (req: any, res: any) => {
+        if (!props.allowWrites) return res.status(403).json({ error: "allowWrites disabled" });
+        const mode = String(req.body?.mode || "");
+        const prof = req.body?.profile;
+        if (!MODE_PROFILE_MODES.includes(mode) || typeof prof !== "string" || !prof.trim()) return res.status(400).json({ error: "mode and profile required" });
+        _modeProfileLast[mode] = prof.trim().slice(0, 80);
+        res.json({ ok: true, last: _modeProfileLast });
+      });
+
       router.get("/history", (req: any, res: any) => {
         if (!historian) {
           res.status(503).json({ error: "historian not initialised" });
@@ -5858,6 +5901,7 @@ module.exports = function (app: any) {
       alarmServoMotorTempC: clampNumber(options.alarmServoMotorTempC, 40, 90, 70),
       alarmPypilotDiscSec: clampNumber(options.alarmPypilotDiscSec, 3, 300, 15),
       lightWindKn: clampNumber(options.lightWindKn, 1, 10, LIGHT_WIND_DEFAULT_KN),
+      modeProfiles: _cleanModeProfiles(options.modeProfiles),
       lightWindAction: options.lightWindAction === "compass" ? "compass" : "warn",
       // Rev299 (I1): attitude envelope thresholds. Ranges kept wide
       // enough for coastal cruisers (25Â°) and racers who purposely
@@ -7466,6 +7510,9 @@ module.exports = function (app: any) {
       app.debug?.(`[light-wind] compass switch: ${e?.message || e}`);
     } finally { _lightWindBusy = false; }
   }
+
+  // Rev766: profile last chosen by hand in each mode, this outing only.
+  const _modeProfileLast: Record<string, string> = {};
 
   function evaluateAndPublishAlarms(sample: Sample): void {
     if (!alarms) return;
