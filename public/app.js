@@ -15383,17 +15383,32 @@
       const j = await res.json();
       const entries = Object.entries(j || {});
       if (!entries.length) { console.warn("[pypilot-newui] /autopilots returned no providers"); return; }
-      // Prefer isDefault, then our own id, then any available.
+      // Rev782 (GPT review 2026-11-25): every order goes to ONE known pilot.
+      // PyPilot New-UI: our own pypilot device first (engage already goes to
+      // pypilot through our route, so disengage / mode / course must too),
+      // then the default. Autopilot Enhanced Visor: only the default device,
+      // never a fallback, and never pypilot.
       let picked = "";
-      for (const [id, info] of entries) {
-        if (info?.isDefault) { picked = id; break; }
-      }
-      if (!picked) {
-        for (const [id] of entries) {
-          if (id === "pypilot-newui") { picked = id; break; }
+      state.apIsPypilotElsewhere = false;
+      if (PRODUCT === "generic") {
+        const def = entries.find(([, info]) => info?.isDefault);
+        if (def) {
+          const [id, info] = def;
+          if (/pypilot/i.test(id) || /pypilot/i.test(String(info?.provider || ""))) {
+            state.apIsPypilotElsewhere = true;
+          } else {
+            picked = id;
+          }
         }
+      } else {
+        if (entries.some(([id]) => id === "pypilot-newui")) picked = "pypilot-newui";
+        if (!picked) { const def = entries.find(([, info]) => info?.isDefault); if (def) picked = def[0]; }
+        if (!picked) picked = entries[0][0];
       }
-      if (!picked) picked = entries[0][0];
+      if (state.autopilotId && picked !== state.autopilotId) {
+        // The pilot changed: forget what the visor knew of the old one.
+        state.engaged = null; state.apState = null; state.mode = null; state.target = null; state.availableActions = [];
+      }
       state.autopilotId = picked;
       console.info("[pypilot-newui] autopilotId =", picked, "(from", entries.map(e => e[0]).join(","), ")");
     } catch (e) { console.warn("discoverAutopilot failed", e); }
@@ -15928,7 +15943,8 @@
   // produces zero traffic and zero potential stale command.
   function _pypilotWriteBlocked(callerName) {
     const wsOk = typeof ws !== "undefined" && ws && ws.readyState === WebSocket.OPEN;
-    const pypilotOk = !(state && state.pypilotHealthy === false);
+    // Rev782: pypilot's health means nothing to Autopilot Enhanced Visor.
+    const pypilotOk = PRODUCT === "generic" || !(state && state.pypilotHealthy === false);
     if (wsOk && pypilotOk) return false;
     const reason = !wsOk ? "ws_closed" : "pypilot_offline";
     try {
@@ -15955,6 +15971,11 @@
     // Signal K API engage (Freeboard, KIP) switches to NAV when a route is
     // active; here NAV is chosen in the mode list. Also keeps aproado /
     // empopado (which engage at the end) in their wind mode with a route on.
+    // Rev782: Autopilot Enhanced Visor engages through the Signal K Autopilot
+    // API, on the same validated device as every other order.
+    if (PRODUCT === "generic") {
+      return handleAuth(await skFetch(`/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/engage`, { method: "POST", signal: AbortSignal.timeout(8000) }));
+    }
     return handleAuth(await skFetch(`/plugins/${PLUGIN_ID}/ap/engage?current=1`, { method: "POST" }));
   }
   async function apDisengage() {
