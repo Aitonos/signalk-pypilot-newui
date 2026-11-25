@@ -24,8 +24,34 @@
     const seg = (location.pathname.split("/")[1] || "").trim();
     return /^signalk-(pypilot-newui|autopilot-enhanced-visor)$/.test(seg) ? seg : "signalk-pypilot-newui";
   })();
-  const PRODUCT = PLUGIN_ID === "signalk-autopilot-enhanced-visor" ? "generic" : "pypilot";
+  // Rev785: `?pnuProduct=generic` in the URL runs the spin-off's visor from
+  // PyPilot New-UI's address, to test it on a pypilot boat (it then finds
+  // pypilot as the default pilot and sends no command). Not remembered.
+  const PRODUCT = (PLUGIN_ID === "signalk-autopilot-enhanced-visor"
+    || (() => { try { return new URLSearchParams(location.search).get("pnuProduct") === "generic"; } catch { return false; } })())
+    ? "generic" : "pypilot";
   try { document.documentElement.classList.add("product-" + PRODUCT); } catch { /* silent */ }
+
+  // Rev785 (Gemini / GPT review): one checkpoint for every request of the
+  // spin-off. Plugin routes that only make sense with pypilot (its
+  // supervisor, TinyPilot, Doctor, gains and profiles, backups over SSH,
+  // raw writes, virtual tack, black box...) and pypilot's Signal K paths
+  // never leave the visor; the caller gets a 409 "pypilot-only" and each
+  // blocked route is logged once in the console.
+  if (PRODUCT === "generic" && typeof window.fetch === "function") {
+    const PNU_PYPILOT_ONLY = /^\/plugins\/signalk-(?:pypilot-newui|autopilot-enhanced-visor)\/(?:supervisor|tinypilot|doctor|scan|restart-pypilot|pypilot-web-restart|ssh-exec|debug-cmd|raw|backup|virtual-tack|autowind|mode-profiles|profiles|publish|paths|catalog|values|ap|black-box|prechecks)(?:[\/?]|$)|^\/signalk\/v[12]\/api\/vessels\/self\/steering\/autopilot\/pypilot(?:[\/?]|$)/;
+    const origFetch = window.fetch.bind(window);
+    const logged = new Set();
+    window.fetch = (input, init) => {
+      let path = "";
+      try { path = new URL(typeof input === "string" ? input : (input && input.url) || "", location.href).pathname; } catch { /* keep "" */ }
+      if (path && PNU_PYPILOT_ONLY.test(path)) {
+        if (!logged.has(path)) { logged.add(path); console.info("[autopilot-enhanced-visor] pypilot-only request not sent:", path); }
+        return Promise.resolve(new Response(JSON.stringify({ error: "pypilot-only", blocked: true }), { status: 409, headers: { "Content-Type": "application/json" } }));
+      }
+      return origFetch(input, init);
+    };
+  }
 
   // ---- i18n (Rev20, expanded Rev61) ----
   // Simple dictionary lookup by data-i18n attribute. First visit picks the
@@ -7151,7 +7177,7 @@
       "steering.autopilot.pypilot.ap.mode",
       "steering.autopilot.pypilot.ap.enabled",
       "steering.autopilot.pypilot.ap.heading_command",
-    ];
+    ].filter((p) => PRODUCT !== "generic" || !p.startsWith("steering.autopilot.pypilot."));   // Rev785
     ws.send(JSON.stringify({
       context: "vessels.self",
       subscribe: critical.map((p) => ({
@@ -7218,7 +7244,8 @@
     ];
     const sub = {
       context: "vessels.self",
-      subscribe: paths.map((p) => ({
+      // Rev785: the spin-off does not subscribe to pypilot's own paths.
+      subscribe: paths.filter((p) => PRODUCT !== "generic" || !String(p).startsWith("steering.autopilot.pypilot.")).map((p) => ({
         path: p,
         // Rev11: ease off from 500 ms/200 ms. The dashboard tiles do not
         // need to update faster than 1 Hz, and when several devices are
@@ -15837,7 +15864,11 @@
     if (!state.autopilotId) await discoverAutopilot();
     if (!state.autopilotId) {
       // Rev783: the spin-off says why it will not steer.
-      alert(t(PRODUCT !== "generic" ? "alert.noProvider" : state.apIsPypilotElsewhere ? "alert.pypilotIsDefault" : "alert.noDefaultPilot"));
+      // Rev785: once per touch - a tap can ask for the pilot several times.
+      if (Date.now() - (ensureAutopilotId._lastAlert || 0) > 10_000) {
+        ensureAutopilotId._lastAlert = Date.now();
+        alert(t(PRODUCT !== "generic" ? "alert.noProvider" : state.apIsPypilotElsewhere ? "alert.pypilotIsDefault" : "alert.noDefaultPilot"));
+      }
       return false;
     }
     return true;
