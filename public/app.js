@@ -14775,8 +14775,15 @@
     // "AUTO · profile" when the plugin picks the profile by itself (Smart
     // Pilot by wind, or AUTO WIND), else just the profile.
     const auto = !!(state.modeProfiles && state.modeProfiles.autoProfile) || !!(state.autowind && state.autowind.enabled);
-    const tag = defs[m] && defs[m] === state.profile ? "DEF · " : auto ? "AUTO · " : "";
-    sub.textContent = tag + state.profile;
+    // Rev770 (Carlos): three lines - mode, DEF / AUTO, profile.
+    const tag = defs[m] && defs[m] === state.profile ? "DEF" : auto ? "AUTO" : "";
+    if (tag) {
+      const tg = document.createElement("span");
+      tg.className = "mode-btn-why mode-btn-prof";
+      tg.textContent = tag;
+      btn.appendChild(tg);
+    }
+    sub.textContent = state.profile;
     btn.appendChild(sub);
   }
   // Rev545 (Carlos 2026-10-23): route following. Voice announcement of each

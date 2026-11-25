@@ -24,9 +24,9 @@
 - **A profile for each mode.** In the mode window, a long press on a mode
   (compass, GPS, wind, true wind, NAV) picks its default profile; the
   linked profile is shown under the mode's name, with "DEF" when it is the
-  default. The mode button in the controls shows the current profile under
-  the mode: "DEF · profile" when it is that mode's default, "AUTO · profile"
-  when the plugin picks it (Smart Pilot by wind, AUTO WIND). Choosing the mode then
+  default. The mode button in the controls shows the mode, then "DEF" (the
+  mode's default) or "AUTO" (picked by the plugin: Smart Pilot by wind, AUTO
+  WIND) when it applies, then the current profile. Choosing the mode then
   applies the profile last picked by hand in that mode during this outing,
   or else its default. Not for AUTO WIND, head to wind or downwind (they
   set their own) nor while Smart Pilot's auto profile by wind is on. Mode
