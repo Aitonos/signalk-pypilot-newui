@@ -530,6 +530,7 @@
       "ap.disengageFailedGeneric": "Could not disengage: the autopilot is not answering. Use the autopilot's own controls, or cut its power.",
       "ap.disengageUnconfirmed": "Disengage not confirmed. Use the autopilot's own controls.",
       "ap.resultUnknown": "No confirmation from the autopilot. Check it on the autopilot itself.",
+      "ap.adjustFailed": "The autopilot did not accept the course change.",
       "ap.pypilotNoAnswer": "pypilot is not answering: command not sent.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
@@ -2165,6 +2166,7 @@
       "ap.disengageFailedGeneric": "No se pudo desconectar: el piloto no responde. Usa el mando del piloto o córtale la corriente.",
       "ap.disengageUnconfirmed": "Desconexión sin confirmar. Usa el mando del piloto.",
       "ap.resultUnknown": "El piloto no lo ha confirmado. Compruébalo en el propio piloto.",
+      "ap.adjustFailed": "El piloto no ha aceptado el cambio de rumbo.",
       "ap.pypilotNoAnswer": "pypilot no responde: orden no enviada.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
@@ -3561,6 +3563,7 @@
       "ap.disengageFailedGeneric": "Auskuppeln nicht möglich: der Autopilot antwortet nicht. Die Bedienung des Autopiloten benutzen oder Strom trennen.",
       "ap.disengageUnconfirmed": "Auskuppeln nicht bestätigt. Die Bedienung des Autopiloten benutzen.",
       "ap.resultUnknown": "Keine Bestätigung vom Autopiloten. Am Autopiloten selbst prüfen.",
+      "ap.adjustFailed": "Der Autopilot hat die Kursänderung nicht angenommen.",
       "ap.pypilotNoAnswer": "pypilot antwortet nicht: Befehl nicht gesendet.",
       "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
       "doctor.summary.notedOnly":  "{issues} Punkt(e) notiert (keine Gain-Änderung vorgeschlagen).",
@@ -5169,6 +5172,7 @@
       "ap.disengageFailedGeneric": "Impossible de débrayer : le pilote ne répond pas. Utilisez la commande du pilote ou coupez son alimentation.",
       "ap.disengageUnconfirmed": "Débrayage non confirmé. Utilisez la commande du pilote.",
       "ap.resultUnknown": "Pas de confirmation du pilote. Vérifiez sur le pilote lui-même.",
+      "ap.adjustFailed": "Le pilote n'a pas accepté le changement de cap.",
       "ap.pypilotNoAnswer": "pypilot ne répond pas : commande non envoyée.",
       "doctor.summary.clean":      "Aucun problème majeur. Les gains semblent sains.",
       "doctor.summary.notedOnly":  "{issues} point(s) noté(s) (aucun changement de gain suggéré).",
@@ -7429,6 +7433,7 @@
         try { renderTackButton(state.pypilotValues?.["ap.tack.state"]); } catch { /* silent */ }
         break;
       case "steering.autopilot.target":
+        state.apTargetSeenTs = Date.now();   // Rev788
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.target", value, prev: state.target, monoTs: performance.now() }); } catch { /* silent */ }
         }
@@ -16234,7 +16239,7 @@
     // Rev346: stamp so the delta observer knows this tack originated
     // from our visor (not from the mando físico / UI nativo).
     _lastVisorTackWriteTs = Date.now();
-    const chk = await _pypilotPingCheck();
+    const chk = PRODUCT === "generic" ? { ok: true } : await _pypilotPingCheck();   // Rev788
     if (!chk.ok) { _pypilotPingFailToast(chk.reason); return { ok: false, status: 503, blocked: true, reason: chk.reason }; }
     const url = `/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/tack/${direction}`;
     return handleAuth(await skFetch(url, { method: "POST" }));
@@ -17537,6 +17542,7 @@
   // after the LAST tap. state.target is updated optimistically each
   // tap so the diamond and countdown labels react instantly.
   const NUDGE_SEND_DEBOUNCE_MS = 600;
+  let _genericAdjustSum = 0;   // Rev788: the spin-off's pending ±1/±10, in degrees
   let _nudgeSendTimer = null;
   // Rev210 (LLM audit P1-3): every nudge bump increments this. The
   // pending debounce callback captures the value at scheduling time
@@ -17568,7 +17574,7 @@
         const now = Date.now();
         if (!state.engaged) {
           b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
-          _preparedNudge(nudge);   // Rev684: compass / GPS only; otherwise nothing, as before
+          if (PRODUCT !== "generic") _preparedNudge(nudge);   // Rev684: compass / GPS only; Rev788: not in the spin-off (its engage sends no course)
           return;
         }
         // Rev354 (Carlos, 2026-09-30, QA Rev353): if the current
@@ -17602,6 +17608,41 @@
         if (_externalManeuver) {
           b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
           console.info("[nudge] blocked while mirror active (external tack in progress)");
+          return;
+        }
+        // Rev788 (GPT review): the spin-off asks its pilot for a RELATIVE
+        // change (target/adjust, degrees stated), never an absolute target:
+        // some pilots (Simrad NAC-3) only take increments, and each pilot
+        // knows its own target in wind modes. Taps within 600 ms add up
+        // and go as ONE order, never repeated on its own. The sign is the
+        // side the bow should swing to, as on the pilot's own keypad
+        // (to be checked with each provider in the experimental release).
+        if (PRODUCT === "generic") {
+          b.animate([{ transform: "scale(1)" }, { transform: "scale(0.94)" }, { transform: "scale(1)" }], { duration: 180 });
+          _genericAdjustSum += nudge;
+          const modeAtTap = String(state.mode || "");
+          if (_nudgeSendTimer) clearTimeout(_nudgeSendTimer);
+          _nudgeSendTimer = setTimeout(async () => {
+            _nudgeSendTimer = null;
+            const deg = _genericAdjustSum; _genericAdjustSum = 0;
+            if (!deg || String(state.mode || "") !== modeAtTap || !state.engaged) return;
+            if (!await ensureAutopilotId()) return;
+            const sentTs = Date.now();
+            let ok = false;
+            try {
+              const r = await handleAuth(await skFetch(`/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/target/adjust`, {
+                method: "PUT", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ value: deg, units: "deg" }), signal: AbortSignal.timeout(8000),
+              }));
+              ok = !!(r && r.ok);
+            } catch { ok = false; }
+            try { _mtLog("other", { via: "genericAdjust", deg, ok }); } catch { /* silent */ }
+            if (!ok) { _apWarnToast(t("ap.adjustFailed")); return; }
+            // Accepted: the pilot should report its new target.
+            setTimeout(() => {
+              if ((state.apTargetSeenTs || 0) < sentTs) _apWarnToast(t("ap.resultUnknown"));
+            }, 3000);
+          }, NUDGE_SEND_DEBOUNCE_MS);
           return;
         }
         if (now - state.lastNudgeTs > 1000 || state.localTargetRad == null) {
