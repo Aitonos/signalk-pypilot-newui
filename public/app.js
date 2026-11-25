@@ -17,7 +17,15 @@
 (function () {
   "use strict";
 
-  const PLUGIN_ID = "signalk-pypilot-newui";
+  // Rev779: the webapp is served at /<package name>/, which is also the
+  // plugin id - "signalk-pypilot-newui" or the spin-off for any autopilot,
+  // "signalk-autopilot-enhanced-visor" (same code, PRODUCT "generic").
+  const PLUGIN_ID = (() => {
+    const seg = (location.pathname.split("/")[1] || "").trim();
+    return /^signalk-(pypilot-newui|autopilot-enhanced-visor)$/.test(seg) ? seg : "signalk-pypilot-newui";
+  })();
+  const PRODUCT = PLUGIN_ID === "signalk-autopilot-enhanced-visor" ? "generic" : "pypilot";
+  try { document.documentElement.classList.add("product-" + PRODUCT); } catch { /* silent */ }
 
   // ---- i18n (Rev20, expanded Rev61) ----
   // Simple dictionary lookup by data-i18n attribute. First visit picks the

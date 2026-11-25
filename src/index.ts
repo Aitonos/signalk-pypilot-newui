@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev778";
+const PLUGIN_REVISION = "Rev780";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -108,7 +108,16 @@ const PLUGIN_PKG_VERSION: string = (() => {
   catch { return ""; }
 })();
 
-const PLUGIN_ID = "signalk-pypilot-newui";
+// Rev779 (Carlos 2026-11-25): one source, two packages. The plugin id is
+// the package name, so "signalk-autopilot-enhanced-visor" (the spin-off for
+// any autopilot, docs/_plan_visor_otros_pilotos_2026-11-25.md) runs the same
+// code under its own id; PRODUCT says which one this is.
+const PLUGIN_ID: string = (() => {
+  try { const n = require("../package.json").name; if (typeof n === "string" && n) return n; } catch { /* default */ }
+  return "signalk-pypilot-newui";
+})();
+const GENERIC_PACKAGE = "signalk-autopilot-enhanced-visor";
+const PRODUCT: "pypilot" | "generic" = PLUGIN_ID === GENERIC_PACKAGE ? "generic" : "pypilot";
 const SOURCE_LABEL = "pypilot-newui";
 
 // Default watch periods per rate class. NEVER `true` (event-driven) - on
@@ -992,7 +1001,7 @@ module.exports = function (app: any) {
 
   const plugin = {
     id: PLUGIN_ID,
-    name: "PyPilot New-UI",
+    name: PRODUCT === "generic" ? "Autopilot Enhanced Visor" : "PyPilot New-UI",
     description:
       "Modern touch-first control panel for pypilot autopilot plus every pypilot value as a first-class Signal K path (KIP-ready). Complements the official pypilot-autopilot-provider.",
     revision: PLUGIN_REVISION,
@@ -1033,11 +1042,14 @@ module.exports = function (app: any) {
       // Rev659: pypilot's Signal K access, approved read/write by itself.
       if (pypilotAccessTimer) clearInterval(pypilotAccessTimer);
       if (pypilotTidyTimer) clearInterval(pypilotTidyTimer);
+      // Rev780: only PyPilot New-UI looks after pypilot's access.
+      if (PRODUCT === "pypilot") {
       pypilotAccessTimer = setInterval(_approvePypilotAccess, 5000);
       // Rev727: every minute - Signal K re-reads a connection's permission
       // every 60 s, so pypilot writes within two minutes, no restart.
       pypilotTidyTimer = setInterval(_tidyPypilotDevices, 60_000);
       setTimeout(_tidyPypilotDevices, 20_000).unref?.();
+      }
       if (props.adminPinReset) {
         _adminPinOf().clear();
         props.adminPinReset = false;
@@ -1064,7 +1076,8 @@ module.exports = function (app: any) {
       // Rev698: decided path by path (heading, attitude, rate of turn), with
       // a longer wait to come back on, and a switch in the visor Setup.
       if (imuFallbackTimer) clearInterval(imuFallbackTimer);
-      imuFallbackTimer = setInterval(() => {
+      // Rev780: the heading fallback comes from pypilot's IMU.
+      if (PRODUCT === "pypilot") imuFallbackTimer = setInterval(() => {
         try {
           const now = Date.now();
           const has = _pypilotHasHeading();
@@ -1105,6 +1118,13 @@ module.exports = function (app: any) {
         } catch { /* next tick */ }
       }, 5000);
       logRetentionTimer = setInterval(_lcRetention, 6 * 3600_000);
+      // Rev780 (docs/_plan_visor_otros_pilotos_2026-11-25.md): the spin-off
+      // for any autopilot ("generic") never talks to pypilot - no client, no
+      // Autopilot provider of its own; it steers through the Signal K
+      // Autopilot API (the visor) and keeps everything below (history,
+      // logbook, data alarms, AIS...). PyPilot New-UI runs this block as
+      // before, including the early return without a TinyPilot address.
+      if (PRODUCT === "pypilot") {
       if (!props.host) {
         app.setPluginStatus(
           "Not configured - open the PyPilot New-UI webapp, tab Setup, and set the TinyPilot address (or Scan)."
@@ -1354,6 +1374,9 @@ module.exports = function (app: any) {
       }
 
       client.start();
+      } else {
+        app.setPluginStatus(`${PLUGIN_REVISION} - Autopilot Enhanced Visor: steering through the Signal K Autopilot API`);
+      }
 
       // Rev93: telemetry historian. RAM-only ring buffer at 1 Hz - the
       // Chart tab pulls slices via /history, the KPI computer reads from
@@ -1489,17 +1512,18 @@ module.exports = function (app: any) {
       // raw heading statistics.
       // Rev288: Doctor also reads the current Roll FF setting so
       // Rule 6 can flag downwind roll when the FF slider is at 0.
-      doctor = new DoctorEngine(historian, client, episodes, () => ({
+      // Rev780: the Doctor tunes pypilot's gains - PyPilot New-UI only.
+      doctor = PRODUCT === "pypilot" && client ? new DoctorEngine(historian, client, episodes, () => ({
         rollFfGain: props.rollFfGain ?? 0,
-      }));
+      })) : null;
       // Rev296 (bug D): Doctor fork writes go through the change log.
-      doctor.setProfileWriteHook((name, reason) => {
+      doctor?.setProfileWriteHook((name, reason) => {
         try { profileChangeLog.markPlannedWrite(name, "doctor", reason); }
         catch { /* silent */ }
       });
-      doctor.setConfigGenerationAccessor(() => gainChangeLog.changeCount + _profileChangeCount);
+      doctor?.setConfigGenerationAccessor(() => gainChangeLog.changeCount + _profileChangeCount);
       // Rev568: and its gain writes, with the finding behind them.
-      doctor.setGainWriteHook((path, value, reason) => {
+      doctor?.setGainWriteHook((path, value, reason) => {
         try { gainChangeLog.markPlannedWrite(path, value, "doctor", reason); }
         catch { /* silent */ }
       });
@@ -1905,6 +1929,7 @@ module.exports = function (app: any) {
         res.json({
           revision: PLUGIN_REVISION,
           version: PLUGIN_PKG_VERSION,
+          product: PRODUCT,   // Rev779: "pypilot" or "generic" (Autopilot Enhanced Visor)
           pypilotVersion: (() => { const v = client?.getValues()?.["ap.version"]; return v == null ? null : String(v); })(),   // Rev727
           host: props.host,
           port: props.port,
@@ -7332,7 +7357,9 @@ module.exports = function (app: any) {
     // dividing by 180/PI on the way out). Convert to rad to match the
     // rest of the Sample fields.
     const cmdDeg = pv["ap.heading_command"];
-    const headingCmdRad = typeof cmdDeg === "number" ? cmdDeg * Math.PI / 180 : null;
+    const skTarget = PRODUCT === "generic" ? (() => { try { const n = app.getSelfPath("steering.autopilot.target"); const v = n && typeof n === "object" ? (n as any).value : undefined; return typeof v === "number" && isFinite(v) ? v : null; } catch { return null; } })() : null;
+    // Rev780: the spin-off's target comes in radians from the Autopilot API.
+    const headingCmdRad = PRODUCT === "generic" ? skTarget : typeof cmdDeg === "number" ? cmdDeg * Math.PI / 180 : null;
     // Servo current + temp arrive as plain numbers from pypilot.
     const servoA = typeof pv["servo.current"] === "number" ? (pv["servo.current"] as number) : null;
     const servoT = typeof pv["servo.controller_temp"] === "number" ? (pv["servo.controller_temp"] as number) : null;
@@ -7344,10 +7371,19 @@ module.exports = function (app: any) {
     // Engaged / mode: prefer the AP provider when active, fall back to
     // raw pypilot values so the historian keeps working with
     // absorbProvider = false.
-    const engaged = apProvider
+    // Rev780: the spin-off reads the pilot from the standard Signal K
+    // Autopilot API paths (steering.autopilot.*, any provider).
+    const skAp = (leaf: string): unknown => {
+      try { const n = app.getSelfPath(`steering.autopilot.${leaf}`); return n && typeof n === "object" ? (n as any).value : undefined; } catch { return undefined; }
+    };
+    const engaged = PRODUCT === "generic"
+      ? (skAp("engaged") === true)
+      : apProvider
       ? !!apProvider.data.engaged
       : (pv["ap.enabled"] === true || pv["ap.enabled"] === 1);
-    const mode = apProvider
+    const mode = PRODUCT === "generic"
+      ? (typeof skAp("mode") === "string" ? skAp("mode") as string : null)
+      : apProvider
       ? (apProvider.data.mode || null)
       : (typeof pv["ap.mode"] === "string" ? pv["ap.mode"] as string : null);
     return {
