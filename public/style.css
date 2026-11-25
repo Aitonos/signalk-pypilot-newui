@@ -5322,3 +5322,47 @@ nav#tabbar { padding-right: 38px; }
 :is(#tab-chart, #tab-regata, #tab-setup, #tab-info, body > .setup-block, #dash-help-pop) [style*="font-size:13px"], :is(#tab-chart, #tab-regata, #tab-setup, #tab-info, body > .setup-block, #dash-help-pop) [style*="font-size: 13px"] { font-size: 15px !important; }
 :is(#tab-chart, #tab-regata, #tab-setup, #tab-info, body > .setup-block, #dash-help-pop) [style*="font-size:14px"], :is(#tab-chart, #tab-regata, #tab-setup, #tab-info, body > .setup-block, #dash-help-pop) [style*="font-size: 14px"] { font-size: 16px !important; }
 /* Rev686-GENERATED-END */
+
+/* Rev756 (Carlos, Kalle on a split 10" screen): one-at-a-time layout. The
+   rose or the controls take the whole Control tab; swipe or the dots
+   change between them, the AP button over the stern opens the controls. */
+#tab-control { position: relative; }
+#rose-ap-btn { display: none; cursor: pointer; }
+body.layout-one #rose-ap-btn { display: inline; }
+#rose-ap-btn.engaged rect { fill: #e74c3c; stroke: #ff8a80; }
+.layout-dots { display: none; }
+body.layout-one #tab-control .layout-dots {
+  display: flex;
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+  gap: 10px;
+  z-index: 6;
+}
+.layout-dots button {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  min-height: 0;
+}
+body.layout-one:not(.lo-controls) .layout-dots button[data-lo="rose"],
+body.layout-one.lo-controls .layout-dots button[data-lo="controls"] { background: #37b6ff; border-color: #37b6ff; }
+body.layout-one:not(.lo-controls) #tab-control .controls { display: none !important; }
+body.layout-one.lo-controls #tab-control .dash-rose { display: none !important; }
+body.layout-one #tab-control.active { grid-template-columns: minmax(0, 1fr) !important; }
+body.layout-one #tab-control .dash-rose,
+body.layout-one #tab-control .controls {
+  grid-column: 1 !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+body.layout-one #tab-control .lo-in-next { animation: lo-in-next 180ms ease-out; }
+body.layout-one #tab-control .lo-in-prev { animation: lo-in-prev 180ms ease-out; }
+@keyframes lo-in-next { from { transform: translateX(40px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes lo-in-prev { from { transform: translateX(-40px); opacity: 0.4; } to { transform: none; opacity: 1; } }

@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased (Rev756+)
+
+### From the forum (Kalle, Michael)
+
+- **Layout: one block at a time** (Setup > visor settings > Screen and
+  sound > Layout, per device). The rose or the controls take the whole
+  Control tab; swipe or tap the dots at the bottom to change, and an AP
+  button over the boat's stern on the rose (red when engaged) opens the
+  controls. **Automatic** (the default) uses it in a small, squarish window,
+  such as a screen shared with a chart app, and shows both otherwise. On
+  the controls a swipe starts outside the buttons, so it can never press AP.
+- **Calibration buttons say what happened.** Level (boat is flat) showed
+  nothing, so it looked dead. Now it says "Levelling…", the bar follows
+  pypilot's countdown and it ends with "Levelled ✔"; if it could not be
+  sent it says why (no Signal K write access for this screen, pypilot not
+  connected, writes switched off). The rudder buttons and fields do the
+  same.
+
 ## 3.17.0 — 2026-11-23 — Backup assistant, light-wind alarm, clearer chart
 
 Rev734-754 on top of 3.16.3 (whose virtual-tack safety fix is included).

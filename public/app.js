@@ -1280,6 +1280,17 @@
       "dash.helmViews.title": "Double tap cycles through:",
       "dash.helmViews.bar":   "Heel / rudder bar",
       "dash.helmViews.chart": "Chart",
+      "dash.layout.title": "LAYOUT",
+      "dash.layout.hint": "Rose and controls side by side, or one at a time: swipe or tap the dots to change, and the AP button on the rose opens the controls. Automatic shows one at a time in a small or square window, such as a shared screen. Saved on this device.",
+      "dash.layout.auto": "Automatic",
+      "dash.layout.both": "Rose and controls",
+      "dash.layout.one": "One at a time",
+      "cal.msg.levelling": "Levelling… keep the boat still and upright.",
+      "cal.msg.levelled": "Levelled ✔",
+      "cal.msg.sent": "Sent to pypilot ✔",
+      "cal.msg.noAccess": "Not sent: this screen has no Signal K write access. Approve it in the Signal K admin (Security > Access Requests).",
+      "cal.msg.offline": "Not sent: pypilot is not connected.",
+      "cal.msg.fail": "Not sent ({code}). Try again.",
       "helmChart.window": "Chart time",
       "helmChart.empty":      "No data for the chosen series yet",
       "dash.helmBar.heel":   "Heel (default)",
@@ -2896,6 +2907,17 @@
       "dash.helmViews.title": "El doble toque alterna entre:",
       "dash.helmViews.bar":   "Barra de escora / timón",
       "dash.helmViews.chart": "Gráfica",
+      "dash.layout.title": "DISTRIBUCIÓN",
+      "dash.layout.hint": "Rosa y controles juntos, o de uno en uno: desliza o toca los puntos para cambiar, y el botón AP de la rosa abre los controles. Automático muestra uno cada vez en una ventana pequeña o cuadrada, como una pantalla compartida. Se guarda en este dispositivo.",
+      "dash.layout.auto": "Automático",
+      "dash.layout.both": "Rosa y controles",
+      "dash.layout.one": "Uno cada vez",
+      "cal.msg.levelling": "Nivelando… mantén el barco quieto y adrizado.",
+      "cal.msg.levelled": "Nivelado ✔",
+      "cal.msg.sent": "Enviado a pypilot ✔",
+      "cal.msg.noAccess": "No se ha enviado: esta pantalla no tiene permiso de escritura en Signal K. Apruébala en el admin de Signal K (Security > Access Requests).",
+      "cal.msg.offline": "No se ha enviado: pypilot no está conectado.",
+      "cal.msg.fail": "No se ha enviado ({code}). Inténtalo de nuevo.",
       "helmChart.window": "Tiempo de la gráfica",
       "helmChart.empty":      "Aún no hay datos de las series elegidas",
       "dash.helmBar.heel":   "Escora (por defecto)",
@@ -4507,6 +4529,17 @@
       "dash.helmViews.title": "Doppeltipp wechselt zwischen:",
       "dash.helmViews.bar": "Krängungs- / Ruderleiste",
       "dash.helmViews.chart": "Grafik",
+      "dash.layout.title": "ANORDNUNG",
+      "dash.layout.hint": "Rose und Bedienung nebeneinander oder einzeln: Zum Wechseln wischen oder auf die Punkte tippen; die AP-Taste auf der Rose öffnet die Bedienung. Automatisch zeigt sie in einem kleinen oder quadratischen Fenster einzeln, etwa bei geteiltem Bildschirm. Wird auf diesem Gerät gespeichert.",
+      "dash.layout.auto": "Automatisch",
+      "dash.layout.both": "Rose und Bedienung",
+      "dash.layout.one": "Einzeln",
+      "cal.msg.levelling": "Nivellierung läuft… Boot ruhig und aufrecht halten.",
+      "cal.msg.levelled": "Nivelliert ✔",
+      "cal.msg.sent": "An pypilot gesendet ✔",
+      "cal.msg.noAccess": "Nicht gesendet: Dieser Bildschirm hat in Signal K keine Schreibrechte. Im Signal-K-Admin genehmigen (Security > Access Requests).",
+      "cal.msg.offline": "Nicht gesendet: pypilot ist nicht verbunden.",
+      "cal.msg.fail": "Nicht gesendet ({code}). Bitte erneut versuchen.",
       "helmChart.window": "Diagrammzeit",
       "helmChart.empty": "Noch keine Daten für die gewählten Reihen",
       "dash.helmBar.heel": "Krängung (Standard)",
@@ -6091,6 +6124,17 @@
       "dash.helmViews.title": "Le double tap alterne entre :",
       "dash.helmViews.bar": "Barre de gîte / barre",
       "dash.helmViews.chart": "Graphique",
+      "dash.layout.title": "DISPOSITION",
+      "dash.layout.hint": "Rose et commandes côte à côte, ou une à la fois : glisse ou touche les points pour changer ; le bouton AP sur la rose ouvre les commandes. Automatique les affiche une à la fois dans une fenêtre petite ou carrée, comme un écran partagé. Enregistré sur cet appareil.",
+      "dash.layout.auto": "Automatique",
+      "dash.layout.both": "Rose et commandes",
+      "dash.layout.one": "Une à la fois",
+      "cal.msg.levelling": "Mise à niveau… garde le bateau immobile et droit.",
+      "cal.msg.levelled": "Mis à niveau ✔",
+      "cal.msg.sent": "Envoyé à pypilot ✔",
+      "cal.msg.noAccess": "Non envoyé : cet écran n'a pas le droit d'écrire dans Signal K. Autorise-le dans l'admin Signal K (Security > Access Requests).",
+      "cal.msg.offline": "Non envoyé : pypilot n'est pas connecté.",
+      "cal.msg.fail": "Non envoyé ({code}). Réessaie.",
       "helmChart.window": "Durée du graphique",
       "helmChart.empty": "Pas encore de données pour les séries choisies",
       "dash.helmBar.heel": "Gîte (défaut)",
@@ -11368,6 +11412,9 @@
   }
 
   function renderEngage() {
+    // Rev756: the AP button over the stern (one-at-a-time layout).
+    const roseAp = document.getElementById("rose-ap-btn");
+    if (roseAp) roseAp.classList.toggle("engaged", !!state.engaged);
     const el = $("#engage-toggle");
     if (!el) return;
     if (state.engaged) el.classList.add("engaged");
@@ -16940,6 +16987,7 @@
     }
     if (!res.ok) {
       const bodyTxt = await res.text().catch(() => "");
+      try { res._body = bodyTxt; } catch { /* silent */ }   // Rev756: for the caller's message
       console.warn("raw PUT failed", name, res.status, bodyTxt);
       // Rev344: also mark the failure in the trace so we do not have
       // to correlate console output with the JSONL post-hoc.
@@ -18647,17 +18695,74 @@
         _pmImportFI.value = "";
       });
     }
-    $("#cal-level").addEventListener("click", () => {
-      pluginRaw("imu.alignmentCounter", 100);
+    // Rev756 (forum, Michael: "no button reaction" on Level): every
+    // calibration button now says what happened - sent, levelling (with the
+    // bar following pypilot's countdown), done, or why it was not sent.
+    $("#cal-level").addEventListener("click", async () => {
+      if (await _calSend("imu.alignmentCounter", 100)) _calLevelWatch();
     });
-    $("#cal-heading-offset").addEventListener("change", (e) => {
-      pluginRaw("imu.heading_offset", Number(e.target.value));
-    });
-    $("#cal-rud-centered").addEventListener("click", () => pluginRaw("rudder.calibration_state", "centered"));
-    $("#cal-rud-port")    .addEventListener("click", () => pluginRaw("rudder.calibration_state", "port range"));
-    $("#cal-rud-star")    .addEventListener("click", () => pluginRaw("rudder.calibration_state", "starboard range"));
-    $("#cal-rud-reset")   .addEventListener("click", () => pluginRaw("rudder.calibration_state", "reset"));
-    $("#cal-rud-range")   .addEventListener("change", (e) => pluginRaw("rudder.range", Number(e.target.value)));
+    $("#cal-heading-offset").addEventListener("change", (e) => _calSend("imu.heading_offset", Number(e.target.value)));
+    $("#cal-rud-centered").addEventListener("click", () => _calSend("rudder.calibration_state", "centered"));
+    $("#cal-rud-port")    .addEventListener("click", () => _calSend("rudder.calibration_state", "port range"));
+    $("#cal-rud-star")    .addEventListener("click", () => _calSend("rudder.calibration_state", "starboard range"));
+    $("#cal-rud-reset")   .addEventListener("click", () => _calSend("rudder.calibration_state", "reset"));
+    $("#cal-rud-range")   .addEventListener("change", (e) => _calSend("rudder.range", Number(e.target.value)));
+  }
+
+  // Rev756: calibration feedback.
+  function _calMsg(txt, kind) {
+    const el = document.getElementById("cal-msg");
+    if (!el) return;
+    el.hidden = !txt;
+    el.textContent = txt || "";
+    el.style.color = kind === "err" ? "var(--err)" : kind === "ok" ? "var(--ok, #2ecc71)" : "";
+  }
+  async function _calSend(name, value) {
+    let r = null;
+    try { r = await pluginRaw(name, value); } catch { r = null; }
+    if (r && r.blocked) { _calMsg(t("cal.msg.offline"), "err"); return false; }
+    if (!r || !r.ok) {
+      const code = r ? r.status : 0;
+      const body = (r && r._body) || "";
+      if (/allowWrites/i.test(body)) _calMsg(t("wz.why.writes"), "err");
+      else if (code === 401 || code === 403) _calMsg(t("cal.msg.noAccess"), "err");
+      else _calMsg(t("cal.msg.fail").replace("{code}", String(code || "-")), "err");
+      return false;
+    }
+    _calMsg(t("cal.msg.sent"), "ok");
+    return true;
+  }
+  let _calLevelTimer = null;
+  function _calLevelWatch() {
+    const bar = document.querySelector("#cal-level-progress .bar");
+    _calMsg(t("cal.msg.levelling"));
+    if (bar) bar.style.width = "0%";
+    _watchFocusPost(["imu.alignmentCounter"], 1, 150);
+    if (_calLevelTimer) clearInterval(_calLevelTimer);
+    const t0 = Date.now();
+    let seen = false;
+    _calLevelTimer = setInterval(async () => {
+      let v = null;
+      try {
+        const res = await skFetch(`/plugins/${PLUGIN_ID}/values`, { cache: "no-store" });
+        if (res.ok) v = (await res.json())["imu.alignmentCounter"];
+      } catch { /* next tick */ }
+      if (typeof v === "number" && isFinite(v)) {
+        if (v > 0) seen = true;
+        if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - v)).toFixed(0) + "%";
+        if (seen && v <= 0) {
+          clearInterval(_calLevelTimer); _calLevelTimer = null;
+          if (bar) bar.style.width = "100%";
+          _calMsg(t("cal.msg.levelled"), "ok");
+          return;
+        }
+      }
+      // pypilot does not report the countdown: it was sent, say so and stop.
+      if (Date.now() - t0 > (seen ? 150000 : 10000)) {
+        clearInterval(_calLevelTimer); _calLevelTimer = null;
+        _calMsg(t("cal.msg.sent"), "ok");
+      }
+    }, 1000);
   }
 
   // ---- Paths tab ----
@@ -23591,6 +23696,9 @@
           const ctrl = t.closest("input,select,textarea,button");
           if (ctrl && !ctrl.disabled) { tracking = false; return; }
           if (t.closest(".rose-wrap")) { tracking = false; return; }
+          // Rev756: in the one-at-a-time layout a swipe in Control changes
+          // between rose and controls (its own handler), not the tab.
+          if (document.body.classList.contains("layout-one") && t.closest("#tab-control")) { tracking = false; return; }
           // Rev57: the horizontally-scrollable table wrappers own the
           // gesture entirely; the tab swipe must not steal it.
           if (t.closest(".paths-scroll")) { tracking = false; return; }
@@ -26600,6 +26708,7 @@
     _tour.els.ov.classList.add("open");
     document.body.classList.add("tour-on");
     _tourGo(0);
+    _layoutApply();   // Rev756: the tour shows rose and controls together
   }
   function _tourEnd() {
     _tourMark();
@@ -26608,6 +26717,7 @@
     _tourRestorePanel();
     _tour.i = -1;
     document.body.classList.remove("tour-on");
+    _layoutApply();   // Rev756: back to the one-at-a-time layout if chosen
     { const box = document.querySelector("#tide-pop .popup-box"); if (box) box.style.transform = ""; }
     if (_tourTideOpen() && _tourExtApi.closeTide) _tourExtApi.closeTide();
     if (_tour.els) _tour.els.ov.classList.remove("open");
@@ -26858,6 +26968,79 @@
     const fold = sec && sec.closest("details");
     if (fold) fold.open = true;
     if (sec) setTimeout(() => sec.scrollIntoView({ block: "start" }), 50);
+  }
+  // Rev756 (Carlos, Kalle on a split 10" screen): rose and controls together,
+  // or one at a time. Per device. Automatic = one at a time in a small,
+  // squarish window (a shared screen), both otherwise.
+  const _LAYOUT_LS_KEY = "pypilotnewui.layout";
+  function _layoutMode() {
+    try { const v = localStorage.getItem(_LAYOUT_LS_KEY); return v === "both" || v === "one" ? v : "auto"; } catch { return "auto"; }
+  }
+  function _layoutOneNow() {
+    const m = _layoutMode();
+    if (m === "one") return true;
+    if (m === "both") return false;
+    const w = window.innerWidth, h = window.innerHeight;
+    const r = h / Math.max(1, w);
+    return Math.min(w, h) < 700 && r >= 0.8 && r <= 1.5;
+  }
+  function _layoutTourOn() { try { return _tour.i >= 0; } catch { return false; } }
+  function _layoutApply() {
+    const one = _layoutOneNow() && !_layoutTourOn();
+    document.body.classList.toggle("layout-one", one);
+    if (!one) document.body.classList.remove("lo-controls");
+    document.querySelectorAll('input[name="dash-layout"]').forEach((r) => { r.checked = r.value === _layoutMode(); });
+  }
+  function _layoutShow(which) {
+    if (!document.body.classList.contains("layout-one")) return;
+    const toControls = which === "controls";
+    if (toControls === document.body.classList.contains("lo-controls")) return;
+    document.body.classList.toggle("lo-controls", toControls);
+    const el = document.querySelector(toControls ? "#tab-control .controls" : "#tab-control .dash-rose");
+    if (el) {
+      el.classList.remove("lo-in-next", "lo-in-prev");
+      void el.offsetWidth;
+      el.classList.add(toControls ? "lo-in-next" : "lo-in-prev");
+    }
+    try { if (navigator.vibrate) navigator.vibrate(10); } catch { /* silent */ }
+  }
+  function _layoutInit() {
+    _layoutApply();
+    window.addEventListener("resize", _layoutApply);
+    document.querySelectorAll('input[name="dash-layout"]').forEach((r) => r.addEventListener("change", () => {
+      try { localStorage.setItem(_LAYOUT_LS_KEY, r.value); } catch { /* silent */ }
+      _layoutApply();
+    }));
+    document.querySelectorAll("#layout-dots button").forEach((b) => b.addEventListener("click", () => _layoutShow(b.dataset.lo)));
+    const ap = document.getElementById("rose-ap-btn");
+    if (ap) {
+      const stop = (e) => { e.stopPropagation(); };
+      ap.addEventListener("pointerdown", stop);
+      ap.addEventListener("pointerup", stop);
+      ap.addEventListener("click", (e) => { e.stopPropagation(); _layoutShow("controls"); });
+    }
+    // Swipe between the two blocks. Not from a button / field (the AP
+    // button acts on touch) nor from the chart (a finger reads it there).
+    const tc = document.getElementById("tab-control");
+    if (!tc) return;
+    let sx = 0, sy = 0, on = false, done = false;
+    tc.addEventListener("touchstart", (e) => {
+      on = false;
+      if (!document.body.classList.contains("layout-one") || e.touches.length !== 1) return;
+      const t = e.target;
+      if (t && t.closest && (t.closest("input,select,textarea,button,#rose-ap-btn") || t.closest("#swipe-hint.view-chart"))) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; on = true; done = false;
+    }, { passive: true });
+    tc.addEventListener("touchmove", (e) => {
+      if (!on || done || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+      if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) { on = false; return; }
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) {
+        done = true;
+        _layoutShow(dx < 0 ? "controls" : "rose");
+      }
+    }, { passive: true });
+    tc.addEventListener("touchend", () => { on = false; }, { passive: true });
   }
   function wireHelmChart() {
     const strip = document.getElementById("swipe-hint");
@@ -27364,6 +27547,7 @@
     try { _adminWireTiles(); } catch (e) { console.warn("[admin] wire", e); }
     wireChart();
     wireHelmChart();
+    _layoutInit();   // Rev756
     // Rev620: guided tour - replay buttons + first-run start.
     for (const id of ["tour-replay-info", "boat-menu-tour"]) {
       const b = document.getElementById(id);
