@@ -126,7 +126,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 
 ### Touch visor (14)
 
-16. **Compass rose** with colour-coded cardinals, hull-fixed sailing wedges and 4 corner tiles. Long-press a corner for the visor settings: rose corners, arrows on the rose, multifunction panel, collision alarm (AIS), screen and sound (start-up screen, tab bar, chart in the background, tap sound) and saved displays.
+16. **Compass rose** with colour-coded cardinals, hull-fixed sailing wedges and 4 corner tiles. Long-press a corner for the visor settings: rose corners, arrows on the rose, multifunction panel, collision alarm (AIS), screen and sound (start-up screen, tab bar, chart in the background, tap sound) and saved displays. Tap a corner (or the heading box) to make its number bigger, three steps, saved per orientation on each device. **Layout**: rose and controls together, or one at a time with a swipe between them; Automatic picks one at a time in a small, squarish window, such as a screen shared with a chart app. Long-press AP (or the AP button on the rose) for the mode and profile window.
 17. **Concentric Target + Wind arrows** — target diamond tinted by mode (red compass, amber apparent, teal true), amber `A` and teal `T` arrows. They interlock into a droplet when aligned and open into V-notches with a colour tick when they drift.
 18. **Gust marker overlay** — a notable gust or wind shift leaves a ghost `A` / `T` at the angle it hit, with its speed, fading over 15 s. Per-device on / off with a test button.
 19. **COG line + Current vector** overlays.
@@ -139,7 +139,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 26. **Race timer T1/T2** with beeps, screen flash and spoken countdown, persistent across tabs.
 27. **Swipe navigation** between tabs with vertical-axis lock, so scrolling never flips a tab by accident.
 28. **Multi-language** EN / ES / DE / FR, auto-detected from the browser, every screen translated. A first-run **guided tour** (replay from Info) shows the essentials.
-29. **Profile history** — the profile manager shows under each profile its version, when it was made, which profile it was copied from and how (Tune, New, Doctor, import); a rename keeps the history, and look-alike names (extra spaces, capitals) are flagged.
+29. **Profile history** — the profile manager shows under each profile its version, when it was made, which profile it was copied from and how (Tune, New, Doctor, import); a rename keeps the history, and look-alike names (extra spaces, capitals) are flagged. Each mode can carry a default profile (long press on the mode); choosing the mode applies it, or the one last picked by hand in that mode during the outing.
 
 ### Logbook & performance data (6)
 
@@ -164,7 +164,7 @@ PyPilot New-UI is a well-behaved citizen of the Signal K ecosystem: it builds on
 ### Looking after the installation (6)
 
 44. **Setup in groups + admin PIN** — Sailing, Settings and Technical. Technical (black box, calibration, connection, pypilot advanced settings, paths, emergency, backups) can be locked with a 4-8 digit PIN of this plugin, checked by the server, unlocked 12 h per screen. The same PIN guards Tune (gains, pilot type, Tune groups) and the profile manager (new, rename, import, delete, reorder), asked on the spot; choosing a profile stays free. Nothing is locked until a PIN is set, and an *Ask for the PIN* switch turns it off (PIN kept) for a boat with only trusted crew. A forgotten PIN is cleared from the plugin config in the Signal K admin.
-45. **pypilot advanced settings** — everything pypilot's own web client shows, grouped, in this style. Values are read only for the groups you open; changes need *Allow changes*, and installation settings ask first.
+45. **pypilot advanced settings** — everything pypilot's own web client shows, grouped, in this style. Values are read only for the groups you open; changes need *Allow changes*, and installation settings ask first. The calibration buttons say what happened (levelling, done, or why it could not be sent) and show the heel, pitch and heading read now.
 46. **Daily settings backup + restore** — every day a readable copy of all settings (plugin, pypilot, the TinyPilot's `pypilot.conf` with every profile, visor preferences) in `~/Backups-pypilot-newui/` (last 30, monthly reminder to download one; the newest also inside `~/.signalk` so whole-server backups such as signalk-backup carry it). **Restore** brings back the gains of every profile in a copy through pypilot itself, with the autopilot off; installation settings (IMU calibration above all) are never restored by the plugin.
 47. **Backup assistant** — one *Start* button in Setup → Backups, a few plain steps:
     - **Make a backup** — the settings plus an exact image of the TinyPilot's card (about 1.1 GB, ~700 MB compressed). pypilot is stopped during the copy so the image is consistent, and started again at the end, also if the connection drops; a "backup in progress" banner shows meanwhile. You choose whether passwords and keys go in the backup. Only with the autopilot off and the boat moored.

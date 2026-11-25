@@ -1,55 +1,49 @@
 # Changelog
 
-## Unreleased (Rev756+)
+## 3.18.0 — 2026-11-25 — One block at a time, a profile for each mode, real tacks
 
-### From the forum (Kalle, Michael)
+Rev756-773 on top of 3.17.0, from the forum (Kalle, Michael) and the boat.
 
-- **Layout: one block at a time** (Setup > visor settings > Screen and
-  sound > Layout, per device). The rose or the controls take the whole
-  Control tab; swipe or tap the dots at the bottom to change. On the rose,
-  a button centred on the boat shows AP (red when engaged) and the mode.
+- **Layout: one block at a time** (visor settings > Screen and sound >
+  Layout, per device). The rose or the controls take the whole Control tab;
+  swipe or tap the dots at the bottom to change. On the rose, a button
+  centred on the boat shows AP (red when engaged) and the mode.
   **Automatic** (the default) uses this layout in a small, squarish window,
   such as a screen shared with a chart app, and shows both otherwise. On
   the controls a swipe starts outside the buttons, so it can never press AP.
-- **AP button: short press and long press**, on the controls and on the
-  rose. A short press engages or disengages the autopilot when the finger
-  is lifted; a long press opens the mode and profile window instead, with
-  the autopilot on or off.
-- **Each corner's number size, by tapping it:** each tap makes the number
-  4 px bigger, three steps, then back to the original. Saved per corner
-  and per orientation (portrait / landscape) on each device.
-  The heading box at the top of the rose works the same way. The combined
-  Wind corner keeps its tap for apparent / true (on phones that tap acted
-  twice and seemed to do nothing; fixed).
+- **AP button: short and long press**, on the controls and on the rose. A
+  short press engages or disengages the autopilot when the finger is
+  lifted; a long press opens the mode and profile window instead.
 - **A profile for each mode.** In the mode window, a long press on a mode
-  (compass, GPS, wind, true wind, NAV) picks its default profile; the
-  linked profile is shown under the mode's name, with "DEF" when it is the
-  default. The mode button in the controls shows the mode, then "DEF" (the
-  mode's default) or "AUTO" (picked by the plugin: Smart Pilot by wind, AUTO
-  WIND) when it applies, then the current profile. Choosing the mode then
-  applies the profile last picked by hand in that mode during this outing,
-  or else its default. Not for AUTO WIND, head to wind or downwind (they
-  set their own) nor while Smart Pilot's auto profile by wind is on. Mode
-  changes from the remote, KIP or Freeboard leave the profile alone.
+  (compass, GPS, wind, true wind, NAV) picks its default profile, shown
+  under the mode's name. Choosing a mode applies the profile last picked by
+  hand in that mode during this outing, or else its default; a new outing
+  starts again from the defaults. The mode button shows three lines: the
+  mode, "DEF" (the mode's default) or "AUTO" (picked by the plugin: Smart
+  Pilot by wind, AUTO WIND), and the profile. Not for AUTO WIND, head to
+  wind or downwind (they set their own) nor while Smart Pilot's auto
+  profile by wind is on. Mode changes from the remote, KIP or Freeboard
+  leave the profile alone.
+- **Number size per corner.** Each tap on a corner makes its number 4 px
+  bigger, three steps, then back to the original; the heading box at the
+  top of the rose works the same way. Saved per corner and per orientation
+  on each device. The combined Wind corner keeps its tap for apparent /
+  true (on phones that tap acted twice and seemed to do nothing; fixed).
 - **Logbook: only real tacks and gybes count.** A small course change, or
   the wind vane swinging in light air, was counted as a tack (the map's
-  markers even used a 2.8° threshold: 84 "tacks" on a calm day with
-  none). Now a tack or gybe counts only when the true wind changes side
-  and stays there for 45 s, the boat turns 50° or more (mean heading
-  before and after) and it is moving at over 1 kn. Wind ahead of the beam
-  before the turn makes it a tack, abaft a gybe; they are counted apart.
-  The count, the map markers and the live trip use this one rule, and
-  older trips are counted again the first time they are opened.
-- **A new outing starts each mode from its default profile** again (the
-  profiles picked by hand per mode are forgotten when the logbook opens a
-  new trip).
+  markers even used a 2.8° threshold: 84 "tacks" on a calm day with none).
+  Now a tack or gybe counts only when the true wind changes side and stays
+  there for 45 s, the boat turns 50° or more (mean heading before and
+  after) and it is moving at over 1 kn. Wind ahead of the beam before the
+  turn makes it a tack, abaft a gybe; they are counted apart. The count,
+  the map markers and the live trip use this one rule, and older trips are
+  counted again the first time they are opened.
 - **Calibration buttons say what happened.** Level (boat is flat) showed
   nothing, so it looked dead. Now it says "Levelling…", the bar follows
   pypilot's countdown and it ends with "Levelled ✔"; if it could not be
   sent it says why (no Signal K write access for this screen, pypilot not
   connected, writes switched off). The rudder buttons and fields do the
-  same. Calibration also shows the heel, pitch and heading read now, to
-  check the result.
+  same. Calibration also shows the heel, pitch and heading read now.
 
 ## 3.17.0 — 2026-11-23 — Backup assistant, light-wind alarm, clearer chart
 
