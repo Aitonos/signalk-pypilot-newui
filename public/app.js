@@ -8239,6 +8239,35 @@
       if (side > 0) rw.style.setProperty("--cv", Math.max(20, Math.min(40, side * 0.075)).toFixed(1) + "px");
     }).observe(rw);
   })();
+  // Rev761 (Carlos): a tap on a corner makes its number 1.5 px bigger, three
+  // steps, then back to the original. Saved per corner and per orientation
+  // on this device, so each corner keeps the size that suits it.
+  const _CORNER_BOOST_LS_KEY = "pypilotnewui.cornerBoost";
+  const _CORNER_BOOST_PX = 1.5, _CORNER_BOOST_STEPS = 3;
+  function _cornerBoostOrient() {
+    return window.matchMedia && window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+  }
+  function _cornerBoostLoad() {
+    try { const o = JSON.parse(localStorage.getItem(_CORNER_BOOST_LS_KEY) || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; }
+  }
+  function _cornerBoostApply() {
+    const all = _cornerBoostLoad()[_cornerBoostOrient()] || {};
+    for (const c of ["tl", "tr", "bl", "br"]) {
+      const el = document.querySelector(`.dash-rose .dash-cell[data-corner="${c}"]`);
+      if (!el) continue;
+      const n = Math.max(0, Math.min(_CORNER_BOOST_STEPS, Number(all[c]) || 0));
+      el.style.setProperty("--cb", (n * _CORNER_BOOST_PX) + "px");
+    }
+  }
+  function _cornerBoostStep(corner) {
+    const all = _cornerBoostLoad();
+    const o = _cornerBoostOrient();
+    const cur = all[o] || {};
+    cur[corner] = ((Number(cur[corner]) || 0) + 1) % (_CORNER_BOOST_STEPS + 1);
+    all[o] = cur;
+    try { localStorage.setItem(_CORNER_BOOST_LS_KEY, JSON.stringify(all)); } catch { /* silent */ }
+    _cornerBoostApply();
+  }
   function _dashRenderCorners() {
     for (const corner of ["tl","tr","bl","br"]) {
       const el = document.querySelector(`.dash-cell[data-corner="${corner}"]`);
@@ -23616,8 +23645,11 @@
     $$(".dash-rose .dash-cell[data-corner]").forEach((cell) => {
       attachLongTap(cell, () => {
         if (_dashCornerCfg[cell.dataset.corner] === "wind") _toggleWindCornerShow();
+        else _cornerBoostStep(cell.dataset.corner);   // Rev761
       });
     });
+    _cornerBoostApply();
+    window.addEventListener("resize", _cornerBoostApply);
     // Rev81: boat sprite (rose-boat) opens the boat action sheet on
     // long-press. Rev172 (Carlos): the sheet has TWO choices now -
     // "Cambiar esquinas" (the old corner selector) and "Historial de

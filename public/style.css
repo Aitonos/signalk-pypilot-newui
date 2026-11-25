@@ -627,7 +627,7 @@ main {
 .dash-rose .rose-wrap { --cv: clamp(21px, calc(3.5vw + 3px), 37px); }
 .dash-rose .dash-cell .value {
   width: 100%;
-  font-size: var(--cv) !important;
+  font-size: calc(var(--cv) + var(--cb, 0px)) !important;   /* Rev761: + the corner's own step */
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -636,7 +636,7 @@ main {
 /* Rev445 (Carlos QA Rev444): one more notch up for the AWS/TWS sub-line. */
 .dash-rose .dash-cell .sub {
   width: 100%;
-  font-size: calc(var(--cv) * 0.8) !important;   /* Rev751 */
+  font-size: calc((var(--cv) + var(--cb, 0px)) * 0.8) !important;   /* Rev751, Rev761 */
   line-height: 1.1;
   margin-top: 3px;
   font-weight: 700;
