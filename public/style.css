@@ -5366,3 +5366,19 @@ body.layout-one #tab-control .lo-in-next { animation: lo-in-next 180ms ease-out;
 body.layout-one #tab-control .lo-in-prev { animation: lo-in-prev 180ms ease-out; }
 @keyframes lo-in-next { from { transform: translateX(40px); opacity: 0.4; } to { transform: none; opacity: 1; } }
 @keyframes lo-in-prev { from { transform: translateX(-40px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+/* Rev757 (Carlos: the controls did not fill a narrow window): in the
+   one-at-a-time layout the controls take the whole height, as in landscape. */
+body.layout-one.lo-controls #tab-control .controls {
+  display: grid !important;
+  grid-template-rows: minmax(56px, 1fr) minmax(56px, 1fr) minmax(48px, var(--strip-fr, 0.5fr));
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+body.layout-one.lo-controls #tab-control .controls:has(.swipe-hint.view-chart),
+body.layout-one.lo-controls #tab-control .controls:has(.swipe-hint.view-fb) { --strip-fr: 1.33fr; }
+body.layout-one.lo-controls #tab-control .controls .row-tack-mode,
+body.layout-one.lo-controls #tab-control .controls .row-nudge-ap { height: 100%; align-items: stretch; }
+body.layout-one.lo-controls #tab-control .controls .row-tack-mode > *,
+body.layout-one.lo-controls #tab-control .controls .row-nudge-ap > * { height: 100%; min-height: 0; }
+body.layout-one.lo-controls #tab-control .controls .swipe-hint { margin-top: 0; min-height: 48px; }

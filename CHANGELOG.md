@@ -6,14 +6,16 @@
 
 - **Layout: one block at a time** (Setup > visor settings > Screen and
   sound > Layout, per device). The rose or the controls take the whole
-  Control tab; swipe or tap the dots at the bottom to change, and an AP
-  button over the boat's stern on the rose (red when engaged) opens the
-  controls. **Automatic** (the default) uses it in a small, squarish window,
+  Control tab, the controls using its whole height; swipe or tap the dots
+  at the bottom to change. On the rose, a button centred on the boat shows
+  AP (red when engaged) and the mode, and opens the mode and profile
+  window. **Automatic** (the default) uses it in a small, squarish window,
   such as a screen shared with a chart app, and shows both otherwise. On
   the controls a swipe starts outside the buttons, so it can never press AP.
 - **Calibration buttons say what happened.** Level (boat is flat) showed
   nothing, so it looked dead. Now it says "Levelling…", the bar follows
-  pypilot's countdown and it ends with "Levelled ✔"; if it could not be
+  pypilot's countdown and it ends with "Levelled ✔", with the heel and
+  pitch read at that moment to check the result; if it could not be
   sent it says why (no Signal K write access for this screen, pypilot not
   connected, writes switched off). The rudder buttons and fields do the
   same.

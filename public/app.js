@@ -1286,6 +1286,7 @@
       "dash.layout.both": "Rose and controls",
       "dash.layout.one": "One at a time",
       "cal.msg.levelling": "Levelling… keep the boat still and upright.",
+      "cal.msg.att": "Heel {heel}° · Pitch {pitch}°",
       "cal.msg.levelled": "Levelled ✔",
       "cal.msg.sent": "Sent to pypilot ✔",
       "cal.msg.noAccess": "Not sent: this screen has no Signal K write access. Approve it in the Signal K admin (Security > Access Requests).",
@@ -2913,6 +2914,7 @@
       "dash.layout.both": "Rosa y controles",
       "dash.layout.one": "Uno cada vez",
       "cal.msg.levelling": "Nivelando… mantén el barco quieto y adrizado.",
+      "cal.msg.att": "Escora {heel}° · Cabeceo {pitch}°",
       "cal.msg.levelled": "Nivelado ✔",
       "cal.msg.sent": "Enviado a pypilot ✔",
       "cal.msg.noAccess": "No se ha enviado: esta pantalla no tiene permiso de escritura en Signal K. Apruébala en el admin de Signal K (Security > Access Requests).",
@@ -4535,6 +4537,7 @@
       "dash.layout.both": "Rose und Bedienung",
       "dash.layout.one": "Einzeln",
       "cal.msg.levelling": "Nivellierung läuft… Boot ruhig und aufrecht halten.",
+      "cal.msg.att": "Krängung {heel}° · Längsneigung {pitch}°",
       "cal.msg.levelled": "Nivelliert ✔",
       "cal.msg.sent": "An pypilot gesendet ✔",
       "cal.msg.noAccess": "Nicht gesendet: Dieser Bildschirm hat in Signal K keine Schreibrechte. Im Signal-K-Admin genehmigen (Security > Access Requests).",
@@ -6130,6 +6133,7 @@
       "dash.layout.both": "Rose et commandes",
       "dash.layout.one": "Une à la fois",
       "cal.msg.levelling": "Mise à niveau… garde le bateau immobile et droit.",
+      "cal.msg.att": "Gîte {heel}° · Tangage {pitch}°",
       "cal.msg.levelled": "Mis à niveau ✔",
       "cal.msg.sent": "Envoyé à pypilot ✔",
       "cal.msg.noAccess": "Non envoyé : cet écran n'a pas le droit d'écrire dans Signal K. Autorise-le dans l'admin Signal K (Security > Access Requests).",
@@ -11413,8 +11417,7 @@
 
   function renderEngage() {
     // Rev756: the AP button over the stern (one-at-a-time layout).
-    const roseAp = document.getElementById("rose-ap-btn");
-    if (roseAp) roseAp.classList.toggle("engaged", !!state.engaged);
+    _roseApRender();
     const el = $("#engage-toggle");
     if (!el) return;
     if (state.engaged) el.classList.add("engaged");
@@ -14632,7 +14635,19 @@
   }
   // Rev425: paint the visible mode button with the active mode's
   // label (white). This is what the sailor reads at a glance.
+  // Rev757: the rose's AP button (one-at-a-time layout) - engaged colour and
+  // the mode as the controls' mode button shows it.
+  function _roseApRender() {
+    const g = document.getElementById("rose-ap-btn");
+    if (!g) return;
+    g.classList.toggle("engaged", !!state.engaged);
+    const mb = document.getElementById("mode-select-btn");
+    const txt = ((mb && mb.textContent) || "").trim().toUpperCase().slice(0, 14);
+    const m = document.getElementById("rose-ap-mode");
+    if (m && m.textContent !== txt) m.textContent = txt;
+  }
   function _renderModeSelectBtn() {
+    try { setTimeout(_roseApRender, 0); } catch { /* silent */ }
     const btn = document.getElementById("mode-select-btn");
     if (!btn) return;
     btn.title = "";
@@ -18737,30 +18752,44 @@
     const bar = document.querySelector("#cal-level-progress .bar");
     _calMsg(t("cal.msg.levelling"));
     if (bar) bar.style.width = "0%";
-    _watchFocusPost(["imu.alignmentCounter"], 1, 150);
+    _watchFocusPost(["imu.alignmentCounter", "imu.roll", "imu.pitch"], 1, 300);
     if (_calLevelTimer) clearInterval(_calLevelTimer);
     const t0 = Date.now();
-    let seen = false;
+    let seen = false, done = 0;
     _calLevelTimer = setInterval(async () => {
-      let v = null;
+      let v = null, att = "";
       try {
         const res = await skFetch(`/plugins/${PLUGIN_ID}/values`, { cache: "no-store" });
-        if (res.ok) v = (await res.json())["imu.alignmentCounter"];
+        if (res.ok) {
+          const j = await res.json();
+          v = j["imu.alignmentCounter"];
+          // Rev757 (Carlos): heel and pitch as read now, to see the result.
+          const rl = j["imu.roll"], pt = j["imu.pitch"];
+          if (typeof rl === "number" && typeof pt === "number") {
+            att = t("cal.msg.att").replace("{heel}", rl.toFixed(1)).replace("{pitch}", pt.toFixed(1));
+          }
+        }
       } catch { /* next tick */ }
+      const attEl = document.getElementById("cal-att");
+      if (attEl) { attEl.hidden = !att; attEl.textContent = att; }
+      if (done) {
+        if (Date.now() - done > 120000) { clearInterval(_calLevelTimer); _calLevelTimer = null; }
+        return;
+      }
       if (typeof v === "number" && isFinite(v)) {
         if (v > 0) seen = true;
         if (bar) bar.style.width = Math.max(0, Math.min(100, 100 - v)).toFixed(0) + "%";
         if (seen && v <= 0) {
-          clearInterval(_calLevelTimer); _calLevelTimer = null;
           if (bar) bar.style.width = "100%";
           _calMsg(t("cal.msg.levelled"), "ok");
+          done = Date.now();   // keep showing heel and pitch for 2 min
           return;
         }
       }
       // pypilot does not report the countdown: it was sent, say so and stop.
       if (Date.now() - t0 > (seen ? 150000 : 10000)) {
-        clearInterval(_calLevelTimer); _calLevelTimer = null;
         _calMsg(t("cal.msg.sent"), "ok");
+        done = Date.now();
       }
     }, 1000);
   }
@@ -27017,7 +27046,7 @@
       const stop = (e) => { e.stopPropagation(); };
       ap.addEventListener("pointerdown", stop);
       ap.addEventListener("pointerup", stop);
-      ap.addEventListener("click", (e) => { e.stopPropagation(); _layoutShow("controls"); });
+      ap.addEventListener("click", (e) => { e.stopPropagation(); _modeSelectPopupOpen(); });   // Rev757
     }
     // Swipe between the two blocks. Not from a button / field (the AP
     // button acts on touch) nor from the chart (a finger reads it there).
