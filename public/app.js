@@ -531,6 +531,8 @@
       "ap.disengageUnconfirmed": "Disengage not confirmed. Use the autopilot's own controls.",
       "ap.resultUnknown": "No confirmation from the autopilot. Check it on the autopilot itself.",
       "ap.adjustFailed": "The autopilot did not accept the course change.",
+      "ap.tackFailed": "The autopilot did not accept the tack.",
+      "ap.tackWait": "Tack sent. Wait for it to finish before another one.",
       "ap.pypilotNoAnswer": "pypilot is not answering: command not sent.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
@@ -2167,6 +2169,8 @@
       "ap.disengageUnconfirmed": "Desconexión sin confirmar. Usa el mando del piloto.",
       "ap.resultUnknown": "El piloto no lo ha confirmado. Compruébalo en el propio piloto.",
       "ap.adjustFailed": "El piloto no ha aceptado el cambio de rumbo.",
+      "ap.tackFailed": "El piloto no ha aceptado la virada.",
+      "ap.tackWait": "Virada enviada. Espera a que termine antes de otra.",
       "ap.pypilotNoAnswer": "pypilot no responde: orden no enviada.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
@@ -3564,6 +3568,8 @@
       "ap.disengageUnconfirmed": "Auskuppeln nicht bestätigt. Die Bedienung des Autopiloten benutzen.",
       "ap.resultUnknown": "Keine Bestätigung vom Autopiloten. Am Autopiloten selbst prüfen.",
       "ap.adjustFailed": "Der Autopilot hat die Kursänderung nicht angenommen.",
+      "ap.tackFailed": "Der Autopilot hat die Wende nicht angenommen.",
+      "ap.tackWait": "Wende gesendet. Vor der nächsten abwarten, bis sie fertig ist.",
       "ap.pypilotNoAnswer": "pypilot antwortet nicht: Befehl nicht gesendet.",
       "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
       "doctor.summary.notedOnly":  "{issues} Punkt(e) notiert (keine Gain-Änderung vorgeschlagen).",
@@ -5173,6 +5179,8 @@
       "ap.disengageUnconfirmed": "Débrayage non confirmé. Utilisez la commande du pilote.",
       "ap.resultUnknown": "Pas de confirmation du pilote. Vérifiez sur le pilote lui-même.",
       "ap.adjustFailed": "Le pilote n'a pas accepté le changement de cap.",
+      "ap.tackFailed": "Le pilote n'a pas accepté le virement.",
+      "ap.tackWait": "Virement envoyé. Attendez qu'il se termine avant un autre.",
       "ap.pypilotNoAnswer": "pypilot ne répond pas : commande non envoyée.",
       "doctor.summary.clean":      "Aucun problème majeur. Les gains semblent sains.",
       "doctor.summary.notedOnly":  "{issues} point(s) noté(s) (aucun changement de gain suggéré).",
@@ -7652,7 +7660,14 @@
         }
         break;
       }
-      case "steering.autopilot.availableActions": state.availableActions = value || []; break;
+      case "steering.autopilot.availableActions":
+        state.availableActions = value || [];
+        // Rev789: the spin-off shows its tack buttons only when the pilot
+        // offers a tack or a gybe.
+        if (PRODUCT === "generic") {
+          try { document.documentElement.classList.toggle("ap-can-tack", state.availableActions.includes("tack") || state.availableActions.includes("gybe")); } catch { /* silent */ }
+        }
+        break;
       // Rev63 / 2.0.0: verbatim path is `ap.modes` (was `availableModes` alias).
       // Rev88: append the local pseudo-mode "aproado" (into-the-wind) so it
       // shows up in the dropdown alongside the pypilot-provided modes. It is
@@ -15504,6 +15519,12 @@
           applyValue(path, j[leaf]);
         }
       }
+      // Rev789: the actions the pilot offers right now (tack, gybe...).
+      if (Array.isArray(j?.options?.actions)) {
+        const av = j.options.actions.filter((a) => a && a.available).map((a) => a.id);
+        state.values["steering.autopilot.availableActions"] = av;
+        applyValue("steering.autopilot.availableActions", av);
+      }
       if (typeof j?.engaged !== "boolean") {
         const st = (state.apOptions?.states || []).find((x) => x && x.name === j?.state);
         if (st && typeof st.engaged === "boolean") { state.values["steering.autopilot.engaged"] = st.engaged; applyValue("steering.autopilot.engaged", st.engaged); }
@@ -17543,6 +17564,7 @@
   // tap so the diamond and countdown labels react instantly.
   const NUDGE_SEND_DEBOUNCE_MS = 600;
   let _genericAdjustSum = 0;   // Rev788: the spin-off's pending ±1/±10, in degrees
+  let _genericTackTs = 0;      // Rev789: the spin-off's last tack order
   let _nudgeSendTimer = null;
   // Rev210 (LLM audit P1-3): every nudge bump increments this. The
   // pending debounce callback captures the value at scheduling time
@@ -18499,6 +18521,33 @@
           b.classList.add("failed");
           setTimeout(() => b.classList.remove("failed"), 1200);
         }
+        return;
+      }
+      // Rev789 (GPT / Gemini review): the spin-off's tack is ONE order to
+      // its pilot - a tack, or a gybe with the true wind abaft the beam,
+      // whichever the pilot offers. The Autopilot API has no "cancel
+      // tack", so a second tap within 15 s is ignored (it would start
+      // another manoeuvre). Never repeated on its own; the new target the
+      // pilot reports confirms it.
+      if (PRODUCT === "generic") {
+        const flash = (cls) => { for (const b of [$("#tack-port-btn"), $("#tack-star-btn")]) { if (!b) continue; b.classList.add(cls); setTimeout(() => b.classList.remove(cls), 1200); } };
+        if (Date.now() - _genericTackTs < 15_000) { flash("failed"); _apWarnToast(t("ap.tackWait")); return; }
+        const acts = state.availableActions || [];
+        const twa = typeof state.windAngleTrue === "number" ? Math.abs(state.windAngleTrue) * RAD2DEG : null;
+        const wantGybe = twa != null && twa > 90;
+        const action = (wantGybe && acts.includes("gybe")) ? "gybe" : (!wantGybe && acts.includes("tack")) ? "tack" : acts.includes("tack") ? "tack" : acts.includes("gybe") ? "gybe" : null;
+        if (!action) { flash("failed"); return; }
+        if (!await ensureAutopilotId()) return;
+        _genericTackTs = Date.now();
+        const sentTs = Date.now();
+        let ok = false;
+        try {
+          const r = await handleAuth(await skFetch(`/signalk/v2/api/vessels/self/autopilots/${state.autopilotId}/${action}/${dir}`, { method: "POST", signal: AbortSignal.timeout(8000) }));
+          ok = !!(r && r.ok);
+        } catch { ok = false; }
+        try { _mtLog("other", { via: "genericTack", action, dir, ok }); } catch { /* silent */ }
+        if (!ok) { _genericTackTs = 0; flash("failed"); _apWarnToast(t("ap.tackFailed")); return; }
+        setTimeout(() => { if ((state.apTargetSeenTs || 0) < sentTs) _apWarnToast(t("ap.resultUnknown")); }, 5000);
         return;
       }
       // Rev388 Fase B: second tap during an active virtual tack cancels
