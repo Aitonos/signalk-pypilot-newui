@@ -7600,6 +7600,7 @@
           // keep the modal's profile button + nested list in sync.
           // Idempotent — only paints when something changed.
           try { _rebuildModePopupProfiles(); } catch { /* silent */ }
+          try { _renderModeSelectBtn(); } catch { /* silent */ }   // Rev768: profile line
           // Rev296 (Carlos, navigating - bug D "me cargaba con default"):
           // primed=true once we have received an authoritative profile
           // value from the backend. The change-listener refuses to
@@ -14698,7 +14699,8 @@
     if (!g) return;
     g.classList.toggle("engaged", !!state.engaged);
     const mb = document.getElementById("mode-select-btn");
-    const txt = ((mb && mb.textContent) || "").trim().toUpperCase().slice(0, 14);
+    const first = mb && mb.firstChild && mb.firstChild.nodeType === 3 ? mb.firstChild.textContent : (mb ? mb.textContent : "");
+    const txt = (first || "").trim().toUpperCase().slice(0, 14);
     const m = document.getElementById("rose-ap-mode");
     if (m && m.textContent !== txt) m.textContent = txt;
   }
@@ -14754,9 +14756,22 @@
     if (m === "nav" && state.route && state.route.active) {
       const nm = typeof state.route.distanceM === "number" ? (state.route.distanceM / 1852).toFixed(1) : "?";
       btn.textContent = `${t("route.navShort")} · ${state.route.name || "WP"} · ${nm} nm`;
+      _modeBtnProfileLine(btn, m);   // Rev768
       return;
     }
     btn.textContent = m ? _modeLabel(m) : "—";
+    _modeBtnProfileLine(btn, m);
+  }
+  // Rev768 (Carlos): the mode button shows the profile on a small second line
+  // (same style as AUTO WIND's reason), with "DEF" when it is the mode's
+  // default profile.
+  function _modeBtnProfileLine(btn, m) {
+    if (!state.profile) return;
+    const defs = (state.modeProfiles && state.modeProfiles.defaults) || {};
+    const sub = document.createElement("span");
+    sub.className = "mode-btn-why mode-btn-prof";
+    sub.textContent = state.profile + (defs[m] && defs[m] === state.profile ? " · DEF" : "");
+    btn.appendChild(sub);
   }
   // Rev545 (Carlos 2026-10-23): route following. Voice announcement of each
   // event (auto-advance, destination, NAV lost), once per event id.
@@ -15132,7 +15147,7 @@
   async function _modeProfilesFetch() {
     try {
       const r = await skFetch(`/plugins/${PLUGIN_ID}/mode-profiles`, { cache: "no-store" });
-      if (r.ok) state.modeProfiles = await r.json();
+      if (r.ok) { state.modeProfiles = await r.json(); try { _renderModeSelectBtn(); } catch { /* silent */ } }
     } catch { /* keep */ }
   }
   // Rev767 (Carlos): under the mode's name, the profile it will get; "DEF"
@@ -15202,7 +15217,7 @@
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mode, profile: it.dataset.defProfile || null }),
         });
-        if (r.ok) { const j = await r.json(); state.modeProfiles.defaults = j.defaults || {}; state.modeProfiles.last = j.last || {}; }
+        if (r.ok) { const j = await r.json(); state.modeProfiles.defaults = j.defaults || {}; state.modeProfiles.last = j.last || {}; _renderModeSelectBtn(); }
       } catch { /* silent */ }
       ul.remove();
       _modeProfilePaint(li);
@@ -27828,6 +27843,7 @@
     wireChart();
     wireHelmChart();
     _layoutInit();   // Rev756
+    _modeProfilesFetch();   // Rev768: the DEF mark on the mode button
     // Rev620: guided tour - replay buttons + first-run start.
     for (const id of ["tour-replay-info", "boat-menu-tour"]) {
       const b = document.getElementById(id);

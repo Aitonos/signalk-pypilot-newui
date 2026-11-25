@@ -5403,3 +5403,6 @@ body.layout-one:not(.lo-controls) #tab-control .dash-rose .rose-wrap {
 /* Rev767: a long press on a mode must not select its text or open the
    phone's own menu. */
 .mode-popup-list .mode-popup-item { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* Rev768: the profile line on the mode button, in the dim text colour
+   (the orange is for AUTO WIND's reason). */
+.mode-select-btn .mode-btn-prof { color: var(--fg-dim); }
