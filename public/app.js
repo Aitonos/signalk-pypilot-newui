@@ -353,6 +353,8 @@
       "alert.noProvider": "No Signal K autopilot found. Turn PyPilot New-UI off and on again in the Signal K admin so it registers.",
       "alert.noDefaultPilot": "No default autopilot in Signal K. Install your autopilot's Signal K plugin and choose it as the default in the Signal K admin.",
       "alert.pypilotIsDefault": "The default autopilot in Signal K is pypilot. Use PyPilot New-UI to steer it; this visor sends no commands to it.",
+      "mode.genericPypilot": "pypilot: use PyPilot New-UI",
+      "mode.genericNone": "No default pilot",
       "alert.notPersisted": "Applied but not saved in pypilot.",
       "alert.badJson": "The file is not valid.",
       "alert.uploadFail": "Upload failed.",
@@ -525,6 +527,9 @@
       "dur.ss": "{n} seconds",
       "dur.and": "and",
       "ap.disengageFailed": "Could not disengage: pypilot is not answering. Use the pilot's own button or remote, or cut its power.",
+      "ap.disengageFailedGeneric": "Could not disengage: the autopilot is not answering. Use the autopilot's own controls, or cut its power.",
+      "ap.disengageUnconfirmed": "Disengage not confirmed. Use the autopilot's own controls.",
+      "ap.resultUnknown": "No confirmation from the autopilot. Check it on the autopilot itself.",
       "ap.pypilotNoAnswer": "pypilot is not answering: command not sent.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
@@ -1988,6 +1993,8 @@
       "alert.noProvider": "No hay piloto en Signal K. Apaga y enciende PyPilot New-UI en el admin de Signal K para que se registre.",
       "alert.noDefaultPilot": "No hay piloto por defecto en Signal K. Instala el plugin de Signal K de tu piloto y elígelo por defecto en el admin de Signal K.",
       "alert.pypilotIsDefault": "El piloto por defecto en Signal K es pypilot. Usa PyPilot New-UI para gobernarlo; este visor no le envía órdenes.",
+      "mode.genericPypilot": "pypilot: usa PyPilot New-UI",
+      "mode.genericNone": "Sin piloto por defecto",
       "alert.notPersisted": "Aplicado pero no guardado en pypilot.",
       "alert.badJson": "El archivo no es válido.",
       "alert.uploadFail": "No se pudo subir.",
@@ -2155,6 +2162,9 @@
       "dur.ss": "{n} segundos",
       "dur.and": "y",
       "ap.disengageFailed": "No se pudo desconectar: pypilot no responde. Usa el botón o el mando del piloto, o córtale la corriente.",
+      "ap.disengageFailedGeneric": "No se pudo desconectar: el piloto no responde. Usa el mando del piloto o córtale la corriente.",
+      "ap.disengageUnconfirmed": "Desconexión sin confirmar. Usa el mando del piloto.",
+      "ap.resultUnknown": "El piloto no lo ha confirmado. Compruébalo en el propio piloto.",
       "ap.pypilotNoAnswer": "pypilot no responde: orden no enviada.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
       // con h/min/s dinámicos; no se traduce con template.
@@ -3548,6 +3558,9 @@
       "dur.ss": "{n} Sekunden",
       "dur.and": "und",
       "ap.disengageFailed": "Auskuppeln nicht möglich: pypilot antwortet nicht. Taste oder Fernbedienung des Piloten benutzen oder Strom trennen.",
+      "ap.disengageFailedGeneric": "Auskuppeln nicht möglich: der Autopilot antwortet nicht. Die Bedienung des Autopiloten benutzen oder Strom trennen.",
+      "ap.disengageUnconfirmed": "Auskuppeln nicht bestätigt. Die Bedienung des Autopiloten benutzen.",
+      "ap.resultUnknown": "Keine Bestätigung vom Autopiloten. Am Autopiloten selbst prüfen.",
       "ap.pypilotNoAnswer": "pypilot antwortet nicht: Befehl nicht gesendet.",
       "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
       "doctor.summary.notedOnly":  "{issues} Punkt(e) notiert (keine Gain-Änderung vorgeschlagen).",
@@ -3789,6 +3802,8 @@
       "alert.noProvider": "Kein Signal-K-Autopilot gefunden. PyPilot New-UI im Signal-K-Admin aus- und wieder einschalten, damit er sich registriert.",
       "alert.noDefaultPilot": "Kein Standard-Autopilot in Signal K. Das Signal-K-Plugin Ihres Autopiloten installieren und im Signal-K-Admin als Standard wählen.",
       "alert.pypilotIsDefault": "Der Standard-Autopilot in Signal K ist pypilot. Zum Steuern PyPilot New-UI verwenden; diese Oberfläche sendet ihm keine Befehle.",
+      "mode.genericPypilot": "pypilot: PyPilot New-UI verwenden",
+      "mode.genericNone": "Kein Standard-Autopilot",
       "alert.notPersisted": "Angewendet, aber nicht in pypilot gespeichert.",
       "alert.badJson": "Die Datei ist ungültig.",
       "alert.uploadFail": "Hochladen fehlgeschlagen.",
@@ -5151,6 +5166,9 @@
       "dur.ss": "{n} secondes",
       "dur.and": "et",
       "ap.disengageFailed": "Impossible de débrayer : pypilot ne répond pas. Utilisez le bouton ou la télécommande du pilote, ou coupez son alimentation.",
+      "ap.disengageFailedGeneric": "Impossible de débrayer : le pilote ne répond pas. Utilisez la commande du pilote ou coupez son alimentation.",
+      "ap.disengageUnconfirmed": "Débrayage non confirmé. Utilisez la commande du pilote.",
+      "ap.resultUnknown": "Pas de confirmation du pilote. Vérifiez sur le pilote lui-même.",
       "ap.pypilotNoAnswer": "pypilot ne répond pas : commande non envoyée.",
       "doctor.summary.clean":      "Aucun problème majeur. Les gains semblent sains.",
       "doctor.summary.notedOnly":  "{issues} point(s) noté(s) (aucun changement de gain suggéré).",
@@ -5392,6 +5410,8 @@
       "alert.noProvider": "Aucun pilote Signal K trouvé. Désactivez puis réactivez PyPilot New-UI dans l'admin Signal K pour qu'il s'enregistre.",
       "alert.noDefaultPilot": "Aucun pilote par défaut dans Signal K. Installez le plugin Signal K de votre pilote et choisissez-le par défaut dans l'admin Signal K.",
       "alert.pypilotIsDefault": "Le pilote par défaut dans Signal K est pypilot. Utilisez PyPilot New-UI pour le piloter ; cette interface ne lui envoie aucune commande.",
+      "mode.genericPypilot": "pypilot : utilisez PyPilot New-UI",
+      "mode.genericNone": "Aucun pilote par défaut",
       "alert.notPersisted": "Appliqué mais pas enregistré dans pypilot.",
       "alert.badJson": "Le fichier n'est pas valide.",
       "alert.uploadFail": "Échec de l'envoi.",
@@ -7594,6 +7614,7 @@
         break;
       }
       case "steering.autopilot.engaged": {
+        state.apEngagedSeenTs = Date.now(); state.apEngagedSeenVal = value === true;   // Rev787
         if (typeof _mtLog === "function") {
           try { _mtLog("other", { stage: "visor", path: "steering.autopilot.engaged", value, prev: state.engaged, monoTs: performance.now() }); } catch { /* silent */ }
         }
@@ -14796,6 +14817,15 @@
     const btn = document.getElementById("mode-select-btn");
     if (!btn) return;
     btn.title = "";
+    // Rev787: the spin-off without a pilot it may steer says why.
+    if (PRODUCT === "generic" && !state.autopilotId) {
+      btn.textContent = "—";
+      const sub = document.createElement("span");
+      sub.className = "mode-btn-why";
+      sub.textContent = t(state.apIsPypilotElsewhere ? "mode.genericPypilot" : "mode.genericNone");
+      btn.appendChild(sub);
+      return;
+    }
     // Rev510 (Carlos sea trial 2026-10-18, 18:07-18:12: "la tablet decia
     // un modo y el telefono decia otro"): during a virtual tack pypilot is
     // in compass on purpose. Every visor shows the wind mode of the tack,
@@ -15483,7 +15513,16 @@
       if (!res.ok) { console.warn("[pypilot-newui] /autopilots HTTP", res.status); return; }
       const j = await res.json();
       const entries = Object.entries(j || {});
-      if (!entries.length) { console.warn("[pypilot-newui] /autopilots returned no providers"); return; }
+      if (!entries.length) {
+        console.warn("[pypilot-newui] /autopilots returned no providers");
+        // Rev787: the spin-off forgets a pilot that is no longer there.
+        if (PRODUCT === "generic" && state.autopilotId) {
+          state.autopilotId = ""; state.apIsPypilotElsewhere = false;
+          state.engaged = null; state.apState = null; state.mode = null; state.target = null; state.availableActions = [];
+          try { _renderModeSelectBtn(); } catch { /* silent */ }
+        }
+        return;
+      }
       // Rev782 (GPT review 2026-11-25): every order goes to ONE known pilot.
       // PyPilot New-UI: our own pypilot device first (engage already goes to
       // pypilot through our route, so disengage / mode / course must too),
@@ -15512,6 +15551,7 @@
       }
       state.autopilotId = picked;
       if (PRODUCT === "generic" && picked) _genericSeedPilot(picked);
+      if (PRODUCT === "generic") { try { _renderModeSelectBtn(); } catch { /* silent */ } }
       console.info("[pypilot-newui] autopilotId =", picked, "(from", entries.map(e => e[0]).join(","), ")");
     } catch (e) { console.warn("discoverAutopilot failed", e); }
   }
@@ -17693,11 +17733,21 @@
       }
       return null;
     };
+    // Rev787 (GPT review): the spin-off waits for the pilot itself to say it
+    // is engaged / disengaged - a 200 from the API only means the provider
+    // took the order. 3 s of deltas, then one fresh read of the pilot.
+    const _genericConfirmEngaged = async (want, sentTs) => {
+      const seen = () => (state.apEngagedSeenTs || 0) >= sentTs && state.apEngagedSeenVal === want;
+      for (let i = 0; i < 15 && !seen(); i++) await new Promise((r) => setTimeout(r, 200));
+      if (seen()) return true;
+      try { _genericSeedId = ""; await _genericSeedPilot(state.autopilotId); } catch { /* silent */ }
+      return seen();
+    };
     const doEngage = async () => {
       _tackStatsDismissIfShown();
       if (_apPending) return;
       // Rev711: offline, the button only takes the AP off, never puts it on.
-      if (state.pypilotHealthy === false && !state.engaged) return;
+      if (PRODUCT !== "generic" && state.pypilotHealthy === false && !state.engaged) return;
       // Rev69: cooldown gate before the async guard fires. Blocks the
       // second edge of a rapid double-click (and any touch-emulated
       // ghost click after touchend) from producing an engage-disengage
@@ -17761,6 +17811,7 @@
       renderEngage();
       renderTargetArrow();
       let ok = false;
+      const sentTs = Date.now();   // Rev787
       try {
         if (wasEngaged) {
           const r = await _apRetry(apDisengage);
@@ -17778,15 +17829,27 @@
           // worlds: fast engage response AND no visible target jump.
           // Rev69: if capturedTarget is null (no wind data yet) skip the
           // target-set and let pypilot pick its own current default.
+          // Rev787: the spin-off only engages - each pilot keeps its own
+          // course on engage (some, like the NAC-3, take no absolute target).
           const [rEng, rTgt] = await Promise.all([
             _apRetry(apEngage),
-            capturedTarget != null ? _apRetry(() => apSetTargetRad(capturedTarget)) : Promise.resolve({ ok: true }),
+            (capturedTarget != null && PRODUCT !== "generic") ? _apRetry(() => apSetTargetRad(capturedTarget)) : Promise.resolve({ ok: true }),
           ]);
           ok = !!(rEng && rEng.ok);
           if (ok) _preparedClear();   // Rev684: used
           if (rTgt && rTgt.ok && capturedTarget != null) renderControl();
         }
       } catch (_) { ok = false; }
+      // Rev787: sent, but not confirmed by the pilot -> the button goes back
+      // to what it was and the sailor is told to check on the pilot.
+      if (ok && PRODUCT === "generic" && !(await _genericConfirmEngaged(!wasEngaged, sentTs))) {
+        state.engaged = wasEngaged;
+        state.target = prevTarget;
+        state.localTargetRad = prevLocalTarget;
+        renderEngage();
+        renderTargetArrow();
+        _apWarnToast(t(wasEngaged ? "ap.disengageUnconfirmed" : "ap.resultUnknown"));
+      }
       if (!ok) {
         // Revert the optimistic flip so the UI reflects reality.
         state.engaged = wasEngaged;
@@ -17797,7 +17860,7 @@
         eng.classList.add("failed");
         setTimeout(() => eng.classList.remove("failed"), 1500);
         // Rev710: a disengage that did not get through must be said aloud.
-        if (wasEngaged) _apWarnToast(t("ap.disengageFailed"));
+        if (wasEngaged) _apWarnToast(t(PRODUCT === "generic" ? "ap.disengageFailedGeneric" : "ap.disengageFailed"));
       }
       eng.classList.remove("pending");
       _apPending = false;
