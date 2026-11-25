@@ -12,9 +12,9 @@
   such as a screen shared with a chart app, and shows both otherwise. On
   the controls a swipe starts outside the buttons, so it can never press AP.
 - **AP button: short press and long press**, on the controls and on the
-  rose. With the autopilot off, a short press engages it (on release) and a
-  long press opens the mode and profile window instead. With it on, a press
-  takes it off at once, as before.
+  rose. A short press engages or disengages the autopilot when the finger
+  is lifted; a long press opens the mode and profile window instead, with
+  the autopilot on or off.
 - **Calibration buttons say what happened.** Level (boat is flat) showed
   nothing, so it looked dead. Now it says "Levelling…", the bar follows
   pypilot's countdown and it ends with "Levelled ✔"; if it could not be

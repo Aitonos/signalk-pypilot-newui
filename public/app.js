@@ -17419,12 +17419,12 @@
     // on both touch and mouse, before the browser synthesises `click`).
     // The `click` listener swallows the phantom that follows so it cannot
     // race the cooldown. Keyboard activation stays on keydown.
-    // Rev759 (Carlos): short press = AP, long press = mode and profile.
-    // With the AP ON the press still takes it off at once (unchanged: the
-    // quickest possible disengage); with it OFF it engages on release, so a
-    // long press can open the mode / profile window instead.
+    // Rev759-760 (Carlos): short press = AP on / off (on release), long
+    // press = mode and profile window, whether the AP is on or off.
     window._apPressStart = (onLong) => {
-      if (state.engaged) { doEngage(); return null; }
+      // Rev760 (Carlos): the long press works with the AP on too, so the
+      // press acts on release in both states (a tap takes it off ~0.1 s
+      // later than before).
       let fired = false;
       const timer = setTimeout(() => {
         fired = true;
