@@ -7122,6 +7122,8 @@
     "environment.wind.angleTrueGround",
   ]);
   function subscribeAll() {
+    // Rev784: after a (re)connection the spin-off reads its pilot again.
+    if (PRODUCT === "generic" && state.autopilotId) { _genericSeedId = ""; _genericSeedPilot(state.autopilotId); }
     // Rev352 (Carlos, 2026-09-30, trace analysis): pilot-critical paths
     // now go in a DEDICATED subscription with policy:"instant" and no
     // minPeriod so the SK subscription manager does not group them.
@@ -7253,6 +7255,17 @@
             continue;
           }
           if (AP_STD_LEAVES.has(v.path) && (!state.autopilotId || u.$source !== state.autopilotId)) continue;
+          // Engaged from the state, as the pilot declares it in
+          // options.states, for providers that never send `engaged`. An
+          // unknown state reloads the options.
+          if (v.path === "steering.autopilot.state") {
+            const st = (state.apOptions?.states || []).find((x) => x && x.name === v.value);
+            if (st && typeof st.engaged === "boolean") {
+              if (state.engaged !== st.engaged) { state.values["steering.autopilot.engaged"] = st.engaged; applyValue("steering.autopilot.engaged", st.engaged); }
+            } else if (v.value != null) {
+              _genericSeedPilot(state.autopilotId);
+            }
+          }
         }
         state.values[v.path] = v.value;
         applyValue(v.path, v.value);
@@ -15411,7 +15424,12 @@
   }
   // Rev783: the spin-off reads the chosen device once (state, mode, target,
   // engaged) - providers only send deltas on change.
+  let _genericSeedAt = 0, _genericSeedId = "";
   async function _genericSeedPilot(id) {
+    // At most every 30 s per device (an unknown state asks on every delta);
+    // a new device is always read at once.
+    if (id === _genericSeedId && Date.now() - _genericSeedAt < 30_000) return;
+    _genericSeedAt = Date.now(); _genericSeedId = id;
     try {
       const res = await fetch(`/signalk/v2/api/vessels/self/autopilots/${encodeURIComponent(id)}?_=${Date.now()}`, { credentials: "include", cache: "no-store" });
       if (!res.ok || state.autopilotId !== id) return;
@@ -15423,6 +15441,10 @@
           state.values[path] = j[leaf];
           applyValue(path, j[leaf]);
         }
+      }
+      if (typeof j?.engaged !== "boolean") {
+        const st = (state.apOptions?.states || []).find((x) => x && x.name === j?.state);
+        if (st && typeof st.engaged === "boolean") { state.values["steering.autopilot.engaged"] = st.engaged; applyValue("steering.autopilot.engaged", st.engaged); }
       }
     } catch (e) { console.warn("[pypilot-newui] seed pilot failed", e); }
   }
