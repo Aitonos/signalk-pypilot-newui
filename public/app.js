@@ -8258,6 +8258,18 @@
       const n = Math.max(0, Math.min(_CORNER_BOOST_STEPS, Number(all[c]) || 0));
       el.style.setProperty("--cb", (n * _CORNER_BOOST_PX) + "px");
     }
+    // Rev765 (Carlos): the heading box at the top of the rose too. It lives
+    // in the SVG, so it is scaled from its top edge: each step adds the
+    // same 4 px to the heading number as on screen now.
+    const chip = document.getElementById("rose-hdg-chip");
+    const svg = document.getElementById("wind-rose");
+    if (chip && svg) {
+      const n = Math.max(0, Math.min(_CORNER_BOOST_STEPS, Number(all.hdg) || 0));
+      const rr = svg.getBoundingClientRect();
+      const unitPx = Math.min((rr.width || 200) / 200, (rr.height || 220) / 220);   // viewBox 200 x 220, "meet"
+      const k = 1 + (n * _CORNER_BOOST_PX) / Math.max(1, 14 * unitPx);   // number is 14 units
+      chip.setAttribute("transform", n ? `translate(0,-110) scale(${k.toFixed(3)}) translate(0,110)` : "");
+    }
   }
   function _cornerBoostStep(corner) {
     const all = _cornerBoostLoad();
@@ -23658,6 +23670,12 @@
     });
     _cornerBoostApply();
     window.addEventListener("resize", _cornerBoostApply);
+    // Rev765: a tap on the heading box steps its size too.
+    const hdgChip = document.getElementById("rose-hdg-chip");
+    if (hdgChip) {
+      hdgChip.style.cursor = "pointer";
+      hdgChip.addEventListener("click", (e) => { e.stopPropagation(); _cornerBoostStep("hdg"); });
+    }
     // Rev81: boat sprite (rose-boat) opens the boat action sheet on
     // long-press. Rev172 (Carlos): the sheet has TWO choices now -
     // "Cambiar esquinas" (the old corner selector) and "Historial de
