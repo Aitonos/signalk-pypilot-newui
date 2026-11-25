@@ -38,6 +38,15 @@
   // raw writes, virtual tack, black box...) and pypilot's Signal K paths
   // never leave the visor; the caller gets a 409 "pypilot-only" and each
   // blocked route is logged once in the console.
+  // Rev793: test entry for the spin-off's simulator (two pilots, a change
+  // of default device, late answers) - only with ?pnuProduct=generic&pnuTest=1;
+  // it feeds Signal K deltas exactly as the WebSocket would.
+  try {
+    if (PRODUCT === "generic" && new URLSearchParams(location.search).get("pnuTest") === "1") {
+      window.__pnuTestDelta = (msg) => handleDelta(msg);
+      window.__pnuTestState = () => ({ autopilotId: state.autopilotId, engaged: state.engaged, mode: state.mode, apIsPypilotElsewhere: !!state.apIsPypilotElsewhere });
+    }
+  } catch { /* silent */ }
   if (PRODUCT === "generic" && typeof window.fetch === "function") {
     const PNU_PYPILOT_ONLY = /^\/plugins\/signalk-(?:pypilot-newui|autopilot-enhanced-visor)\/(?:supervisor|tinypilot|doctor|scan|restart-pypilot|pypilot-web-restart|ssh-exec|debug-cmd|raw|backup|virtual-tack|autowind|mode-profiles|profiles|publish|paths|catalog|values|ap|black-box|prechecks)(?:[\/?]|$)|^\/signalk\/v[12]\/api\/vessels\/self\/steering\/autopilot\/pypilot(?:[\/?]|$)/;
     const origFetch = window.fetch.bind(window);
@@ -533,6 +542,7 @@
       "ap.adjustFailed": "The autopilot did not accept the course change.",
       "ap.tackFailed": "The autopilot did not accept the tack.",
       "ap.modeFailed": "The autopilot did not confirm the mode change.",
+      "ap.pilotChanged": "The default autopilot changed while the order was on its way. Check the autopilot.",
       "ap.tackWait": "Tack sent. Wait for it to finish before another one.",
       "ap.pypilotNoAnswer": "pypilot is not answering: command not sent.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
@@ -2173,6 +2183,7 @@
       "ap.adjustFailed": "El piloto no ha aceptado el cambio de rumbo.",
       "ap.tackFailed": "El piloto no ha aceptado la virada.",
       "ap.modeFailed": "El piloto no ha confirmado el cambio de modo.",
+      "ap.pilotChanged": "El piloto por defecto ha cambiado mientras se enviaba la orden. Comprueba el piloto.",
       "ap.tackWait": "Virada enviada. Espera a que termine antes de otra.",
       "ap.pypilotNoAnswer": "pypilot no responde: orden no enviada.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
@@ -3574,6 +3585,7 @@
       "ap.adjustFailed": "Der Autopilot hat die Kursänderung nicht angenommen.",
       "ap.tackFailed": "Der Autopilot hat die Wende nicht angenommen.",
       "ap.modeFailed": "Der Autopilot hat den Moduswechsel nicht bestätigt.",
+      "ap.pilotChanged": "Der Standard-Autopilot hat sich während des Befehls geändert. Den Autopiloten prüfen.",
       "ap.tackWait": "Wende gesendet. Vor der nächsten abwarten, bis sie fertig ist.",
       "ap.pypilotNoAnswer": "pypilot antwortet nicht: Befehl nicht gesendet.",
       "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
@@ -5187,6 +5199,7 @@
       "ap.adjustFailed": "Le pilote n'a pas accepté le changement de cap.",
       "ap.tackFailed": "Le pilote n'a pas accepté le virement.",
       "ap.modeFailed": "Le pilote n'a pas confirmé le changement de mode.",
+      "ap.pilotChanged": "Le pilote par défaut a changé pendant l'envoi de la commande. Vérifiez le pilote.",
       "ap.tackWait": "Virement envoyé. Attendez qu'il se termine avant un autre.",
       "ap.pypilotNoAnswer": "pypilot ne répond pas : commande non envoyée.",
       "doctor.summary.clean":      "Aucun problème majeur. Les gains semblent sains.",
@@ -17916,6 +17929,7 @@
       renderTargetArrow();
       let ok = false;
       const sentTs = Date.now();   // Rev787
+      const apIdAtSend = state.autopilotId || "";   // Rev794
       try {
         if (wasEngaged) {
           const r = await _apRetry(apDisengage);
@@ -17946,13 +17960,33 @@
       } catch (_) { ok = false; }
       // Rev787: sent, but not confirmed by the pilot -> the button goes back
       // to what it was and the sailor is told to check on the pilot.
-      if (ok && PRODUCT === "generic" && !(await _genericConfirmEngaged(!wasEngaged, sentTs))) {
-        state.engaged = wasEngaged;
-        state.target = prevTarget;
-        state.localTargetRad = prevLocalTarget;
+      // Rev794 (two-pilot simulator): if the default pilot changed while the
+      // order was on its way, the new pilot's state is NOT a confirmation of
+      // it - the screen already shows the new pilot as it reports itself,
+      // and the sailor is told to check.
+      const pilotChanged = () => PRODUCT === "generic" && !!apIdAtSend && state.autopilotId !== apIdAtSend;
+      if (ok && PRODUCT === "generic") {
+        const confirmed = pilotChanged() ? false : await _genericConfirmEngaged(!wasEngaged, sentTs);
+        if (pilotChanged()) {
+          renderEngage();
+          renderTargetArrow();
+          _apWarnToast(t("ap.pilotChanged"));
+        } else if (!confirmed) {
+          state.engaged = wasEngaged;
+          state.target = prevTarget;
+          state.localTargetRad = prevLocalTarget;
+          renderEngage();
+          renderTargetArrow();
+          _apWarnToast(t(wasEngaged ? "ap.disengageUnconfirmed" : "ap.resultUnknown"));
+        }
+      }
+      if (!ok && pilotChanged()) {
         renderEngage();
         renderTargetArrow();
-        _apWarnToast(t(wasEngaged ? "ap.disengageUnconfirmed" : "ap.resultUnknown"));
+        _apWarnToast(t("ap.pilotChanged"));
+        eng.classList.remove("pending");
+        _apPending = false;
+        return;
       }
       if (!ok) {
         // Revert the optimistic flip so the UI reflects reality.
