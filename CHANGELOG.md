@@ -18,7 +18,8 @@
 - **Each corner's number size, by tapping it:** each tap makes the number
   3 px bigger, three steps, then back to the original. Saved per corner
   and per orientation (portrait / landscape) on each device. The combined
-  Wind corner keeps its tap for apparent / true.
+  Wind corner keeps its tap for apparent / true (on phones that tap acted
+  twice and seemed to do nothing; fixed).
 - **Calibration buttons say what happened.** Level (boat is flat) showed
   nothing, so it looked dead. Now it says "Levelling…", the bar follows
   pypilot's countdown and it ends with "Levelled ✔"; if it could not be

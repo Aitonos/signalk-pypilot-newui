@@ -23634,12 +23634,20 @@
       el.addEventListener("touchmove",  () => { cancelPress(); wasLong = true; }, { passive: true });
       el.addEventListener("touchcancel", cancelPress, { passive: true });
       el.addEventListener("contextmenu", openSelector);
+      // Rev763 (Carlos: "en el móvil solo tengo 2 escalones"): after a touch
+      // the browser also fires mousedown / mouseup, so every tap acted twice
+      // (two size steps; the Wind corner toggled and toggled back). Mouse
+      // events right after a touch are ignored.
+      let lastTouchTs = 0;
+      el.addEventListener("touchstart", () => { lastTouchTs = Date.now(); }, { passive: true });
+      el.addEventListener("touchend", () => { lastTouchTs = Date.now(); }, { passive: true });
+      const fromTouch = () => Date.now() - lastTouchTs < 800;
       el.addEventListener("mousedown", (e) => {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || fromTouch()) return;
         startPress(e);
       });
-      el.addEventListener("mouseup",   endPress);
-      el.addEventListener("mouseleave", cancelPress);
+      el.addEventListener("mouseup",   () => { if (!fromTouch()) endPress(); });
+      el.addEventListener("mouseleave", () => { if (!fromTouch()) cancelPress(); });
     };
     // 4 corner cells: short-tap on a cell mapped to "wind" toggles AWS/TWS.
     $$(".dash-rose .dash-cell[data-corner]").forEach((cell) => {
