@@ -14941,24 +14941,37 @@
     // Mode list click handler (delegated).
     const list = m.querySelector("#mode-popup-list");
     if (list) {
-      // Rev766: long press on a mode = its default profile.
-      let lpTimer = null, lpFired = false;
+      // Rev766-767: long press on a mode = its default profile. On phones
+      // the browser turns a still finger into its own long-press (context
+      // menu) and cancels the pointer, so that event opens the picker too,
+      // and only a real move (10 px) cancels the timer.
+      let lpTimer = null, lpFired = false, lpX = 0, lpY = 0, lpLi = null;
+      const lpOpen = () => {
+        if (!lpLi || lpFired) return;
+        lpFired = true;
+        clearTimeout(lpTimer); lpTimer = null;
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* silent */ }
+        _modeProfileDefaultPicker(lpLi);
+      };
       list.addEventListener("pointerdown", (ev) => {
         const li = ev.target.closest(".mode-popup-item[data-mode]");
-        lpFired = false;
+        lpFired = false; lpLi = null;
         if (!li || !MODE_PROFILE_MODES.includes(li.dataset.mode || "")) return;
+        lpLi = li; lpX = ev.clientX; lpY = ev.clientY;
         clearTimeout(lpTimer);
-        lpTimer = setTimeout(() => {
-          lpFired = true;
-          try { if (navigator.vibrate) navigator.vibrate(15); } catch { /* silent */ }
-          _modeProfileDefaultPicker(li);
-        }, 600);
+        lpTimer = setTimeout(lpOpen, 600);
       });
-      const lpCancel = () => { clearTimeout(lpTimer); lpTimer = null; };
-      list.addEventListener("pointerup", lpCancel);
-      list.addEventListener("pointercancel", lpCancel);
-      list.addEventListener("pointerleave", lpCancel);
-      list.addEventListener("contextmenu", (ev) => { if (ev.target.closest(".mode-popup-item[data-mode]")) ev.preventDefault(); });
+      list.addEventListener("pointermove", (ev) => {
+        if (lpTimer && (Math.abs(ev.clientX - lpX) > 10 || Math.abs(ev.clientY - lpY) > 10)) { clearTimeout(lpTimer); lpTimer = null; }
+      });
+      list.addEventListener("pointerup", () => { clearTimeout(lpTimer); lpTimer = null; });
+      list.addEventListener("contextmenu", (ev) => {
+        const li = ev.target.closest(".mode-popup-item[data-mode]");
+        if (!li) return;
+        ev.preventDefault();
+        if (!lpLi) lpLi = li;
+        if (MODE_PROFILE_MODES.includes(lpLi.dataset.mode || "")) lpOpen();
+      });
       list.addEventListener("click", (ev) => {
         if (lpFired) { lpFired = false; return; }   // that press opened the default picker
         if (ev.target.closest(".mode-def-list")) return;
@@ -15081,15 +15094,8 @@
       // on first open. The button on the bbar still uses the SHORT
       // label ("Aparente" / "Real") to fit the narrow chip.
       li.textContent = _modeLabel(v, true);
-      // Rev766: the profile linked to this mode, small, after the name.
-      const linked = _modeProfileFor(String(v));
-      if (linked) {
-        const sp = document.createElement("span");
-        sp.className = "mode-popup-def";
-        sp.style.cssText = "font-size:0.72em;opacity:0.75;margin-left:6px;font-weight:600";
-        sp.textContent = "· " + linked;
-        li.appendChild(sp);
-      }
+      // Rev766-767: the profile linked to this mode, under its name.
+      _modeProfilePaint(li);
       if (v === "autowind" && awNoTrue) {
         li.dataset.mode = "";
         li.style.opacity = "0.45";
@@ -15113,17 +15119,7 @@
     m.classList.add("open");
     _modeProfilesFetch().then(() => {
       // relabel with fresh links if they changed while open
-      if (!m.hidden) list.querySelectorAll(".mode-popup-item[data-mode]").forEach((li) => {
-        const sp = li.querySelector(".mode-popup-def");
-        const linked = _modeProfileFor(li.dataset.mode || "");
-        if (linked && !sp) {
-          const n = document.createElement("span");
-          n.className = "mode-popup-def";
-          n.style.cssText = "font-size:0.72em;opacity:0.75;margin-left:6px;font-weight:600";
-          n.textContent = "· " + linked;
-          li.appendChild(n);
-        } else if (sp) sp.textContent = linked ? "· " + linked : "";
-      });
+      if (!m.hidden) list.querySelectorAll(".mode-popup-item[data-mode]").forEach((li) => _modeProfilePaint(li));
     });
   }
   // Rev766 (Carlos): each pypilot mode can carry a default profile. A long
@@ -15138,6 +15134,23 @@
       const r = await skFetch(`/plugins/${PLUGIN_ID}/mode-profiles`, { cache: "no-store" });
       if (r.ok) state.modeProfiles = await r.json();
     } catch { /* keep */ }
+  }
+  // Rev767 (Carlos): under the mode's name, the profile it will get; "DEF"
+  // when that is its default (not one picked by hand this outing).
+  function _modeProfilePaint(li) {
+    const mode = li.dataset.mode || "";
+    const mp = state.modeProfiles || {};
+    const linked = _modeProfileFor(mode);
+    let sp = li.querySelector(".mode-popup-def");
+    if (!linked) { if (sp) sp.remove(); return; }
+    if (!sp) {
+      sp = document.createElement("span");
+      sp.className = "mode-popup-def";
+      sp.style.cssText = "display:block;font-size:0.68em;opacity:0.8;font-weight:600;margin-top:2px;letter-spacing:0";
+      li.appendChild(sp);
+    }
+    const isDef = !(mp.last && mp.last[mode]) && mp.defaults && mp.defaults[mode] === linked;
+    sp.textContent = linked + (isDef ? " · DEF" : "");
   }
   function _modeProfileFor(mode) {
     const mp = state.modeProfiles || {};
@@ -15192,16 +15205,7 @@
         if (r.ok) { const j = await r.json(); state.modeProfiles.defaults = j.defaults || {}; state.modeProfiles.last = j.last || {}; }
       } catch { /* silent */ }
       ul.remove();
-      const sp = li.querySelector(".mode-popup-def");
-      const linked = _modeProfileFor(mode);
-      if (sp) sp.textContent = linked ? "· " + linked : "";
-      else if (linked) {
-        const n = document.createElement("span");
-        n.className = "mode-popup-def";
-        n.style.cssText = "font-size:0.72em;opacity:0.75;margin-left:6px;font-weight:600";
-        n.textContent = "· " + linked;
-        li.appendChild(n);
-      }
+      _modeProfilePaint(li);
     });
     li.after(ul);
   }

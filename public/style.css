@@ -5400,3 +5400,6 @@ body.layout-one:not(.lo-controls) #tab-control .dash-rose .rose-wrap {
 /* Rev759: AP engages on release now (a long press opens mode and profile);
    no browser panning may cancel that press. */
 #engage-toggle, #rose-ap-btn { touch-action: none; }
+/* Rev767: a long press on a mode must not select its text or open the
+   phone's own menu. */
+.mode-popup-list .mode-popup-item { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

@@ -23,7 +23,8 @@
   twice and seemed to do nothing; fixed).
 - **A profile for each mode.** In the mode window, a long press on a mode
   (compass, GPS, wind, true wind, NAV) picks its default profile; the
-  linked profile is shown next to the mode's name. Choosing the mode then
+  linked profile is shown under the mode's name, with "DEF" when it is the
+  default. Choosing the mode then
   applies the profile last picked by hand in that mode during this outing,
   or else its default. Not for AUTO WIND, head to wind or downwind (they
   set their own) nor while Smart Pilot's auto profile by wind is on. Mode
