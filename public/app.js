@@ -14750,6 +14750,7 @@
         btn.appendChild(sub);
       }
       btn.title = state.autowind.lastError || "";
+      if (!why) _modeBtnProfileLine(btn, m);   // Rev769: AUTO · profile
       return;
     }
     // Rev545: NAV -> "NAV · <waypoint> · 2.3 nm".
@@ -14770,7 +14771,12 @@
     const defs = (state.modeProfiles && state.modeProfiles.defaults) || {};
     const sub = document.createElement("span");
     sub.className = "mode-btn-why mode-btn-prof";
-    sub.textContent = state.profile + (defs[m] && defs[m] === state.profile ? " · DEF" : "");
+    // Rev769 (Carlos): "DEF · profile" when it is the mode's default,
+    // "AUTO · profile" when the plugin picks the profile by itself (Smart
+    // Pilot by wind, or AUTO WIND), else just the profile.
+    const auto = !!(state.modeProfiles && state.modeProfiles.autoProfile) || !!(state.autowind && state.autowind.enabled);
+    const tag = defs[m] && defs[m] === state.profile ? "DEF · " : auto ? "AUTO · " : "";
+    sub.textContent = tag + state.profile;
     btn.appendChild(sub);
   }
   // Rev545 (Carlos 2026-10-23): route following. Voice announcement of each
