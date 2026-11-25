@@ -5419,3 +5419,26 @@ body.layout-one:not(.lo-controls) #tab-control .dash-rose .rose-wrap {
 /* Rev777: the dots get their own strip under the block, so they never sit
    on the panel's chart or the heel number. */
 body.layout-one #tab-control.active { padding-bottom: 20px !important; }
+
+/* Rev781 (docs/_plan_visor_otros_pilotos_2026-11-25.md): Autopilot Enhanced
+   Visor, the spin-off for any autopilot (html.product-generic, set by app.js
+   from the package path). What only exists with pypilot is hidden: Tune
+   (gains, profiles), the Doctor, Smart Pilot, calibration, the pypilot
+   connection and advanced settings, its Signal K paths, the TinyPilot remote
+   console and backups, the pypilot autopilot check and black box. The tack
+   buttons use pypilot's tack for now; they come back when they go through
+   the Signal K Autopilot API. PyPilot New-UI is not affected. */
+html.product-generic .tab-btn[data-tab="tune"],
+html.product-generic #tab-setup > .setup-block[data-block-key="doctor"],
+html.product-generic #tab-setup > .setup-block[data-block-key="smartpilot"],
+html.product-generic #tab-setup > .setup-block[data-block-key="calibration"],
+html.product-generic #tab-setup > .setup-block[data-block-key="connection"],
+html.product-generic #tab-setup > .setup-block[data-block-key="advanced"],
+html.product-generic #tab-setup > .setup-block[data-block-key="paths"],
+html.product-generic #tab-setup > .setup-block[data-block-key="emergency"],
+html.product-generic #tab-setup > .setup-block[data-block-key="backup"],
+html.product-generic #tab-setup > .setup-block[data-block-key="precheck"],
+html.product-generic #tab-setup > .setup-block[data-block-key="blackbox"],
+html.product-generic #tab-setup > .setup-group-head[data-group="tech"] { display: none !important; }
+html.product-generic #tack-port-btn,
+html.product-generic #tack-star-btn { visibility: hidden; }
