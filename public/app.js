@@ -532,6 +532,7 @@
       "ap.resultUnknown": "No confirmation from the autopilot. Check it on the autopilot itself.",
       "ap.adjustFailed": "The autopilot did not accept the course change.",
       "ap.tackFailed": "The autopilot did not accept the tack.",
+      "ap.modeFailed": "The autopilot did not confirm the mode change.",
       "ap.tackWait": "Tack sent. Wait for it to finish before another one.",
       "ap.pypilotNoAnswer": "pypilot is not answering: command not sent.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
@@ -2170,6 +2171,7 @@
       "ap.resultUnknown": "El piloto no lo ha confirmado. Compruébalo en el propio piloto.",
       "ap.adjustFailed": "El piloto no ha aceptado el cambio de rumbo.",
       "ap.tackFailed": "El piloto no ha aceptado la virada.",
+      "ap.modeFailed": "El piloto no ha confirmado el cambio de modo.",
       "ap.tackWait": "Virada enviada. Espera a que termine antes de otra.",
       "ap.pypilotNoAnswer": "pypilot no responde: orden no enviada.",
       // Rev265 (Carlos): mensaje viene ya formateado por el backend
@@ -3569,6 +3571,7 @@
       "ap.resultUnknown": "Keine Bestätigung vom Autopiloten. Am Autopiloten selbst prüfen.",
       "ap.adjustFailed": "Der Autopilot hat die Kursänderung nicht angenommen.",
       "ap.tackFailed": "Der Autopilot hat die Wende nicht angenommen.",
+      "ap.modeFailed": "Der Autopilot hat den Moduswechsel nicht bestätigt.",
       "ap.tackWait": "Wende gesendet. Vor der nächsten abwarten, bis sie fertig ist.",
       "ap.pypilotNoAnswer": "pypilot antwortet nicht: Befehl nicht gesendet.",
       "doctor.summary.clean":      "Keine relevanten Probleme. Die Gains wirken gesund.",
@@ -5180,6 +5183,7 @@
       "ap.resultUnknown": "Pas de confirmation du pilote. Vérifiez sur le pilote lui-même.",
       "ap.adjustFailed": "Le pilote n'a pas accepté le changement de cap.",
       "ap.tackFailed": "Le pilote n'a pas accepté le virement.",
+      "ap.modeFailed": "Le pilote n'a pas confirmé le changement de mode.",
       "ap.tackWait": "Virement envoyé. Attendez qu'il se termine avant un autre.",
       "ap.pypilotNoAnswer": "pypilot ne répond pas : commande non envoyée.",
       "doctor.summary.clean":      "Aucun problème majeur. Les gains semblent sains.",
@@ -14788,6 +14792,9 @@
       let withPseudo = modeList.includes("aproado") ? modeList : [...modeList, "aproado"];
       if (!withPseudo.includes("empopado")) withPseudo = [...withPseudo, "empopado"];
       if (_autowindAvailable() && !withPseudo.includes("autowind")) withPseudo = _withAutowindAfterCompass(withPseudo);
+      // Rev791: the spin-off lists only the modes its pilot declares
+      // (options.modes); Aproado, Empopado and AUTOWIND drive pypilot.
+      if (PRODUCT === "generic") withPseudo = modeList.slice();
       el.textContent = "";
       // Hidden placeholder (Rev250 race-guard carryover).
       const ph = document.createElement("option");
@@ -15519,6 +15526,11 @@
           applyValue(path, j[leaf]);
         }
       }
+      // Rev791: the modes the pilot declares.
+      if (Array.isArray(j?.options?.modes)) {
+        state.modeList = j.options.modes.filter((m) => typeof m === "string" && m);
+        try { _rebuildModeSelect(); } catch { /* silent */ }
+      }
       // Rev789: the actions the pilot offers right now (tack, gybe...).
       if (Array.isArray(j?.options?.actions)) {
         const av = j.options.actions.filter((a) => a && a.available).map((a) => a.id);
@@ -16212,6 +16224,11 @@
         return r;
       }
       await new Promise((res) => setTimeout(res, 50));
+    }
+    // Rev791: the spin-off reads its pilot once more before giving up.
+    if (PRODUCT === "generic") {
+      try { _genericSeedId = ""; await _genericSeedPilot(state.autopilotId); } catch { /* silent */ }
+      if (confirmed() === target) return r;
     }
     console.warn(`[apSetModeAndWait] timeout ${timeoutMs} ms waiting for state.mode="${mode}" (current: "${state.mode}") — aborting`);
     _mtLog("other", { via: "apSetModeAndWait", name: "timeout", requested: mode, current: state.mode });
@@ -17997,6 +18014,25 @@
       // Rev639 (GPT re-audit of Rev638 C8): a choice still waiting (AUTOWIND
       // holding the wind angle) must not act after a newer choice.
       const selGen = ++_modeSelectGen;
+      // Rev791 (GPT / Gemini review): the spin-off asks its pilot for the
+      // mode and waits for the pilot to report it (4 s). No target of its
+      // own, no pypilot manoeuvres. Not confirmed -> back to the mode the
+      // pilot last reported, and the sailor is told.
+      if (PRODUCT === "generic") {
+        const prevMode = state._confirmedMode ?? null;
+        (async () => {
+          try { await apSetModeAndWait(chosen, 4000); }
+          catch (err) {
+            if (selGen !== _modeSelectGen) return;   // a newer choice meanwhile
+            console.warn("[mode-select] spin-off mode change", err);
+            state.mode = prevMode;
+            try { setSelect("#mode-select", prevMode || ""); } catch { /* silent */ }
+            _renderModeSelectBtn();
+            _apWarnToast(t("ap.modeFailed"));
+          }
+        })();
+        return;
+      }
       // Picking another mode while a pseudo-mode is active ends the
       // maneuver WITHOUT restoring the pre-* mode (usuario ya
       // eligió qué quiere ahora). SÍ restaura el profile (Empopado).
