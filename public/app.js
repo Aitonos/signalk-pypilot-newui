@@ -55,9 +55,65 @@
     const PNU_PYPILOT_ONLY = /^\/plugins\/signalk-(?:pypilot-newui|autopilot-enhanced-visor)\/(?:supervisor|tinypilot|doctor|scan|restart-pypilot|pypilot-web-restart|ssh-exec|debug-cmd|raw|backup|virtual-tack|autowind|mode-profiles|profiles|publish|paths|catalog|values|ap|black-box|prechecks)(?:[\/?]|$)|^\/signalk\/v[12]\/api\/vessels\/self\/steering\/autopilot\/pypilot(?:[\/?]|$)/;
     const origFetch = window.fetch.bind(window);
     const logged = new Set();
+    // Rev797: demo pilot for trying the spin-off and taking its screenshots
+    // on a boat that has no other pilot - only with &pnuDemo=1. It lives in
+    // this page: every Autopilot API call is answered here and NOTHING is
+    // sent to Signal K (the real pilot never hears of it). Its state comes
+    // back as deltas from the source "demo", as a real provider's would.
+    const PNU_DEMO = (() => { try { return new URLSearchParams(location.search).get("pnuDemo") === "1"; } catch { return false; } })();
+    const AP_BASE = "/signalk/v2/api/vessels/self/autopilots";
+    const demo = { state: "standby", engaged: false, mode: "compass", target: null };
+    const demoOptions = {
+      states: [{ name: "standby", engaged: false }, { name: "auto", engaged: true }],
+      modes: ["compass", "wind", "true wind", "route"],
+      actions: [{ id: "tack", name: "Tack", available: true }, { id: "gybe", name: "Gybe", available: true }],
+    };
+    const json = (o, status = 200) => Promise.resolve(new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } }));
+    const wrapPi = (r) => { let x = r; while (x > Math.PI) x -= 2 * Math.PI; while (x <= -Math.PI) x += 2 * Math.PI; return x; };
+    const demoEmit = () => setTimeout(() => {
+      try {
+        handleDelta({ updates: [{ $source: "demo", values: [
+          { path: "steering.autopilot.state", value: demo.state },
+          { path: "steering.autopilot.engaged", value: demo.engaged },
+          { path: "steering.autopilot.mode", value: demo.mode },
+          { path: "steering.autopilot.target", value: demo.target },
+          { path: "steering.autopilot.availableActions", value: demo.engaged ? ["tack", "gybe"] : [] },
+        ] }] });
+      } catch (e) { console.warn("[demo pilot]", e); }
+    }, 350);
+    const demoReference = () => {
+      // what the pilot would hold: heading in compass / route, the wind angle in wind modes
+      if (demo.mode === "wind") return typeof state.windAngle === "number" ? state.windAngle : 0.7;
+      if (demo.mode === "true wind") return typeof state.windAngleTrue === "number" ? state.windAngleTrue : 0.9;
+      return typeof state.heading === "number" ? state.heading : 0;
+    };
+    const demoAnswer = (path, method, body) => {
+      if (path === AP_BASE || path === AP_BASE + "/") return json({ demo: { provider: "demo-pilot", isDefault: true } });
+      if (path === AP_BASE + "/demo" || path === AP_BASE + "/_default") return json({ options: demoOptions, ...demo });
+      const m = path.slice((AP_BASE + "/demo/").length);
+      if (!path.startsWith(AP_BASE + "/demo/")) return json({ state: "FAILED", statusCode: 404, message: "demo pilot only" }, 404);
+      if (m === "engage") { demo.engaged = true; demo.state = "auto"; if (demo.target == null) demo.target = demoReference(); }
+      else if (m === "disengage") { demo.engaged = false; demo.state = "standby"; }
+      else if (m === "mode") { if (demoOptions.modes.includes(body?.value)) { demo.mode = body.value; demo.target = demoReference(); } }
+      else if (m === "target/adjust") { const d = Number(body?.value) * (body?.units === "deg" ? Math.PI / 180 : 1); if (Number.isFinite(d) && demo.target != null) demo.target = wrapPi(demo.target + d); }
+      else if (m === "target") { const v = Number(body?.value) * (body?.units === "deg" ? Math.PI / 180 : 1); if (Number.isFinite(v)) demo.target = wrapPi(v); }
+      else if (/^(tack|gybe)\/(port|starboard)$/.test(m)) {
+        const side = m.endsWith("starboard") ? 1 : -1;
+        if (demo.target != null) demo.target = demo.mode.includes("wind") ? -demo.target : wrapPi(demo.target + side * 100 * Math.PI / 180);
+      }
+      else return json({ state: "FAILED", statusCode: 400, message: "not offered by the demo pilot" }, 400);
+      demoEmit();
+      return json({ state: "COMPLETED", statusCode: 200, message: "ok (demo pilot)" });
+    };
+    if (PNU_DEMO) console.info("[autopilot-enhanced-visor] DEMO PILOT: nothing is sent to the real autopilot");
     window.fetch = (input, init) => {
       let path = "";
       try { path = new URL(typeof input === "string" ? input : (input && input.url) || "", location.href).pathname; } catch { /* keep "" */ }
+      if (PNU_DEMO && path.startsWith(AP_BASE)) {
+        let body = null;
+        try { body = init && typeof init.body === "string" ? JSON.parse(init.body) : null; } catch { /* none */ }
+        return demoAnswer(path, String((init && init.method) || "GET").toUpperCase(), body);
+      }
       if (path && PNU_PYPILOT_ONLY.test(path)) {
         if (!logged.has(path)) { logged.add(path); console.info("[autopilot-enhanced-visor] pypilot-only request not sent:", path); }
         return Promise.resolve(new Response(JSON.stringify({ error: "pypilot-only", blocked: true }), { status: 409, headers: { "Content-Type": "application/json" } }));
@@ -8068,6 +8124,14 @@
       _setText(el, `${ps}${Math.abs(Math.round(pd))}°`);
       _setAttr(el, "fill", "#ff3b30");
       return;
+    }
+    // Rev797: the spin-off shows no error for a mode whose reference is not
+    // certain ("wind" may be apparent or true) - same rule as the target.
+    if (PRODUCT === "generic") {
+      const ref = _apModeRef(state.mode);
+      if (ref == null) { currentRad = null; }
+      else if (ref === "true wind") { currentRad = (typeof state.windAngleTrue === "number") ? state.windAngleTrue : null; }
+      else { currentRad = (typeof state.heading === "number") ? state.heading : null; }
     }
     if (!state.engaged || currentRad == null || targetRad == null) {
       _setText(el, "--");
