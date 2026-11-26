@@ -1027,6 +1027,7 @@
       "sd.free": "Free space",
       "sd.freeShort": "free",
       "sd.freeOf": "{free} GB free of {total} GB",
+      "sd.freeDest": "Where it is saved: {free} GB free of {total} GB. The copy takes about 1.2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copying",
       "bk.restore": "Restore",
       "bk.restoreTitle": "Restore pypilot from this copy?",
@@ -2677,6 +2678,7 @@
       "sd.free": "Espacio libre",
       "sd.freeShort": "libres",
       "sd.freeOf": "{free} GB libres de {total} GB",
+      "sd.freeDest": "Donde se guarda: {free} GB libres de {total} GB. La copia ocupa unos 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copiando",
       "bk.restore": "Restaurar",
       "bk.restoreTitle": "¿Restaurar pypilot desde esta copia?",
@@ -4419,6 +4421,7 @@
       "sd.free": "Freier Platz",
       "sd.freeShort": "frei",
       "sd.freeOf": "{free} GB frei von {total} GB",
+      "sd.freeDest": "Speicherort: {free} GB frei von {total} GB. Die Kopie braucht etwa 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Kopiere",
       "bk.restore": "Wiederherstellen",
       "bk.restoreTitle": "pypilot aus dieser Kopie wiederherstellen?",
@@ -6043,6 +6046,7 @@
       "sd.free": "Espace libre",
       "sd.freeShort": "libres",
       "sd.freeOf": "{free} Go libres sur {total} Go",
+      "sd.freeDest": "Emplacement : {free} Go libres sur {total} Go. La copie occupe environ 1,2 Go.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copie",
       "bk.restore": "Restaurer",
       "bk.restoreTitle": "Restaurer pypilot depuis cette copie ?",
@@ -9488,7 +9492,7 @@
     if (cur && cur.totalBytes) {
       const usedPct = Math.round((cur.totalBytes - cur.freeBytes) * 100 / cur.totalBytes);
       if (spFill) { spFill.style.width = `${usedPct}%`; spFill.style.background = cur.freeBytes < NEED ? "var(--err)" : (usedPct > 85 ? "var(--warn)" : ""); }
-      if (spText) spText.textContent = t("sd.freeOf").replace("{free}", gb(cur.freeBytes)).replace("{total}", gb(cur.totalBytes));
+      if (spText) spText.textContent = t("sd.freeDest").replace("{free}", gb(cur.freeBytes)).replace("{total}", gb(cur.totalBytes));
     } else if (spText) spText.textContent = "—";
     // Rev672: the copy's progress bar.
     const pw = document.getElementById("sd-prog-wrap");
