@@ -5442,6 +5442,12 @@ html.product-generic #tab-setup > .setup-block[data-block-key="blackbox"],
 html.product-generic #tab-setup > .setup-group-head[data-group="tech"] { display: none !important; }
 html.product-generic:not(.ap-can-tack) #tack-port-btn,
 html.product-generic:not(.ap-can-tack) #tack-star-btn { visibility: hidden; }
+/* Rev799: each product shows its own Info blocks. */
+.generic-only { display: none; }
+html.product-generic .generic-only { display: block; }
+html.product-generic .pnu-only { display: none !important; }
+/* Rev799: no profile column in the spin-off's mode window. */
+html.product-generic .mode-popup-group-profile { display: none !important; }
 /* Rev796: no "classic pypilot UI" link in the spin-off's Info tab. */
 html.product-generic #info-oldui-link,
 html.product-generic #tab-info .info-sub .info-sep { display: none; }

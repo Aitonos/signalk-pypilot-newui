@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev798" />
+  <link rel="stylesheet" href="style.css?v=Rev800" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2228,8 +2228,75 @@
           <button type="button" class="ghost" id="tour-replay-info" data-i18n="tour.replay">Replay the guided tour</button>
         </div>
 
+        <!-- Rev799: Autopilot Enhanced Visor's own Info (html.product-generic).
+             PyPilot New-UI's blocks below carry class "pnu-only". -->
+        <div class="generic-only">
+          <div class="safety-notice">
+            <div data-lang="en">
+              <b>Safety notice.</b> This plugin is an aid to navigation and steering. It does not
+              replace the vigilance of the skipper, correct manoeuvring, direct observation of the
+              surroundings, or official charts and notices. It passes your orders to your autopilot
+              through the autopilot's own Signal K plugin, so how the boat responds depends on that
+              plugin and on the autopilot itself. Before relying on it, check in safe waters that
+              every button does what you expect, and keep the autopilot's own control head within reach.
+            </div>
+            <div data-lang="es">
+              <b>Aviso de seguridad.</b> Este plugin es una ayuda a la navegaci&oacute;n y al pilotaje.
+              No sustituye la vigilancia del patr&oacute;n, la maniobra correcta, la observaci&oacute;n directa
+              del entorno ni las cartas y avisos oficiales. Pasa tus &oacute;rdenes a tu piloto a trav&eacute;s del
+              plugin de Signal K del propio piloto, as&iacute; que la respuesta del barco depende de ese plugin y
+              del piloto. Antes de fiarte, comprueba en aguas seguras que cada bot&oacute;n hace lo que esperas,
+              y ten a mano el mando del propio piloto.
+            </div>
+          </div>
+          <div data-lang="en">
+            <div class="section-title">Quick start</div>
+            <ol class="info-list">
+              <li>Install your autopilot's Signal K plugin and choose it as the <b>default autopilot</b> in the Signal K admin.</li>
+              <li><b>Control</b>: <b>AP</b> engages and disengages the autopilot. <b>&plusmn;1 / &plusmn;10</b> change the course.
+                The tack buttons appear when your autopilot can tack or gybe by itself. The mode button lists the modes your autopilot offers.</li>
+              <li>Each order waits for the autopilot to confirm it. If it does not, the screen tells you and goes back to what the autopilot reports.</li>
+              <li><b>Visor settings</b>: long-press a corner. <b>Panel</b>: double tap to change what it shows.</li>
+              <li>If your default autopilot is pypilot, use <b>PyPilot New-UI</b> instead: this visor sends pypilot no orders.</li>
+            </ol>
+          </div>
+          <div data-lang="es">
+            <div class="section-title">Instrucciones r&aacute;pidas</div>
+            <ol class="info-list">
+              <li>Instala el plugin de Signal K de tu piloto y elígelo como <b>piloto por defecto</b> en el admin de Signal K.</li>
+              <li><b>Control</b>: <b>AP</b> conecta y desconecta el piloto. <b>&plusmn;1 / &plusmn;10</b> cambian el rumbo.
+                Los botones de virada aparecen si tu piloto sabe virar o trasluchar por s&iacute; mismo. El bot&oacute;n de modo muestra los modos que ofrece tu piloto.</li>
+              <li>Cada orden espera a que el piloto la confirme. Si no lo hace, la pantalla te avisa y vuelve a lo que diga el piloto.</li>
+              <li><b>Ajustes del visor</b>: pulsaci&oacute;n larga en una esquina. <b>Panel</b>: doble toque para cambiar lo que muestra.</li>
+              <li>Si tu piloto por defecto es pypilot, usa <b>PyPilot New-UI</b>: este visor no le env&iacute;a &oacute;rdenes.</li>
+            </ol>
+          </div>
+          <div data-lang="en">
+            <div class="section-title" style="margin-top:22px">About</div>
+            <p class="info-p">
+              <b>Autopilot Enhanced Visor</b> is a spin-off of
+              <a href="https://github.com/Aitonos/signalk-pypilot-newui" target="_blank" rel="noopener">PyPilot New-UI</a>:
+              the same touch visor (rose, corners, logbook, chart, AIS, tide, data alarms), trimmed down to work with
+              any autopilot that has a Signal K plugin for the Autopilot API. What only pypilot can do (tuning,
+              calibration, the Doctor, servo health, TinyPilot backups) stays in PyPilot New-UI.
+            </p>
+            <p class="info-p">Author: <a href="https://github.com/Aitonos" target="_blank" rel="noopener">Aitonos</a> / Tunatunes.</p>
+          </div>
+          <div data-lang="es">
+            <div class="section-title" style="margin-top:22px">Acerca de</div>
+            <p class="info-p">
+              <b>Autopilot Enhanced Visor</b> es un spin-off de
+              <a href="https://github.com/Aitonos/signalk-pypilot-newui" target="_blank" rel="noopener">PyPilot New-UI</a>:
+              el mismo visor t&aacute;ctil (rosa, esquinas, cuaderno, gr&aacute;fica, AIS, marea, alarmas de datos), recortado
+              para funcionar con cualquier piloto que tenga un plugin de Signal K para la Autopilot API. Lo que solo
+              puede hacer pypilot (ajuste, calibraci&oacute;n, el Doctor, salud del servo, copias del TinyPilot) sigue en PyPilot New-UI.
+            </p>
+            <p class="info-p">Autor: <a href="https://github.com/Aitonos" target="_blank" rel="noopener">Aitonos</a> / Tunatunes.</p>
+          </div>
+        </div>
+
         <!-- Safety notice -->
-        <div class="safety-notice">
+        <div class="safety-notice pnu-only">
           <div data-lang="en">
             <b>Safety notice.</b> This plugin is an aid to navigation and steering. It does not
             replace the vigilance of the skipper, correct manoeuvring, direct observation of the
@@ -2284,7 +2351,7 @@
         </div>
 
         <!-- Quick instructions -->
-        <div>
+        <div class="pnu-only">
           <div data-lang="en">
             <div class="section-title">Quick start</div>
             <ol class="info-list">
@@ -2320,7 +2387,7 @@
         </div>
 
         <!-- Full instructions -->
-        <div>
+        <div class="pnu-only">
           <div data-lang="en">
             <div class="section-title" style="margin-top:22px">Full instructions</div>
 
@@ -2500,7 +2567,7 @@
         </div>
 
         <!-- About -->
-        <div>
+        <div class="pnu-only">
           <div data-lang="en">
             <div class="section-title" style="margin-top:22px">About</div>
             <p class="info-p">
@@ -2576,7 +2643,7 @@
         </div>
 
         <!-- Coexistence with pypilot-autopilot-provider -->
-        <div>
+        <div class="pnu-only">
           <div data-lang="en">
             <div class="section-title" style="margin-top:22px">Working alongside <code>pypilot-autopilot-provider</code></div>
             <p class="info-p">
@@ -3021,6 +3088,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev798"></script>
+  <script src="app.js?v=Rev800"></script>
 </body>
 </html>

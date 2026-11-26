@@ -35,6 +35,13 @@
   try { if (PRODUCT === "generic") document.title = "Autopilot Enhanced Visor"; } catch { /* silent */ }
   // Rev796: and at the top of the Info tab.
   try { const it = document.querySelector("#tab-info .info-title"); if (PRODUCT === "generic" && it) it.textContent = "Autopilot Enhanced Visor"; } catch { /* silent */ }
+  // Rev799: its own companion intro and offline hint wording.
+  try {
+    if (PRODUCT === "generic") {
+      const ci = document.querySelector('#tab-info [data-i18n="info.comp.intro"]');
+      if (ci) ci.setAttribute("data-i18n", "info.comp.introG");
+    }
+  } catch { /* silent */ }
 
   // Rev785 (Gemini / GPT review): one checkpoint for every request of the
   // spin-off. Plugin routes that only make sense with pypilot (its
@@ -785,6 +792,8 @@
       "sess.advice.upload":  "Upload advice JSON",
       "mode.label.compass":   "COMPASS",
       "mode.label.gps":       "GPS",
+      "mode.label.route":     "ROUTE",   // Rev799: other pilots' route mode
+      "mode.label.auto":      "AUTO",
       "mode.label.wind":      "APPARENT WIND",
       "dlg.yes":              "Yes",
       "dlg.no":               "No",
@@ -1316,6 +1325,7 @@
       "zones.err.load": "Could not read the regions",
       "info.comp.title":     "Companion plugins",
       "info.comp.intro":     "The autopilot works with pypilot alone. These plugins unlock the rest; install them from the Signal K App Store.",
+      "info.comp.introG": "These plugins unlock the rest of the visor; install them from the Signal K App Store.",
       "info.comp.ok":        "installed",
       "info.comp.missing":   "not installed",
       "info.comp.unknown":   "cannot check without an admin login",
@@ -2432,6 +2442,8 @@
       "sess.advice.upload":  "Subir JSON de consejos",
       "mode.label.compass":   "COMPÁS",
       "mode.label.gps":       "GPS",
+      "mode.label.route":     "RUTA",   // Rev799: other pilots' route mode
+      "mode.label.auto":      "AUTO",
       "mode.label.wind":      "APARENTE",
       "dlg.yes":              "Sí",
       "dlg.no":               "No",
@@ -2969,6 +2981,7 @@
       "zones.err.load": "No se pudieron leer las regiones",
       "info.comp.title":     "Plugins compañeros",
       "info.comp.intro":     "El piloto funciona solo con pypilot. Estos plugins desbloquean el resto; se instalan desde la App Store de Signal K.",
+      "info.comp.introG": "Estos plugins dan el resto del visor; instálalos desde la App Store de Signal K.",
       "info.comp.ok":        "instalado",
       "info.comp.missing":   "no instalado",
       "info.comp.unknown":   "no se puede comprobar sin login de admin",
@@ -3528,6 +3541,8 @@
       "watch.noFocus":       "(kein aktiver Fokus)",
       "mode.label.compass":   "KOMPASS",
       "mode.label.gps":       "GPS",
+      "mode.label.route":     "ROUTE",   // Rev799: other pilots' route mode
+      "mode.label.auto":      "AUTO",
       "mode.label.wind":      "SCHEINBARER WIND",
       "dlg.yes":              "Ja",
       "dlg.no":               "Nein",
@@ -4617,6 +4632,7 @@
       "zones.err.load": "Regionen konnten nicht gelesen werden",
       "info.comp.title": "Begleit-Plugins",
       "info.comp.intro": "Der Autopilot funktioniert allein mit pypilot. Diese Plugins schalten den Rest frei; installiere sie aus dem Signal K App Store.",
+      "info.comp.introG": "Diese Plugins schalten den Rest der Oberfläche frei; installiere sie aus dem Signal K App Store.",
       "info.comp.ok": "installiert",
       "info.comp.missing": "nicht installiert",
       "info.comp.unknown": "ohne Admin-Login nicht prüfbar",
@@ -5149,6 +5165,8 @@
       "watch.noFocus":       "(aucun focus actif)",
       "mode.label.compass":   "COMPAS",
       "mode.label.gps":       "GPS",
+      "mode.label.route":     "ROUTE",   // Rev799: other pilots' route mode
+      "mode.label.auto":      "AUTO",
       "mode.label.wind":      "VENT APPARENT",
       "dlg.yes":              "Oui",
       "dlg.no":               "Non",
@@ -6238,6 +6256,7 @@
       "zones.err.load": "Impossible de lire les régions",
       "info.comp.title": "Plugins compagnons",
       "info.comp.intro": "Le pilote fonctionne seul avec pypilot. Ces plugins débloquent le reste ; installez-les depuis l'App Store de Signal K.",
+      "info.comp.introG": "Ces plugins débloquent le reste de l'interface ; installez-les depuis l'App Store de Signal K.",
       "info.comp.ok": "installé",
       "info.comp.missing": "non installé",
       "info.comp.unknown": "vérification impossible sans connexion admin",
@@ -7774,7 +7793,7 @@
         // Rev789: the spin-off shows its tack buttons only when the pilot
         // offers a tack or a gybe.
         if (PRODUCT === "generic") {
-          try { document.documentElement.classList.toggle("ap-can-tack", state.availableActions.includes("tack") || state.availableActions.includes("gybe")); } catch { /* silent */ }
+          try { document.documentElement.classList.toggle("ap-can-tack", !!state.apOffersTack || state.availableActions.includes("tack") || state.availableActions.includes("gybe")); } catch { /* silent */ }
         }
         break;
       // Rev63 / 2.0.0: verbatim path is `ap.modes` (was `availableModes` alias).
@@ -15262,7 +15281,7 @@
       list.addEventListener("pointerdown", (ev) => {
         const li = ev.target.closest(".mode-popup-item[data-mode]");
         lpFired = false; lpLi = null;
-        if (!li || !MODE_PROFILE_MODES.includes(li.dataset.mode || "")) return;
+        if (PRODUCT === "generic" || !li || !MODE_PROFILE_MODES.includes(li.dataset.mode || "")) return;   // Rev799: no profiles in the spin-off
         lpLi = li; lpX = ev.clientX; lpY = ev.clientY;
         clearTimeout(lpTimer);
         lpTimer = setTimeout(lpOpen, 600);
@@ -15275,6 +15294,7 @@
         const li = ev.target.closest(".mode-popup-item[data-mode]");
         if (!li) return;
         ev.preventDefault();
+        if (PRODUCT === "generic") return;   // Rev799
         if (!lpLi) lpLi = li;
         if (MODE_PROFILE_MODES.includes(lpLi.dataset.mode || "")) lpOpen();
       });
@@ -15387,7 +15407,9 @@
     // with the reason when true wind is missing (no GPS).
     const awNoTrue = !_autowindAvailable() && (Array.isArray(state.modeList) && state.modeList.includes("wind"));
     if ((_autowindAvailable() || awNoTrue) && !withPseudo.includes("autowind")) withPseudo = _withAutowindAfterCompass(withPseudo);
-    const awOn = !!(state.autowind && state.autowind.enabled);
+    const awOn = PRODUCT !== "generic" && !!(state.autowind && state.autowind.enabled);
+    // Rev799 (Carlos QA): the spin-off's window lists only its pilot's modes.
+    if (PRODUCT === "generic") withPseudo = modeList.slice();
     list.textContent = "";
     for (const v of withPseudo) {
       const li = document.createElement("li");
@@ -15664,6 +15686,9 @@
         state.modeList = j.options.modes.filter((m) => typeof m === "string" && m);
         try { _rebuildModeSelect(); } catch { /* silent */ }
       }
+      // Rev799: tack buttons stay on screen while the pilot offers tacks at
+      // all, even when it cannot right now (Carlos QA: they vanished).
+      state.apOffersTack = Array.isArray(j?.options?.actions) && j.options.actions.some((a) => a && (a.id === "tack" || a.id === "gybe"));
       // Rev789: the actions the pilot offers right now (tack, gybe...).
       if (Array.isArray(j?.options?.actions)) {
         const av = j.options.actions.filter((a) => a && a.available).map((a) => a.id);
@@ -19750,7 +19775,7 @@
         const rev = j.revision || "";
         // Rev727 (Sean, OpenMarine #17): which pypilot this viewer talks to.
         const pyv = !j.pypilotVersion ? "" : /^pypilot/i.test(j.pypilotVersion) ? j.pypilotVersion : `pypilot ${j.pypilotVersion}`;
-        iv.textContent = [ver, rev, pyv].filter(Boolean).join(" · ");
+        iv.textContent = [ver, rev, PRODUCT === "generic" ? "" : pyv].filter(Boolean).join(" · ");   // Rev799: no pypilot version in the spin-off
       }
       const io = document.getElementById("info-oldui-link");
       if (io && j.host) {
