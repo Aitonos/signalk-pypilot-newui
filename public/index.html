@@ -27,7 +27,7 @@
        style.css never shows the rose unstyled on a white page. The rose
        is hidden until style.css (loaded below) makes it visible again. -->
   <style>html,body{background:#0a1220;color:#e6edf3}#wind-rose{visibility:hidden}</style>
-  <link rel="stylesheet" href="style.css?v=Rev805" />
+  <link rel="stylesheet" href="style.css?v=Rev806" />
 </head>
 <body class="theme-dark">
   <!-- Rev490 (GPU audit 2026-10-15): flag the Raspberry Pi's own screen
@@ -2178,6 +2178,15 @@
         <div class="row" style="margin-top:8px">
           <button type="button" class="primary" id="bk-start" style="flex:1 1 auto;min-height:64px;font-size:18px;background:var(--warn);border-color:var(--warn)" data-i18n="bk.start">Start</button>
         </div>
+        <!-- Rev806 (Carlos): a card copy in progress, visible with its window closed -->
+        <div id="bk-run" class="bk-run" hidden>
+          <div class="section-title" data-i18n="bk.runTitle">Backup in progress</div>
+          <div class="doctor-progress-wrap">
+            <div class="doctor-progress-bar"><div class="doctor-progress-fill" id="bk-run-fill"></div></div>
+            <span class="doctor-progress-time" id="bk-run-time"></span>
+          </div>
+          <div class="hint" id="bk-run-text"></div>
+        </div>
         <div class="hint" style="margin-top:10px"><span data-i18n="bk.folder">Backup folder:</span> <a href="#" id="bk-folder" class="bk-dir" data-i18n-title="bk.folderPick" title="Choose another folder"></a></div>
         <details class="cfg-section" style="margin-top:10px">
           <summary data-i18n="bk.available">Available backups</summary>
@@ -3088,6 +3097,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=Rev805"></script>
+  <script src="app.js?v=Rev806"></script>
 </body>
 </html>

@@ -47,8 +47,11 @@ export function sdReadCommand(mib: number): string {
  *    the shell is killed outright. Both are harmless if already done. */
 export const SD_PART = "/mnt/mmcblk0p2";
 const SD_SERVICES = "/etc/sv/pypilot /etc/sv/pypilot_web /etc/sv/pypilot_hat";
+/** Rev806: what puts the TinyPilot back after a card read (card writable,
+ *  pypilot and its web and hat services up). Harmless if already done. */
+export const SD_BACK_COMMAND = `sudo mount -o remount,rw ${SD_PART} >/dev/null 2>&1; sudo sv up ${SD_SERVICES} >/dev/null 2>&1`;
 export function sdReadConsistentCommand(mib: number, netS = 1800): string {
-  const back = `sudo mount -o remount,rw ${SD_PART} >/dev/null 2>&1; sudo sv up ${SD_SERVICES} >/dev/null 2>&1`;
+  const back = SD_BACK_COMMAND;
   // Rev745 (GPT + Gemini): the safety net is killed when the copy ends (it
   // used to wake up 30 min later and could start pypilot in the middle of
   // the next copy), dd is killed before putting things back, and the copy
@@ -56,7 +59,12 @@ export function sdReadConsistentCommand(mib: number, netS = 1800): string {
   // "cmd &" must not be followed by ";" (a syntax error in sh).
   return `setsid sh -c 'sleep ${Math.floor(netS)}; ${back}' </dev/null >/dev/null 2>&1 & NET=$!; ` + [
     // setsid makes the net its own process group: kill the group, sleep included
-    `trap 'kill $DD 2>/dev/null; kill -TERM -$NET 2>/dev/null; kill $NET 2>/dev/null; ${back}' EXIT HUP INT TERM`,
+    // Rev806 (Carlos 2026-11-28, Stop 2 s after the start): a signal used to
+    // kill the shell without the EXIT trap (SIGPIPE was not even trapped:
+    // writing to the closed session killed it) and pypilot stayed down. Now
+    // every signal only exits, and the EXIT trap always puts things back.
+    `trap 'kill $DD 2>/dev/null; kill -TERM -$NET 2>/dev/null; kill $NET 2>/dev/null; ${back}' EXIT`,
+    `trap 'exit 1' HUP INT TERM PIPE`,
     `sudo sv -w 15 down ${SD_SERVICES} >/dev/null 2>&1`,
     `if sudo sv status ${SD_SERVICES} 2>/dev/null | grep -q "^run:"; then echo "PNU_SVUP=1" >&2; exit 3; fi`,
     `sleep 2; sync`,

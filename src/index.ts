@@ -77,7 +77,7 @@ import { SteerWatch } from "./steer-watch";
 import { AutowindDecider, WindSubMode, AUTOWIND_DEFAULT_THRESHOLD_DEG, AUTOWIND_MIN_TWS_KN, freshNumber } from "./autowind";
 import { ManeuverGate } from "./maneuver-gate";
 import { AdminPin } from "./admin-pin";
-import { backupImageName, SD_PROBE_COMMAND, sdImageMiB, sdReadConsistentCommand, isSdImageName, sdImagesToDrop, sdDestinations, isAllowedFolder, folderRoots } from "./tinypilot-sd";
+import { backupImageName, SD_PROBE_COMMAND, SD_BACK_COMMAND, sdImageMiB, sdReadConsistentCommand, isSdImageName, sdImagesToDrop, sdDestinations, isAllowedFolder, folderRoots } from "./tinypilot-sd";
 import { parsePypilotConf, planRestore, CatalogEntry } from "./settings-restore";
 import { CLOCK_PROBE_COMMAND, parseClockProbe, decideClockSync, setClockCommand } from "./tinypilot-clock";
 import { accessScopedRouter, visorOptionsPatch } from "./route-access";
@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev805";
+const PLUGIN_REVISION = "Rev806";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3828,6 +3828,14 @@ module.exports = function (app: any) {
         }
         job.running = false;
         job.finishedTs = Date.now();
+        // Rev806: belt and braces - if pypilot is not back 90 s after the
+        // copy ends (stopped, failed or done), put it back from here too.
+        setTimeout(async () => {
+          if (client?.healthy || _sdJob?.running) return;
+          const b = await _runSsh(SD_BACK_COMMAND, 20000).catch(() => null);
+          // eslint-disable-next-line no-console
+          console.log(`[sd-backup] pypilot not back 90 s after the copy: put back from Signal K (${b ? "sent" : "SSH failed"})`);
+        }, 90_000);
         // eslint-disable-next-line no-console
         console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : (job.check ? (job.check.ok ? "ok, checked" : "DAMAGED " + job.check.detail) : "ok")}${job.consistent ? " (pypilot stopped, card read-only)" : " (pypilot stopped, card stayed read-write)"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
       });

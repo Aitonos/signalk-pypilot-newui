@@ -5011,6 +5011,13 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
 
 /* Rev651: settings backup card. */
 .bk-dir { font-family: ui-monospace, monospace; font-size: 15px; font-weight: 700; color: var(--accent); word-break: break-all; margin: 8px 0 4px; }
+/* Rev806 (Carlos): card copy in progress on the Backups page. */
+.bk-run { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--warn); border-radius: 8px; background: var(--bg-3); }
+.bk-run[hidden] { display: none; }
+.bk-run .section-title { color: var(--warn); margin: 0; }
+.bk-run .doctor-progress-wrap { font-size: 15px; }
+.bk-run .doctor-progress-bar { height: 12px; }
+.bk-run .doctor-progress-time { min-width: 150px; }
 /* Rev804 (Carlos): where to save. Each place is a card with its disk as a
    bar (used | this copy | free) on the progress-bar style. */
 .wz-dest { display: block; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-3); cursor: pointer; }

@@ -46,7 +46,10 @@ describe("TinyPilot SD image (Rev671)", () => {
     const { sdReadConsistentCommand } = require("../tinypilot-sd");
     const c: string = sdReadConsistentCommand(1094, 1800);
     assert.match(c, /setsid sh -c 'sleep 1800; sudo mount -o remount,rw \/mnt\/mmcblk0p2 [^']*sudo sv up [^']*' <\/dev\/null/);
-    assert.match(c, /trap '[^']*remount,rw[^']*sv up[^']*' EXIT HUP INT TERM/);
+    assert.match(c, /trap '[^']*remount,rw[^']*sv up[^']*' EXIT; /);
+    // Rev806: any signal (SIGPIPE too) only exits, so the EXIT trap always runs
+    assert.match(c, /trap 'exit 1' HUP INT TERM PIPE; /);
+    assert.ok(c.indexOf("trap 'exit 1'") < c.indexOf("sv -w 15 down"), "traps set before pypilot is stopped");
     assert.ok(c.indexOf("sv -w 15 down") < c.indexOf("remount,ro") && c.indexOf("remount,ro") < c.indexOf("dd if=/dev/mmcblk0"));
     assert.match(c, /echo "PNU_RO=\$RO" >&2/);
     assert.match(c, /dd if=\/dev\/mmcblk0 bs=1M count=1094 2>\/dev\/null & DD=\$!; wait \$DD$/);

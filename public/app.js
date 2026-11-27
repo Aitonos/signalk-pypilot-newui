@@ -906,6 +906,10 @@
       "bk.start": "Start",
       "bk.startRunning": "Backup in progress · {pct} % — show",   // Rev805
       "bk.startChecking": "Checking the backup — show",
+      "bk.runTitle": "Backup in progress",   // Rev806
+      "bk.runLeft": "about {m} min left",
+      "bk.runLeft1": "less than a minute left",
+      "bk.runNote": "The autopilot comes back by itself when it ends.",
       "wz.makeDesc": "Save your TinyPilot, or move it to a newer version.",
       "wz.restoreDesc": "Bring back a backup you made before.",
       "wz.whichNowDesc": "Keep a copy of your TinyPilot as it is today.",
@@ -2568,6 +2572,10 @@
       "bk.start": "Empezar",
       "bk.startRunning": "Copia en curso · {pct} % — ver",   // Rev805
       "bk.startChecking": "Comprobando la copia — ver",
+      "bk.runTitle": "Backup en curso",   // Rev806
+      "bk.runLeft": "quedan unos {m} min",
+      "bk.runLeft1": "queda menos de un minuto",
+      "bk.runNote": "El piloto vuelve solo al terminar.",
       "wz.makeDesc": "Guarda tu TinyPilot, o pásalo a una versión más nueva.",
       "wz.restoreDesc": "Recupera un backup que hiciste antes.",
       "wz.whichNowDesc": "Guarda una copia de tu TinyPilot tal como está hoy.",
@@ -4322,6 +4330,10 @@
       "bk.start": "Start",
       "bk.startRunning": "Sicherung läuft · {pct} % — anzeigen",   // Rev805
       "bk.startChecking": "Sicherung wird geprüft — anzeigen",
+      "bk.runTitle": "Sicherung läuft",   // Rev806
+      "bk.runLeft": "noch etwa {m} min",
+      "bk.runLeft1": "weniger als eine Minute",
+      "bk.runNote": "Der Autopilot kommt am Ende von selbst zurück.",
       "wz.makeDesc": "Speichere deinen TinyPilot oder bring ihn auf eine neuere Version.",
       "wz.restoreDesc": "Hol eine frühere Sicherung zurück.",
       "wz.whichNowDesc": "Behalte eine Kopie deines TinyPilot, so wie er heute ist.",
@@ -5958,6 +5970,10 @@
       "bk.start": "Commencer",
       "bk.startRunning": "Sauvegarde en cours · {pct} % — voir",   // Rev805
       "bk.startChecking": "Vérification de la sauvegarde — voir",
+      "bk.runTitle": "Sauvegarde en cours",   // Rev806
+      "bk.runLeft": "encore environ {m} min",
+      "bk.runLeft1": "moins d'une minute",
+      "bk.runNote": "Le pilote revient tout seul à la fin.",
       "wz.makeDesc": "Enregistre ton TinyPilot, ou passe-le à une version plus récente.",
       "wz.restoreDesc": "Récupère une sauvegarde faite avant.",
       "wz.whichNowDesc": "Garde une copie de ton TinyPilot tel qu'il est aujourd'hui.",
@@ -9492,6 +9508,7 @@
   }
   // Rev671 (Carlos 2026-11-09): TinyPilot SD card image.
   let _sdPoll = null;
+  let _bkRunSeen = null;   // Rev806: first reading of the running copy (speed)
   async function _sdRefresh() {
     let st = null;
     try { const r = await skFetch(`/plugins/${PLUGIN_ID}/tinypilot/sd-backup/status`); if (r.ok) st = await r.json(); } catch { /* silent */ }
@@ -9507,6 +9524,29 @@
       const pctNow = job && job.running && job.totalBytes ? Math.min(100, Math.round(job.bytes * 100 / job.totalBytes)) : null;
       bs.textContent = !(job && job.running) ? t("bk.start")
         : job.checking ? t("bk.startChecking") : t("bk.startRunning").replace("{pct}", String(pctNow ?? 0));
+    }
+    // Rev806 (Carlos): the copy in progress on the page itself - bar, MB and
+    // time left. The speed is measured here (two readings of this browser's
+    // clock), never from the Pi's start time (the clocks may differ).
+    const run = document.getElementById("bk-run");
+    if (run) {
+      const on = !!(job && job.running);
+      run.hidden = !on;
+      if (!on) _bkRunSeen = null;
+      else {
+        const now = Date.now();
+        if (!_bkRunSeen || _bkRunSeen.file !== job.file || job.bytes < _bkRunSeen.b0) _bkRunSeen = { file: job.file, t0: now, b0: job.bytes };
+        const el = (now - _bkRunSeen.t0) / 1000;
+        const rate = el >= 6 ? (job.bytes - _bkRunSeen.b0) / el : 0;
+        const pct = job.checking ? 100 : (job.totalBytes ? Math.min(100, Math.round(job.bytes * 100 / job.totalBytes)) : 0);
+        const fill = document.getElementById("bk-run-fill");
+        if (fill) fill.style.width = `${pct}%`;
+        const tm = document.getElementById("bk-run-time");
+        if (tm) tm.textContent = job.checking ? "" : `${pct} %` + (rate > 0 ? "  ·  " + ((m) => m < 1 ? t("bk.runLeft1") : t("bk.runLeft").replace("{m}", String(m)))(Math.round((job.totalBytes - job.bytes) / rate / 60)) : "");
+        const tx = document.getElementById("bk-run-text");
+        if (tx) tx.textContent = (job.checking ? t("wz.now.checking")
+          : `${t("wz.now.copying").replace(/…$/, "")}: ${Math.round(job.bytes / 1048576)} / ${Math.round(job.totalBytes / 1048576)} MB.`) + " " + t("bk.runNote");
+      }
     }
     const gb = (b) => (b / 1073741824).toFixed(1);
     // Rev672: destinations, each with its free space.
@@ -9826,6 +9866,7 @@
     const d = document.getElementById("wiz");
     if (d) d.classList.remove("open");
     _wzOpen = false;
+    try { _sdRefresh(); } catch { /* silent */ }   // Rev806: the page shows a copy still running
     if (_wzResolve) { const r = _wzResolve; _wzResolve = null; r("x"); }
   }
   /** Waiting window: resolves "x" if the X is pressed, null after ms. */
