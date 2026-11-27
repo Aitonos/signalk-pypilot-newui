@@ -98,7 +98,7 @@ import {
 
 // Rev counter bumped on every build so the user can distinguish deploys
 // from the webapp header (feedback_revision_bump_each_build).
-const PLUGIN_REVISION = "Rev801";
+const PLUGIN_REVISION = "Rev802";
 
 // Rev59: read package.json once at load time so /status can report the
 // npm package version alongside the internal Rev counter.
@@ -3645,7 +3645,7 @@ module.exports = function (app: any) {
       // into ~/Backups-pypilot-newui; the newest SD_KEEP are kept. It loads
       // the Pi Zero for a few minutes: refused with the autopilot engaged,
       // stopped if it gets engaged meanwhile.
-      type SdJob = { running: boolean; file: string | null; dest: string; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null; consistent?: boolean; checking?: boolean; check?: { ok: boolean; detail: string } };
+      type SdJob = { running: boolean; file: string | null; dest: string; bytes: number; totalBytes: number; startedTs: number; finishedTs: number | null; error: string | null; consistent?: boolean; checking?: boolean; check?: { ok: boolean; detail: string }; cancelled?: boolean };
       let _sdJob: SdJob | null = null;
       // Rev672 (Carlos 2026-11-09): the image can go to a USB stick, disk or
       // network share mounted under /media or /mnt, chosen from this list
@@ -3704,7 +3704,9 @@ module.exports = function (app: any) {
           return { name: n, size, ts, check: _sdCheckOf(require("path").join(dir, n)), note: _noteOf(require("path").join(dir, n)) };
         }).sort((a: any, b: any) => b.ts - a.ts);
       };
-      const _sshStreamToGzip = (cmd: string, file: string, onBytes: (n: number) => void, stillWanted: () => boolean): Promise<{ ok: boolean; bytes: number; error?: string; stderr?: string }> => {
+      // Rev802: stopWhy() returns why the copy must stop now (autopilot
+      // engaged, or the sailor pressed Stop), or null to keep going.
+      const _sshStreamToGzip = (cmd: string, file: string, onBytes: (n: number) => void, stopWhy: () => string | null): Promise<{ ok: boolean; bytes: number; error?: string; stderr?: string }> => {
         return new Promise((resolve) => {
           const fs2 = require("fs");
           const zlib = require("zlib");
@@ -3740,8 +3742,11 @@ module.exports = function (app: any) {
               });
               const out = fs2.createWriteStream(tmp);
               watch = setInterval(() => {
-                if (!stillWanted()) { try { stream.close(); } catch { /* silent */ } finish({ ok: false, bytes, error: "autopilot engaged - copy stopped" }); }
-              }, 5000);
+                const why = stopWhy();
+                // Closing the session kills dd; the trap on the TinyPilot
+                // remounts the card and starts pypilot again.
+                if (why) { try { stream.close(); } catch { /* silent */ } finish({ ok: false, bytes, error: why }); }
+              }, 2000);
               kick();
               stream.pipe(counter).pipe(zlib.createGzip({ level: 1 })).pipe(out);
               out.on("finish", () => {
@@ -3799,7 +3804,8 @@ module.exports = function (app: any) {
         _sdJob = job;
         res.status(202).json({ ok: true, totalBytes: job.totalBytes });
         _setMaintenance("backup", 40 * 60_000);   // Rev742: pypilot stops for the copy
-        const r = await _sshStreamToGzip(sdReadConsistentCommand(mib), file, (n) => { job.bytes = n; }, () => !_apEngagedNow());
+        const r = await _sshStreamToGzip(sdReadConsistentCommand(mib), file, (n) => { job.bytes = n; },
+          () => job.cancelled ? "cancelled" : (_apEngagedNow() ? "autopilot engaged - copy stopped" : null));
         job.consistent = /PNU_RO=1/.test(r.stderr || "");
         // Rev745: the notice goes when pypilot is verified back (not by time).
         if (/PNU_SVUP=1/.test(r.stderr || "")) job.error = "pypilot did not stop: nothing was copied";
@@ -3824,6 +3830,18 @@ module.exports = function (app: any) {
         job.finishedTs = Date.now();
         // eslint-disable-next-line no-console
         console.log(`[sd-backup] ${job.file}: ${job.error ? "FAILED " + job.error : (job.check ? (job.check.ok ? "ok, checked" : "DAMAGED " + job.check.detail) : "ok")}${job.consistent ? " (pypilot stopped, card read-only)" : " (pypilot stopped, card stayed read-write)"} (${Math.round(r.bytes / 1048576)} MiB read in ${Math.round((job.finishedTs - job.startedTs) / 1000)} s)`);
+      });
+      // Rev802 (Carlos 2026-11-27): Stop while the card is being read. The
+      // copy is dropped and pypilot comes back (trap on the TinyPilot).
+      // Once it is only checking the file here, pypilot is already back:
+      // nothing to stop.
+      router.post("/tinypilot/sd-backup/cancel", (req: any, res: any) => {
+        if (!requireSkAdmin(req, res)) return;
+        const job = _sdJob;
+        if (!job || !job.running) { res.status(409).json({ error: "no copy is running" }); return; }
+        if (job.checking) { res.status(409).json({ error: "the copy is already made and being checked" }); return; }
+        job.cancelled = true;
+        res.json({ ok: true });
       });
       // Rev673: folder browser for the SD image destination.
       //   GET /tinypilot/folders           - the roots (home, /media, /mnt)

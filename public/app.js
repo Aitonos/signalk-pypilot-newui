@@ -951,6 +951,11 @@
       "wz.now.title": "Backup",
       "wz.now.go": "Make the backup",
       "wz.now.working": "Making the backup. Do not switch anything off.",
+      "wz.now.stopQ": "The backup is still running.\n\nStop it? The card copy is thrown away and the autopilot is back in about a minute.\n\nIf you keep going, you can close this window: the backup carries on by itself and the autopilot comes back when it ends.",
+      "wz.now.stop": "Stop the backup",
+      "wz.now.keep": "Keep going",
+      "wz.now.stopping": "Stopping the backup…",
+      "wz.now.stopped": "Backup stopped. The card was not copied.\nThe autopilot is starting again and will be ready in about a minute.",
       "wz.now.settings": "Saving the settings…",
       "wz.now.copying": "Copying the card…",
       "wz.now.checking": "Checking the copy is good…",
@@ -1029,6 +1034,7 @@
       "sd.freeOf": "{free} GB free of {total} GB",
       "sd.freeDest": "Where it is saved: {free} GB free of {total} GB. The copy takes about 1.2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copying",
+      "sd.cancelled": "Copy stopped: the card was not copied.",
       "bk.restore": "Restore",
       "bk.restoreTitle": "Restore pypilot from this copy?",
       "bk.restoreBody": "Restores the gains of the {n} profiles in {name}. Profiles you have now and are not in the copy are left as they are. The pilot must stay off; at the end '{active}' is selected again.",
@@ -2602,6 +2608,11 @@
       "wz.now.title": "Copia de seguridad",
       "wz.now.go": "Hacer la copia",
       "wz.now.working": "Haciendo la copia. No apagues nada.",
+      "wz.now.stopQ": "La copia sigue en marcha.\n\n¿Pararla? La copia de la tarjeta se descarta y el piloto vuelve en un minuto más o menos.\n\nSi sigues, puedes cerrar esta ventana: la copia continúa sola y el piloto vuelve al terminar.",
+      "wz.now.stop": "Parar la copia",
+      "wz.now.keep": "Seguir",
+      "wz.now.stopping": "Parando la copia…",
+      "wz.now.stopped": "Copia parada. La tarjeta no se ha copiado.\nEl piloto está arrancando otra vez y estará listo en un minuto más o menos.",
       "wz.now.settings": "Guardando los ajustes…",
       "wz.now.copying": "Copiando la tarjeta…",
       "wz.now.checking": "Comprobando que la copia está bien…",
@@ -2680,6 +2691,7 @@
       "sd.freeOf": "{free} GB libres de {total} GB",
       "sd.freeDest": "Donde se guarda: {free} GB libres de {total} GB. La copia ocupa unos 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copiando",
+      "sd.cancelled": "Copia parada: la tarjeta no se ha copiado.",
       "bk.restore": "Restaurar",
       "bk.restoreTitle": "¿Restaurar pypilot desde esta copia?",
       "bk.restoreBody": "Recupera las ganancias de los {n} perfiles de {name}. Los perfiles que tienes ahora y no están en la copia se quedan como están. El piloto debe seguir desconectado; al terminar se vuelve a seleccionar '{active}'.",
@@ -4345,6 +4357,11 @@
       "wz.now.title": "Sicherung",
       "wz.now.go": "Sicherung machen",
       "wz.now.working": "Sicherung läuft. Nichts ausschalten.",
+      "wz.now.stopQ": "Die Sicherung läuft noch.\n\nAbbrechen? Die Kopie der Karte wird verworfen und der Autopilot ist in etwa einer Minute wieder da.\n\nWenn du weitermachst, kannst du dieses Fenster schließen: Die Sicherung läuft von selbst weiter und der Autopilot kommt am Ende zurück.",
+      "wz.now.stop": "Sicherung abbrechen",
+      "wz.now.keep": "Weitermachen",
+      "wz.now.stopping": "Sicherung wird abgebrochen…",
+      "wz.now.stopped": "Sicherung abgebrochen. Die Karte wurde nicht kopiert.\nDer Autopilot startet neu und ist in etwa einer Minute bereit.",
       "wz.now.settings": "Speichert die Einstellungen…",
       "wz.now.copying": "Kopiert die Karte…",
       "wz.now.checking": "Prüft, ob die Kopie gut ist…",
@@ -4423,6 +4440,7 @@
       "sd.freeOf": "{free} GB frei von {total} GB",
       "sd.freeDest": "Speicherort: {free} GB frei von {total} GB. Die Kopie braucht etwa 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Kopiere",
+      "sd.cancelled": "Kopie abgebrochen: Die Karte wurde nicht kopiert.",
       "bk.restore": "Wiederherstellen",
       "bk.restoreTitle": "pypilot aus dieser Kopie wiederherstellen?",
       "bk.restoreBody": "Stellt die Verstärkungen der {n} Profile aus {name} wieder her. Profile, die du jetzt hast und die nicht in der Kopie sind, bleiben wie sie sind. Der Pilot muss aus bleiben; am Ende wird '{active}' wieder gewählt.",
@@ -5970,6 +5988,11 @@
       "wz.now.title": "Sauvegarde",
       "wz.now.go": "Faire la sauvegarde",
       "wz.now.working": "Sauvegarde en cours. N'éteins rien.",
+      "wz.now.stopQ": "La sauvegarde est toujours en cours.\n\nL'arrêter ? La copie de la carte est abandonnée et le pilote revient dans une minute environ.\n\nSi vous continuez, vous pouvez fermer cette fenêtre : la sauvegarde se poursuit seule et le pilote revient à la fin.",
+      "wz.now.stop": "Arrêter la sauvegarde",
+      "wz.now.keep": "Continuer",
+      "wz.now.stopping": "Arrêt de la sauvegarde…",
+      "wz.now.stopped": "Sauvegarde arrêtée. La carte n'a pas été copiée.\nLe pilote redémarre et sera prêt dans une minute environ.",
       "wz.now.settings": "Enregistrement des réglages…",
       "wz.now.copying": "Copie de la carte…",
       "wz.now.checking": "Vérification de la copie…",
@@ -6048,6 +6071,7 @@
       "sd.freeOf": "{free} Go libres sur {total} Go",
       "sd.freeDest": "Emplacement : {free} Go libres sur {total} Go. La copie occupe environ 1,2 Go.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copie",
+      "sd.cancelled": "Copie arrêtée : la carte n'a pas été copiée.",
       "bk.restore": "Restaurer",
       "bk.restoreTitle": "Restaurer pypilot depuis cette copie ?",
       "bk.restoreBody": "Restaure les gains des {n} profils de {name}. Les profils que vous avez maintenant et qui ne sont pas dans la copie restent tels quels. Le pilote doit rester débrayé ; à la fin '{active}' est sélectionné de nouveau.",
@@ -9510,6 +9534,7 @@
     }
     if (note) {
       if (running) note.textContent = "";
+      else if (job && job.error === "cancelled") note.textContent = t("sd.cancelled");   // Rev802
       else if (job && job.error) note.textContent = `${t("sd.failed")}: ${job.error}`;
       else if (job && job.finishedTs) note.textContent = t("sd.done").replace("{file}", job.file || "") + (job.check ? "  " + (job.check.ok ? t("sd.checkOk") : t("sd.checkBad").replace("{detail}", job.check.detail || "")) : "");
       else note.textContent = "";
@@ -9886,20 +9911,37 @@
       // s === "work": no Back while it works
       let err = null, check = null, file = null, doneDest = "default";
       try {
-        _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
+        // Rev802: the wait ends at once when the X is pressed (drawn resolves "x").
+        let drawn = _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
         await _wzPost("backup/now", { secrets: keep });
         await _wzPost("tinypilot/sd-backup", where);
         for (;;) {
-          await _wzSleep(2000);
+          await Promise.race([_wzSleep(2000), drawn]);
           const j = (await _wzJson("tinypilot/sd-backup/status")).job;
           if (!j) break;
+          // Rev802 (Carlos 2026-11-27): the X while the card is read asks
+          // first. Stop = the copy is dropped and pypilot starts again;
+          // Keep going, or the X again = it goes on by itself on the Pi.
+          if (!_wzOpen && j.running && !j.checking) {
+            const q = await _wz({ title: T, text: t("wz.now.stopQ"), extra: { id: "keep", label: t("wz.now.keep") }, button: { id: "stop", label: t("wz.now.stop") } });
+            if (q === "stop") {
+              drawn = _wz({ title: T, text: t("wz.now.stopping"), progress: { pct: 3, text: t("wz.now.stopping") } });
+              try { await _wzPost("tinypilot/sd-backup/cancel", {}); } catch { /* it ended meanwhile: shown below */ }
+              continue;
+            }
+            if (q !== "keep") return "x";   // closed again: it goes on by itself
+          }
           if (!_wzOpen) return "x";   // closed: the copy goes on by itself
           const pct = j.totalBytes ? Math.round(j.bytes * 95 / j.totalBytes) : 5;
-          _wz({ title: T, text: t("wz.now.working"), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") } });
+          drawn = _wz({ title: T, text: t("wz.now.working"), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") } });
           if (!j.running) { err = j.error; check = j.check; file = j.file; doneDest = j.dest || "default"; break; }
         }
       } catch (e) { err = String(e.message || e); }
       try { _sdRefresh(); _bkpRefresh(); } catch { /* silent */ }
+      if (err === "cancelled") {   // Rev802
+        await _wz({ title: T, text: t("wz.now.stopped"), button: { id: "ok", label: t("wz.done") } });
+        return "x";
+      }
       if (!err && check && check.ok) {
         // Rev742: an optional note, saved next to the copy
         const noteField = `<div class="hint" style="margin-top:10px">${_wzEsc(t("wz.noteOpt"))}</div><input id="wz-note" type="text" class="pm-dialog-input" style="width:100%" maxlength="300" placeholder="${_wzEsc(t("wz.notePh"))}">`;

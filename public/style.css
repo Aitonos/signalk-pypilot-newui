@@ -4294,6 +4294,9 @@ body.pypilot-offline.pypilot-offline-engaged #engage-toggle {
 body.pypilot-offline #pypilot-offline-banner { display: block; }
 /* Rev742: planned stop (backup in progress): information, not an alarm. */
 body.pypilot-maintenance #pypilot-offline-banner { background: var(--accent-dim); animation: none; }
+/* Rev802 (Carlos QA): the backup / update window already says the pilot is
+   stopped and shows the progress; the banner covered its bar. */
+body:has(#wiz.open) #pypilot-offline-banner { display: none !important; }
 /* Rev644: tapped away by the sailor; the controls stay disabled. */
 body.pypilot-offline.pypilot-offline-dismissed #pypilot-offline-banner { display: none; }
 #pypilot-offline-banner { cursor: pointer; }
