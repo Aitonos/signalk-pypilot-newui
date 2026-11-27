@@ -1032,6 +1032,7 @@
       "sd.free": "Free space",
       "sd.freeShort": "free",
       "sd.freeOf": "{free} GB free of {total} GB",
+      "wz.copySize": "The card copy takes about 1.2 GB.",   // Rev803
       "sd.freeDest": "Where it is saved: {free} GB free of {total} GB. The copy takes about 1.2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copying",
       "sd.cancelled": "Copy stopped: the card was not copied.",
@@ -2689,6 +2690,7 @@
       "sd.free": "Espacio libre",
       "sd.freeShort": "libres",
       "sd.freeOf": "{free} GB libres de {total} GB",
+      "wz.copySize": "La copia de la tarjeta ocupa unos 1,2 GB.",   // Rev803
       "sd.freeDest": "Donde se guarda: {free} GB libres de {total} GB. La copia ocupa unos 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copiando",
       "sd.cancelled": "Copia parada: la tarjeta no se ha copiado.",
@@ -4438,6 +4440,7 @@
       "sd.free": "Freier Platz",
       "sd.freeShort": "frei",
       "sd.freeOf": "{free} GB frei von {total} GB",
+      "wz.copySize": "Die Kopie der Karte braucht etwa 1,2 GB.",   // Rev803
       "sd.freeDest": "Speicherort: {free} GB frei von {total} GB. Die Kopie braucht etwa 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Kopiere",
       "sd.cancelled": "Kopie abgebrochen: Die Karte wurde nicht kopiert.",
@@ -6069,6 +6072,7 @@
       "sd.free": "Espace libre",
       "sd.freeShort": "libres",
       "sd.freeOf": "{free} Go libres sur {total} Go",
+      "wz.copySize": "La copie de la carte occupe environ 1,2 Go.",   // Rev803
       "sd.freeDest": "Emplacement : {free} Go libres sur {total} Go. La copie occupe environ 1,2 Go.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copie",
       "sd.cancelled": "Copie arrêtée : la carte n'a pas été copiée.",
@@ -9867,7 +9871,13 @@
     const dests = (st && st.destinations) || [{ id: "default", label: "" }];
     let picked = null;
     for (;;) {
-      const opts = dests.map((d, i) => `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="${_wzEsc(d.id)}" ${(!picked && i === 0) ? "checked" : ""}/> ${_wzEsc(d.label)}${d.freeBytes != null ? ` · ${(d.freeBytes / 1073741824).toFixed(1)} GB` : ""}</label>`).join("")
+      // Rev803 (Carlos; forum, Michael read "90 GB" as the copy's size): say
+      // it is free space, and how much the copy takes.
+      const freeTxt = (d) => d.freeBytes == null ? "" : " · " + (d.totalBytes
+        ? t("sd.freeOf").replace("{free}", (d.freeBytes / 1073741824).toFixed(1)).replace("{total}", (d.totalBytes / 1073741824).toFixed(0))
+        : `${(d.freeBytes / 1073741824).toFixed(1)} GB ${t("sd.freeShort")}`);
+      const opts = dests.map((d, i) => `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="${_wzEsc(d.id)}" ${(!picked && i === 0) ? "checked" : ""}/> ${_wzEsc(d.label)}${_wzEsc(freeTxt(d))}</label>`).join("")
+        + `<div class="hint">${_wzEsc(t("wz.copySize"))}</div>`
         + (picked ? `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="__picked__" checked/> ${_wzEsc(picked)}</label>` : "")
         + `<div style="margin-top:6px"><button type="button" class="ghost" data-wz="other">${_wzEsc(t("wz.otherFolder"))}</button></div>`;
       const r = await _wz({ title, text, html: opts, extra: _wzBack(), button: { id: "ok", label: t("wz.confirm") } });
