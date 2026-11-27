@@ -904,6 +904,8 @@
       "bk.noneYet": "None yet.",
       "bk.folderPick": "Choose the backup folder",
       "bk.start": "Start",
+      "bk.startRunning": "Backup in progress · {pct} % — show",   // Rev805
+      "bk.startChecking": "Checking the backup — show",
       "wz.makeDesc": "Save your TinyPilot, or move it to a newer version.",
       "wz.restoreDesc": "Bring back a backup you made before.",
       "wz.whichNowDesc": "Keep a copy of your TinyPilot as it is today.",
@@ -2564,6 +2566,8 @@
       "bk.noneYet": "Ninguna todavía.",
       "bk.folderPick": "Elegir la carpeta de backups",
       "bk.start": "Empezar",
+      "bk.startRunning": "Copia en curso · {pct} % — ver",   // Rev805
+      "bk.startChecking": "Comprobando la copia — ver",
       "wz.makeDesc": "Guarda tu TinyPilot, o pásalo a una versión más nueva.",
       "wz.restoreDesc": "Recupera un backup que hiciste antes.",
       "wz.whichNowDesc": "Guarda una copia de tu TinyPilot tal como está hoy.",
@@ -4316,6 +4320,8 @@
       "bk.noneYet": "Noch keine.",
       "bk.folderPick": "Sicherungsordner wählen",
       "bk.start": "Start",
+      "bk.startRunning": "Sicherung läuft · {pct} % — anzeigen",   // Rev805
+      "bk.startChecking": "Sicherung wird geprüft — anzeigen",
       "wz.makeDesc": "Speichere deinen TinyPilot oder bring ihn auf eine neuere Version.",
       "wz.restoreDesc": "Hol eine frühere Sicherung zurück.",
       "wz.whichNowDesc": "Behalte eine Kopie deines TinyPilot, so wie er heute ist.",
@@ -5950,6 +5956,8 @@
       "bk.noneYet": "Aucune pour l'instant.",
       "bk.folderPick": "Choisir le dossier des sauvegardes",
       "bk.start": "Commencer",
+      "bk.startRunning": "Sauvegarde en cours · {pct} % — voir",   // Rev805
+      "bk.startChecking": "Vérification de la sauvegarde — voir",
       "wz.makeDesc": "Enregistre ton TinyPilot, ou passe-le à une version plus récente.",
       "wz.restoreDesc": "Récupère une sauvegarde faite avant.",
       "wz.whichNowDesc": "Garde une copie de ton TinyPilot tel qu'il est aujourd'hui.",
@@ -9492,6 +9500,14 @@
     const btn = document.getElementById("sd-now");
     const job = st.job;
     if (btn) btn.disabled = !!(job && job.running);
+    // Rev805 (Carlos): with the window closed, the Start button shows the
+    // copy in progress (tap = its window), so it is never out of sight.
+    const bs = document.getElementById("bk-start");
+    if (bs) {
+      const pctNow = job && job.running && job.totalBytes ? Math.min(100, Math.round(job.bytes * 100 / job.totalBytes)) : null;
+      bs.textContent = !(job && job.running) ? t("bk.start")
+        : job.checking ? t("bk.startChecking") : t("bk.startRunning").replace("{pct}", String(pctNow ?? 0));
+    }
     const gb = (b) => (b / 1073741824).toFixed(1);
     // Rev672: destinations, each with its free space.
     const sel = document.getElementById("sd-dest");
@@ -9848,6 +9864,12 @@
   const _wzBack = () => ({ id: "back", label: t("wz.back") });
   async function _wzStart() {
     const T = t("wz.title");
+    // Rev805 (Carlos): a copy still running opens its progress (it used to
+    // try a second one and fail with "a copy is already running").
+    try {
+      const j = (await _wzJson("tinypilot/sd-backup/status")).job;
+      if (j && j.running) { await _wzBackupNow(true); return _wzClose(); }
+    } catch { /* status unknown: the normal start */ }
     let s = "what";
     for (;;) {
       if (s === "what") {
@@ -9913,9 +9935,11 @@
   }
 
   // ---- make a backup of the installation as it is now ----
-  async function _wzBackupNow() {
+  async function _wzBackupNow(attach) {
     const T = t("wz.now.title");
-    let s = "where", where = null, keep = false;
+    // Rev805 (Carlos): attach = a copy is already running (started earlier,
+    // window closed): straight to its progress, nothing new is started.
+    let s = attach ? "work" : "where", where = null, keep = false;
     for (;;) {
       if (s === "where") {
         where = await _wzWhere(T, t("wz.now.where"), 1.2 * 1073741824);   // Rev804: about what a card copy takes
@@ -9940,9 +9964,12 @@
       let err = null, check = null, file = null, doneDest = "default";
       try {
         // Rev802: the wait ends at once when the X is pressed (drawn resolves "x").
-        let drawn = _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: t("wz.now.settings") } });
-        await _wzPost("backup/now", { secrets: keep });
-        await _wzPost("tinypilot/sd-backup", where);
+        let drawn = _wz({ title: T, text: t("wz.now.working"), progress: { pct: 2, text: attach ? t("wz.now.copying") : t("wz.now.settings") } });
+        if (!attach) {
+          await _wzPost("backup/now", { secrets: keep });
+          await _wzPost("tinypilot/sd-backup", where);
+        }
+        attach = false;   // "Try again" starts a new one
         for (;;) {
           await Promise.race([_wzSleep(2000), drawn]);
           const j = (await _wzJson("tinypilot/sd-backup/status")).job;
@@ -9982,9 +10009,10 @@
         return "x";
       }
       const again = await _wz({ title: T, text: err ? t("wz.now.fail").replace("{why}", _wzHuman(err)) : t("wz.now.bad"), extra: _wzBack(), button: { id: "again", label: t("wz.again") } });
-      if (again === "back") { s = "intro"; continue; }
+      // Rev805: a copy picked up while running has no folder chosen here yet
+      if (again === "back") { s = where ? "intro" : "where"; continue; }
       if (again !== "again") return "x";
-      s = "work";
+      s = where ? "work" : "where";
     }
   }
 
