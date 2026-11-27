@@ -5011,6 +5011,20 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
 
 /* Rev651: settings backup card. */
 .bk-dir { font-family: ui-monospace, monospace; font-size: 15px; font-weight: 700; color: var(--accent); word-break: break-all; margin: 8px 0 4px; }
+/* Rev804 (Carlos): where to save. Each place is a card with its disk as a
+   bar (used | this copy | free) on the progress-bar style. */
+.wz-dest { display: block; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-3); cursor: pointer; }
+.wz-dest:has(input:checked) { border-color: var(--accent); }
+.wz-dest input { margin: 0 8px 0 0; vertical-align: middle; }
+.wz-dest .bk-dir { display: inline; margin: 0; vertical-align: middle; }
+.doctor-progress-bar.disk-bar { display: flex; height: 14px; margin: 10px 0 6px; background: var(--bg-2); }
+.disk-bar .disk-used, .disk-legend i.disk-used { background: var(--fg-dim); opacity: 0.55; }
+.disk-bar .disk-copy, .disk-legend i.disk-copy { background: var(--accent); }
+.disk-bar .disk-copy { min-width: 4px; }
+.disk-bar.disk-short .disk-copy { background: var(--warn); }
+.disk-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--fg-dim); }
+.disk-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.disk-legend i.disk-free { background: var(--bg-2); border: 1px solid var(--border); }
 .bk-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
 .bk-list a { color: var(--fg); font-family: ui-monospace, monospace; font-size: 13px; text-decoration: none; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-3); }
 

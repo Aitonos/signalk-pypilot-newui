@@ -1032,7 +1032,9 @@
       "sd.free": "Free space",
       "sd.freeShort": "free",
       "sd.freeOf": "{free} GB free of {total} GB",
-      "wz.copySize": "The card copy takes about 1.2 GB.",   // Rev803
+      "wz.disk.used": "Used {n} GB",   // Rev804
+      "wz.disk.copy": "This copy ~{n} GB",
+      "wz.disk.free": "Free {n} GB of {t} GB",
       "sd.freeDest": "Where it is saved: {free} GB free of {total} GB. The copy takes about 1.2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copying",
       "sd.cancelled": "Copy stopped: the card was not copied.",
@@ -2690,7 +2692,9 @@
       "sd.free": "Espacio libre",
       "sd.freeShort": "libres",
       "sd.freeOf": "{free} GB libres de {total} GB",
-      "wz.copySize": "La copia de la tarjeta ocupa unos 1,2 GB.",   // Rev803
+      "wz.disk.used": "Usado {n} GB",   // Rev804
+      "wz.disk.copy": "Esta copia ~{n} GB",
+      "wz.disk.free": "Libre {n} GB de {t} GB",
       "sd.freeDest": "Donde se guarda: {free} GB libres de {total} GB. La copia ocupa unos 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copiando",
       "sd.cancelled": "Copia parada: la tarjeta no se ha copiado.",
@@ -4440,7 +4444,9 @@
       "sd.free": "Freier Platz",
       "sd.freeShort": "frei",
       "sd.freeOf": "{free} GB frei von {total} GB",
-      "wz.copySize": "Die Kopie der Karte braucht etwa 1,2 GB.",   // Rev803
+      "wz.disk.used": "Belegt {n} GB",   // Rev804
+      "wz.disk.copy": "Diese Kopie ~{n} GB",
+      "wz.disk.free": "Frei {n} GB von {t} GB",
       "sd.freeDest": "Speicherort: {free} GB frei von {total} GB. Die Kopie braucht etwa 1,2 GB.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Kopiere",
       "sd.cancelled": "Kopie abgebrochen: Die Karte wurde nicht kopiert.",
@@ -6072,7 +6078,9 @@
       "sd.free": "Espace libre",
       "sd.freeShort": "libres",
       "sd.freeOf": "{free} Go libres sur {total} Go",
-      "wz.copySize": "La copie de la carte occupe environ 1,2 Go.",   // Rev803
+      "wz.disk.used": "Utilisé {n} Go",   // Rev804
+      "wz.disk.copy": "Cette copie ~{n} Go",
+      "wz.disk.free": "Libre {n} Go sur {t} Go",
       "sd.freeDest": "Emplacement : {free} Go libres sur {total} Go. La copie occupe environ 1,2 Go.",   // Rev801 (forum, Michael: read 90 GB as the copy size)
       "sd.copying": "Copie",
       "sd.cancelled": "Copie arrêtée : la carte n'a pas été copiée.",
@@ -9865,20 +9873,30 @@
   }
   /** "Where?": the backup folder already chosen (pre-selected), or another
    *  one through the folder browser. Resolves {dest}/{folder}, "back" or null. */
-  async function _wzWhere(title, text) {
+  async function _wzWhere(title, text, copyBytes) {
     let st = null;
     try { st = await _wzJson("tinypilot/sd-backup/status"); } catch { /* default only */ }
     const dests = (st && st.destinations) || [{ id: "default", label: "" }];
     let picked = null;
     for (;;) {
-      // Rev803 (Carlos; forum, Michael read "90 GB" as the copy's size): say
-      // it is free space, and how much the copy takes.
-      const freeTxt = (d) => d.freeBytes == null ? "" : " · " + (d.totalBytes
-        ? t("sd.freeOf").replace("{free}", (d.freeBytes / 1073741824).toFixed(1)).replace("{total}", (d.totalBytes / 1073741824).toFixed(0))
-        : `${(d.freeBytes / 1073741824).toFixed(1)} GB ${t("sd.freeShort")}`);
-      const opts = dests.map((d, i) => `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="${_wzEsc(d.id)}" ${(!picked && i === 0) ? "checked" : ""}/> ${_wzEsc(d.label)}${_wzEsc(freeTxt(d))}</label>`).join("")
-        + `<div class="hint">${_wzEsc(t("wz.copySize"))}</div>`
-        + (picked ? `<label style="display:block;margin:6px 0"><input type="radio" name="wz-dest" value="__picked__" checked/> ${_wzEsc(picked)}</label>` : "")
+      // Rev804 (Carlos; forum, Michael read "90 GB" as the copy's size): each
+      // place shows its disk as a bar - used | this copy | free - with a legend.
+      const GB = 1073741824;
+      const n1 = (b) => { const x = (b / GB).toFixed(1); return currentLang() === "en" ? x : x.replace(".", ","); };
+      const disk = (d) => {
+        if (d.freeBytes == null || !d.totalBytes) return "";
+        const used = Math.max(0, d.totalBytes - d.freeBytes);
+        const copy = copyBytes ? Math.min(copyBytes, d.freeBytes) : 0;
+        const pc = (b) => `${(100 * b / d.totalBytes).toFixed(2)}%`;
+        const short = !!copyBytes && d.freeBytes < copyBytes;
+        return `<div class="doctor-progress-bar disk-bar${short ? " disk-short" : ""}"><div class="disk-used" style="width:${pc(used)}"></div>`
+          + (copyBytes ? `<div class="disk-copy" style="width:${pc(copy)}"></div>` : "") + `</div>`
+          + `<div class="disk-legend"><span><i class="disk-used"></i>${_wzEsc(t("wz.disk.used").replace("{n}", n1(used)))}</span>`
+          + (copyBytes ? `<span><i class="disk-copy"></i>${_wzEsc(t("wz.disk.copy").replace("{n}", n1(copyBytes)))}</span>` : "")
+          + `<span><i class="disk-free"></i>${_wzEsc(t("wz.disk.free").replace("{n}", n1(d.freeBytes)).replace("{t}", n1(d.totalBytes)))}</span></div>`;
+      };
+      const opts = dests.map((d, i) => `<label class="wz-dest"><input type="radio" name="wz-dest" value="${_wzEsc(d.id)}" ${(!picked && i === 0) ? "checked" : ""}/><span class="bk-dir">${_wzEsc(d.label)}</span>${disk(d)}</label>`).join("")
+        + (picked ? `<label class="wz-dest"><input type="radio" name="wz-dest" value="__picked__" checked/><span class="bk-dir">${_wzEsc(picked)}</span></label>` : "")
         + `<div style="margin-top:6px"><button type="button" class="ghost" data-wz="other">${_wzEsc(t("wz.otherFolder"))}</button></div>`;
       const r = await _wz({ title, text, html: opts, extra: _wzBack(), button: { id: "ok", label: t("wz.confirm") } });
       if (r === "back") return "back";
@@ -9900,7 +9918,7 @@
     let s = "where", where = null, keep = false;
     for (;;) {
       if (s === "where") {
-        where = await _wzWhere(T, t("wz.now.where"));
+        where = await _wzWhere(T, t("wz.now.where"), 1.2 * 1073741824);   // Rev804: about what a card copy takes
         if (where === "back") return "back";
         if (!where) return "x";
         s = "keys"; continue;
