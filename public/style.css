@@ -5018,6 +5018,8 @@ body.tour-on #tide-pop .popup-box { max-width: min(560px, 94vw); max-height: non
 .bk-run .doctor-progress-wrap { font-size: 15px; }
 .bk-run .doctor-progress-bar { height: 12px; }
 .bk-run .doctor-progress-time { min-width: 150px; }
+.bk-run #bk-run-stop { margin-top: 8px; }
+.bk-run #bk-run-stop[hidden] { display: none; }
 /* Rev804 (Carlos): where to save. Each place is a card with its disk as a
    bar (used | this copy | free) on the progress-bar style. */
 .wz-dest { display: block; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-3); cursor: pointer; }

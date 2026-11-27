@@ -957,9 +957,11 @@
       "wz.now.title": "Backup",
       "wz.now.go": "Make the backup",
       "wz.now.working": "Making the backup. Do not switch anything off.",
-      "wz.now.stopQ": "The backup is still running.\n\nStop it? The card copy is thrown away and the autopilot is back in about a minute.\n\nIf you keep going, you can close this window: the backup carries on by itself and the autopilot comes back when it ends.",
+      "wz.now.stopQ": "Stop the backup?\nThe card copy is thrown away and the autopilot is back in about a minute.",
       "wz.now.stop": "Stop the backup",
-      "wz.now.keep": "Keep going",
+      "wz.now.keep": "No, keep going",
+      "wz.now.stopYes": "Yes, stop",   // Rev807
+      "wz.now.canClose": "You can close this window: the backup carries on by itself and shows on this page.",
       "wz.now.stopping": "Stopping the backup…",
       "wz.now.stopped": "Backup stopped. The card was not copied.\nThe autopilot is starting again and will be ready in about a minute.",
       "wz.now.settings": "Saving the settings…",
@@ -2623,9 +2625,11 @@
       "wz.now.title": "Copia de seguridad",
       "wz.now.go": "Hacer la copia",
       "wz.now.working": "Haciendo la copia. No apagues nada.",
-      "wz.now.stopQ": "La copia sigue en marcha.\n\n¿Pararla? La copia de la tarjeta se descarta y el piloto vuelve en un minuto más o menos.\n\nSi sigues, puedes cerrar esta ventana: la copia continúa sola y el piloto vuelve al terminar.",
+      "wz.now.stopQ": "¿Parar la copia?\nLa copia de la tarjeta se descarta y el piloto vuelve en un minuto más o menos.",
       "wz.now.stop": "Parar la copia",
-      "wz.now.keep": "Seguir",
+      "wz.now.keep": "No, seguir",
+      "wz.now.stopYes": "Sí, parar",   // Rev807
+      "wz.now.canClose": "Puedes cerrar esta ventana: la copia sigue sola y la ves en esta página.",
       "wz.now.stopping": "Parando la copia…",
       "wz.now.stopped": "Copia parada. La tarjeta no se ha copiado.\nEl piloto está arrancando otra vez y estará listo en un minuto más o menos.",
       "wz.now.settings": "Guardando los ajustes…",
@@ -4381,9 +4385,11 @@
       "wz.now.title": "Sicherung",
       "wz.now.go": "Sicherung machen",
       "wz.now.working": "Sicherung läuft. Nichts ausschalten.",
-      "wz.now.stopQ": "Die Sicherung läuft noch.\n\nAbbrechen? Die Kopie der Karte wird verworfen und der Autopilot ist in etwa einer Minute wieder da.\n\nWenn du weitermachst, kannst du dieses Fenster schließen: Die Sicherung läuft von selbst weiter und der Autopilot kommt am Ende zurück.",
+      "wz.now.stopQ": "Sicherung abbrechen?\nDie Kopie der Karte wird verworfen und der Autopilot ist in etwa einer Minute wieder da.",
       "wz.now.stop": "Sicherung abbrechen",
-      "wz.now.keep": "Weitermachen",
+      "wz.now.keep": "Nein, weiter",
+      "wz.now.stopYes": "Ja, abbrechen",   // Rev807
+      "wz.now.canClose": "Du kannst dieses Fenster schließen: Die Sicherung läuft weiter und wird auf dieser Seite angezeigt.",
       "wz.now.stopping": "Sicherung wird abgebrochen…",
       "wz.now.stopped": "Sicherung abgebrochen. Die Karte wurde nicht kopiert.\nDer Autopilot startet neu und ist in etwa einer Minute bereit.",
       "wz.now.settings": "Speichert die Einstellungen…",
@@ -6021,9 +6027,11 @@
       "wz.now.title": "Sauvegarde",
       "wz.now.go": "Faire la sauvegarde",
       "wz.now.working": "Sauvegarde en cours. N'éteins rien.",
-      "wz.now.stopQ": "La sauvegarde est toujours en cours.\n\nL'arrêter ? La copie de la carte est abandonnée et le pilote revient dans une minute environ.\n\nSi vous continuez, vous pouvez fermer cette fenêtre : la sauvegarde se poursuit seule et le pilote revient à la fin.",
+      "wz.now.stopQ": "Arrêter la sauvegarde ?\nLa copie de la carte est abandonnée et le pilote revient dans une minute environ.",
       "wz.now.stop": "Arrêter la sauvegarde",
-      "wz.now.keep": "Continuer",
+      "wz.now.keep": "Non, continuer",
+      "wz.now.stopYes": "Oui, arrêter",   // Rev807
+      "wz.now.canClose": "Vous pouvez fermer cette fenêtre : la sauvegarde continue seule et s'affiche sur cette page.",
       "wz.now.stopping": "Arrêt de la sauvegarde…",
       "wz.now.stopped": "Sauvegarde arrêtée. La carte n'a pas été copiée.\nLe pilote redémarre et sera prêt dans une minute environ.",
       "wz.now.settings": "Enregistrement des réglages…",
@@ -9543,6 +9551,8 @@
         if (fill) fill.style.width = `${pct}%`;
         const tm = document.getElementById("bk-run-time");
         if (tm) tm.textContent = job.checking ? "" : `${pct} %` + (rate > 0 ? "  ·  " + ((m) => m < 1 ? t("bk.runLeft1") : t("bk.runLeft").replace("{m}", String(m)))(Math.round((job.totalBytes - job.bytes) / rate / 60)) : "");
+        const sb = document.getElementById("bk-run-stop");
+        if (sb) sb.hidden = !!job.checking;   // Rev807: nothing to stop while it only checks the file
         const tx = document.getElementById("bk-run-text");
         if (tx) tx.textContent = (job.checking ? t("wz.now.checking")
           : `${t("wz.now.copying").replace(/…$/, "")}: ${Math.round(job.bytes / 1048576)} / ${Math.round(job.totalBytes / 1048576)} MB.`) + " " + t("bk.runNote");
@@ -10012,24 +10022,25 @@
         }
         attach = false;   // "Try again" starts a new one
         for (;;) {
-          await Promise.race([_wzSleep(2000), drawn]);
+          const ev = await Promise.race([_wzSleep(2000), drawn]);
           const j = (await _wzJson("tinypilot/sd-backup/status")).job;
           if (!j) break;
-          // Rev802 (Carlos 2026-11-27): the X while the card is read asks
-          // first. Stop = the copy is dropped and pypilot starts again;
-          // Keep going, or the X again = it goes on by itself on the Pi.
-          if (!_wzOpen && j.running && !j.checking) {
-            const q = await _wz({ title: T, text: t("wz.now.stopQ"), extra: { id: "keep", label: t("wz.now.keep") }, button: { id: "stop", label: t("wz.now.stop") } });
+          // Rev807 (Carlos: the X asking was a loop): the X only closes (the
+          // copy goes on and the Backups page shows it). "Stop the backup" is
+          // a button of this window, with one plain yes/no question.
+          if (ev === "stop" && j.running && !j.checking) {
+            const q = await _wz({ title: T, text: t("wz.now.stopQ"), extra: { id: "keep", label: t("wz.now.keep") }, button: { id: "stop", label: t("wz.now.stopYes") } });
             if (q === "stop") {
               drawn = _wz({ title: T, text: t("wz.now.stopping"), progress: { pct: 3, text: t("wz.now.stopping") } });
               try { await _wzPost("tinypilot/sd-backup/cancel", {}); } catch { /* it ended meanwhile: shown below */ }
               continue;
             }
-            if (q !== "keep") return "x";   // closed again: it goes on by itself
           }
           if (!_wzOpen) return "x";   // closed: the copy goes on by itself
           const pct = j.totalBytes ? Math.round(j.bytes * 95 / j.totalBytes) : 5;
-          drawn = _wz({ title: T, text: t("wz.now.working"), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") } });
+          const canStop = j.running && !j.checking;
+          drawn = _wz({ title: T, text: t("wz.now.working") + (j.running ? "\n\n" + t("wz.now.canClose") : ""), progress: { pct: j.checking ? 97 : pct, text: j.checking ? t("wz.now.checking") : t("wz.now.copying") },
+            extra: canStop ? { id: "stop", label: t("wz.now.stop") } : null });
           if (!j.running) { err = j.error; check = j.check; file = j.file; doneDest = j.dest || "default"; break; }
         }
       } catch (e) { err = String(e.message || e); }
@@ -10434,6 +10445,18 @@
     try { _sdRefresh(); } catch { /* silent */ }   // fills the folder line and the lists
     const b = document.getElementById("bk-start");
     if (b) b.addEventListener("click", (ev) => { ev.stopPropagation(); if (!_wzOpen) _wzStart().catch(() => _wzClose()); });
+    // Rev807 (Carlos): stop the copy from the page too, same yes/no question.
+    const rs = document.getElementById("bk-run-stop");
+    if (rs) rs.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      if (_wzOpen) return;
+      const T = t("wz.now.title");
+      const q = await _wz({ title: T, text: t("wz.now.stopQ"), extra: { id: "keep", label: t("wz.now.keep") }, button: { id: "stop", label: t("wz.now.stopYes") } });
+      if (q !== "stop") { _wzClose(); return; }
+      try { await _wzPost("tinypilot/sd-backup/cancel", {}); } catch { /* it ended meanwhile */ }
+      await _wz({ title: T, text: t("wz.now.stopped"), button: { id: "ok", label: t("wz.done") } });
+      _wzClose();
+    });
   }
   function _bkpWire() {
     const sdBrowse = document.getElementById("sd-browse");   // Rev673
