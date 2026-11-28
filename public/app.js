@@ -10021,6 +10021,10 @@
           await _wzPost("tinypilot/sd-backup", where);
         }
         attach = false;   // "Try again" starts a new one
+        // Rev808 (Carlos: the Stop button came late): the card copy has just
+        // started - show its window with Stop now, not after the first poll.
+        drawn = _wz({ title: T, text: t("wz.now.working") + "\n\n" + t("wz.now.canClose"), progress: { pct: 3, text: t("wz.now.copying") },
+          extra: { id: "stop", label: t("wz.now.stop") } });
         for (;;) {
           const ev = await Promise.race([_wzSleep(2000), drawn]);
           const j = (await _wzJson("tinypilot/sd-backup/status")).job;
