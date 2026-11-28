@@ -1,5 +1,34 @@
 # Changelog
 
+## 3.19.0 — 2026-11-28 — Clearer backups you can stop, orders to pypilot's own device
+
+Rev779-808 on top of 3.18.2.
+
+- **Backups you can follow and stop** (from Michael's feedback on the
+  OpenMarine forum, and tests on board):
+  - the "backup in progress" banner no longer covers the backup window's
+    progress bar;
+  - the folder step shows each disk as a bar: used, what the card copy
+    takes (about 1.2 GB) and what stays free. "90 GB" was easy to read as
+    the size of the copy;
+  - you can close the backup window: the copy carries on and the Backups
+    page shows it with a bar, the MB copied and the time left. The Start
+    button reads "Backup in progress · 35 % — show" and reopens it; it no
+    longer tries to start a second copy and fail;
+  - **Stop the backup**, in the window or on the page, with one plain
+    yes/no question: the card copy is dropped and pypilot comes back in
+    about a minute.
+- **pypilot always comes back after a card copy:** stopping a copy in its
+  first seconds, while pypilot was being stopped, could leave pypilot down
+  until the 30-minute safety net. Every way out now restarts it, and if
+  pypilot is not back 90 s after a copy, Signal K restarts it as well.
+- **Orders go to pypilot's own device:** with several autopilot providers
+  in Signal K, every order now goes to this plugin's `pypilot-newui`
+  device first, and to the default device only if that one is missing.
+- **Groundwork for a second package:** the same code can now run as a
+  visor for other autopilots through the Signal K Autopilot API (not
+  published yet). In PyPilot New-UI none of it is active.
+
 ## 3.18.2 — 2026-11-25 — Screenshots renewed, one block at a time fixes
 
 Rev776-778 on top of 3.18.1.
